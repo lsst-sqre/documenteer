@@ -4,12 +4,12 @@ from setuptools import setup, find_packages
 import os
 
 
-PACKAGENAME = 'sphinxkit'
-DESCRIPTION = 'Sphinx extensions for LSST DM documentation projects'
+PACKAGENAME = 'documenteer'
+DESCRIPTION = 'Tools for LSST DM documentation projects'
 AUTHOR = 'Jonathan Sick'
 AUTHOR_EMAIL = 'jsick@lsst.org'
 LICENSE = 'MIT'
-URL = 'https://github.com/lsst-sqre/sphinxkit'
+URL = 'https://github.com/lsst-sqre/documenteer'
 VERSION = '0.1.0.dev0'
 
 

@@ -1,8 +1,8 @@
-=========
-sphinxkit
-=========
+===========
+documenteer
+===========
 
-`Sphinx <http://sphinx-doc.org>`_ extensions for `LSST Data Management <http://dm.lsst.org>`_ documentation projects.
+Documentation tools for `LSST Data Management <http://dm.lsst.org>`_ projects, including Sphinx extensions.
 
 Development
 -----------
