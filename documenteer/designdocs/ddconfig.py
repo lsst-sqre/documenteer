@@ -140,9 +140,9 @@ def _build_confs(metadata):
     c['html_theme_path'] = [lsst_dd_rtd_theme.get_html_theme_path()]
 
     c['numfig'] = True
-    c['numfig_format'] = {'figure': 'Figure %s.',
-                          'table': 'Table %s.',
-                          'code-block': 'Listing %s.'}
+    c['numfig_format'] = {'figure': 'Figure %s',
+                          'table': 'Table %s',
+                          'code-block': 'Listing %s'}
 
     # Theme options are theme-specific and customize the look and feel of a
     # theme further.  For a list of options available for each theme, see the
