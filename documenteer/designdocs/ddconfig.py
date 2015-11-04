@@ -121,7 +121,7 @@ def _build_confs(metadata):
 
     # List of patterns, relative to source directory, that match files and
     # directories to ignore when looking for source files.
-    c['exclude_patterns'] = ['_build']
+    c['exclude_patterns'] = ['_build', 'README.rst']
 
     # If true, `todo` and `todoList` produce output, else they produce nothing.
     c['todo_include_todos'] = True
