@@ -107,7 +107,8 @@ def _build_confs(metadata):
     c['extensions'] = ['sphinx.ext.intersphinx',
                        'sphinx.ext.todo',
                        'sphinx.ext.mathjax',
-                       'sphinx.ext.ifconfig']
+                       'sphinx.ext.ifconfig',
+                       'sphinx-prompt']
 
     # The suffix(es) of source filenames.
     # You can specify multiple suffix as a list of string:

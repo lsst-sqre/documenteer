@@ -40,7 +40,7 @@ setup(
     ],
     keywords='sphinx documentation lsst',
     packages=find_packages(exclude=['docs', 'tests*']),
-    install_requires=['future', 'sphinx', 'tox', 'PyYAML'],
+    install_requires=['future', 'sphinx', 'tox', 'PyYAML', 'sphinx-prompt'],
     tests_require=['nose', 'tox'],
     # package_data={},
 )
