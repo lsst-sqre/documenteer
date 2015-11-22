@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 from setuptools import setup, find_packages
 import os
 
@@ -33,7 +31,7 @@ setup(
     license=LICENSE,
     classifiers=[
         'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: MIT',
+        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
