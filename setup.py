@@ -2,13 +2,13 @@ from setuptools import setup, find_packages
 import os
 
 
-PACKAGENAME = 'documenteer'
-DESCRIPTION = 'Tools for LSST DM documentation projects'
-AUTHOR = 'Jonathan Sick'
-AUTHOR_EMAIL = 'jsick@lsst.org'
-LICENSE = 'MIT'
-URL = 'https://github.com/lsst-sqre/documenteer'
-VERSION = '0.1.0'
+packagename = 'documenteer'
+description = 'Tools for LSST DM documentation projects'
+author = 'Jonathan Sick'
+author_email = 'jsick@lsst.org'
+license = 'MIT'
+url = 'https://github.com/lsst-sqre/documenteer'
+version = '0.1.1.dev0'
 
 
 def read(filename):
@@ -21,14 +21,14 @@ long_description = read('README.rst')
 
 
 setup(
-    name=PACKAGENAME,
-    version=VERSION,
-    description=DESCRIPTION,
+    name=packagename,
+    version=version,
+    description=description,
     long_description=long_description,
-    url=URL,
-    author=AUTHOR,
-    author_email=AUTHOR_EMAIL,
-    license=LICENSE,
+    url=url,
+    author=author,
+    author_email=author_email,
+    license=license,
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
