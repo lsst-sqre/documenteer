@@ -1,6 +1,6 @@
-===========
+###########
 documenteer
-===========
+###########
 
 .. image:: https://img.shields.io/pypi/v/documenteer.svg?style=flat-square
 
@@ -12,18 +12,32 @@ documenteer
 
 Documentation tools for `LSST Data Management <http://dm.lsst.org>`_ projects, including Sphinx extensions.
 
+Installation
+============
+
+.. code-block:: bash
+
+   pip install documenteer
+
 Development
------------
+===========
 
-In a checked-out repository, create a virtual environment with your method of choice and run::
+Create a virtual environment with your method of choice (virtualenvwrapper or conda) and then clone or fork, and install::
 
+.. code-block:: bash
+
+   git clone https://github.com/lsst-sqre/documenteer.git
+   pip install -r requirements.txt
    python setup.py develop
 
-To run tests::
+We use `zest.releaser <http://zestreleaser.readthedocs.org>`_ to manage releases.
+To make a release
 
-   tox
+1. Update the :file:`CHANGELOG.rst`
+2. Run ``fullrelease``
+3. ``git push --tags``
 
-Licensing
----------
+License
+=======
 
-MIT Licensed. See `LICENSE` and `COPYRIGHT`.
+MIT Licensed. See :file:`LICENSE` and :file:`COPYRIGHT`.
