@@ -9,3 +9,5 @@ chardet>=2.3.0
 check-manifest>=0.29
 pyroma>=1.8.3
 readme>=0.6.0
+sphinxcontrib-bibtex==0.3.3
+sphinx-prompt==1.0.0
