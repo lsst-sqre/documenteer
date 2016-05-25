@@ -9,10 +9,11 @@ extensions list in :file:`conf.py`::
     ]
 """
 
-from . import jira
+from . import jira, lsstdocushare
 
 
 def setup(app):
     """Wrapper for the `setup` functions of each individual extension module.
     """
     jira.setup(app)
+    lsstdocushare.setup(app)
