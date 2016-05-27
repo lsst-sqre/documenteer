@@ -27,7 +27,7 @@ def _make_ticket_node(ticket_id, config, options=None):
     return link
 
 
-def _comma_seperator(i, length):
+def _comma_separator(i, length):
     """A separator for an entirely comma-separated list given current item
     index `i` and total list length `length`. `None` if there should be
     no separator (last item).
@@ -38,7 +38,7 @@ def _comma_seperator(i, length):
         return None
 
 
-def _oxford_comma_seperator(i, length):
+def _oxford_comma_separator(i, length):
     """Make a separator for a prose-like list with `,` between items except
     for `, and` after the second to last item.
     """
@@ -71,9 +71,9 @@ def jira_role(name, rawtext, text, lineno, inliner,
     n_tickets = len(ticket_ids)
 
     if oxford_comma:
-        sep_factory = _oxford_comma_seperator
+        sep_factory = _oxford_comma_separator
     else:
-        sep_factory = _comma_seperator
+        sep_factory = _comma_separator
 
     node_list = []
     for i, ticket_id in enumerate(ticket_ids):

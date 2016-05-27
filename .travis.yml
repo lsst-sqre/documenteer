@@ -1,0 +1,15 @@
+sudo: false
+language: python
+python:
+  - '2.7'
+  - '3.4'
+  - '3.5'
+  - '3.5-dev'
+matrix:
+  allow_failures:
+    - python: "3.5-dev"
+install:
+  - pip install -r requirements.txt
+  - pip install -e .
+script:
+  - py.test --flake8 --cov=documenteer

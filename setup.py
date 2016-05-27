@@ -8,7 +8,7 @@ author = 'Jonathan Sick'
 author_email = 'jsick@lsst.org'
 license = 'MIT'
 url = 'https://github.com/lsst-sqre/documenteer'
-version = '0.1.3'
+version = '0.1.5'
 
 
 def read(filename):
@@ -38,8 +38,8 @@ setup(
     ],
     keywords='sphinx documentation lsst',
     packages=find_packages(exclude=['docs', 'tests*']),
-    install_requires=['future', 'sphinx', 'tox', 'PyYAML', 'sphinx-prompt',
+    install_requires=['future', 'Sphinx', 'PyYAML', 'sphinx-prompt',
                       'sphinxcontrib-bibtex'],
-    tests_require=['nose', 'tox'],
+    tests_require=['pytest', 'pytest-cov', 'pytest-flake8', 'pytest-mock'],
     # package_data={},
 )

@@ -29,7 +29,7 @@ def lsst_doc_shortlink_role(name, rawtext, text, lineno, inliner,
     options = options or {}
     content = content or []
     node = nodes.reference(
-        text='{0}-{1}'.format(name.upper(), rawtext),
+        text='{0}-{1}'.format(name.upper(), text),
         refuri='http://ls.st/{0}-{1}'.format(name, text),
         **options)
     return [node], []
