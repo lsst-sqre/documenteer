@@ -9,7 +9,7 @@ extensions list in :file:`conf.py`::
     ]
 """
 
-from . import jira, lsstdocushare
+from . import jira, lsstdocushare, mockcoderefs
 
 
 def setup(app):
@@ -17,3 +17,4 @@ def setup(app):
     """
     jira.setup(app)
     lsstdocushare.setup(app)
+    mockcoderefs.setup(app)
