@@ -12,3 +12,5 @@ readme>=0.6.0
 pytest==2.9.1
 sphinxcontrib-bibtex==0.3.3
 sphinx-prompt==1.0.0
+pytest-cov==2.2.1
+pytest-flake8==0.2
