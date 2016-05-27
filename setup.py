@@ -40,6 +40,6 @@ setup(
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=['future', 'Sphinx', 'PyYAML', 'sphinx-prompt',
                       'sphinxcontrib-bibtex'],
-    tests_require=['pytest', 'pytest-cov', 'pytest-flake8'],
+    tests_require=['pytest', 'pytest-cov', 'pytest-flake8', 'pytest-mock'],
     # package_data={},
 )
