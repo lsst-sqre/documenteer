@@ -109,7 +109,8 @@ def _build_confs(metadata):
                        'sphinx.ext.mathjax',
                        'sphinx.ext.ifconfig',
                        'sphinx-prompt',
-                       'sphinxcontrib.bibtex']
+                       'sphinxcontrib.bibtex',
+                       'documenteer.sphinxext']
 
     # The suffix(es) of source filenames.
     # You can specify multiple suffix as a list of string:
