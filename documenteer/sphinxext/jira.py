@@ -32,7 +32,9 @@ def _comma_separator(i, length):
     index `i` and total list length `length`. `None` if there should be
     no separator (last item).
     """
-    if i != length - 1:
+    if length == 1:
+        return None
+    elif i != length - 1:
         return ', '
     else:
         return None
@@ -42,10 +44,11 @@ def _oxford_comma_separator(i, length):
     """Make a separator for a prose-like list with `,` between items except
     for `, and` after the second to last item.
     """
-    if length < 3 and i == 0:
+    if length == 1:
+        return None
+    elif length < 3 and i == 0:
         return ' and '
-
-    if i < length - 2:
+    elif i < length - 2:
         return ', '
     elif i == length - 2:
         return ', and '
