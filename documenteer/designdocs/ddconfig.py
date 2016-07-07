@@ -12,6 +12,8 @@ from __future__ import unicode_literals
 import datetime
 import yaml
 
+import git
+
 import lsst_dd_rtd_theme
 
 
@@ -69,6 +71,18 @@ def configure_sphinx_design_doc(meta_stream):
     return confs
 
 
+def read_git_branch():
+    """Obtain the current branch name from the Git repository."""
+    repo = git.repo.base.Repo(search_parent_directories=True)
+    return repo.active_branch.name
+
+
+def read_git_commit_timestamp():
+    """Obtain the timestamp from the current git commit."""
+    repo = git.repo.base.Repo(search_parent_directories=True)
+    return repo.head.commit.committed_datetime
+
+
 def _build_confs(metadata):
     c = {}
 
@@ -79,8 +93,14 @@ def _build_confs(metadata):
 
     c['copyright'] = metadata['copyright']
 
-    # Short version name
-    c['version'] = metadata['version']
+    if 'version' in metadata:
+        c['version'] = metadata['version']
+    else:
+        # attempt to obtain the version as the Git branch
+        try:
+            c['version'] = read_git_branch()
+        except:
+            c['version'] = ''
 
     # The full version, including alpha/beta/rc tags.
     if 'dev_version_suffix' in metadata:
@@ -88,12 +108,16 @@ def _build_confs(metadata):
     else:
         c['release'] = c['version']
 
+    # Add a version suffix, if available
+    if 'dev_version_suffix' in metadata:
+        c['release'] = ''.join((c['release'], metadata['dev_version_suffix']))
+
     if 'last_revised' in metadata:
-        c['today'] = metadata['last_revised']
+        date = datetime.datetime.strptime(metadata['last_revised'], '%Y-%m-%d')
     else:
-        now = datetime.datetime.now()
-        now = now.replace(microsecond=0)
-        c['today'] = now.isoformat()
+        # obain date from git commit at HEAD
+        date = read_git_commit_timestamp()
+    c['today'] = date.strftime('%Y-%m-%d')
 
     # This is available to Jinja2 templates
     c['html_context'] = {'author_list': metadata['authors'],

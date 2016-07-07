@@ -3,6 +3,7 @@ future>=0.15.2
 sphinx-prompt>=1.0.0
 PyYAML>=3.11
 sphinxcontrib-bibtex>=0.3.4
+GitPython>=2.0.6
 pytest>=2.9.1
 pytest-cov>=2.2.1
 pytest-flake8>=0.5
