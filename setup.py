@@ -39,7 +39,7 @@ setup(
     keywords='sphinx documentation lsst',
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=['future', 'Sphinx', 'PyYAML', 'sphinx-prompt',
-                      'sphinxcontrib-bibtex'],
+                      'sphinxcontrib-bibtex', 'gitpython'],
     tests_require=['pytest', 'pytest-cov', 'pytest-flake8', 'pytest-mock'],
     # package_data={},
 )
