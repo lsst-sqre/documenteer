@@ -28,14 +28,25 @@ Create a virtual environment with your method of choice (virtualenvwrapper or co
 
    git clone https://github.com/lsst-sqre/documenteer.git
    pip install -r requirements.txt
-   python setup.py develop
 
-We use `zest.releaser <http://zestreleaser.readthedocs.org>`_ to manage releases.
-To make a release
+To make a release:
 
-1. Update the :file:`CHANGELOG.rst`
-2. Run ``fullrelease``
-3. ``git push --tags``
+1. Update the :file:`CHANGELOG.rst`.
+2. Increment version in :file:`setup.py`.
+3. Tag: ``git tag -s -m "Version X.Y.Z" vX.Y.Z``
+4. Build:
+
+   .. code-block:: bash
+
+      rm -R dist
+      python setup.py sdist bdist_wheel
+
+5. Upload:
+
+   .. code-block:: bash
+
+      twine upload dist/*
+      git push --tags
 
 License
 =======
