@@ -3,7 +3,7 @@
 from datetime import datetime
 import pytest
 
-from documenteer.designdocs.ddconfig import _build_confs
+from documenteer.designdocs.ddconfig import _build_confs, read_git_branch
 
 
 @pytest.fixture()
@@ -25,7 +25,8 @@ def sample_metadata():
 
 @pytest.mark.parametrize(
     'branch_name', ['master', 'tickets/DM-0000'])
-def test_git_version(mocker, sample_metadata, branch_name):
+def test_git_version(monkeypatch, mocker, sample_metadata, branch_name):
+    monkeypatch.setenv('TRAVIS', 'false')
     import documenteer.designdocs.ddconfig
     documenteer.designdocs.ddconfig.read_git_branch = mocker.MagicMock()
     documenteer.designdocs.ddconfig.read_git_branch.return_value = branch_name
@@ -40,7 +41,9 @@ def test_git_version(mocker, sample_metadata, branch_name):
 @pytest.mark.parametrize(
     'input,expected',
     [(datetime(2016, 7, 1), '2016-07-01')])
-def test_git_last_revised(mocker, sample_metadata, input, expected):
+def test_git_last_revised(monkeypatch, mocker, sample_metadata,
+                          input, expected):
+    monkeypatch.setenv('TRAVIS', 'false')
     import documenteer.designdocs.ddconfig
     documenteer.designdocs.ddconfig.read_git_commit_timestamp \
         = mocker.MagicMock()
@@ -55,12 +58,22 @@ def test_git_last_revised(mocker, sample_metadata, input, expected):
     assert config['html_context']['last_revised'] == expected
 
 
-def test_hard_coded_version(sample_metadata):
+def test_hard_coded_version(monkeypatch, sample_metadata):
+    monkeypatch.setenv('TRAVIS', 'false')
     config = _build_confs(sample_metadata)
     assert config['version'] == sample_metadata['version']
 
 
-def test_hard_coded_last_revised(sample_metadata):
+def test_hard_coded_last_revised(monkeypatch, sample_metadata):
+    monkeypatch.setenv('TRAVIS', 'false')
     config = _build_confs(sample_metadata)
     assert config['html_context']['last_revised'] \
         == sample_metadata['last_revised']
+
+
+def test_branch_name_on_travis(monkeypatch, sample_metadata):
+    monkeypatch.setenv('TRAVIS', 'true')
+    monkeypatch.setenv('TRAVIS_BRANCH', 'my-travis-branch')
+
+    b = read_git_branch()
+    assert b == 'my-travis-branch'

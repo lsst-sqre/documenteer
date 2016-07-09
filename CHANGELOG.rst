@@ -1,6 +1,11 @@
 Changelog for documenteer
 =========================
 
+0.1.9 (2016-07-08)
+------------------
+
+- Enhanced the ``version`` metadata change from v0.1.8 to work on Travis CI, by using the ``TRAVIS_BRANCH``.
+
 0.1.8 (2016-07-08)
 ------------------
 

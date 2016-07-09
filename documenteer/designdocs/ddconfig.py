@@ -9,6 +9,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import os
 import datetime
 import yaml
 
@@ -72,9 +73,17 @@ def configure_sphinx_design_doc(meta_stream):
 
 
 def read_git_branch():
-    """Obtain the current branch name from the Git repository."""
-    repo = git.repo.base.Repo(search_parent_directories=True)
-    return repo.active_branch.name
+    """Obtain the current branch name from the Git repository. If on Travis CI,
+    use the ``TRAVIS_BRANCH`` environment variable.
+    """
+    if os.getenv('TRAVIS'):
+        return os.getenv('TRAVIS_BRANCH')
+    else:
+        try:
+            repo = git.repo.base.Repo(search_parent_directories=True)
+            return repo.active_branch.name
+        except:
+            return ''
 
 
 def read_git_commit_timestamp():
@@ -97,10 +106,7 @@ def _build_confs(metadata):
         c['version'] = metadata['version']
     else:
         # attempt to obtain the version as the Git branch
-        try:
-            c['version'] = read_git_branch()
-        except:
-            c['version'] = ''
+        c['version'] = read_git_branch()
 
     # The full version, including alpha/beta/rc tags.
     if 'dev_version_suffix' in metadata:
