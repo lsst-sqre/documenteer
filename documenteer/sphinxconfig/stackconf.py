@@ -185,7 +185,10 @@ def build_package_configs(project_name, copyright, version):
 
     # -- Options for HTML output ----------------------------------------------
 
-    c['templates_path'] = ['_templates']
+    c['templates_path'] = [
+        '_templates',
+        lsst_sphinx_bootstrap_theme.get_html_templates_path()]
+
     c['html_theme'] = 'lsst_sphinx_bootstrap_theme'
     c['html_theme_path'] = [lsst_sphinx_bootstrap_theme.get_html_theme_path()]
 
