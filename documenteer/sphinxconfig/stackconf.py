@@ -4,7 +4,6 @@
 """Sphinx configuration defaults for LSST Stack packages."""
 
 import sys
-import os
 import warnings
 
 import lsst_sphinx_bootstrap_theme
@@ -12,7 +11,8 @@ import lsst_sphinx_bootstrap_theme
 from .utils import read_git_commit_timestamp
 
 
-def build_package_configs(project_name, copyright, version):
+def build_package_configs(project_name, copyright, version,
+                          doxygen_xml_dirname=None):
     """Builds a `dict` of Sphinx configurations useful for the ``doc/conf.py``
     files of individual LSST Stack packages.
 
@@ -47,6 +47,10 @@ def build_package_configs(project_name, copyright, version):
     version : str
         Version string. Use the ``__version__`` member in a package's
         ``version`` module.
+    doxygen_xml_dirname : str
+        Path to doxygen-generated XML, allowing C++ APIs to be documented
+        through breathe. If not set, the breathe sphinx extension will not be
+        enabled.
 
     Returns
     -------
@@ -182,6 +186,11 @@ def build_package_configs(project_name, copyright, version):
         '-Gfontsize=10',
         '-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif'
     ]
+
+    if doxygen_xml_dirname is not None:
+        c['extensions'].append('breathe')
+        c['breathe_projects'] = {project_name: doxygen_xml_dirname}
+        c['breathe_default_project'] = project_name
 
     # -- Options for HTML output ----------------------------------------------
 
