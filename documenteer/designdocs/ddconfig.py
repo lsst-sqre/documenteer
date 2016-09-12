@@ -261,7 +261,7 @@ def _build_confs(metadata):
     # Output file base name for HTML help builder.
     c['htmlhelp_basename'] = '{0}_{1}'.format(
         metadata['doc_id'],
-        metadata['doc_title'].replace(' ', '_'))
+        metadata['doc_title'].replace(' ', '_').replace(':', '_'))
 
     # -- Options for LaTeX output ---------------------------------------------
 
@@ -285,7 +285,7 @@ def _build_confs(metadata):
     c['latex_documents'] = [
         (c['master_doc'],
          '{0}_{1}.tex'.format(metadata['doc_id'],
-                              metadata['doc_title'].replace(' ', '_')),
+                              metadata['doc_title'].replace(' ', '_').replace(':', '_')),
          c['project'],
          c['author'],
          'manual'),
@@ -320,7 +320,7 @@ def _build_confs(metadata):
     c['epub_copyright'] = c['copyright']
 
     # The basename for the epub file. It defaults to the project name.
-    c['epub_basename'] = c['project'].replace(' ', '_')
+    c['epub_basename'] = c['project'].replace(' ', '_').replace(':', '_')
 
     # The HTML theme for the epub output. Since the default themes are not
     # optimized for small screen space, using the same theme for HTML and epub
