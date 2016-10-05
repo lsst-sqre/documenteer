@@ -141,7 +141,7 @@ def build_package_configs(project_name, copyright, version,
     # This is added to the end of RST files - a good place to put substitutions
     # to be used globally.
     c['rst_epilog'] = """
-    .. _Astropy: http://astropy.org
+.. _Astropy: http://astropy.org
     """
 
     # A list of warning types to suppress arbitrary warning messages. We mean
