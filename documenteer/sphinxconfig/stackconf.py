@@ -169,7 +169,7 @@ def build_package_configs(project_name, copyright, version,
 
     c['autosummary_generate'] = True
 
-    c['automodapi_toctreedirnm'] = 'api'
+    c['automodapi_toctreedirnm'] = 'py-api'
 
     # Class documentation should contain *both* the class docstring and
     # the __init__ docstring
