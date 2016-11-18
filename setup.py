@@ -17,6 +17,7 @@ def read(filename):
         filename)
     return open(full_filename).read()
 
+
 long_description = read('README.rst')
 
 
@@ -49,5 +50,4 @@ setup(
                    'pytest-cov',
                    'pytest-flake8',
                    'pytest-mock'],
-    # package_data={},
 )
