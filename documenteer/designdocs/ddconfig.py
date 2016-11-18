@@ -249,6 +249,10 @@ def _build_confs(metadata):
     # Language to be used for generating the HTML full-text search index.
     c['html_search_language'] = 'en'
 
+    # MathJax CDN
+    c['mathjax_path'] = 'https://cdn.mathjax.org/mathjax/latest/' + \
+                        'MathJax.js?config=default'
+
     # A dictionary with options for the search language support, empty by
     # default.  Now only 'ja' uses this config value
     # html_search_options = {'type': 'default'}
