@@ -8,7 +8,7 @@ author = 'Jonathan Sick'
 author_email = 'jsick@lsst.org'
 license = 'MIT'
 url = 'https://github.com/lsst-sqre/documenteer'
-version = '0.1.9'
+version = '0.1.10'
 
 
 def read(filename):
