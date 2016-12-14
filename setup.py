@@ -46,6 +46,7 @@ setup(
                       'sphinxcontrib-bibtex',
                       'GitPython',
                       'astropy-helpers>=0.2.0',
+                      'breathe==4.4.0',
                       'lsst-dd-rtd-theme==0.1.0',
                       'lsst-sphinx-bootstrap-theme>=0.1.0'],
     tests_require=['pytest',
