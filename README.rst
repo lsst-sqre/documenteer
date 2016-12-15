@@ -22,7 +22,7 @@ Installation
 Development
 ===========
 
-Create a virtual environment with your method of choice (virtualenvwrapper or conda) and then clone or fork, and install::
+Create a virtual environment with your method of choice (virtualenvwrapper or conda) and then clone or fork, and install:
 
 .. code-block:: bash
 
