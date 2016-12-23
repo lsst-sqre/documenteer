@@ -9,13 +9,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import os
 import datetime
 import yaml
 
-import git
-
 import lsst_dd_rtd_theme
+
+from ..sphinxconfig.utils import read_git_branch, read_git_commit_timestamp
 
 
 def configure_sphinx_design_doc(meta_stream):
@@ -70,26 +69,6 @@ def configure_sphinx_design_doc(meta_stream):
     _metadata = yaml.load(meta_stream)
     confs = _build_confs(_metadata)
     return confs
-
-
-def read_git_branch():
-    """Obtain the current branch name from the Git repository. If on Travis CI,
-    use the ``TRAVIS_BRANCH`` environment variable.
-    """
-    if os.getenv('TRAVIS'):
-        return os.getenv('TRAVIS_BRANCH')
-    else:
-        try:
-            repo = git.repo.base.Repo(search_parent_directories=True)
-            return repo.active_branch.name
-        except:
-            return ''
-
-
-def read_git_commit_timestamp():
-    """Obtain the timestamp from the current git commit."""
-    repo = git.repo.base.Repo(search_parent_directories=True)
-    return repo.head.commit.committed_datetime
 
 
 def _build_confs(metadata):

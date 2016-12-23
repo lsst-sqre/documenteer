@@ -1,6 +1,16 @@
 Changelog for documenteer
 =========================
 
+0.1.10 (2016-12-14)
+-------------------
+
+Includes prototype support for LSST Science Pipelines documentation, as part of `DM-6199 <https://jira.lsstcorp.org/browse/DM-6199>`__:
+
+- Added dependencies to `breathe <http://breathe.readthedocs.io/en/latest/>`__, `astropy-helpers <https://github.com/astropy/astropy-helpers>`__ and the `lsst-sphinx-bootstrap-theme <https://github.com/lsst-sqre/lsst-sphinx-bootstrap-theme>`__ to generally coordinate LSST Science Pipelines documentation dependencies.
+- Created ``documenteer.sphinxconfig.stackconf`` module to centrally coordinate Science Pipelines documentation configuration. Much of the configuration is based on `astropy-helper's Sphinx configuration <https://github.com/astropy/astropy-helpers/blob/master/astropy_helpers/sphinx/conf.py>`__ since the LSST Science Pipelines documentation is heavily based upon Astropy's Sphinx theme and API reference generation infrastructure.
+  Also includes prototype configuration for breathe (the doxygen XML bridge).
+- Updated test harness (pytest and plugin versions).
+
 0.1.9 (2016-07-08)
 ------------------
 

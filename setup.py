@@ -8,7 +8,7 @@ author = 'Jonathan Sick'
 author_email = 'jsick@lsst.org'
 license = 'MIT'
 url = 'https://github.com/lsst-sqre/documenteer'
-version = '0.1.9'
+version = '0.1.10'
 
 
 def read(filename):
@@ -40,12 +40,15 @@ setup(
     keywords='sphinx documentation lsst',
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=['future',
-                      'Sphinx',
+                      'Sphinx>=1.5.1',
                       'PyYAML',
                       'sphinx-prompt',
                       'sphinxcontrib-bibtex',
                       'GitPython',
-                      'lsst-dd-rtd-theme==0.1.0'],
+                      'astropy-helpers>=0.2.0',
+                      'breathe==4.4.0',
+                      'lsst-dd-rtd-theme==0.1.0',
+                      'lsst-sphinx-bootstrap-theme>=0.1.0'],
     tests_require=['pytest',
                    'pytest-cov',
                    'pytest-flake8',
