@@ -13,3 +13,14 @@ install:
   - pip install -e .
 script:
   - py.test --flake8 --cov=documenteer
+deploy:
+  provider: pypi
+  user: sqre-admin
+  skip_upload_docs: true
+  distributions: sdist bdist_wheel
+  password:
+    # PyPI deployment credentials for sqre-admin
+    secure: "g8YSFDE7Bc+DGC6VoI+9UX9oS7ucEu42XxkC+CBzc20seWldaLL7uL2roNJTKTqb8lq7m7eWxub25XTKjlBMYbeu53djmbAAvwhiwjG68PMHlA6RF10Sk05wChjhK7QwFMXXQ82jsDOtI/o5wgxinjR7WBXvFyA94LAkpTIErN3GMy5X3HAEl8X9XhvF+NUu3UfJni6dboSISJomTmP9BMRUqIzoQAs5OGHK6GTy+A0Im/cTYcd2B7vQMqkGVTsaB0NIv+HeCkFqUP0okwfLZTO13IqEfBf7N+xHir47f1ecsBKvppIHn58ypG8bM9A7YTndIX4gKQxYgGPQGIKJ1Y957pHr12EIkAn3bfToTQhmyCsPWLMFaQbmti5fdVUVsAuPRivWtf2O4NI8DvNj/F+zyGQ1BOaaiO4Oe4WWdZrtyk+B53RJvNCjcEE3g9gVHauaZ9bhxjN2fV7YdVL9vt0o6WFyhQrNDM3N9oQ2Fh3614ZAEi2/XaXOsgoLoV+NbgD3f6fMRwpnmtF+lt6QmWIUM9L9OZp3nQZ59lUPtnAjvSJOwYaKzNNnYBSJkLdCSzpeyWGemCxTGIPkVWjouOm45P3Q2VGwuoy4T5uPFrfL2h1U0MLxfARdLzgz40p7J1/gYrN7ZzEqxA8xq6B90SM1rFTm8IFzalFOnl0iuXY="
+  on:
+    tags: true
+    repo: lsst-sqre/documenteer
