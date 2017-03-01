@@ -1,6 +1,12 @@
 Changelog for documenteer
 =========================
 
+0.1.11 (2017-03-01)
+-------------------
+
+- Add ``documenteer.sphinxconfi.utils.form_ltd_edition_name`` to form LSST the Docs-like edition names for Git refs.
+- Configure automated PyPI deployments with Travis.
+
 0.1.10 (2016-12-14)
 -------------------
 
