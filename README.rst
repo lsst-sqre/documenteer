@@ -15,40 +15,31 @@ Documentation tools for `LSST Data Management <http://dm.lsst.org>`_ projects, i
 Installation
 ============
 
-.. code-block:: bash
+::
 
    pip install documenteer
 
 Development
 ===========
 
-Create a virtual environment with your method of choice (virtualenvwrapper or conda) and then clone or fork, and install:
-
-.. code-block:: bash
+Create a virtual environment with your method of choice (virtualenvwrapper or conda) and then clone or fork, and install::
 
    git clone https://github.com/lsst-sqre/documenteer.git
    pip install -r requirements.txt
 
 To make a release:
 
-1. Update the :file:`CHANGELOG.rst`.
-2. Increment version in :file:`setup.py`.
-3. Tag: ``git tag -s -m "Version X.Y.Z" vX.Y.Z``
-4. Build:
+1. Update ``CHANGELOG.rst``.
+2. Increment version in ``setup.py``.
+3. Tag: ``git tag -s -m "vX.Y.Z" vX.Y.Z``
+4. Push: ``git push --tags``
 
-   .. code-block:: bash
+`Travis <https://travis-ci.org/lsst-sqre/documenteer>`_ should handle the PyPI deployment.
 
-      rm -R dist
-      python setup.py sdist bdist_wheel
+License and info
+================
 
-5. Upload:
+Copyright 2015-2017 Association of Universities for Research in Astronomy, Inc.
 
-   .. code-block:: bash
-
-      twine upload dist/*
-      git push --tags
-
-License
-=======
-
-MIT Licensed. See :file:`LICENSE` and :file:`COPYRIGHT`.
+MIT licensed.
+See `LICENSE <./LICENSE>`_ and `COPYRIGHT <./COPYRIGHT>`.
