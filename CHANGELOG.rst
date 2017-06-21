@@ -5,6 +5,7 @@ Unreleased
 ----------
 
 - Use `versioneer <https://github.com/warner/python-versioneer>`_ for version management.
+- Move the ``ddconfig.py`` module for technical note Sphinx project configuration to the ``documenteer.sphinxconfig.technoteconf`` namespace for similarity with the ``stackconf`` module.
 
 0.1.11 (2017-03-01)
 -------------------

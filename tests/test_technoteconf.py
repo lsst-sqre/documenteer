@@ -3,7 +3,7 @@
 from datetime import datetime
 import pytest
 
-from documenteer.designdocs.ddconfig import _build_confs, read_git_branch
+from documenteer.sphinxconfig.technoteconf import _build_confs, read_git_branch
 
 
 @pytest.fixture()
@@ -27,9 +27,10 @@ def sample_metadata():
     'branch_name', ['master', 'tickets/DM-0000'])
 def test_git_version(monkeypatch, mocker, sample_metadata, branch_name):
     monkeypatch.setenv('TRAVIS', 'false')
-    import documenteer.designdocs.ddconfig
-    documenteer.designdocs.ddconfig.read_git_branch = mocker.MagicMock()
-    documenteer.designdocs.ddconfig.read_git_branch.return_value = branch_name
+    import documenteer.sphinxconfig.technoteconf
+    documenteer.sphinxconfig.technoteconf.read_git_branch = mocker.MagicMock()
+    documenteer.sphinxconfig.technoteconf.read_git_branch.return_value = \
+        branch_name
 
     sample_metadata.pop('version')
 
@@ -44,11 +45,9 @@ def test_git_version(monkeypatch, mocker, sample_metadata, branch_name):
 def test_git_last_revised(monkeypatch, mocker, sample_metadata,
                           input, expected):
     monkeypatch.setenv('TRAVIS', 'false')
-    import documenteer.designdocs.ddconfig
-    documenteer.designdocs.ddconfig.read_git_commit_timestamp \
-        = mocker.MagicMock()
-    documenteer.designdocs.ddconfig.read_git_commit_timestamp.return_value \
-        = input
+    import documenteer.sphinxconfig.technoteconf as technoteconf
+    technoteconf.read_git_commit_timestamp = mocker.MagicMock()
+    technoteconf.read_git_commit_timestamp.return_value = input
 
     sample_metadata.pop('last_revised')
 

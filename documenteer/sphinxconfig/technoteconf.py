@@ -1,7 +1,4 @@
-#!/usr/bin/env python
-# encoding: utf-8
-"""
-Sphinx configuration bootstrapping for LSST Design Documents.
+"""Sphinx configuration bootstrapping for LSST Technical Notes.
 """
 
 from __future__ import absolute_import
