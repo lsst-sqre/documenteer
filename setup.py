@@ -1,4 +1,6 @@
 from setuptools import setup, find_packages
+import versioneer
+
 import os
 
 
@@ -8,7 +10,6 @@ author = 'Jonathan Sick'
 author_email = 'jsick@lsst.org'
 license = 'MIT'
 url = 'https://github.com/lsst-sqre/documenteer'
-version = '0.1.11'
 
 
 def read(filename):
@@ -23,7 +24,8 @@ long_description = read('README.rst')
 
 setup(
     name=packagename,
-    version=version,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     description=description,
     long_description=long_description,
     url=url,

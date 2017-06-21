@@ -10,7 +10,7 @@ documenteer
 
 .. image:: https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square
 
-Documentation tools for `LSST Data Management <http://dm.lsst.org>`_ projects, including Sphinx extensions.
+Sphinx documentation tools for `LSST Data Management <http://dm.lsst.org>`_ projects.
 
 Installation
 ============
@@ -30,11 +30,10 @@ Create a virtual environment with your method of choice (virtualenvwrapper or co
 To make a release:
 
 1. Update ``CHANGELOG.rst``.
-2. Increment version in ``setup.py``.
-3. Tag: ``git tag -s -m "vX.Y.Z" vX.Y.Z``
-4. Push: ``git push --tags``
+2. Tag: ``git tag -s -m "X.Y.Z" vX.Y.Z``
+3. Push: ``git push --tags``
 
-`Travis <https://travis-ci.org/lsst-sqre/documenteer>`_ should handle the PyPI deployment.
+`Travis <https://travis-ci.org/lsst-sqre/documenteer>`_ handles the PyPI deployment.
 
 License and info
 ================

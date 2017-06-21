@@ -1,5 +1,10 @@
-Changelog for documenteer
-=========================
+Change Log
+==========
+
+Unreleased
+----------
+
+- Use `versioneer <https://github.com/warner/python-versioneer>`_ for version management.
 
 0.1.11 (2017-03-01)
 -------------------
