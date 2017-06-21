@@ -1,6 +1,6 @@
 --index-url https://pypi.python.org/simple/
 
--e .
+-e .[technote,pipelines]
 
 wheel>=0.29.0
 twine>=1.8.1

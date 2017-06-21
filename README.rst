@@ -15,9 +15,10 @@ Sphinx documentation tools for `LSST Data Management <http://dm.lsst.org>`_ proj
 Installation
 ============
 
-::
+How you install Documenteer depends on the project you're using it for:
 
-   pip install documenteer
+- For technical note projects: ``pip install documenteer[technote]``
+- For the https://pipelines.lsst.io project: ``pip install documenteer[pipelines]``
 
 Development
 ===========
