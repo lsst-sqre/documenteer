@@ -6,8 +6,8 @@ import os
 
 packagename = 'documenteer'
 description = 'Tools for LSST DM documentation projects'
-author = 'Jonathan Sick'
-author_email = 'jsick@lsst.org'
+author = 'Association of Universities for Research in Astronomy, Inc.'
+author_email = 'sqre-admin@lists.lsst.org'
 license = 'MIT'
 url = 'https://github.com/lsst-sqre/documenteer'
 

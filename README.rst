@@ -1,5 +1,5 @@
 ###########
-documenteer
+Documenteer
 ###########
 
 .. image:: https://img.shields.io/pypi/v/documenteer.svg?style=flat-square
@@ -38,7 +38,7 @@ To make a release:
 License and info
 ================
 
-Copyright 2015-2017 Association of Universities for Research in Astronomy, Inc.
+Documenteer is a project by the `Large Synoptic Survey Telescope <https://www.lsst.org>`_.
 
 MIT licensed.
-See `LICENSE <./LICENSE>`_ and `COPYRIGHT <./COPYRIGHT>`.
+See `LICENSE <./LICENSE>`_ for details.
