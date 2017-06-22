@@ -25,7 +25,7 @@ long_description = read('README.rst')
 # Core dependencies
 install_requires = [
     'future',
-    'Sphinx>=1.5.1',
+    'Sphinx>=1.6.2',
     'PyYAML',
     'sphinx-prompt',
     'GitPython'

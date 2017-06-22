@@ -39,7 +39,11 @@ def app(request):
     jira.setup(app)
     # Stitch together as the sphinx app init() usually does w/ real conf files
     app.config._raw_config = {'jira_uri_template': URI}
-    app.config.init_values(Sphinx._log)
+    try:
+        app.config.init_values()
+    except TypeError:
+        # Sphinx < 1.6.0
+        app.config.init_values(Sphinx._log)
 
     def fin():
         for dirname in (src, doctree, confdir, outdir):
