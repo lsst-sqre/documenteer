@@ -173,3 +173,29 @@ def find_package_docs(package_dir):
     return Dirs(module_dirs=module_dirs,
                 package_dirs=package_dirs,
                 static_dirs=static_dirs)
+
+
+def link_directories(root_dir, package_doc_dirs):
+    """Create symlinks to package/module documentation directories from the
+    root documentation project.
+
+    Parameters
+    ----------
+    root_dir : `str`
+        Directory in the main documentation project where links will be
+        created. For example, this could be a ``'modules'`` directory
+        in the ``pipelines_lsst_io`` project directory.
+    package_doc_dirs : `dict`
+        Dictionary that maps symlinks to be made in ``root_dir`` with
+        source directories in the packages.
+
+    Notes
+    -----
+    If the link already exists in the ``root_dir`` it will be automatically
+    replaced.
+    """
+    for dirname, source_dirname in package_doc_dirs.items():
+        link_name = os.path.join(root_dir, dirname)
+        if os.path.islink(link_name):
+            os.remove(link_name)
+        os.symlink(source_dirname, link_name)

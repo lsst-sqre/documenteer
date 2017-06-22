@@ -3,8 +3,19 @@ executable).
 """
 
 import os
+import shutil
+import tempfile
+
+import pytest
 
 from documenteer.stackdocs import build
+
+
+@pytest.fixture
+def temp_dirname():
+    temp_dirname = tempfile.mkdtemp()
+    yield temp_dirname
+    shutil.rmtree(temp_dirname)
 
 
 def test_find_package_docs():
@@ -27,3 +38,41 @@ def test_find_package_docs():
                                        'doc',
                                        '_static/package_alpha')
     assert package_docs.static_dirs['package_alpha'] == expected_static_dir
+
+
+def test_link_directories(temp_dirname):
+    package_dir = os.path.join(
+        os.path.dirname(__file__),
+        'data',
+        'package_alpha')
+    package_docs = build.find_package_docs(package_dir)
+
+    root_packages_path = os.path.join(temp_dirname, 'packages')
+
+    os.makedirs(root_packages_path)
+    build.link_directories(root_packages_path, package_docs.package_dirs)
+    assert os.path.islink(os.path.join(root_packages_path, 'package_alpha'))
+    real_path = os.path.realpath(
+        os.path.join(root_packages_path, 'package_alpha'))
+    assert real_path == package_docs.package_dirs['package_alpha']
+
+
+def test_link_directories_overwriting(temp_dirname):
+    package_dir = os.path.join(
+        os.path.dirname(__file__),
+        'data',
+        'package_alpha')
+    package_docs = build.find_package_docs(package_dir)
+
+    root_packages_path = os.path.join(temp_dirname, 'packages')
+
+    os.makedirs(root_packages_path)
+
+    # Make links twice to simulate overwriting existing links
+    build.link_directories(root_packages_path, package_docs.package_dirs)
+    build.link_directories(root_packages_path, package_docs.package_dirs)
+
+    assert os.path.islink(os.path.join(root_packages_path, 'package_alpha'))
+    real_path = os.path.realpath(
+        os.path.join(root_packages_path, 'package_alpha'))
+    assert real_path == package_docs.package_dirs['package_alpha']
