@@ -7,10 +7,76 @@ from builtins import *  # NOQA
 from future.standard_library import install_aliases
 install_aliases()  # NOQA
 
+import argparse
 from collections import namedtuple
 import os
+import shutil
 
 import yaml
+
+
+def run_build_cli():
+    """Command line entrypoint for the ``build-stack-docs`` program.
+    """
+    args = parse_args()
+
+    # Create the directory where module content is symlinked
+    # NOTE: this path is hard-wired in for pipelines.lsst.io, but could be
+    # refactored as a configuration.
+    root_modules_dir = os.path.join(args.root_project_dir, 'modules')
+    if os.path.isdir(root_modules_dir):
+        # Clear out existing module links
+        shutil.rmtree(root_modules_dir)
+    os.makedirs(root_modules_dir)
+
+    # Create directory for package content
+    root_packages_dir = os.path.join(args.root_project_dir, 'packages')
+    if os.path.isdir(root_packages_dir):
+        # Clear out existing module links
+        shutil.rmtree(root_packages_dir)
+    os.makedirs(root_packages_dir)
+
+    # Ensure _static directory exists (but do not delete any existing
+    # directory contents
+    root_static_dir = os.path.join(args.root_project_dir, '_static')
+    if not os.path.isdir(root_static_dir):
+        os.makedirs(root_static_dir)
+
+    # Find package setup by EUPS
+    packages = discover_setup_packages()
+
+    # Link module documentation directories of packages into the
+    # root project's module documentation directory
+    for package_name, package_info in packages.items():
+        package_docs = find_package_docs(package_info['dir'])
+        link_directories(root_modules_dir, package_docs.module_dirs)
+        link_directories(root_packages_dir, package_docs.package_dirs)
+        link_directories(root_static_dir, package_docs.static_dirs)
+
+    # TODO: trigger the Sphinx build
+
+
+def parse_args():
+    """Create an argument parser for the ``build-stack-docs`` program.
+
+    Returns
+    -------
+    args : `argparse.Namespace`
+        Parsed argument object.
+    """
+    # Get version from versioneer
+    from .._version import get_versions
+
+    parser = argparse.ArgumentParser(
+        description="Build a Sphinx documentation site for an EUPS stack, "
+                    "such as pipelines.lsst.io.",
+        epilog="Version {0}".format(get_versions()['version'])
+    )
+    parser.add_argument(
+        '-d', '--dir',
+        dest='root_project_dir',
+        help="Root Sphinx project directory")
+    return parser.parse_args()
 
 
 def discover_setup_packages():

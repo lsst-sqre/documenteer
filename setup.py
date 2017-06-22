@@ -80,4 +80,9 @@ setup(
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=install_requires,
     extras_require=extras_require,
+    entry_points={
+        'console_scripts': [
+            'build-stack-docs = documenteer.stackdocs.build:run_build_cli'
+        ]
+    },
 )
