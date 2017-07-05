@@ -1,14 +1,19 @@
+.. image:: https://img.shields.io/pypi/v/documenteer.svg?style=flat-square
+   :target: https://pypi.python.org/pypi/documenteer
+   :alt: PyPI
+.. image:: https://img.shields.io/pypi/l/documenteer.svg?style=flat-square
+   :alt: MIT license
+   :target: https://pypi.python.org/pypi/documenteer
+.. image:: https://img.shields.io/pypi/wheel/documenteer.svg?style=flat-square
+   :alt: Uses wheel
+   :target: https://pypi.python.org/pypi/documenteer
+.. image:: https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square
+   :alt: For Python 2.7 and 3.5+
+   :target: https://pypi.python.org/pypi/documenteer
+
 ###########
 Documenteer
 ###########
-
-.. image:: https://img.shields.io/pypi/v/documenteer.svg?style=flat-square
-
-.. image:: https://img.shields.io/pypi/l/documenteer.svg?style=flat-square
-
-.. image:: https://img.shields.io/pypi/wheel/documenteer.svg?style=flat-square
-
-.. image:: https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square
 
 Sphinx documentation tools for `LSST Data Management <http://dm.lsst.org>`_ projects.
 
