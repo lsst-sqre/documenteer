@@ -26,7 +26,8 @@ Development
 Create a virtual environment with your method of choice (virtualenvwrapper or conda) and then clone or fork, and install::
 
    git clone https://github.com/lsst-sqre/documenteer.git
-   pip install -r requirements.txt
+   cd documenteer
+   pip install -e ".[technote,pipelines,dev]"
 
 To make a release:
 
