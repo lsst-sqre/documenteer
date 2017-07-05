@@ -25,7 +25,7 @@ long_description = read('README.rst')
 # Core dependencies
 install_requires = [
     'future',
-    'Sphinx>=1.6.2',
+    'Sphinx>=1.5.0,<1.6.0',
     'PyYAML',
     'sphinx-prompt',
     'GitPython'
@@ -42,8 +42,8 @@ extras_require = {
 
     # For the pipelines.lsst.io documentation project
     'pipelines': [
-        'lsst-sphinx-bootstrap-theme>=0.1.0',
-        'astropy-helpers>=0.2.0',
+        'lsst-sphinx-bootstrap-theme>=0.1.0,<0.2.0',
+        'astropy-helpers>=1.2.0,<1.4.0',
         'breathe==4.4.0'
     ]
 }
