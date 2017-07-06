@@ -11,6 +11,16 @@ import argparse
 from collections import namedtuple
 import os
 import shutil
+import sys
+import traceback
+
+from docutils.utils import SystemMessage
+from sphinx.errors import SphinxError
+from sphinx.application import Sphinx
+from sphinx.util import format_exception_cut_frames, save_traceback
+from sphinx.util.console import red
+from sphinx.util.docutils import docutils_namespace
+from sphinx.util.pycompat import terminal_safe
 
 import yaml
 
@@ -37,7 +47,7 @@ def run_build_cli():
     os.makedirs(root_packages_dir)
 
     # Ensure _static directory exists (but do not delete any existing
-    # directory contents
+    # directory contents)
     root_static_dir = os.path.join(args.root_project_dir, '_static')
     if not os.path.isdir(root_static_dir):
         os.makedirs(root_static_dir)
@@ -53,7 +63,14 @@ def run_build_cli():
         link_directories(root_packages_dir, package_docs.package_dirs)
         link_directories(root_static_dir, package_docs.static_dirs)
 
-    # TODO: trigger the Sphinx build
+    # Trigger the Sphinx build
+    return_code = run_sphinx(args.root_project_dir)
+
+    # Return code based on the Sphinx status.
+    if return_code == 0:
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 def parse_args():
@@ -265,3 +282,117 @@ def link_directories(root_dir, package_doc_dirs):
         if os.path.islink(link_name):
             os.remove(link_name)
         os.symlink(source_dirname, link_name)
+
+
+def run_sphinx(root_dir):
+    """Run the Sphinx build process.
+
+    Parameters
+    ----------
+    root_dir : `str`
+        Root directory of the Sphinx project and content source. This directory
+        conatains both the root ``index.rst`` file and the ``conf.py``
+        configuration file.
+
+    Returns
+    -------
+    status : `int`
+        Sphinx status code. ``0`` is expected. Greater than ``0`` indicates
+        an error.
+
+    Notes
+    -----
+    This function implements similar internals to Sphinx's own ``sphinx-build``
+    command. Most configurations are hard-coded to defaults appropriate for
+    building stack documentation, but flexibility can be added later as
+    needs are identified.
+    """
+    # This replicates what Sphinx's internal command line hander does
+    # https://github.com/sphinx-doc/sphinx/blob/master/sphinx/cmdline.py
+
+    # configuration
+    root_dir = os.path.abspath(root_dir)
+    srcdir = root_dir  # root directory of Sphinx content
+    confdir = root_dir  # directory where conf.py is located
+    outdir = os.path.join(root_dir, '_build', 'html')
+    doctreedir = os.path.join(root_dir, '_build', 'doctree')
+    builder = 'html'
+    confoverrides = {}
+    status = sys.stdout  # set to None for 'quiet' mode
+    warning = sys.stderr
+    error = sys.stderr
+    freshenv = False  # attempt to re-use existing build artificats
+    warningiserror = False
+    tags = []
+    verbosity = 0
+    jobs = 1  # number of processes
+    force_all = True
+    filenames = []
+
+    app = None
+    try:
+        # NOTE: Sphinx 1.6+ also uses a
+        # sphinx.util.docutils.patch_docutils() context
+        with docutils_namespace():
+            app = Sphinx(
+                srcdir, confdir, outdir, doctreedir, builder,
+                confoverrides, status, warning, freshenv,
+                warningiserror, tags, verbosity, jobs)
+            app.build(force_all, filenames)
+            return app.statuscode
+    except (Exception, KeyboardInterrupt) as exc:
+        handle_sphinx_exception(app, exc, error)
+        return 1
+
+
+def handle_sphinx_exception(app, exception, stderr=sys.stderr):
+    """Handle a Sphinx/docutils exception and print tracebacks.
+
+    Parameters
+    ----------
+    app : `sphinx.application.Sphinx`
+        Sphinx application object.
+    exception : Exception
+        Exception object.
+    stderr : obj
+        Typically `sys.stderr`.
+
+    Notes
+    -----
+    This code is ported from Sphinx. Copyright 2007-2017 by the Sphinx team.
+    See licenses/sphinx.txt for the full license.
+    """
+    print(file=stderr)
+    traceback.print_exc(None, stderr)
+    print(file=stderr)
+    if isinstance(exception, KeyboardInterrupt):
+        print('interrupted!', file=stderr)
+    elif isinstance(exception, SystemMessage):
+        print(red('reST markup error:'), file=stderr)
+        print(terminal_safe(exception.args[0]), file=stderr)
+    elif isinstance(exception, SphinxError):
+        print(red('%s:' % exception.category), file=stderr)
+        print(terminal_safe(str(exception)), file=stderr)
+    elif isinstance(exception, UnicodeError):
+        print(red('Encoding error:'), file=stderr)
+        print(terminal_safe(str(exception)), file=stderr)
+        tbpath = save_traceback(app)
+        print(red('The full traceback has been saved in %s, if you want '
+                  'to report the issue to the developers.' % tbpath),
+              file=stderr)
+    elif isinstance(exception, RuntimeError) \
+            and 'recursion depth' in str(exception):
+        print(red('Recursion error:'), file=stderr)
+        print(terminal_safe(str(exception)), file=stderr)
+        print(file=stderr)
+        print('This can happen with very large or deeply nested source '
+              'files.  You can carefully increase the default Python '
+              'recursion limit of 1000 in conf.py with e.g.:', file=stderr)
+        print('    import sys; sys.setrecursionlimit(1500)', file=stderr)
+    else:
+        print(red('Exception occurred:'), file=stderr)
+        print(format_exception_cut_frames().rstrip(), file=stderr)
+        tbpath = save_traceback(app)
+        print(red('The full traceback has been saved in %s, if you '
+                  'want to report the issue to the developers.' % tbpath),
+              file=stderr)
