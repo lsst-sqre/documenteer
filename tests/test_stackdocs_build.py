@@ -40,6 +40,17 @@ def test_find_package_docs():
     assert package_docs.static_dirs['package_alpha'] == expected_static_dir
 
 
+def test_find_package_docs_nonexistent():
+    """Test when an EUPS package does not have a doc/manifest.yaml file.
+    """
+    package_dir = os.path.join(
+        os.path.dirname(__file__),
+        'data',
+        'package_beta')
+    with pytest.raises(build.NoPackageDocs):
+        build.find_package_docs(package_dir)
+
+
 def test_link_directories(temp_dirname):
     package_dir = os.path.join(
         os.path.dirname(__file__),

@@ -58,7 +58,13 @@ def run_build_cli():
     # Link module documentation directories of packages into the
     # root project's module documentation directory
     for package_name, package_info in packages.items():
-        package_docs = find_package_docs(package_info['dir'])
+        try:
+            package_docs = find_package_docs(package_info['dir'])
+        except NoPackageDocs as e:
+            print('Skipping {0} doc linking. {1}'.format(package_name,
+                                                         str(e)))
+            continue
+
         link_directories(root_modules_dir, package_docs.module_dirs)
         link_directories(root_packages_dir, package_docs.package_dirs)
         link_directories(root_static_dir, package_docs.static_dirs)
@@ -163,7 +169,7 @@ def find_package_docs(package_dir):
 
     Raises
     ------
-    IOError
+    NoPackageDocs
        Raised when the ``manifest.yaml`` file cannot be found in a package.
 
     Notes
@@ -209,7 +215,8 @@ def find_package_docs(package_dir):
     modules_yaml_path = os.path.join(doc_dir, 'manifest.yaml')
 
     if not os.path.exists(modules_yaml_path):
-        raise IOError('Manifest YAML not found: {0}'.format(modules_yaml_path))
+        raise NoPackageDocs(
+            'Manifest YAML not found: {0}'.format(modules_yaml_path))
 
     with open(modules_yaml_path) as f:
         manifest_data = yaml.safe_load(f)
@@ -256,6 +263,11 @@ def find_package_docs(package_dir):
     return Dirs(module_dirs=module_dirs,
                 package_dirs=package_dirs,
                 static_dirs=static_dirs)
+
+
+class NoPackageDocs(Exception):
+    """Exception raised when documentation is not found for an EUPS package.
+    """
 
 
 def link_directories(root_dir, package_doc_dirs):
