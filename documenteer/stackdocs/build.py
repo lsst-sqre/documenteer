@@ -9,6 +9,7 @@ install_aliases()  # NOQA
 
 import argparse
 from collections import namedtuple
+import logging
 import os
 import shutil
 import sys
@@ -24,11 +25,27 @@ from sphinx.util.pycompat import terminal_safe
 
 import yaml
 
+from .._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
+
 
 def run_build_cli():
     """Command line entrypoint for the ``build-stack-docs`` program.
     """
     args = parse_args()
+
+    if args.verbose:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+
+    logger = logging.getLogger(__name__)
+
+    logger.info('build-stack-docs version {0}'.format(__version__))
 
     # Create the directory where module content is symlinked
     # NOTE: this path is hard-wired in for pipelines.lsst.io, but could be
@@ -36,20 +53,25 @@ def run_build_cli():
     root_modules_dir = os.path.join(args.root_project_dir, 'modules')
     if os.path.isdir(root_modules_dir):
         # Clear out existing module links
+        logger.info('Deleting existing modules directory')
         shutil.rmtree(root_modules_dir)
+    logger.info('Creating modules/ dir at {0}'.format(root_modules_dir))
     os.makedirs(root_modules_dir)
 
     # Create directory for package content
     root_packages_dir = os.path.join(args.root_project_dir, 'packages')
     if os.path.isdir(root_packages_dir):
         # Clear out existing module links
+        logger.info('Deleting existing modules directory')
         shutil.rmtree(root_packages_dir)
+    logger.info('Creating packages/ dir at {0}'.format(root_packages_dir))
     os.makedirs(root_packages_dir)
 
     # Ensure _static directory exists (but do not delete any existing
     # directory contents)
     root_static_dir = os.path.join(args.root_project_dir, '_static')
     if not os.path.isdir(root_static_dir):
+        logger.info('Creating _static/ at {0}'.format(root_static_dir))
         os.makedirs(root_static_dir)
 
     # Find package setup by EUPS
@@ -61,8 +83,9 @@ def run_build_cli():
         try:
             package_docs = find_package_docs(package_info['dir'])
         except NoPackageDocs as e:
-            print('Skipping {0} doc linking. {1}'.format(package_name,
-                                                         str(e)))
+            logger.debug(
+                'Skipping {0} doc linking. {1}'.format(package_name,
+                                                       str(e)))
             continue
 
         link_directories(root_modules_dir, package_docs.module_dirs)
@@ -74,8 +97,10 @@ def run_build_cli():
 
     # Return code based on the Sphinx status.
     if return_code == 0:
+        logger.info('build-stack-docs succeeded')
         sys.exit(0)
     else:
+        logger.error('Sphinx errored: code {0:d}'.format(return_code))
         sys.exit(1)
 
 
@@ -87,18 +112,21 @@ def parse_args():
     args : `argparse.Namespace`
         Parsed argument object.
     """
-    # Get version from versioneer
-    from .._version import get_versions
-
     parser = argparse.ArgumentParser(
         description="Build a Sphinx documentation site for an EUPS stack, "
                     "such as pipelines.lsst.io.",
-        epilog="Version {0}".format(get_versions()['version'])
+        epilog="Version {0}".format(__version__)
     )
     parser.add_argument(
         '-d', '--dir',
         dest='root_project_dir',
         help="Root Sphinx project directory")
+    parser.add_argument(
+        '-v', '--verbose',
+        dest='verbose',
+        action='store_true', default=False,
+        help='Enable Verbose output (debug level logging)'
+    )
     return parser.parse_args()
 
 
@@ -122,6 +150,8 @@ def discover_setup_packages():
     encapsulate all direct EUPS interactions need by the stack documentation
     build process.
     """
+    logger = logging.getLogger(__name__)
+
     # Not a PyPI dependency; assumed to be available in the build environment.
     import eups
 
@@ -136,6 +166,8 @@ def discover_setup_packages():
             'version': package.version
         }
         packages[name] = info
+        logger.debug('Found setup package: {name} {version} {dir}'.format(
+            name=name, **info))
 
     return packages
 
@@ -211,6 +243,8 @@ def find_package_docs(package_dir):
 
     - ``afw/doc/_static/afw``
     """
+    logger = logging.getLogger(__name__)
+
     doc_dir = os.path.join(package_dir, 'doc')
     modules_yaml_path = os.path.join(doc_dir, 'manifest.yaml')
 
@@ -231,9 +265,12 @@ def find_package_docs(package_dir):
 
             # validate that the module's documentation directory does exist
             if not os.path.isdir(module_dir):
+                message = 'module doc dir not found: {0}'.format(module_dir)
+                logger.warning(message)
                 continue
 
             module_dirs[module_name] = module_dir
+            logger.debug('Found module doc dir {0}'.format(module_dir))
 
     if 'package' in manifest_data:
         package_name = manifest_data['package']
@@ -242,6 +279,10 @@ def find_package_docs(package_dir):
         # validate the directory exists
         if os.path.isdir(full_package_dir):
             package_dirs[package_name] = full_package_dir
+            logger.debug('Found package doc dir {0}'.format(full_package_dir))
+        else:
+            logger.warning('package doc dir not found: {0}'.format(
+                full_package_dir))
 
     if 'statics' in manifest_data:
         for static_dirname in manifest_data['statics']:
@@ -249,6 +290,9 @@ def find_package_docs(package_dir):
 
             # validate the directory exists
             if not os.path.isdir(full_static_dir):
+                message = '_static doc dir not found: {0}'.format(
+                    full_static_dir)
+                logger.warning(message)
                 continue
 
             # Make a relative path to `_static` that's used as the
@@ -258,6 +302,7 @@ def find_package_docs(package_dir):
                 os.path.join(doc_dir, '_static'))
 
             static_dirs[relative_static_dir] = full_static_dir
+            logger.debug('Found _static doc dir: {0}'.format(full_static_dir))
 
     Dirs = namedtuple('Dirs', ['module_dirs', 'package_dirs', 'static_dirs'])
     return Dirs(module_dirs=module_dirs,
@@ -289,11 +334,16 @@ def link_directories(root_dir, package_doc_dirs):
     If the link already exists in the ``root_dir`` it will be automatically
     replaced.
     """
+    logger = logging.getLogger(__name__)
+
     for dirname, source_dirname in package_doc_dirs.items():
         link_name = os.path.join(root_dir, dirname)
         if os.path.islink(link_name):
             os.remove(link_name)
         os.symlink(source_dirname, link_name)
+
+        message = 'Linking {0} -> {1}'.format(link_name, source_dirname)
+        logger.info(message)
 
 
 def run_sphinx(root_dir):
@@ -319,6 +369,8 @@ def run_sphinx(root_dir):
     building stack documentation, but flexibility can be added later as
     needs are identified.
     """
+    logger = logging.getLogger(__name__)
+
     # This replicates what Sphinx's internal command line hander does
     # https://github.com/sphinx-doc/sphinx/blob/master/sphinx/cmdline.py
 
@@ -340,6 +392,17 @@ def run_sphinx(root_dir):
     jobs = 1  # number of processes
     force_all = True
     filenames = []
+
+    logger.debug('Sphinx config: srcdir={0}'.format(srcdir))
+    logger.debug('Sphinx config: confdir={0}'.format(confdir))
+    logger.debug('Sphinx config: outdir={0}'.format(outdir))
+    logger.debug('Sphinx config: doctreedir={0}'.format(doctreedir))
+    logger.debug('Sphinx config: builder={0}'.format(builder))
+    logger.debug('Sphinx config: freshenv={0:b}'.format(freshenv))
+    logger.debug('Sphinx config: warningiserror={0:b}'.format(warningiserror))
+    logger.debug('Sphinx config: verbosity={0:d}'.format(verbosity))
+    logger.debug('Sphinx config: jobs={0:d}'.format(jobs))
+    logger.debug('Sphinx config: force_all={0:b}'.format(force_all))
 
     app = None
     try:
