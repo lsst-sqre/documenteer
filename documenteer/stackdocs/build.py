@@ -11,7 +11,6 @@ import argparse
 from collections import namedtuple
 import logging
 import os
-import shutil
 import sys
 import traceback
 
@@ -52,33 +51,37 @@ def run_build_cli():
     # refactored as a configuration.
     root_modules_dir = os.path.join(args.root_project_dir, 'modules')
     if os.path.isdir(root_modules_dir):
-        # Clear out existing module links
-        logger.info('Deleting existing modules directory')
-        shutil.rmtree(root_modules_dir)
-    logger.info('Creating modules/ dir at {0}'.format(root_modules_dir))
-    os.makedirs(root_modules_dir)
+        logger.info('Deleting any existing modules/ symlinks')
+        remove_existing_links(root_modules_dir)
+    else:
+        logger.info('Creating modules/ dir at {0}'.format(root_modules_dir))
+        os.makedirs(root_modules_dir)
 
     # Create directory for package content
     root_packages_dir = os.path.join(args.root_project_dir, 'packages')
     if os.path.isdir(root_packages_dir):
         # Clear out existing module links
-        logger.info('Deleting existing modules directory')
-        shutil.rmtree(root_packages_dir)
-    logger.info('Creating packages/ dir at {0}'.format(root_packages_dir))
-    os.makedirs(root_packages_dir)
+        logger.info('Deleting any existing packages/ symlinks')
+        remove_existing_links(root_packages_dir)
+    else:
+        logger.info('Creating packages/ dir at {0}'.format(root_packages_dir))
+        os.makedirs(root_packages_dir)
 
     # Ensure _static directory exists (but do not delete any existing
     # directory contents)
     root_static_dir = os.path.join(args.root_project_dir, '_static')
-    if not os.path.isdir(root_static_dir):
+    if os.path.isdir(root_static_dir):
+        # Clear out existing directory links
+        logger.info('Deleting any existing _static/ symlinks')
+        remove_existing_links(root_static_dir)
+    else:
         logger.info('Creating _static/ at {0}'.format(root_static_dir))
         os.makedirs(root_static_dir)
 
     # Find package setup by EUPS
     packages = discover_setup_packages()
 
-    # Link module documentation directories of packages into the
-    # root project's module documentation directory
+    # Link to documentation directories of packages from the root project
     for package_name, package_info in packages.items():
         try:
             package_docs = find_package_docs(package_info['dir'])
@@ -344,6 +347,30 @@ def link_directories(root_dir, package_doc_dirs):
 
         message = 'Linking {0} -> {1}'.format(link_name, source_dirname)
         logger.info(message)
+
+
+def remove_existing_links(root_dir):
+    """Delete any symlinks present at the root of a directory.
+
+    Parameters
+    ----------
+    root_dir : `str`
+        Directory that might contain symlinks.
+
+    Notes
+    -----
+    This function is used to remove any symlinks created by `link_directories`.
+    Running ``remove_existing_links`` at the beginning of a build ensures that
+    builds are isolated. For example, if a package is un-setup it won't
+    re-appear in the documentation because its symlink still exists.
+    """
+    logger = logging.getLogger(__name__)
+
+    for name in os.listdir(root_dir):
+        full_name = os.path.join(root_dir, name)
+        if os.path.islink(full_name):
+            logger.debug('Deleting existing symlink {0}'.format(full_name))
+            os.remove(full_name)
 
 
 def run_sphinx(root_dir):
