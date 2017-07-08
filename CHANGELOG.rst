@@ -1,5 +1,12 @@
-Changelog for documenteer
-=========================
+Change Log
+==========
+
+Unreleased
+----------
+
+- Use `versioneer <https://github.com/warner/python-versioneer>`_ for version management.
+- Move the ``ddconfig.py`` module for technical note Sphinx project configuration to the ``documenteer.sphinxconfig.technoteconf`` namespace for similarity with the ``stackconf`` module.
+- Pin Sphinx to >=1.6.2. This is due to an API change in Sphinx's application ``Config.init_values()``, which is used for making mock applications in Documenteer's unit tests.
 
 0.1.11 (2017-03-01)
 -------------------
