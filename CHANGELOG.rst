@@ -1,12 +1,22 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.2.0 (2017-07-20)
+------------------
 
-- Use `versioneer <https://github.com/warner/python-versioneer>`_ for version management.
+- Add a new ``build-stack-docs`` command line executable.
+  This executable links stack package documentation directories into a root documentation project and runs a Sphinx build.
+  This is how we will build the https://pipelines.lsst.io documentation site.
+  See `DMTN-030 <https://dmtn-030.lsst.io/#documentation-as-code>`_ for design details.
+- **New system for installing project-specific dependencies.**
+  We're using setuptools's ``extras_require`` feature to install different dependencies for technote and stack documentation projects.
+  To install documenteer for a technote project, the new command is ``pip install documenteer[technote]``.
+  For stack documentation projects: ``pip install documenteer[pipelines]``.
+  Developers may use ``pip install -e .[technote,pipelines,dev]``.
+  This will allow us to install different Sphinx themes for different types of projects, for example.
+- Pin Sphinx to >=1.5.0,<1.6.0 and docutils to 0.13.1. This is due to an API change in Sphinx's application ``Config.init_values()``, which is used for making mock applications in Documenteer's unit tests.
 - Move the ``ddconfig.py`` module for technical note Sphinx project configuration to the ``documenteer.sphinxconfig.technoteconf`` namespace for similarity with the ``stackconf`` module.
-- Pin Sphinx to >=1.6.2. This is due to an API change in Sphinx's application ``Config.init_values()``, which is used for making mock applications in Documenteer's unit tests.
+- Now using `versioneer <https://github.com/warner/python-versioneer>`_ for version management.
 
 0.1.11 (2017-03-01)
 -------------------
