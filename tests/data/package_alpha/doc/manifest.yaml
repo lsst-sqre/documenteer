@@ -1,0 +1,10 @@
+# Package-type documentation directory
+package: "package_alpha"
+
+# Module-type documentation directories
+modules:
+  - "package.alpha"
+
+# Static content directories
+statics:
+  - "_static/package_alpha"

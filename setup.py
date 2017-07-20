@@ -25,6 +25,7 @@ long_description = read('README.rst')
 # Core dependencies
 install_requires = [
     'future',
+    'docutils==0.13.1',  # currently pinned in conjunction with Sphinx
     'Sphinx>=1.5.0,<1.6.0',
     'PyYAML',
     'sphinx-prompt',
@@ -73,11 +74,16 @@ setup(
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
     keywords='sphinx documentation lsst',
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=install_requires,
     extras_require=extras_require,
+    entry_points={
+        'console_scripts': [
+            'build-stack-docs = documenteer.stackdocs.build:run_build_cli'
+        ]
+    },
 )
