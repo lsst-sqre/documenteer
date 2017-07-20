@@ -14,7 +14,7 @@ import lsst_dd_rtd_theme
 from ..sphinxconfig.utils import read_git_branch, read_git_commit_timestamp
 
 
-def configure_sphinx_design_doc(meta_stream):
+def configure_technote(meta_stream):
     """
     Builds a ``dict`` of Sphinx configuration variables given a central
     configuration for LSST Design Documents and a metadata YAML file.
@@ -27,11 +27,11 @@ def configure_sphinx_design_doc(meta_stream):
     .. code:: python
 
        import os
-       from documenteer.designdocs import configure_sphinx_design_doc
+       from documenteer.sphinxconfig.technoteconf import configure_technote
 
        metadata_path = os.path.join(os.path.dirname(__file__), 'metadata.yaml')
        with open(metadata_path, 'r') as f:
-           confs = configure_sphinx_design_doc(f)
+           confs = configure_technote(f)
        _g = global()
        _g.update(confs)
 

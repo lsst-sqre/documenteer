@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+- Rename configuration function for technotes: ``documenteer.sphinxconfig.technoteconfig.configure_sphinx_design_doc`` is now ``documenteer.sphinxconfig.technoteconfig.configure_technote``.
+
 0.2.0 (2017-07-20)
 ------------------
 
