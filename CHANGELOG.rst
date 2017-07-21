@@ -6,6 +6,9 @@ Unreleased
 
 - Add ``documenteer.sphinxext.bibtex`` extension to support LSST BibTeX entries that include a ``docushare`` field.
   Originally from `lsst-texmf`_.
+- Add a ``refresh-lsst-bib`` command line program that downloads the latest LSST bib files from the `lsst-texmf`_ GitHub repository.
+  This program can be used by technote authors to update a technote's local bibliography set at any time.
+- Add a dependency upon the Requests library.
 
 0.2.1 (2017-07-21)
 ------------------

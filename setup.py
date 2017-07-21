@@ -29,7 +29,8 @@ install_requires = [
     'Sphinx>=1.5.0,<1.6.0',
     'PyYAML',
     'sphinx-prompt',
-    'GitPython'
+    'GitPython',
+    'requests'
 ]
 
 
@@ -83,7 +84,8 @@ setup(
     extras_require=extras_require,
     entry_points={
         'console_scripts': [
-            'build-stack-docs = documenteer.stackdocs.build:run_build_cli'
+            'build-stack-docs = documenteer.stackdocs.build:run_build_cli',
+            'refresh-lsst-bib = documenteer.bin.refreshlsstbib:run'
         ]
     },
 )
