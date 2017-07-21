@@ -1,10 +1,15 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.2.1 (2017-07-21)
+------------------
 
-- Rename configuration function for technotes: ``documenteer.sphinxconfig.technoteconfig.configure_sphinx_design_doc`` is now ``documenteer.sphinxconfig.technoteconfig.configure_technote``.
+- Rename configuration function for technotes: ``documenteer.sphinxconfig.technoteconfig.configure_sphinx_design_doc`` is now ``documenteer.sphinxconfig.technoteconf.configure_technote``.
+- Sphinx is no longer in the default intersphinx object list for technotes.
+  This will speed up builds for documents that don't refer to Python APIs, and it still straightforward to configure on a per-project basis.
+- The default revision timestamp for technotes is now derived from the most recent Git commit that modified a technote's content ('rst', and common image file formats).
+  This is implemented with the new ``documenteer.sphinxconfig.utils.get_project_content_commit_date()`` function.
+  This feature allows us to change technote infrastructure without automatically bumping the default revision date of the technote.
 
 0.2.0 (2017-07-20)
 ------------------
