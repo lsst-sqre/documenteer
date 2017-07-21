@@ -3,9 +3,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import logging
+import os
 import re
 
-import os
 import git
 
 
@@ -115,6 +116,78 @@ def get_filepaths_with_extension(extname, root_dir='.'):
                 selected_filenames.append(
                     os.path.relpath(full_filename, start=root_dir))
     return selected_filenames
+
+
+def get_project_content_commit_date(root_dir='.'):
+    """Get the datetime for the most recent commit to a project that
+    affected Sphinx content.
+
+    *Content* is considered any file with one of these extensions:
+
+    - ``rst`` (README.rst and LICENSE.rst are excluded)
+    - ``ipynb``
+    - ``png``
+    - ``jpeg``
+    - ``jpg``
+    - ``svg``
+    - ``gif``
+
+    This function allows project infrastructure and configuration files to be
+    updated without changing the timestamp.
+
+    Parameters
+    ----------
+    root_dir : 'str`, optional
+        Root directory. This is the current working directory by default.
+
+    Returns
+    -------
+    commit_date : `datetime.datetime`
+        Datetime of the most recent content commit.
+
+    Raises
+    ------
+    RuntimeError
+        Raised if no content files are found.
+    """
+    logger = logging.getLogger(__name__)
+
+    # Supported 'content' extensions
+    extensions = ('rst', 'ipynb', 'png', 'jpeg', 'jpg', 'svg', 'gif')
+
+    content_paths = []
+    for extname in extensions:
+        content_paths += get_filepaths_with_extension(
+            extname,
+            root_dir=root_dir)
+
+    # Known files that should be excluded; lower case for comparison
+    exclusions = ('readme.rst', 'license.rst')
+    # filter out excluded files
+    content_paths = [p for p in content_paths
+                     if p.lower() not in exclusions]
+    logger.debug('Found content paths: {}'.format(', '.join(content_paths)))
+
+    if not content_paths:
+        raise RuntimeError('No content files found in {}'.format(root_dir))
+
+    commit_datetimes = []
+    for filepath in content_paths:
+        try:
+            datetime = read_git_commit_timestamp_for_file(
+                filepath,
+                repo_path=root_dir)
+            commit_datetimes.append(datetime)
+        except IOError:
+            logger.warning(
+                'Count not get commit for {}, skipping'.format(filepath))
+
+    if not commit_datetimes:
+        raise RuntimeError('No content commits could be found')
+
+    latest_datetime = max(commit_datetimes)
+
+    return latest_datetime
 
 
 def form_ltd_edition_name(git_ref_name=None):

@@ -9,7 +9,8 @@ import pytest
 from documenteer.sphinxconfig.utils import (
     form_ltd_edition_name, read_git_commit_timestamp,
     read_git_commit_timestamp_for_file,
-    get_filepaths_with_extension)
+    get_filepaths_with_extension,
+    get_project_content_commit_date)
 
 
 @pytest.mark.parametrize("git_ref,name", [
@@ -54,3 +55,12 @@ def test_get_filepaths_with_extension():
     filepaths = get_filepaths_with_extension('py', root_dir=repo_dir)
     assert os.path.join('tests', 'test_sphinxconfig_utils.py') in filepaths
     assert 'README.rst' not in filepaths
+
+
+def test_get_project_content_commit_date():
+    """Smoke test using the documenteer repo.
+    """
+    repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    print('repo_dir', repo_dir)
+    commit_date = get_project_content_commit_date(root_dir=repo_dir)
+    assert isinstance(commit_date, datetime)
