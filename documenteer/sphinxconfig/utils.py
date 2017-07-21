@@ -29,10 +29,56 @@ def read_git_branch():
             return ''
 
 
-def read_git_commit_timestamp():
-    """Obtain the timestamp from the current git commit."""
-    repo = git.repo.base.Repo(search_parent_directories=True)
-    return repo.head.commit.committed_datetime
+def read_git_commit_timestamp(repo_path=None):
+    """Obtain the timestamp from the current head commit of a Git repository.
+
+    Parameters
+    ----------
+    repo_path : `str`, optional
+        Path to the Git repository. Leave as `None` to use the current working
+        directory.
+
+    Returns
+    -------
+    commit_timestamp : `datetime.datetime`
+        The datetime of the head commit.
+    """
+    repo = git.repo.base.Repo(path=repo_path, search_parent_directories=True)
+    head_commit = repo.head.commit
+    return head_commit.committed_datetime
+
+
+def read_git_commit_timestamp_for_file(filepath, repo_path=None):
+    """Obtain the timestamp for the most recent commit to a given file in a
+    Git repository.
+
+    Parameters
+    ----------
+    filepath : `str`
+        Repository-relative path for a file.
+    repo_path : `str`, optional
+        Path to the Git repository. Leave as `None` to use the current working
+        directory.
+
+    Returns
+    -------
+    commit_timestamp : `datetime.datetime`
+        The datetime of a the most recent commit to the given file.
+
+    Raises
+    ------
+    IOError
+        Raised if the ``filepath`` does not exist in the Git repository.
+    """
+    repo = git.repo.base.Repo(path=repo_path, search_parent_directories=True)
+    head_commit = repo.head.commit
+
+    # most recent commit datetime of the given file
+    for commit in head_commit.iter_parents(filepath):
+        return commit.committed_datetime
+
+    # Only get here if git could not find the file path in the history
+    raise IOError('File {} not found'.format(filepath))
 
 
 def form_ltd_edition_name(git_ref_name=None):
