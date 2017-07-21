@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+- Add ``documenteer.sphinxext.bibtex`` extension to support LSST BibTeX entries that include a ``docushare`` field.
+  Originally from `lsst-texmf`_.
+
 0.2.1 (2017-07-21)
 ------------------
 
@@ -91,3 +97,5 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 ------------------
 
 - Initial version
+
+.. _lsst-texmf: https://github.com/lsst/lsst-texmf
