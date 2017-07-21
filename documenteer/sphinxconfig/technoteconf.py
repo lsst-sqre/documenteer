@@ -1,20 +1,22 @@
 """Sphinx configuration bootstrapping for LSST Technical Notes.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import,
+                        division,
+                        print_function,
+                        unicode_literals)
 
 import datetime
 import yaml
 
 import lsst_dd_rtd_theme
 
-from ..sphinxconfig.utils import read_git_branch, read_git_commit_timestamp
+from ..sphinxconfig.utils import (
+    read_git_branch,
+    get_project_content_commit_date)
 
 
-def configure_sphinx_design_doc(meta_stream):
+def configure_technote(meta_stream):
     """
     Builds a ``dict`` of Sphinx configuration variables given a central
     configuration for LSST Design Documents and a metadata YAML file.
@@ -27,11 +29,11 @@ def configure_sphinx_design_doc(meta_stream):
     .. code:: python
 
        import os
-       from documenteer.designdocs import configure_sphinx_design_doc
+       from documenteer.sphinxconfig.technoteconf import configure_technote
 
        metadata_path = os.path.join(os.path.dirname(__file__), 'metadata.yaml')
        with open(metadata_path, 'r') as f:
-           confs = configure_sphinx_design_doc(f)
+           confs = configure_technote(f)
        _g = global()
        _g.update(confs)
 
@@ -97,8 +99,8 @@ def _build_confs(metadata):
     if 'last_revised' in metadata:
         date = datetime.datetime.strptime(metadata['last_revised'], '%Y-%m-%d')
     else:
-        # obain date from git commit at HEAD
-        date = read_git_commit_timestamp()
+        # obain date from git commit at most recent content commit since HEAD
+        date = get_project_content_commit_date()
     c['today'] = date.strftime('%Y-%m-%d')
 
     # This is available to Jinja2 templates
@@ -136,7 +138,9 @@ def _build_confs(metadata):
     c['todo_include_todos'] = True
 
     # Configuration for Intersphinx
-    c['intersphinx_mapping'] = {'https://docs.python.org/': None}
+    c['intersphinx_mapping'] = {}
+    # Add Python 3 intersphinx inventory in projects via
+    # c['intersphinx_mapping']['python'] = ('https://docs.python.org/3', None)
 
     # -- Options for HTML output ----------------------------------------------
 
