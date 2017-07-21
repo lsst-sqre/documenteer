@@ -46,8 +46,8 @@ def test_git_last_revised(monkeypatch, mocker, sample_metadata,
                           input, expected):
     monkeypatch.setenv('TRAVIS', 'false')
     import documenteer.sphinxconfig.technoteconf as technoteconf
-    technoteconf.read_git_commit_timestamp = mocker.MagicMock()
-    technoteconf.read_git_commit_timestamp.return_value = input
+    technoteconf.get_project_content_commit_date = mocker.MagicMock()
+    technoteconf.get_project_content_commit_date.return_value = input
 
     sample_metadata.pop('last_revised')
 

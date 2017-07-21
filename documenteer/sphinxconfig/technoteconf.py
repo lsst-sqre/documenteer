@@ -11,7 +11,9 @@ import yaml
 
 import lsst_dd_rtd_theme
 
-from ..sphinxconfig.utils import read_git_branch, read_git_commit_timestamp
+from ..sphinxconfig.utils import (
+    read_git_branch,
+    get_project_content_commit_date)
 
 
 def configure_technote(meta_stream):
@@ -97,8 +99,8 @@ def _build_confs(metadata):
     if 'last_revised' in metadata:
         date = datetime.datetime.strptime(metadata['last_revised'], '%Y-%m-%d')
     else:
-        # obain date from git commit at HEAD
-        date = read_git_commit_timestamp()
+        # obain date from git commit at most recent content commit since HEAD
+        date = get_project_content_commit_date()
     c['today'] = date.strftime('%Y-%m-%d')
 
     # This is available to Jinja2 templates
