@@ -138,7 +138,9 @@ def _build_confs(metadata):
     c['todo_include_todos'] = True
 
     # Configuration for Intersphinx
-    c['intersphinx_mapping'] = {'https://docs.python.org/': None}
+    c['intersphinx_mapping'] = {}
+    # Add Python 3 intersphinx inventory in projects via
+    # c['intersphinx_mapping']['python'] = ('https://docs.python.org/3', None)
 
     # -- Options for HTML output ----------------------------------------------
 
