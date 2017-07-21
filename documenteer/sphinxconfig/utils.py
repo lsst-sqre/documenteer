@@ -81,6 +81,42 @@ def read_git_commit_timestamp_for_file(filepath, repo_path=None):
     raise IOError('File {} not found'.format(filepath))
 
 
+def get_filepaths_with_extension(extname, root_dir='.'):
+    """Get relative filepaths of files in a directory, and sub-directories,
+    with the given extension.
+
+    Parameters
+    ----------
+    extname : `str`
+        Extension name (e.g. 'txt', 'rst'). Extension comparison is
+        case-insensitive.
+    root_dir : 'str`, optional
+        Root directory. Current working directory by default.
+
+    Return
+    ------
+    filepaths : `list` of `str`
+        File paths, relative to ``root_dir``, with the given extension.
+    """
+    # needed for comparison with os.path.splitext
+    if not extname.startswith('.'):
+        extname = '.' + extname
+
+    # for case-insensitivity
+    extname = extname.lower()
+
+    root_dir = os.path.abspath(root_dir)
+
+    selected_filenames = []
+    for dirname, sub_dirnames, filenames in os.walk(root_dir):
+        for filename in filenames:
+            if os.path.splitext(filename)[-1].lower() == extname:
+                full_filename = os.path.join(dirname, filename)
+                selected_filenames.append(
+                    os.path.relpath(full_filename, start=root_dir))
+    return selected_filenames
+
+
 def form_ltd_edition_name(git_ref_name=None):
     """Form the LSST the Docs edition name for this branch, using the same
     logic as LTD Keeper does for transforming branch names into edition names.
