@@ -84,7 +84,12 @@ def _build_confs(metadata):
         c['version'] = metadata['version']
     else:
         # attempt to obtain the version as the Git branch
-        c['version'] = read_git_branch()
+        try:
+            c['version'] = read_git_branch()
+        except Exception as e:
+            print('Caught exception: {}'.format(e))
+            print('Cannot get git branch information.')
+            c['version'] = 'Unknown'
 
     # The full version, including alpha/beta/rc tags.
     if 'dev_version_suffix' in metadata:
@@ -100,7 +105,12 @@ def _build_confs(metadata):
         date = datetime.datetime.strptime(metadata['last_revised'], '%Y-%m-%d')
     else:
         # obain date from git commit at most recent content commit since HEAD
-        date = get_project_content_commit_date()
+        try:
+            date = get_project_content_commit_date()
+        except Exception as e:
+            print('Caught exception: {}'.format(e))
+            print('Cannot get project content git commit date.')
+            date = datetime.datetime.now()
     c['today'] = date.strftime('%Y-%m-%d')
 
     # This is available to Jinja2 templates
@@ -118,7 +128,8 @@ def _build_confs(metadata):
                        'sphinx.ext.ifconfig',
                        'sphinx-prompt',
                        'sphinxcontrib.bibtex',
-                       'documenteer.sphinxext']
+                       'documenteer.sphinxext',
+                       'documenteer.sphinxext.bibtex']
 
     # The suffix(es) of source filenames.
     # You can specify multiple suffix as a list of string:
