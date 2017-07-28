@@ -56,7 +56,8 @@ extras_require = {
         'pytest==3.0.4',
         'pytest-cov==2.4.0',
         'pytest-flake8==0.8.1',
-        'pytest-mock==1.4.0'
+        'pytest-mock==1.4.0',
+        'flake8==3.3.0'
     ]
 }
 
