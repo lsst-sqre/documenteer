@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+0.2.3 (2017-07-28)
+------------------
+
+- Add support for additional DocuShare linking roles with ``documenteer.sphinxext.lsstdocushare``.
+  Supported handles now include: ``ldm``, ``lse``, ``lpm``, ``lts``, ``lep``, ``lca``, ``lsstc``, ``lcr``, ``lcn``, ``dmtr``, ``spt``, ``document``, ``report``, ``minutes``, ``collection``, ``sqr``, ``dmtn``, ``smtn``.
+- Links made by the ``documenteer.sphinxext.lsstdocushare`` extension are now HTTPS.
+- Pin the flake8 developer dependency to 3.3.0. Flake8 version 3.4 has changed how ``noqa`` comments are treated.
+
 0.2.2 (2017-07-22)
 ------------------
 
