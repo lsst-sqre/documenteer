@@ -80,16 +80,30 @@ def _build_confs(metadata):
 
     c['copyright'] = metadata['copyright']
 
+    # attempt to obtain the version as the Git branch
+    try:
+        c['version'] = read_git_branch()
+        c['git_branch'] = c['version']
+    except Exception as e:
+        print('Caught exception: {}'.format(e))
+        print('Cannot get git branch information.')
+        # defaults
+        c['version'] = 'Unknown'
+        c['git_branch'] = 'master'
+
+    # Override with YAML metadata
     if 'version' in metadata:
         c['version'] = metadata['version']
+
+    if 'github_url' in metadata:
+        c['github_url'] = metadata['github_url']
+        if not c['github_url'].endswith('/'):
+            c['github_url'] = c['github_url'] + '/'
+        c['edit_url'] = '{base}blob/{branch}/index.rst'.format(
+            base=c['github_url'], branch=c['git_branch'])
     else:
-        # attempt to obtain the version as the Git branch
-        try:
-            c['version'] = read_git_branch()
-        except Exception as e:
-            print('Caught exception: {}'.format(e))
-            print('Cannot get git branch information.')
-            c['version'] = 'Unknown'
+        c['github_url'] = None
+        c['edit_url'] = None
 
     # The full version, including alpha/beta/rc tags.
     if 'dev_version_suffix' in metadata:
@@ -117,7 +131,12 @@ def _build_confs(metadata):
     c['html_context'] = {'author_list': metadata['authors'],
                          'doc_id': metadata['doc_id'],
                          'doc_title': metadata['doc_title'],
-                         'last_revised': c['today']}
+                         'last_revised': c['today'],
+                         'git_branch': c['git_branch'],
+                         'github_url': c['github_url'],
+                         'edit_url': c['edit_url']}
+
+    print(c['html_context'])
 
     # -- General Sphinx configurations ---------------------------------------
 
