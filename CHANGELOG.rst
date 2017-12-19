@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+0.2.4 (2017-12-19)
+------------------
+
+- Add ``edit_url`` to the Jinja context for technotes.
+  This enables "Edit on GitHub" functionality.
+- Use lsst-dd-rtd-theme 0.2.0 for new branding, Edit on GitHub, and edition switching features for technotes.
+
 0.2.3 (2017-07-28)
 ------------------
 
