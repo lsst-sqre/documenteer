@@ -136,8 +136,6 @@ def _build_confs(metadata):
                          'github_url': c['github_url'],
                          'edit_url': c['edit_url']}
 
-    print(c['html_context'])
-
     # -- General Sphinx configurations ---------------------------------------
 
     # Sphinx extension modules
