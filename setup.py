@@ -38,7 +38,7 @@ install_requires = [
 extras_require = {
     # For technical note Sphinx projects
     'technote': [
-        'lsst-dd-rtd-theme==0.1.0',
+        'lsst-dd-rtd-theme==0.2.0',
         'sphinxcontrib-bibtex'
     ],
 
