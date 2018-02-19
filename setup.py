@@ -53,14 +53,22 @@ extras_require = {
     'dev': [
         'wheel>=0.29.0',
         'twine>=1.8.1',
-        'pytest==3.0.4',
-        'pytest-cov==2.4.0',
-        'pytest-flake8==0.8.1',
-        'pytest-mock==1.4.0',
-        'flake8==3.3.0'
-    ]
+    ],
 }
 
+tests_require = [
+    'pytest==3.0.4',
+    'pytest-cov==2.4.0',
+    'pytest-flake8==0.8.1',
+    'pytest-mock==1.4.0',
+    'flake8==3.3.0',
+]
+for k in extras_require:
+    tests_require += extras_require[k]
+
+setup_requires = [
+    'pytest-runner>=2.11.1,<3',
+]
 
 setup(
     name=packagename,
@@ -82,6 +90,8 @@ setup(
     keywords='sphinx documentation lsst',
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=install_requires,
+    setup_requires=setup_requires,
+    tests_require=tests_require,
     extras_require=extras_require,
     entry_points={
         'console_scripts': [
