@@ -4,10 +4,8 @@ python:
   - '2.7'
   - '3.5'
   - '3.6'
-install:
-  - pip install -e ".[technote,pipelines,dev]"
 script:
-  - py.test --flake8 --cov=documenteer
+  - python setup.py test
 deploy:
   provider: pypi
   user: sqre-admin
