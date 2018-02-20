@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+0.2.6 (2018-02-20)
+------------------
+
+- Bump ``astropy_helpers`` version to >=3.0, <4.0 to get improved Sphinx extensions.
+- Use setuptools ``tests_require`` to let us run tests without installing dependencies in the Python environment.
+- Enable ``python setup.py test`` to run pytest.
+
 0.2.5 (2017-12-20)
 ------------------
 
