@@ -73,25 +73,24 @@ def build_package_configs(project_name, copyright, version,
     # Sphinx extension modules
     c['extensions'] = [
         'sphinx.ext.autodoc',
+        'sphinx.ext.doctest',
         'sphinx.ext.intersphinx',
         'sphinx.ext.todo',
+        'sphinx.ext.coverage',
         'sphinx.ext.mathjax',
         'sphinx.ext.ifconfig',
-        'sphinx.ext.coverage',
-        'sphinx.ext.inheritance_diagram',
         'sphinx.ext.viewcode',
         'sphinx-prompt',
-        'sphinxcontrib.bibtex',
-        'astropy_helpers.sphinx.ext.numpydoc',
-        'astropy_helpers.sphinx.ext.astropyautosummary',
-        'astropy_helpers.sphinx.ext.autodoc_enhancements',
-        'astropy_helpers.sphinx.ext.automodsumm',
-        'astropy_helpers.sphinx.ext.automodapi',
+        'astropy_helpers.extern.numpydoc.numpydoc',
+        'astropy_helpers.extern.automodapi.autodoc_enhancements',
+        'astropy_helpers.extern.automodapi.automodsumm',
+        'astropy_helpers.extern.automodapi.automodapi',
         'astropy_helpers.sphinx.ext.tocdepthfix',
         'astropy_helpers.sphinx.ext.doctest',
         'astropy_helpers.sphinx.ext.changelog_links',
-        'astropy_helpers.sphinx.ext.smart_resolver',
-        'documenteer.sphinxext']
+        'astropy_helpers.extern.automodapi.smart_resolver',
+        'documenteer.sphinxext',
+    ]
 
     # The suffix(es) of source filenames.
     # You can specify multiple suffix as a list of string:
