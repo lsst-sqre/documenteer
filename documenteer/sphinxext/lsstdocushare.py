@@ -1,11 +1,5 @@
 """LSST DocuShare/ls.st reference roles."""
 
-from __future__ import (division, absolute_import, print_function,
-                        unicode_literals)
-from builtins import *  # noqa: F401, F403
-from future.standard_library import install_aliases
-install_aliases()  # noqa: E402
-
 from docutils import nodes
 
 
