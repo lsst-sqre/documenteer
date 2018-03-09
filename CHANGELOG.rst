@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.2.7 (2018-03-09)
+------------------
+
+- Make ``copyright`` in ``build_package_configs`` an optional keyword argument. This is the way it should have always been to work with templated ``conf.py`` files.
+
 0.2.6 (2018-02-20)
 ------------------
 

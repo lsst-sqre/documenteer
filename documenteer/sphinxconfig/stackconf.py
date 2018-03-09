@@ -3,6 +3,7 @@
 # see licenses/astropy-helpers.txt
 """Sphinx configuration defaults for LSST Stack packages."""
 
+import datetime
 import sys
 import warnings
 
@@ -11,7 +12,9 @@ import lsst_sphinx_bootstrap_theme
 from .utils import read_git_commit_timestamp
 
 
-def build_package_configs(project_name, copyright, version,
+def build_package_configs(project_name,
+                          version='unknown',
+                          copyright=None,
                           doxygen_xml_dirname=None):
     """Builds a `dict` of Sphinx configurations useful for the ``doc/conf.py``
     files of individual LSST Stack packages.
@@ -25,8 +28,6 @@ def build_package_configs(project_name, copyright, version,
        _g = globals()
        _g.update(build_package_configs(
            project_name='afw',
-           copyright='2016 Association of Universities for '
-                     'Research in Astronomy, Inc.'
            version=lsst.afw.version.__version__))
 
     You can subsequently customize the Sphinx configuration by directly
@@ -41,7 +42,7 @@ def build_package_configs(project_name, copyright, version,
     ----------
     project_name : str
         Name of the package.
-    copyright : str
+    copyright : str, optional
         Copyright statement. Do not include the 'Copyright (c)' string; it'll
         be added automatically.
     version : str
@@ -61,13 +62,21 @@ def build_package_configs(project_name, copyright, version,
             _g = global()
             _g.update(c)
     """
+    try:
+        date = read_git_commit_timestamp()
+    except Exception:
+        date = datetime.datetime.now()
+
     c = {}
     c['project'] = project_name
-    c['copyright'] = copyright
+    if copyright is not None:
+        c['copyright'] = copyright
+    else:
+        c['copyright'] = 'Copyright {:s} LSST contributors.'.format(
+            date.strftime('%Y-%m-%d'))
     c['version'] = version
     c['release'] = version
 
-    date = read_git_commit_timestamp()
     c['today'] = date.strftime('%Y-%m-%d')
 
     # Sphinx extension modules
