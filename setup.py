@@ -32,7 +32,6 @@ install_requires = [
     'requests'
 ]
 
-
 # Project-specific dependencies
 extras_require = {
     # For technical note Sphinx projects
@@ -52,16 +51,16 @@ extras_require = {
     'dev': [
         'wheel>=0.29.0',
         'twine>=1.8.1',
+        'pytest==3.0.4',
+        'pytest-cov==2.4.0',
+        'pytest-flake8==0.8.1',
+        'pytest-mock==1.4.0',
+        'flake8==3.3.0',
     ],
 }
 
-tests_require = [
-    'pytest==3.0.4',
-    'pytest-cov==2.4.0',
-    'pytest-flake8==0.8.1',
-    'pytest-mock==1.4.0',
-    'flake8==3.3.0',
-]
+# Dependencies for tests_require (python setup.py test)
+tests_require = []
 for k in extras_require:
     tests_require += extras_require[k]
 
