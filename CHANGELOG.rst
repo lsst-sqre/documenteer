@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+- Add ``module-toctree`` and ``package-toctree`` directives.
+  These create toctrees for modules and packages, respectively, in Stack documentation sites like pipelines.lsst.io.
+  With these directives, we don't need to modify the ``index.rst`` file in https://github.com/lsst/pipelines_lsst_io each time new packages are added or removed.
+
 0.2.7 (2018-03-09)
 ------------------
 
