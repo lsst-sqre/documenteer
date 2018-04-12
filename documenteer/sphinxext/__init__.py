@@ -14,7 +14,7 @@ automatically enabled. They should be specified individually. They are:
 - ``documenteer.sphinxext.bibtex``
 """
 
-from . import jira, lsstdocushare, mockcoderefs
+from . import jira, lsstdocushare, mockcoderefs, packagetoctree
 
 
 def setup(app):
@@ -23,3 +23,4 @@ def setup(app):
     jira.setup(app)
     lsstdocushare.setup(app)
     mockcoderefs.setup(app)
+    packagetoctree.setup(app)
