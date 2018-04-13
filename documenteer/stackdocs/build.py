@@ -1,22 +1,17 @@
 """Stack documentation build system.
 """
 
+__all__ = ('run_build_cli', 'build_stack_docs')
+
 import argparse
 from collections import namedtuple
 import logging
 import os
 import sys
-import traceback
-
-from docutils.utils import SystemMessage
-from sphinx.errors import SphinxError
-from sphinx.application import Sphinx
-from sphinx.util import format_exception_cut_frames, save_traceback
-from sphinx.util.console import red
-from sphinx.util.docutils import docutils_namespace
-from sphinx.util.pycompat import terminal_safe
 
 import yaml
+
+from ..sphinxrunner import run_sphinx
 
 from .._version import get_versions
 __version__ = get_versions()['version']
@@ -40,10 +35,22 @@ def run_build_cli():
 
     logger.info('build-stack-docs version {0}'.format(__version__))
 
+    return_code = build_stack_docs(args.root_project_dir)
+    if return_code == 0:
+        logger.info('build-stack-docs succeeded')
+        sys.exit(0)
+    else:
+        logger.error('Sphinx errored: code {0:d}'.format(return_code))
+        sys.exit(1)
+
+
+def build_stack_docs(root_project_dir):
+    logger = logging.getLogger(__name__)
+
     # Create the directory where module content is symlinked
     # NOTE: this path is hard-wired in for pipelines.lsst.io, but could be
     # refactored as a configuration.
-    root_modules_dir = os.path.join(args.root_project_dir, 'modules')
+    root_modules_dir = os.path.join(root_project_dir, 'modules')
     if os.path.isdir(root_modules_dir):
         logger.info('Deleting any existing modules/ symlinks')
         remove_existing_links(root_modules_dir)
@@ -52,7 +59,7 @@ def run_build_cli():
         os.makedirs(root_modules_dir)
 
     # Create directory for package content
-    root_packages_dir = os.path.join(args.root_project_dir, 'packages')
+    root_packages_dir = os.path.join(root_project_dir, 'packages')
     if os.path.isdir(root_packages_dir):
         # Clear out existing module links
         logger.info('Deleting any existing packages/ symlinks')
@@ -63,7 +70,7 @@ def run_build_cli():
 
     # Ensure _static directory exists (but do not delete any existing
     # directory contents)
-    root_static_dir = os.path.join(args.root_project_dir, '_static')
+    root_static_dir = os.path.join(root_project_dir, '_static')
     if os.path.isdir(root_static_dir):
         # Clear out existing directory links
         logger.info('Deleting any existing _static/ symlinks')
@@ -90,15 +97,8 @@ def run_build_cli():
         link_directories(root_static_dir, package_docs.static_dirs)
 
     # Trigger the Sphinx build
-    return_code = run_sphinx(args.root_project_dir)
-
-    # Return code based on the Sphinx status.
-    if return_code == 0:
-        logger.info('build-stack-docs succeeded')
-        sys.exit(0)
-    else:
-        logger.error('Sphinx errored: code {0:d}'.format(return_code))
-        sys.exit(1)
+    return_code = run_sphinx(root_project_dir)
+    return return_code
 
 
 def parse_args():
@@ -365,130 +365,3 @@ def remove_existing_links(root_dir):
         if os.path.islink(full_name):
             logger.debug('Deleting existing symlink {0}'.format(full_name))
             os.remove(full_name)
-
-
-def run_sphinx(root_dir):
-    """Run the Sphinx build process.
-
-    Parameters
-    ----------
-    root_dir : `str`
-        Root directory of the Sphinx project and content source. This directory
-        conatains both the root ``index.rst`` file and the ``conf.py``
-        configuration file.
-
-    Returns
-    -------
-    status : `int`
-        Sphinx status code. ``0`` is expected. Greater than ``0`` indicates
-        an error.
-
-    Notes
-    -----
-    This function implements similar internals to Sphinx's own ``sphinx-build``
-    command. Most configurations are hard-coded to defaults appropriate for
-    building stack documentation, but flexibility can be added later as
-    needs are identified.
-    """
-    logger = logging.getLogger(__name__)
-
-    # This replicates what Sphinx's internal command line hander does
-    # https://github.com/sphinx-doc/sphinx/blob/master/sphinx/cmdline.py
-
-    # configuration
-    root_dir = os.path.abspath(root_dir)
-    srcdir = root_dir  # root directory of Sphinx content
-    confdir = root_dir  # directory where conf.py is located
-    outdir = os.path.join(root_dir, '_build', 'html')
-    doctreedir = os.path.join(root_dir, '_build', 'doctree')
-    builder = 'html'
-    confoverrides = {}
-    status = sys.stdout  # set to None for 'quiet' mode
-    warning = sys.stderr
-    error = sys.stderr
-    freshenv = False  # attempt to re-use existing build artificats
-    warningiserror = False
-    tags = []
-    verbosity = 0
-    jobs = 1  # number of processes
-    force_all = True
-    filenames = []
-
-    logger.debug('Sphinx config: srcdir={0}'.format(srcdir))
-    logger.debug('Sphinx config: confdir={0}'.format(confdir))
-    logger.debug('Sphinx config: outdir={0}'.format(outdir))
-    logger.debug('Sphinx config: doctreedir={0}'.format(doctreedir))
-    logger.debug('Sphinx config: builder={0}'.format(builder))
-    logger.debug('Sphinx config: freshenv={0:b}'.format(freshenv))
-    logger.debug('Sphinx config: warningiserror={0:b}'.format(warningiserror))
-    logger.debug('Sphinx config: verbosity={0:d}'.format(verbosity))
-    logger.debug('Sphinx config: jobs={0:d}'.format(jobs))
-    logger.debug('Sphinx config: force_all={0:b}'.format(force_all))
-
-    app = None
-    try:
-        # NOTE: Sphinx 1.6+ also uses a
-        # sphinx.util.docutils.patch_docutils() context
-        with docutils_namespace():
-            app = Sphinx(
-                srcdir, confdir, outdir, doctreedir, builder,
-                confoverrides, status, warning, freshenv,
-                warningiserror, tags, verbosity, jobs)
-            app.build(force_all, filenames)
-            return app.statuscode
-    except (Exception, KeyboardInterrupt) as exc:
-        handle_sphinx_exception(app, exc, error)
-        return 1
-
-
-def handle_sphinx_exception(app, exception, stderr=sys.stderr):
-    """Handle a Sphinx/docutils exception and print tracebacks.
-
-    Parameters
-    ----------
-    app : `sphinx.application.Sphinx`
-        Sphinx application object.
-    exception : Exception
-        Exception object.
-    stderr : obj
-        Typically `sys.stderr`.
-
-    Notes
-    -----
-    This code is ported from Sphinx. Copyright 2007-2017 by the Sphinx team.
-    See licenses/sphinx.txt for the full license.
-    """
-    print(file=stderr)
-    traceback.print_exc(None, stderr)
-    print(file=stderr)
-    if isinstance(exception, KeyboardInterrupt):
-        print('interrupted!', file=stderr)
-    elif isinstance(exception, SystemMessage):
-        print(red('reST markup error:'), file=stderr)
-        print(terminal_safe(exception.args[0]), file=stderr)
-    elif isinstance(exception, SphinxError):
-        print(red('%s:' % exception.category), file=stderr)
-        print(terminal_safe(str(exception)), file=stderr)
-    elif isinstance(exception, UnicodeError):
-        print(red('Encoding error:'), file=stderr)
-        print(terminal_safe(str(exception)), file=stderr)
-        tbpath = save_traceback(app)
-        print(red('The full traceback has been saved in %s, if you want '
-                  'to report the issue to the developers.' % tbpath),
-              file=stderr)
-    elif isinstance(exception, RuntimeError) \
-            and 'recursion depth' in str(exception):
-        print(red('Recursion error:'), file=stderr)
-        print(terminal_safe(str(exception)), file=stderr)
-        print(file=stderr)
-        print('This can happen with very large or deeply nested source '
-              'files.  You can carefully increase the default Python '
-              'recursion limit of 1000 in conf.py with e.g.:', file=stderr)
-        print('    import sys; sys.setrecursionlimit(1500)', file=stderr)
-    else:
-        print(red('Exception occurred:'), file=stderr)
-        print(format_exception_cut_frames().rstrip(), file=stderr)
-        tbpath = save_traceback(app)
-        print(red('The full traceback has been saved in %s, if you '
-                  'want to report the issue to the developers.' % tbpath),
-              file=stderr)
