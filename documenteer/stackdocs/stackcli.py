@@ -4,6 +4,8 @@
 __all__ = ('main',)
 
 import logging
+import os
+import shutil
 import sys
 import click
 
@@ -71,3 +73,21 @@ def build(ctx):
     return_code = build_stack_docs(ctx.obj['root_project_dir'])
     if return_code > 0:
         sys.exit(return_code)
+
+
+@main.command()
+@click.pass_context
+def clean(ctx):
+    """Clean Sphinx build products.
+    """
+    logger = logging.getLogger(__name__)
+
+    dirnames = ['py-api', '_build', 'modules', 'packages']
+    dirnames = [os.path.join(ctx.obj['root_project_dir'], dirname)
+                for dirname in dirnames]
+    for dirname in dirnames:
+        if os.path.isdir(dirname):
+            shutil.rmtree(dirname)
+            logger.debug('Cleaned up %r', dirname)
+        else:
+            logger.debug('Did not clean up %r (missing)', dirname)
