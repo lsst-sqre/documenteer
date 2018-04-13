@@ -94,6 +94,7 @@ setup(
     entry_points={
         'console_scripts': [
             'stack-docs = documenteer.stackdocs.stackcli:main',
+            'package-docs = documenteer.stackdocs.packagecli:main',
             'build-stack-docs = documenteer.stackdocs.build:run_build_cli',
             'refresh-lsst-bib = documenteer.bin.refreshlsstbib:run'
         ]
