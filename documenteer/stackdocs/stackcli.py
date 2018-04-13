@@ -24,6 +24,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
     is_flag=True,
     help='Enable verbose output (debug-level logging)'
 )
+@click.version_option()
 @click.pass_context
 def main(ctx, root_project_dir, verbose):
     """stack-docs is a CLI for building LSST Stack documentation, such as
