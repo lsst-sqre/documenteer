@@ -4,7 +4,10 @@
 __all__ = ('main',)
 
 import logging
+import sys
 import click
+
+from .build import build_stack_docs
 
 
 # Add -h as a help shortcut option
@@ -58,3 +61,13 @@ def help(ctx, topic, **kw):
         click.echo(ctx.parent.get_help())
     else:
         click.echo(main.commands[topic].get_help(ctx))
+
+
+@main.command()
+@click.pass_context
+def build(ctx):
+    """Build documentation as HTML.
+    """
+    return_code = build_stack_docs(ctx.obj['root_project_dir'])
+    if return_code > 0:
+        sys.exit(return_code)
