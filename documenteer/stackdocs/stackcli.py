@@ -3,6 +3,7 @@
 
 __all__ = ('main',)
 
+import logging
 import click
 
 
@@ -18,14 +19,30 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
     default='.',
     help='Root Sphinx project directory'
 )
+@click.option(
+    '-v', '--verbose',
+    is_flag=True,
+    help='Enable verbose output (debug-level logging)'
+)
 @click.pass_context
-def main(ctx, root_project_dir):
+def main(ctx, root_project_dir, verbose):
     """stack-docs is a CLI for building LSST Stack documentation, such as
     pipelines.lsst.io.
     """
     # Subcommands should use the click.pass_obj decorator to get this
     # ctx.obj object as the first argument.
-    ctx.obj = {'root_project_dir': root_project_dir}
+    ctx.obj = {'root_project_dir': root_project_dir,
+               'verbose': verbose}
+
+    # Set up application logging. This ensures that only documenteer's
+    # logger is activated. If necessary, we can add other app's loggers too.
+    if verbose:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+    logger = logging.getLogger('documenteer')
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(log_level)
 
 
 @main.command()
