@@ -8,6 +8,17 @@ Unreleased
   These create toctrees for modules and packages, respectively, in Stack documentation sites like pipelines.lsst.io.
   With these directives, we don't need to modify the ``index.rst`` file in https://github.com/lsst/pipelines_lsst_io each time new packages are added or removed.
 
+- New ``stack-docs`` command-line app.
+  This replaces ``build-stack-docs``, and now provides a subcommand interface: ``stack-docs build`` and ``stack-docs clean``.
+
+- New ``package-docs`` command-line app.
+  This CLI complements ``stack-docs``, but is intended for single-package documentation.
+  This effectively lets us replace the Sphinx Makefile (including the ``clean`` command).
+  Using a packaged app lets us avoid SIP issues, as well as Makefile drift in individual packages.
+
+- Refactored the Sphinx interface into ``documenteer.sphinxrunner.run_sphinx``.
+  This change lets multiple command-line front-ends to drive Sphinx.
+
 0.2.7 (2018-03-09)
 ------------------
 

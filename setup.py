@@ -29,7 +29,8 @@ install_requires = [
     'PyYAML',
     'sphinx-prompt',
     'GitPython',
-    'requests'
+    'requests',
+    'click>=6.7,<7.0'
 ]
 
 # Project-specific dependencies
@@ -92,6 +93,8 @@ setup(
     extras_require=extras_require,
     entry_points={
         'console_scripts': [
+            'stack-docs = documenteer.stackdocs.stackcli:main',
+            'package-docs = documenteer.stackdocs.packagecli:main',
             'build-stack-docs = documenteer.stackdocs.build:run_build_cli',
             'refresh-lsst-bib = documenteer.bin.refreshlsstbib:run'
         ]
