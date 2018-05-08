@@ -120,7 +120,8 @@ def _build_confs(metadata):
     else:
         # obain date from git commit at most recent content commit since HEAD
         try:
-            date = get_project_content_commit_date()
+            date = get_project_content_commit_date(
+                exclusions=c['exclude_patterns'])
         except Exception as e:
             print('Caught exception: {}'.format(e))
             print('Cannot get project content git commit date.')
