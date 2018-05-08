@@ -75,6 +75,11 @@ def _build_confs(metadata):
 
     c['copyright'] = metadata['copyright']
 
+    # List of patterns, relative to source directory, that match files and
+    # directories to ignore when looking for source files.
+    c['exclude_patterns'] = metadata.get('exclude_patterns',
+                                         ['_build', 'README.rst'])
+
     # attempt to obtain the version as the Git branch
     try:
         c['version'] = read_git_branch()
@@ -152,10 +157,6 @@ def _build_confs(metadata):
 
     # The master toctree document.
     c['master_doc'] = 'index'
-
-    # List of patterns, relative to source directory, that match files and
-    # directories to ignore when looking for source files.
-    c['exclude_patterns'] = ['_build', 'README.rst']
 
     # If true, `todo` and `todoList` produce output, else they produce nothing.
     c['todo_include_todos'] = True
