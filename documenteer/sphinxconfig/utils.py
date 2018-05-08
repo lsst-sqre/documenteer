@@ -180,7 +180,7 @@ def get_project_content_commit_date(root_dir='.', exclusions=None):
             commit_datetimes.append(datetime)
         except IOError:
             logger.warning(
-                'Count not get commit for {}, skipping'.format(filepath))
+                'Could not get commit for {}, skipping'.format(filepath))
 
     if not commit_datetimes:
         raise RuntimeError('No content commits could be found')
