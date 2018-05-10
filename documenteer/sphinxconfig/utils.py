@@ -137,6 +137,8 @@ def get_project_content_commit_date(root_dir='.', exclusions=None):
     ----------
     root_dir : 'str`, optional
         Root directory. This is the current working directory by default.
+    exclusions : `list` of `str`, optional
+        List of file paths or directory paths to ignore.
 
     Returns
     -------
