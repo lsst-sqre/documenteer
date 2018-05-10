@@ -19,6 +19,9 @@ Unreleased
 - Refactored the Sphinx interface into ``documenteer.sphinxrunner.run_sphinx``.
   This change lets multiple command-line front-ends to drive Sphinx.
 
+- Recognize a new field in the ``metadata.yaml`` files of Sphinx technotes called ``exclude_patterns``.
+  This is an array of file or directory paths that will be ignored by Sphinx during its build, as well as extensions like our ``get_project_content_commit_date`` for looking up commit date of content files.
+
 0.2.7 (2018-03-09)
 ------------------
 
