@@ -75,6 +75,11 @@ def _build_confs(metadata):
 
     c['copyright'] = metadata['copyright']
 
+    # List of patterns, relative to source directory, that match files and
+    # directories to ignore when looking for source files.
+    c['exclude_patterns'] = metadata.get('exclude_patterns',
+                                         ['_build', 'README.rst'])
+
     # attempt to obtain the version as the Git branch
     try:
         c['version'] = read_git_branch()
@@ -115,7 +120,8 @@ def _build_confs(metadata):
     else:
         # obain date from git commit at most recent content commit since HEAD
         try:
-            date = get_project_content_commit_date()
+            date = get_project_content_commit_date(
+                exclusions=c['exclude_patterns'])
         except Exception as e:
             print('Caught exception: {}'.format(e))
             print('Cannot get project content git commit date.')
@@ -152,10 +158,6 @@ def _build_confs(metadata):
 
     # The master toctree document.
     c['master_doc'] = 'index'
-
-    # List of patterns, relative to source directory, that match files and
-    # directories to ignore when looking for source files.
-    c['exclude_patterns'] = ['_build', 'README.rst']
 
     # If true, `todo` and `todoList` produce output, else they produce nothing.
     c['todo_include_todos'] = True

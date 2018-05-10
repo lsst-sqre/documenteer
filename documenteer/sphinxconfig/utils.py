@@ -6,6 +6,7 @@ import re
 
 import git
 
+from sphinx.util.matching import Matcher
 
 TICKET_BRANCH_PATTERN = re.compile('^tickets/([A-Z]+-[0-9]+)$')
 
@@ -115,7 +116,7 @@ def get_filepaths_with_extension(extname, root_dir='.'):
     return selected_filenames
 
 
-def get_project_content_commit_date(root_dir='.'):
+def get_project_content_commit_date(root_dir='.', exclusions=None):
     """Get the datetime for the most recent commit to a project that
     affected Sphinx content.
 
@@ -159,10 +160,12 @@ def get_project_content_commit_date(root_dir='.'):
             root_dir=root_dir)
 
     # Known files that should be excluded; lower case for comparison
-    exclusions = ('readme.rst', 'license.rst')
+    exclude = Matcher(exclusions if exclusions
+                      else ['readme.rst', 'license.rst'])
+
     # filter out excluded files
     content_paths = [p for p in content_paths
-                     if p.lower() not in exclusions]
+                     if not (exclude(p) or exclude(p.split(os.path.sep)[0]))]
     logger.debug('Found content paths: {}'.format(', '.join(content_paths)))
 
     if not content_paths:
@@ -177,7 +180,7 @@ def get_project_content_commit_date(root_dir='.'):
             commit_datetimes.append(datetime)
         except IOError:
             logger.warning(
-                'Count not get commit for {}, skipping'.format(filepath))
+                'Could not get commit for {}, skipping'.format(filepath))
 
     if not commit_datetimes:
         raise RuntimeError('No content commits could be found')
