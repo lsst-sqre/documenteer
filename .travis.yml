@@ -1,10 +1,16 @@
 sudo: false
 language: python
-python:
-  - '3.5'
-  - '3.6'
+matrix:
+  include:
+    - python: "3.5"
+    # Use the Python 3.6 build for PyPI deployments and doc uploads
+    - python: "3.6"
+      env: PYPI_DEPLOY=true LTD_SKIP_UPLOAD=false
 script:
   - python setup.py test
+env:
+  global:
+    - PYPI_DEPLOY=false  # disable PyPI pushes in regular matrix
 deploy:
   provider: pypi
   user: sqre-admin
@@ -16,3 +22,4 @@ deploy:
   on:
     tags: true
     repo: lsst-sqre/documenteer
+    condition: "$PYPI_DEPLOY = true"

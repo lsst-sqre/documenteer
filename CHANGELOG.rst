@@ -26,6 +26,8 @@ Unreleased
 
 - Switched to ``setuptools_scm`` for managing version strings.
 
+- Improved the Travis CI-based PyPI release process.
+
 0.2.7 (2018-03-09)
 ------------------
 
