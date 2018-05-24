@@ -7,11 +7,14 @@ import os
 import sys
 import urllib
 
+from pkg_resources import get_distribution, DistributionNotFound
 import requests
 
-from .._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+try:
+    __version__ = get_distribution('documenteer').version
+except DistributionNotFound:
+    # package is not installed
+    __version__ = 'unknown'
 
 
 def run():

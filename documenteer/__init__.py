@@ -1,3 +1,10 @@
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+__all__ = ('__version__',)
+
+from pkg_resources import get_distribution, DistributionNotFound
+
+
+try:
+    __version__ = get_distribution('documenteer').version
+except DistributionNotFound:
+    # package is not installed
+    __version__ = 'unknown'

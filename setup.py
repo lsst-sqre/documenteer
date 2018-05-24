@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import versioneer
 
 import os
 
@@ -10,6 +9,13 @@ author = 'Association of Universities for Research in Astronomy, Inc.'
 author_email = 'sqre-admin@lists.lsst.org'
 license = 'MIT'
 url = 'https://github.com/lsst-sqre/documenteer'
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'License :: OSI Approved :: MIT License',
+    'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
+]
+keywords = 'sphinx documentation lsst'
 
 
 def read(filename):
@@ -66,37 +72,33 @@ for k in extras_require:
     tests_require += extras_require[k]
 
 setup_requires = [
+    'setuptools_scm',
     'pytest-runner>=2.11.1,<3',
 ]
 
+console_scripts = [
+    'stack-docs = documenteer.stackdocs.stackcli:main',
+    'package-docs = documenteer.stackdocs.packagecli:main',
+    'build-stack-docs = documenteer.stackdocs.build:run_build_cli',
+    'refresh-lsst-bib = documenteer.bin.refreshlsstbib:run'
+]
+
+
 setup(
     name=packagename,
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
     description=description,
     long_description=long_description,
     url=url,
     author=author,
     author_email=author_email,
     license=license,
-    classifiers=[
-        'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-    ],
-    keywords='sphinx documentation lsst',
+    classifiers=classifiers,
+    keywords=keywords,
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
     extras_require=extras_require,
-    entry_points={
-        'console_scripts': [
-            'stack-docs = documenteer.stackdocs.stackcli:main',
-            'package-docs = documenteer.stackdocs.packagecli:main',
-            'build-stack-docs = documenteer.stackdocs.build:run_build_cli',
-            'refresh-lsst-bib = documenteer.bin.refreshlsstbib:run'
-        ]
-    },
+    entry_points={'console_scripts': console_scripts},
+    use_scm_version=True,
 )

@@ -13,10 +13,7 @@ try:
 except ImportError:
     getLogger = None
 from sphinx.util.nodes import set_source_info
-
-from .._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+from pkg_resources import get_distribution, DistributionNotFound
 
 
 class ModuleTocTree(Directive):
@@ -182,4 +179,10 @@ def _build_toctree_node(parent=None, entries=None, includefiles=None,
 def setup(app):
     app.add_directive('module-toctree', ModuleTocTree)
     app.add_directive('package-toctree', PackageTocTree)
+
+    try:
+        __version__ = get_distribution('documenteer').version
+    except DistributionNotFound:
+        # package is not installed
+        __version__ = 'unknown'
     return {'version': __version__}
