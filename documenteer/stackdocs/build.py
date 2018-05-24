@@ -9,13 +9,16 @@ import logging
 import os
 import sys
 
+from pkg_resources import get_distribution, DistributionNotFound
 import yaml
 
 from ..sphinxrunner import run_sphinx
 
-from .._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+try:
+    __version__ = get_distribution('documenteer').version
+except DistributionNotFound:
+    # package is not installed
+    __version__ = 'unknown'
 
 
 def run_build_cli():

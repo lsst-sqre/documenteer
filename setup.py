@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import versioneer
 
 import os
 
@@ -73,6 +72,7 @@ for k in extras_require:
     tests_require += extras_require[k]
 
 setup_requires = [
+    'setuptools_scm',
     'pytest-runner>=2.11.1,<3',
 ]
 
@@ -86,8 +86,6 @@ console_scripts = [
 
 setup(
     name=packagename,
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
     description=description,
     long_description=long_description,
     url=url,
@@ -102,4 +100,5 @@ setup(
     tests_require=tests_require,
     extras_require=extras_require,
     entry_points={'console_scripts': console_scripts},
+    use_scm_version=True,
 )

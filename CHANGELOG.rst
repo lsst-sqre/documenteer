@@ -24,6 +24,8 @@ Unreleased
 
 - Updated to lsst-sphinx-bootstrap-theme 0.3.x for pipelines docs.
 
+- Switched to ``setuptools_scm`` for managing version strings.
+
 0.2.7 (2018-03-09)
 ------------------
 
