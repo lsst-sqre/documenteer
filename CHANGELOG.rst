@@ -22,6 +22,8 @@ Unreleased
 - Recognize a new field in the ``metadata.yaml`` files of Sphinx technotes called ``exclude_patterns``.
   This is an array of file or directory paths that will be ignored by Sphinx during its build, as well as extensions like our ``get_project_content_commit_date`` for looking up commit date of content files.
 
+- Updated to lsst-sphinx-bootstrap-theme 0.3.x for pipelines docs.
+
 0.2.7 (2018-03-09)
 ------------------
 
