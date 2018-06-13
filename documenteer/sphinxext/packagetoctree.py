@@ -47,13 +47,13 @@ class ModuleTocTree(Directive):
 
         # List of homepage documents for each module
         module_index_files = []
-        entries = []
 
         # Collect paths with the form `modules/<module-name>/index`
         for docname in _filter_index_pages(env.found_docs, 'modules'):
-            module_index_files.append(docname)
-            entries.append((None, docname))
             logger.debug('module-toctree found %s', docname)
+            module_index_files.append(docname)
+        module_index_files.sort()
+        entries = [(None, docname) for docname in module_index_files]
         logger.debug('module-toctree found %d modules',
                      len(module_index_files))
 
@@ -104,13 +104,13 @@ class PackageTocTree(Directive):
 
         # List of homepage documents for each package
         package_index_files = []
-        entries = []
 
         # Collect paths with the form `modules/<module-name>/index`
         for docname in _filter_index_pages(env.found_docs, 'packages'):
-            package_index_files.append(docname)
-            entries.append((None, docname))
             logger.debug('package-toctree found %s', docname)
+            package_index_files.append(docname)
+        package_index_files.sort()
+        entries = [(None, docname) for docname in package_index_files]
         logger.debug('package-toctree found %d packages',
                      len(package_index_files))
 
