@@ -59,7 +59,6 @@ def _insert_intersphinx_mapping(c):
         'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
         'matplotlib': ('http://matplotlib.org/', None),
         'astropy': ('http://docs.astropy.org/en/stable/', None),
-        'h5py': ('http://docs.h5py.org/en/latest/', None)
     }
     c['intersphinx_timeout'] = 10.0  # seconds
     c['intersphinx_cache_limit'] = 5  # days
