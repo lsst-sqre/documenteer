@@ -23,6 +23,23 @@ Unreleased
 - Refactored the Sphinx interface into ``documenteer.sphinxrunner.run_sphinx``.
   This change lets multiple command-line front-ends to drive Sphinx.
 
+- Various improvements to the configuration for LSST Stack-based documentation projects (``documenteer.sphinxconf.stackconf``):
+
+  - Add ``documenteer.sphinxconf.stackconf.build_pipelines_lsst_io_configs`` to configure the Sphinx build of the https://github.com/lsst/pipelines_lsst_io repo.
+    This pattern lets us share configurations between per-package documentation builds and the "stack" build in ``pipelines_lsst_io``.
+
+  - Replaced the third-party `astropy_helpers`_ package with the numpydoc_ and `sphinx-automodapi`_ packages.
+    This helps reduce the number of extraneous dependencies needed for Stack documentation.
+
+  - ``autoclass_content`` is now ``"class"``, fitting the LSST DM standards for writing class docstrings, and not filling out ``__init__`` docstrings.
+
+  - Removed h5py from intersphinx since it was never needed.
+
+  - Removed the viewcode extension since that won't scale well with the LSST codebase.
+    Ultimately we want to link to source on GitHub.
+
+  - Other internal cleanups for ``documenteer.sphinxconf.stackconf``.
+
 - Recognize a new field in the ``metadata.yaml`` files of Sphinx technotes called ``exclude_patterns``.
   This is an array of file or directory paths that will be ignored by Sphinx during its build, as well as extensions like our ``get_project_content_commit_date`` for looking up commit date of content files.
 
@@ -169,3 +186,6 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 - Initial version
 
 .. _lsst-texmf: https://github.com/lsst/lsst-texmf
+.. _astropy_helpers: https://pypi.org/project/astropy-helpers/
+.. _`sphinx-automodapi`: https://pypi.org/project/sphinx-automodapi/
+.. _numpydoc: https://pypi.org/project/numpydoc/
