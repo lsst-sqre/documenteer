@@ -14,7 +14,12 @@ automatically enabled. They should be specified individually. They are:
 - ``documenteer.sphinxext.bibtex``
 """
 
-from . import jira, lsstdocushare, mockcoderefs, packagetoctree
+__all__ = ('setup',)
+
+from pkg_resources import get_distribution, DistributionNotFound
+
+from . import (jira, lsstdocushare, mockcoderefs, packagetoctree,
+               remotecodeblock)
 
 
 def setup(app):
@@ -24,3 +29,13 @@ def setup(app):
     lsstdocushare.setup(app)
     mockcoderefs.setup(app)
     packagetoctree.setup(app)
+    remotecodeblock.setup(app)
+
+    try:
+        __version__ = get_distribution('documenteer').version
+    except DistributionNotFound:
+        # package is not installed
+        __version__ = 'unknown'
+    return {'version': __version__,
+            'parallel_read_safe': True,
+            'parallel_write_safe': True}

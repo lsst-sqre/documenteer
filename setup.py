@@ -30,8 +30,7 @@ long_description = read('README.rst')
 
 # Core dependencies
 install_requires = [
-    'docutils==0.13.1',  # currently pinned in conjunction with Sphinx
-    'Sphinx>=1.5.0,<1.6.0',
+    'Sphinx>=1.7.0,<2.0.0',
     'PyYAML',
     'sphinx-prompt',
     'GitPython',
