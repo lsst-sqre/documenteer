@@ -11,9 +11,9 @@ from sphinx.application import Sphinx
 try:
     from sphinx.cmd.build import handle_exception
 except ImportError:
-    # Sphinx <1.7
+    # Sphinx <1.8
     from sphinx.cmdline import handle_exception
-from sphinx.util.docutils import docutils_namespace
+from sphinx.util.docutils import docutils_namespace, patch_docutils
 
 
 def run_sphinx(root_dir):
@@ -41,8 +41,9 @@ def run_sphinx(root_dir):
     """
     logger = logging.getLogger(__name__)
 
-    # This replicates what Sphinx's internal command line hander does
-    # https://github.com/sphinx-doc/sphinx/blob/master/sphinx/cmdline.py
+    # This replicates what Sphinx's internal command line hander does in
+    # https://github.com/sphinx-doc/sphinx/blob/master/sphinx/cmd/build.py
+    # build_main()
 
     # configuration
     root_dir = os.path.abspath(root_dir)
@@ -76,9 +77,7 @@ def run_sphinx(root_dir):
 
     app = None
     try:
-        # NOTE: Sphinx 1.6+ also uses a
-        # sphinx.util.docutils.patch_docutils() context
-        with docutils_namespace():
+        with patch_docutils(), docutils_namespace():
             app = Sphinx(
                 srcdir, confdir, outdir, doctreedir, builder,
                 confoverrides, status, warning, freshenv,
@@ -91,7 +90,7 @@ def run_sphinx(root_dir):
         return 1
 
 
-class MockSphinxNamespace(object):
+class MockSphinxNamespace:
     """Mock Namespace object to mock the Sphinx command line arguments.
 
     This class is needed for sphinx.cmd.build.handle_exception.
