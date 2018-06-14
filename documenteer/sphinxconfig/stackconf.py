@@ -204,7 +204,8 @@ def _insert_breathe_configs(c, *, project_name, doxygen_xml_dirname):
 
 
 def _insert_automodapi_configs(c):
-    """Add configurations related to automodapi and numpydoc to the state.
+    """Add configurations related to automodapi, autodoc, and numpydoc to the
+    state.
     """
     # Don't show summaries of the members in each class along with the
     # class' docstring
@@ -214,9 +215,26 @@ def _insert_automodapi_configs(c):
 
     c['automodapi_toctreedirnm'] = 'py-api'
 
-    # Class documentation should contain *both* the class docstring and
-    # the __init__ docstring
-    c['autoclass_content'] = "both"
+    # Docstrings for classes and methods are inherited from parents.
+    c['autodoc_inherit_docstrings'] = True
+
+    # Class documentation should only contain the class docstring and
+    # ignore the __init__ docstring, account to LSST coding standards.
+    # c['autoclass_content'] = "both"
+    c['autoclass_content'] = "class"
+
+    # Default flags for automodapi directives. Special members are dunder
+    # methods.
+    # NOTE: We want to used `inherited-members`, but it seems to be causing
+    # documentation duplication in the automodapi listings. We're leaving
+    # this out for now. See https://jira.lsstcorp.org/browse/DM-14782 for
+    # additional notes.
+    # NOTE: Without inherited members set, special-members doesn't need seem
+    # to have an effect (even for special members where the docstrings are
+    # directly written in the class, not inherited.
+    # c['autodoc_default_flags'] = ['inherited-members']
+    c['autodoc_default_flags'] = ['show-inheritance',
+                                  'special-members']
 
     return c
 
