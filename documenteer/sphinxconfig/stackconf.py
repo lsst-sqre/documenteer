@@ -28,7 +28,6 @@ def _insert_extensions(c):
         'sphinx.ext.coverage',
         'sphinx.ext.mathjax',
         'sphinx.ext.ifconfig',
-        'sphinx.ext.viewcode',
         'sphinx-prompt',
         'numpydoc',
         'sphinx_automodapi.automodapi',
