@@ -100,3 +100,4 @@ class MockSphinxNamespace(object):
     def __init__(self, verbosity=0, traceback=True):
         self.verbosity = verbosity
         self.traceback = traceback
+        self.pdb = False
