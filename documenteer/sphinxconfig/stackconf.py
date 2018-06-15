@@ -43,15 +43,15 @@ def _insert_intersphinx_mapping(c):
     ``intersphinx_cache_limit`` variableis into the configuration state.
     """
     c['intersphinx_mapping'] = {
-        'python': ('http://docs.python.org/3/', None),
+        'python': ('https://docs.python.org/3/', None),
         # FIXME add local object cache
         # 'pythonloc': ('http://docs.python.org/',
         #               os.path.abspath(
         #                   os.path.join(os.path.dirname(__file__),
         #                                'local/python3_local_links.inv'))),
-        'numpy': ('http://docs.scipy.org/doc/numpy/', None),
-        'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
-        'matplotlib': ('http://matplotlib.org/', None),
+        'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+        'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+        'matplotlib': ('https://matplotlib.org/', None),
         'astropy': ('http://docs.astropy.org/en/stable/', None),
     }
     c['intersphinx_timeout'] = 10.0  # seconds
