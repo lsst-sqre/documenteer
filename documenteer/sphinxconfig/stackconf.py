@@ -7,9 +7,10 @@ https://github.com/astropy/astropy-helpers/blob/master/astropy_helpers/sphinx/co
 see licenses/astropy-helpers.txt
 """
 
-__all__ = ('build_package_configs',)
+__all__ = ('build_package_configs', 'build_pipelines_lsst_io_configs')
 
 import datetime
+import sys
 import warnings
 
 import lsst_sphinx_bootstrap_theme
@@ -287,11 +288,9 @@ def build_package_configs(project_name,
     """Builds a `dict` of Sphinx configurations useful for the ``doc/conf.py``
     files of individual LSST Stack packages.
 
-    The ``doc/conf.py`` of packages can ingest these configurations via
+    The ``doc/conf.py`` of packages can ingest these configurations via::
 
-    .. code:: python
-
-       from documenteer.sphinxconfing.stackconf import build_package_configs
+       from documenteer.sphinxconfig.stackconf import build_package_configs
 
        _g = globals()
        _g.update(build_package_configs(
@@ -385,5 +384,122 @@ def build_package_configs(project_name,
     # Show rendered todo directives in package docs since they're developer
     # facing.
     c['todo_include_todos'] = True
+
+    return c
+
+
+def build_pipelines_lsst_io_configs(*, project_name, current_release,
+                                    copyright=None):
+    """Build a `dict` of Sphinx configurations that populate the ``conf.py``
+    of the main pipelines_lsst_io Sphinx project for LSST Science Pipelines
+    documentation.
+
+    The ``conf.py`` file can ingest these configurations via::
+
+       from documenteer.sphinxconfig.stackconf import \
+           build_pipelines_lsst_io_configs
+
+       _g = globals()
+       _g.update(build_pipelines_lsst_io_configs(
+           project_name='LSST Science Pipelines',
+           current_release='16_0')
+
+    You can subsequently customize the Sphinx configuration by directly
+    assigning global variables, as usual in a Sphinx ``config.py``, e.g.::
+
+       copyright = '2016 Association of Universities for '
+                   'Research in Astronomy, Inc.'
+
+    Parameters
+    ----------
+    project_name : `str`
+        Name of the project
+    current_release : `str`
+        EUPS tag associated with the most recent release.
+    copyright : `str`, optional
+        Copyright statement. Do not include the 'Copyright (c)' string; it'll
+        be added automatically.
+
+    Returns
+    -------
+    c : dict
+        Dictionary of configurations that should be added to the ``conf.py``
+        global namespace via::
+
+            _g = global()
+            _g.update(c)
+    """
+    # Work around Sphinx bug related to large and highly-nested source files
+    sys.setrecursionlimit(2000)
+
+    c = {}
+
+    c = _insert_common_sphinx_configs(
+        c,
+        project_name=project_name)
+
+    # HTML theme
+    c = _insert_html_configs(
+        c,
+        project_name=project_name,
+        short_project_name=project_name)
+
+    # Sphinx extension modules
+    c = _insert_extensions(c)
+
+    # Intersphinx configuration
+    c = _insert_intersphinx_mapping(c)
+
+    # Breathe extension configuration
+    # FIXME configure this for multiple sites
+
+    # Automodapi and numpydoc configurations
+    c = _insert_automodapi_configs(c)
+
+    # Matplotlib configurations
+    c = _insert_matplotlib_configs(c)
+
+    # Graphviz configurations
+    c = _insert_graphviz_configs(c)
+
+    # Always use "now" as the date for the main site's docs because we can't
+    # look at the Git history of each stack package.
+    date = datetime.datetime.now()
+    c['today'] = date.strftime('%Y-%m-%d')
+
+    # Use this copyright for now. Ultimately we want to gather COPYRIGHT files
+    # and build an integrated copyright that way.
+    c['copyright'] = '2015-{year} LSST contributors.'.format(
+        year=date.year)
+
+    # Always define the "version" as the EUPS tag of the latest release.
+    c['version'] = current_release
+    c['release'] = current_release
+
+    # List of patterns, relative to source directory, that match files and
+    # directories to ignore when looking for source files.
+    c['exclude_patterns'] = ['_build', 'README.rst']
+
+    # Hide todo directives in the "published" documentation on the main site.
+    c['todo_include_todos'] = True
+
+    # List of patterns, relative to source directory, that match files and
+    # directories to ignore when looking for source files.
+    c['exclude_patterns'] = [
+        # Build products
+        '_build',
+        # Source for release notes (contents are included in built pages)
+        'releases/note-source/*.rst',
+        'releases/tickets-source/*.rst',
+        # EUPS configuration directory
+        'ups',
+        # Recommended directory for pip installing doc eng Python packages
+        '.pyvenv',
+    ]
+
+    # Substitutions available on every page
+    c['rst_epilog'] = """
+.. |current-release| replace:: {current_release}
+    """.format(current_release=current_release)
 
     return c
