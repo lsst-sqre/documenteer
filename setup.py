@@ -49,7 +49,8 @@ extras_require = {
     # For the pipelines.lsst.io documentation project
     'pipelines': [
         'lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0',
-        'astropy-helpers>=3.0.0,<4.0.0',
+        'numpydoc>=0.8.0,<0.9.0',
+        'sphinx-automodapi>=0.7,<0.8',
         'breathe==4.4.0'
     ],
 
