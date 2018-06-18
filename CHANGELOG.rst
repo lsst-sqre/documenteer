@@ -14,11 +14,13 @@ Unreleased
 
 - New ``stack-docs`` command-line app.
   This replaces ``build-stack-docs``, and now provides a subcommand interface: ``stack-docs build`` and ``stack-docs clean``.
+  This CLI is nice to use since it'll discover the root conf.py as long as you're in the root documentation repository.
 
 - New ``package-docs`` command-line app.
   This CLI complements ``stack-docs``, but is intended for single-package documentation.
   This effectively lets us replace the Sphinx Makefile (including the ``clean`` command).
   Using a packaged app lets us avoid SIP issues, as well as Makefile drift in individual packages.
+  This CLI is nice to use since it'll discover the doc/ directory of a package as long as you're in the package's root directory, the doc/ directory, or a subdirectory of doc/.
 
 - Refactored the Sphinx interface into ``documenteer.sphinxrunner.run_sphinx``.
   This change lets multiple command-line front-ends to drive Sphinx.
