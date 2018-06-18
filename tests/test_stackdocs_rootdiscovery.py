@@ -27,7 +27,7 @@ def test_search_parents_found():
     """
     with tempfile.TemporaryDirectory() as tempdir:
         root_dir = pathlib.Path(tempdir)
-        os.makedirs(root_dir / 'a' / 'b')
+        os.makedirs(str(root_dir / 'a' / 'b'))
         _install_conf_py(root_dir)
         assert _search_parents(root_dir / 'a' / 'b') == root_dir
 
@@ -37,7 +37,7 @@ def test_search_parents_not_found():
     """
     with tempfile.TemporaryDirectory() as tempdir:
         root_dir = pathlib.Path(tempdir)
-        os.makedirs(root_dir / 'a' / 'b')
+        os.makedirs(str(root_dir / 'a' / 'b'))
         with pytest.raises(FileNotFoundError):
             _search_parents(root_dir / 'a' / 'b')
 
@@ -67,7 +67,7 @@ def test_discover_package_doc_dir_search_parents():
     with tempfile.TemporaryDirectory() as tempdir:
         root_dir = pathlib.Path(tempdir)
         _install_conf_py(root_dir)
-        os.makedirs(root_dir / 'a' / 'b')
+        os.makedirs(str(root_dir / 'a' / 'b'))
         expected = pathlib.Path(tempdir).resolve()
         assert discover_package_doc_dir(root_dir / 'a' / 'b') == str(expected)
 
@@ -78,7 +78,7 @@ def test_discover_package_doc_dir_toplevel_doc():
     """
     with tempfile.TemporaryDirectory() as tempdir:
         root_dir = pathlib.Path(tempdir)
-        os.makedirs(root_dir / 'doc')
+        os.makedirs(str(root_dir / 'doc'))
         _install_conf_py(root_dir / 'doc')
         expected = pathlib.Path(tempdir).resolve() / 'doc'
         assert discover_package_doc_dir(tempdir) == str(expected)
@@ -109,12 +109,12 @@ def test_discover_conf_py_directory_search_parents():
     with tempfile.TemporaryDirectory() as tempdir:
         root_dir = pathlib.Path(tempdir)
         _install_conf_py(root_dir)
-        os.makedirs(root_dir / 'a' / 'b')
+        os.makedirs(str(root_dir / 'a' / 'b'))
         expected = pathlib.Path(tempdir).resolve()
         assert discover_conf_py_directory(root_dir / 'a' / 'b') \
             == str(expected)
 
 
 def _install_conf_py(directory):
-    with open(directory / 'conf.py', 'w') as f:
+    with open(str(directory / 'conf.py'), 'w') as f:
         f.write('# test conf.py')
