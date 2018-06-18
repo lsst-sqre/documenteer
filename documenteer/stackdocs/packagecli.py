@@ -12,6 +12,7 @@ import sys
 import click
 
 from ..sphinxrunner import run_sphinx
+from .rootdiscovery import discover_package_doc_dir
 
 
 # Add -h as a help shortcut option
@@ -24,7 +25,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
     type=click.Path(exists=True, file_okay=False, dir_okay=True,
                     resolve_path=True),
     default='.',
-    help='Root Sphinx doc/ directory'
+    help="Root Sphinx doc/ directory. You don't need to set this argument "
+         "explicitly as long as the current working directory is either the "
+         "root of the package, the doc/ directory, or a subdirectory of doc/."
 )
 @click.option(
     '-v', '--verbose',
@@ -37,6 +40,8 @@ def main(ctx, root_dir, verbose):
     """package-docs is a CLI for building single-package previews of
     documentation in the LSST Stack.
     """
+    root_dir = discover_package_doc_dir(root_dir)
+
     # Subcommands should use the click.pass_obj decorator to get this
     # ctx.obj object as the first argument.
     ctx.obj = {'root_dir': root_dir,
