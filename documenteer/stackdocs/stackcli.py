@@ -10,6 +10,7 @@ import sys
 import click
 
 from .build import build_stack_docs
+from .rootdiscovery import discover_conf_py_directory
 
 
 # Add -h as a help shortcut option
@@ -22,7 +23,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
     type=click.Path(exists=True, file_okay=False, dir_okay=True,
                     resolve_path=True),
     default='.',
-    help='Root Sphinx project directory'
+    help="Root Sphinx project directory. You don't need to set this argument "
+         "explicitly as long as the current working directory is the "
+         "main documentation repo (pipelines_lsst_io for example) or a "
+         "subdirectory of it."
 )
 @click.option(
     '-v', '--verbose',
@@ -35,6 +39,8 @@ def main(ctx, root_project_dir, verbose):
     """stack-docs is a CLI for building LSST Stack documentation, such as
     pipelines.lsst.io.
     """
+    root_project_dir = discover_conf_py_directory(root_project_dir)
+
     # Subcommands should use the click.pass_obj decorator to get this
     # ctx.obj object as the first argument.
     ctx.obj = {'root_project_dir': root_project_dir,

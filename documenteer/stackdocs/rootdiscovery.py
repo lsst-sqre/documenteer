@@ -1,7 +1,7 @@
 """Utilities for detecting the root directory of Sphinx documentation.
 """
 
-__all__ = ('discover_package_doc_dir',)
+__all__ = ('discover_package_doc_dir', 'discover_conf_py_directory')
 
 import pathlib
 
@@ -40,6 +40,39 @@ def discover_package_doc_dir(initial_dir):
     if test_dir.exists() and test_dir.is_dir():
         if _has_conf_py(test_dir):
             return str(test_dir)
+
+    # Search upwards until a conf.py is found
+    try:
+        return str(_search_parents(initial_dir))
+    except FileNotFoundError:
+        raise
+
+
+def discover_conf_py_directory(initial_dir):
+    """Discover the directory containing the conf.py file.
+
+    This function is useful for building stack docs since it will look in
+    the current working directory and all parents.
+
+    Parameters
+    ----------
+    initial_dir : `str`
+        The inititial directory to search from. In practice, this is often the
+        directory that the user is running the stack-docs CLI from.
+
+    Returns
+    -------
+    root_dir : `str`
+        The root documentation directory containing ``conf.py``.
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised if a ``conf.py`` file is not found in the initial directory,
+        or any parents.
+    """
+    # Create an absolute Path to work with
+    initial_dir = pathlib.Path(initial_dir).resolve()
 
     # Search upwards until a conf.py is found
     try:
