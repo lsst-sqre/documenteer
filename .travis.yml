@@ -6,11 +6,20 @@ matrix:
     # Use the Python 3.6 build for PyPI deployments and doc uploads
     - python: "3.6"
       env: PYPI_DEPLOY=true LTD_SKIP_UPLOAD=false
+install:
+  - "pip install -e .[dev]"
+  - "pip install ltd-conveyor"
 script:
-  - python setup.py test
+  - "python setup.py test"
+  - "cd docs && make linkcheck && make html && cd ../"
+after_success:
+  - 'ltd upload --product "documenteer" --travis --dir docs/_build/html'
 env:
   global:
     - PYPI_DEPLOY=false  # disable PyPI pushes in regular matrix
+    - LTD_SKIP_UPLOAD=true  # disable doc uploads by default
+    - secure: "kaX9F7dEnu6hihjScwfklnhyrE3xmmFpGzBGMyPR4reKq8o69VcauetaKYpYJJ4VtaN12BbiQ0PJuNIAl+zbTFvLFCZzibv/bqwCApr8FwvCDkL+Wji2vCHA0wIfUbJrpjCDSwQoKZJM//DjDB/v4aJ1LW2FjjFPAbtUlerZIr6cix2CWJ13O3jfPg2WFjNxism8qHaupthdgEvULykzwu+Sqz1sQjg6IbXEIPSoT1dmk4gChtyWcFqTtrf2sDXi07RJ/qJgGCdpB4zTk2wUpxJpm5mjgwtutCifMbzh46NAbew4H/pOaBbYnt9Z/YFeJDzXpdOiKeFLHS9bAI8cmdKSyc3jnaUwTdSYpRwmtotR6Ye7I6u3y8rakDD6Bh4c94OZGDN6s2KJ63A4H5oT+pJj4oMhEsaawSho6dems/SIi1lh+uJLwxo49oG8WD/yPfVMQ0OcSuChhXWXXrevTwn7IWCwNJBK8xEvLqSogeuKOKyqMmgWVzjo6h3b3s3BTM7gPov8xdv0f/3jnol0kqRJjaGKZluA4sNlwpXnWOjFml89Df5Q1ReOrS5bdVBGreIehyI15fE1LR4aiqVRn6mhctmXNdVk/XVSH7UPWSFrqbljHlWYe5gGA46ySrfohVqIei1Oz26N+E41OBpEU5P/tQSTZgfhfXVY1nwKNAg="
+    - secure: "XpQYMiMBOPZwjIpC0e7EkUH0iUhPGHV7lNlNCtPdW44VLi+6E4G3COsYK1wWwD6Vjw0q5PtEFPT6VYCrg9NZUCrnHWHM6v1aOevTad++y8ViafX5YxqEPpeXiBhe7x3BSC/llpRC/MsZVlql4OBh0gCr5vpPEFWiJ+Z55yXBfUTYrUp+5LE/Ok7JE3JM4ej5u53xfmwa/dbti5xoc7/79Gdwqi/4x0KJMFIK/QQdkHi0YjXWFOvDmUeHNIp+5Ak9sSxAlnfwrrwff/FhN8wCZs71m9bgNauriwvpjqn9Cga9GFtBwBsTVht12qy5F88AJt8muv2XGWCP8vCNh3j01m19DXuuxf28ZdZFebSDXV2YcNKJjSjPAJDEBk0vxtiEJV13Ns/1iWILW2CeEfLSFLyHW3+VseRxkreVkEzdRLJ/byjFWRAGW9KtSnRGRQmBerR2ryKhuWFTJdJG6tH2tgOIGO7uQsWXbPMfppsJYLODabIqChNpRiTGcdzE4RX18G4JyK0ugrSAZUyLe8Nk4e/tNYV+rLyA7Wil7JCoqWjBZN7daNkFpl/iKp+q6wmcHH0YAOwUIdG3WZU4hHberZDbTl1rgIcvGMgaFrXnteiHuc+6m9i8BfLrrPWl4PTmq3TmdLKcuKqcJs/XiXE/Uaj82flwajK1JWhPSAwIxXQ="
 deploy:
   provider: pypi
   user: sqre-admin
