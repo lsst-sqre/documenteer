@@ -8,14 +8,16 @@
    :alt: Uses wheel
    :target: https://pypi.python.org/pypi/documenteer
 .. image:: https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square
-   :alt: For Python 2.7 and 3.5+
+   :alt: For Python 3.5+
    :target: https://pypi.python.org/pypi/documenteer
 
 ###########
 Documenteer
 ###########
 
-Sphinx documentation tools for `LSST Data Management <http://dm.lsst.org>`_ projects.
+Sphinx documentation tools for `LSST Data Management <https://www.lsst.org/about/dm>`_ projects.
+
+Browse the `lsst-doc-engineering <https://github.com/topics/lsst-doc-engineering>`_ GitHub topic for more LSST documentation engineering projects.
 
 Installation
 ============
@@ -37,10 +39,12 @@ Create a virtual environment with your method of choice (virtualenvwrapper or co
 To make a release:
 
 1. Update ``CHANGELOG.rst``.
-2. Tag: ``git tag -s -m "X.Y.Z" vX.Y.Z``
+2. Tag: ``git tag -s X.Y.Z -m "X.Y.Z"``
 3. Push: ``git push --tags``
 
-`Travis <https://travis-ci.org/lsst-sqre/documenteer>`_ handles the PyPI deployment.
+Use a `PEP 440-compliant <https://www.python.org/dev/peps/pep-0440/>`_ version identifiers.
+
+`Travis CI <https://travis-ci.org/lsst-sqre/documenteer>`_ handles the PyPI deployment.
 
 License and info
 ================
