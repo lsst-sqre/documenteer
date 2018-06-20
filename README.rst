@@ -34,7 +34,7 @@ Create a virtual environment with your method of choice (virtualenvwrapper or co
 
    git clone https://github.com/lsst-sqre/documenteer.git
    cd documenteer
-   pip install -e ".[technote,pipelines,dev]"
+   pip install -e ".[dev]"
 
 To make a release:
 

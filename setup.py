@@ -65,11 +65,12 @@ extras_require = {
         'flake8==3.3.0',
     ],
 }
+# Add project dependencies to the dev dependencies
+extras_require['dev'].extend(extras_require['technote'])
+extras_require['dev'].extend(extras_require['pipelines'])
 
 # Dependencies for tests_require (python setup.py test)
-tests_require = []
-for k in extras_require:
-    tests_require += extras_require[k]
+tests_require = extras_require['dev']
 
 setup_requires = [
     'setuptools_scm',
