@@ -63,6 +63,9 @@ extras_require = {
         'pytest-flake8==0.8.1',
         'pytest-mock==1.4.0',
         'flake8==3.3.0',
+        # Extensions for documenteer's own docs. Perhaps add this to main
+        # installation for other projects?
+        'sphinx-click>=1.2.0,<1.3.0',
     ],
 }
 # Add project dependencies to the dev dependencies
