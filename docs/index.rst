@@ -12,5 +12,6 @@ Pipelines projects
 .. toctree::
    :maxdepth: 1
 
+   pipelines/install
    pipelines/stack-docs-cli
    pipelines/package-docs-cli
