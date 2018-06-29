@@ -6,6 +6,10 @@ Use the :command:`package-docs` command-line app to compile the documentation fo
 This is useful for local previewing during development, though links to other packages will be broken.
 For full https://pipelines.lsst.io site builds, use the :doc:`stack-docs <stack-docs-cli>` app instead.
 
+.. seealso::
+
+   `Building single-package documentation locally <https://developer.lsst.io/v/DM-14852/stack/building-single-package-docs.html>`__ (DM Developer Guide)
+
 .. click:: documenteer.stackdocs.packagecli:main
   :prog: package-docs
   :show-nested:
