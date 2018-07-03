@@ -40,6 +40,8 @@ Unreleased
   - Removed the viewcode extension since that won't scale well with the LSST codebase.
     Ultimately we want to link to source on GitHub.
 
+  - ``_static/`` directories are not needed and won't produce warnings if not present in a package.
+
   - Other internal cleanups for ``documenteer.sphinxconf.stackconf``.
 
 - Recognize a new field in the ``metadata.yaml`` files of Sphinx technotes called ``exclude_patterns``.

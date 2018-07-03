@@ -197,7 +197,8 @@ def find_package_docs(package_dir):
 
         - ``static_doc_dirs`` (`dict`). Keys are directory names relative to
           the ``_static`` directory. Values are absolute directory paths to
-          the static documentation directory in the package.
+          the static documentation directory in the package. If there
+          isn't a declared ``_static`` directory, this dictionary is empty.
 
     Raises
     ------
@@ -213,11 +214,11 @@ def find_package_docs(package_dir):
     There are three types of documentation directories:
 
     1. Package doc directories contain documentation for the EUPS package
-       aspect.
+       aspect. This is optional.
     2. Module doc directories contain documentation for a Python package
-       aspect.
+       aspect. These are optional.
     3. Static doc directories are root directories inside the package's
-       ``doc/_static/`` directory.
+       ``doc/_static/`` directory. These are optional.
 
     These are declared in a package's ``doc/manifest.yaml`` file. For example:
 

@@ -10,6 +10,7 @@ see licenses/astropy-helpers.txt
 __all__ = ('build_package_configs', 'build_pipelines_lsst_io_configs')
 
 import datetime
+import os
 import sys
 import warnings
 
@@ -96,7 +97,12 @@ def _insert_html_configs(c, *, project_name, short_project_name):
     # here, relative to this directory. They are copied after the builtin
     # static files, so a file named "default.css" will overwrite the builtin
     # "default.css".
-    c['html_static_path'] = ['_static']
+    if os.path.isdir('_static'):
+        c['html_static_path'] = ['_static']
+    else:
+        # If a project does not have a _static/ directory, don't list it
+        # so that there isn't a warning.
+        c['html_static_path'] = []
 
     # Add any extra paths that contain custom files (such as robots.txt or
     # .htaccess) here, relative to this directory. These files are copied
