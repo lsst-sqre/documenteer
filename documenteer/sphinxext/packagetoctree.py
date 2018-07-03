@@ -5,7 +5,7 @@ Pipelines documentation.
 __all__ = ('setup', 'ModuleTocTree', 'PackageTocTree')
 
 import docutils
-from docutils.parsers.rst import Directive
+from docutils.parsers.rst import Directive, directives
 import sphinx
 try:
     # Sphinx 1.6+
@@ -20,12 +20,24 @@ class ModuleTocTree(Directive):
     """Toctree that automatically displays a list of modules in the Stack
     documentation.
 
+    Notes
+    -----
     Modules are detected as document paths. All modules have index pages
     with paths ``modules/{{name}}/index`` by virtue of the linking during the
     build process. Thus this directive does not directly interact with eups.
+
+    **Options**
+
+    ``skip``
+       Module (or modules) to skip (optional). For multiple modules, provide a
+       comma-delimited list. If possible, use the ``-s`` option from the
+       ``stack-docs`` command-line app instead to prevent orphan document
+       issues.
     """
 
     has_content = False
+
+    option_spec = {'skip': directives.unchanged}
 
     def run(self):
         """Main entrypoint method.
@@ -45,12 +57,18 @@ class ModuleTocTree(Directive):
         env = self.state.document.settings.env
         new_nodes = []
 
+        # Get skip list
+        skipped_modules = self._parse_skip_option()
+
         # List of homepage documents for each module
         module_index_files = []
 
         # Collect paths with the form `modules/<module-name>/index`
         for docname in _filter_index_pages(env.found_docs, 'modules'):
             logger.debug('module-toctree found %s', docname)
+            if self._parse_module_name(docname) in skipped_modules:
+                logger.debug('module-toctree skipped %s', docname)
+                continue
             module_index_files.append(docname)
         module_index_files.sort()
         entries = [(None, docname) for docname in module_index_files]
@@ -73,16 +91,46 @@ class ModuleTocTree(Directive):
 
         return new_nodes
 
+    def _parse_skip_option(self):
+        """Parse the ``skip`` option of skipped module names.
+        """
+        try:
+            skip_text = self.options['skip']
+        except KeyError:
+            return []
+
+        modules = [module.strip() for module in skip_text.split(',')]
+        return modules
+
+    def _parse_module_name(self, docname):
+        """Parse the module name given a docname with the form
+        ``modules/<module>/index``.
+        """
+        return docname.split('/')[1]
+
 
 class PackageTocTree(Directive):
     """Toctree that automatically lists packages in the Stack documentation.
 
+    Notes
+    -----
     Packages are detected as document paths. All packages have index pages
     with paths ``packages/{{name}}/index`` by virtue of the linking during the
     build process. Thus this directive does not directly interact with eups.
+
+    **Options**
+
+    ``skip``
+       Package (or packages) to skip (optional). For multiple packages, provide
+       a comma-delimited list. If possible, use the ``-s`` option from the
+       ``stack-docs`` command-line app instead to prevent orphan document
+       issues.
+
     """
 
     has_content = False
+
+    option_spec = {'skip': directives.unchanged}
 
     def run(self):
         """Main entrypoint method.
@@ -102,12 +150,18 @@ class PackageTocTree(Directive):
         env = self.state.document.settings.env
         new_nodes = []
 
+        # Get skip list
+        skipped_packages = self._parse_skip_option()
+
         # List of homepage documents for each package
         package_index_files = []
 
         # Collect paths with the form `modules/<module-name>/index`
         for docname in _filter_index_pages(env.found_docs, 'packages'):
             logger.debug('package-toctree found %s', docname)
+            if self._parse_package_name(docname) in skipped_packages:
+                logger.debug('package-toctree skipped %s', docname)
+                continue
             package_index_files.append(docname)
         package_index_files.sort()
         entries = [(None, docname) for docname in package_index_files]
@@ -130,6 +184,23 @@ class PackageTocTree(Directive):
         new_nodes.append(wrappernode)
 
         return new_nodes
+
+    def _parse_skip_option(self):
+        """Parse the ``skip`` option of skipped package names.
+        """
+        try:
+            skip_text = self.options['skip']
+        except KeyError:
+            return []
+
+        packages = [package.strip() for package in skip_text.split(',')]
+        return packages
+
+    def _parse_package_name(self, docname):
+        """Parse the package name given a docname with the form
+        ``packages/<package>/index``.
+        """
+        return docname.split('/')[1]
 
 
 def _filter_index_pages(docnames, base_dir):
