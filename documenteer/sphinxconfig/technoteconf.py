@@ -2,6 +2,7 @@
 """
 
 import datetime
+import os
 import yaml
 
 import lsst_dd_rtd_theme
@@ -208,7 +209,12 @@ def _build_confs(metadata):
     # here, relative to this directory. They are copied after the builtin
     # static files, so a file named "default.css" will overwrite the builtin
     # "default.css".
-    c['html_static_path'] = ['_static']
+    if os.path.isdir('_static'):
+        c['html_static_path'] = ['_static']
+    else:
+        # If a project does not have a _static/ directory, don't list it
+        # so that there isn't a warning.
+        c['html_static_path'] = []
 
     # Add any extra paths that contain custom files (such as robots.txt or
     # .htaccess) here, relative to this directory. These files are copied
