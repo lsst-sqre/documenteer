@@ -72,11 +72,19 @@ def help(ctx, topic, **kw):
 
 
 @main.command()
+@click.option(
+    '-s', '--skip', multiple=True,
+    help='A module (e.g. ``lsst.afw.geom`` or package (``afw``) name to '
+         'exclude from the documentation. Provide multiple -s options to skip '
+         'multiple names.'
+)
 @click.pass_context
-def build(ctx):
+def build(ctx, skip):
     """Build documentation as HTML.
     """
-    return_code = build_stack_docs(ctx.obj['root_project_dir'])
+    return_code = build_stack_docs(
+        ctx.obj['root_project_dir'],
+        skippedNames=skip)
     if return_code > 0:
         sys.exit(return_code)
 

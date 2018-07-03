@@ -11,6 +11,7 @@ Unreleased
   These create toctrees for modules and packages, respectively, in Stack documentation sites like pipelines.lsst.io.
   With these directives, we don't need to modify the ``index.rst`` file in https://github.com/lsst/pipelines_lsst_io each time new packages are added or removed.
   You can use this directive after adding ``documenteer.sphinxext`` to the extensions list in a project's ``conf.py``.
+  These directives include ``skip`` options for skipping certain packages and modules.
 
 - New ``stack-docs`` command-line app.
   This replaces ``build-stack-docs``, and now provides a subcommand interface: ``stack-docs build`` and ``stack-docs clean``.
