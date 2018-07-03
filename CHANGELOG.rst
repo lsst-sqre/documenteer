@@ -36,7 +36,7 @@ Unreleased
 
   - ``autoclass_content`` is now ``"class"``, fitting the LSST DM standards for writing class docstrings, and not filling out ``__init__`` docstrings.
 
-  - Removed h5py from intersphinx since it was never needed.
+  - Added ``scikit-learn`` and ``pandas`` to the intersphinx configuration; removed h5py from intersphinx since it was never needed and conflicted with ``daf_butler`` documentation.
 
   - Removed the viewcode extension since that won't scale well with the LSST codebase.
     Ultimately we want to link to source on GitHub.
