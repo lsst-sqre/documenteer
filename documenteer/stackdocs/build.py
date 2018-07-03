@@ -47,7 +47,7 @@ def run_build_cli():
         sys.exit(1)
 
 
-def build_stack_docs(root_project_dir):
+def build_stack_docs(root_project_dir, skippedNames=None):
     logger = logging.getLogger(__name__)
 
     # Create the directory where module content is symlinked
@@ -88,7 +88,9 @@ def build_stack_docs(root_project_dir):
     # Link to documentation directories of packages from the root project
     for package_name, package_info in packages.items():
         try:
-            package_docs = find_package_docs(package_info['dir'])
+            package_docs = find_package_docs(
+                package_info['dir'],
+                skippedNames=skippedNames)
         except NoPackageDocs as e:
             logger.debug(
                 'Skipping {0} doc linking. {1}'.format(package_name,
@@ -172,13 +174,15 @@ def discover_setup_packages():
     return packages
 
 
-def find_package_docs(package_dir):
+def find_package_docs(package_dir, skippedNames=None):
     """Find documentation directories in a package using ``manifest.yaml``.
 
     Parameters
     ----------
     package_dir : `str`
         Directory of an EUPS package.
+    skippedNames : `list` of `str`, optional
+        List of package or module names to skip when creating links.
 
     Returns
     -------
@@ -246,6 +250,9 @@ def find_package_docs(package_dir):
     """
     logger = logging.getLogger(__name__)
 
+    if skippedNames is None:
+        skippedNames = []
+
     doc_dir = os.path.join(package_dir, 'doc')
     modules_yaml_path = os.path.join(doc_dir, 'manifest.yaml')
 
@@ -262,6 +269,9 @@ def find_package_docs(package_dir):
 
     if 'modules' in manifest_data:
         for module_name in manifest_data['modules']:
+            if module_name in skippedNames:
+                logger.debug('Skipping module {0}'.format(module_name))
+                continue
             module_dir = os.path.join(doc_dir, module_name)
 
             # validate that the module's documentation directory does exist
@@ -275,14 +285,16 @@ def find_package_docs(package_dir):
 
     if 'package' in manifest_data:
         package_name = manifest_data['package']
+
         full_package_dir = os.path.join(doc_dir, package_name)
 
         # validate the directory exists
-        if os.path.isdir(full_package_dir):
+        if os.path.isdir(full_package_dir) \
+                and package_name not in skippedNames:
             package_dirs[package_name] = full_package_dir
             logger.debug('Found package doc dir {0}'.format(full_package_dir))
         else:
-            logger.warning('package doc dir not found: {0}'.format(
+            logger.warning('package doc dir excluded or not found: {0}'.format(
                 full_package_dir))
 
     if 'statics' in manifest_data:
