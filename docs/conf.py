@@ -92,7 +92,9 @@ intersphinx_mapping = {
 
 # -- Options for linkcheck builder ----------------------------------------
 
-linkcheck_ignore = []
+linkcheck_ignore = [
+    'https://documenteer.lsst.io'  # ignored until site is up
+]
 linkcheck_retries = 2
 
 # -- Options for HTML output ----------------------------------------------
