@@ -13,5 +13,6 @@ Pipelines projects
    :maxdepth: 1
 
    pipelines/install
+   pipelines/build-overview
    pipelines/stack-docs-cli
    pipelines/package-docs-cli

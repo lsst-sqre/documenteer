@@ -81,6 +81,7 @@ default_role = 'py:obj'
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
+    'developer': ('https://developer.lsst.io/v/DM-14852/', None),
 }
 
 # -- Options for linkcheck builder ----------------------------------------
