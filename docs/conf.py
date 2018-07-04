@@ -17,11 +17,15 @@ sys.setrecursionlimit(2000)
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.ifconfig',
     'sphinx_click.ext',
+    'numpydoc',
+    'sphinx_automodapi.automodapi',
+    'sphinx_automodapi.smart_resolver',
     'documenteer.sphinxext'
 ]
 
@@ -81,7 +85,9 @@ default_role = 'py:obj'
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
+    'requests': ('http://docs.python-requests.org/en/v2.9.1/', None),
     'developer': ('https://developer.lsst.io/v/DM-14852/', None),
+    'pybtex': ('https://docs.pybtex.org/', None),
 }
 
 # -- Options for linkcheck builder ----------------------------------------
