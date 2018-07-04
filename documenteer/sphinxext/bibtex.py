@@ -2,7 +2,9 @@
 `sphinxcontrib-bibtex <http://sphinxcontrib-bibtex.readthedocs.io>`_.
 """
 
-from pybtex.style.formatting.plain import Style as PlainStyle
+__all__ = ('LsstBibtexStyle', 'setup')
+
+import pybtex.style.formatting.plain
 from pybtex.style.formatting import toplevel
 from pybtex.plugin import register_plugin
 from pybtex.style.template import (
@@ -10,7 +12,7 @@ from pybtex.style.template import (
 )
 
 
-class LsstBibtexStyle(PlainStyle):
+class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
     """Bibtex style that understands ``docushare`` fields in LSST
     bibliographies.
     """

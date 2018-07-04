@@ -1,6 +1,8 @@
 """Sphinx configuration bootstrapping for LSST Technical Notes.
 """
 
+__all__ = ('configure_technote',)
+
 import datetime
 import os
 import yaml
@@ -13,8 +15,7 @@ from ..sphinxconfig.utils import (
 
 
 def configure_technote(meta_stream):
-    """
-    Builds a ``dict`` of Sphinx configuration variables given a central
+    """Builds a ``dict`` of Sphinx configuration variables given a central
     configuration for LSST Design Documents and a metadata YAML file.
 
     This function refactors the common Sphinx ``conf.py`` script so that basic
@@ -35,7 +36,7 @@ def configure_technote(meta_stream):
 
     And ``metadata.yaml`` looks like:
 
-    .. code::
+    .. code-block:: yaml
 
        doc_id: 'LDM-152'
        doc_title: 'Data Management Middleware Design'
@@ -57,7 +58,7 @@ def configure_technote(meta_stream):
 
     Returns
     -------
-    confs : dict
+    confs : `dict`
         Dictionary of configurations that should be added to the ``conf.py``
         global namespace.
     """
