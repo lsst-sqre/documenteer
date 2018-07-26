@@ -89,11 +89,11 @@ def get_filepaths_with_extension(extname, root_dir='.'):
     extname : `str`
         Extension name (e.g. 'txt', 'rst'). Extension comparison is
         case-insensitive.
-    root_dir : 'str`, optional
+    root_dir : `str`, optional
         Root directory. Current working directory by default.
 
-    Return
-    ------
+    Returns
+    -------
     filepaths : `list` of `str`
         File paths, relative to ``root_dir``, with the given extension.
     """
@@ -135,7 +135,7 @@ def get_project_content_commit_date(root_dir='.', exclusions=None):
 
     Parameters
     ----------
-    root_dir : 'str`, optional
+    root_dir : `str`, optional
         Root directory. This is the current working directory by default.
     exclusions : `list` of `str`, optional
         List of file paths or directory paths to ignore.
