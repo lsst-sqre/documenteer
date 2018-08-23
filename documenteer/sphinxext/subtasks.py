@@ -4,6 +4,8 @@ Config class.
 
 __all__ = ('setup', 'SubtasksDirective')
 
+from importlib import import_module
+
 from docutils.parsers.rst import Directive
 try:
     # Sphinx 1.6+
@@ -44,6 +46,32 @@ class SubtasksDirective(Directive):
             raise SphinxError('lsst-subtasks directive requires a Task class '
                               'name as an argument')
         logger.debug('lsst-subtasks using Task class %s', task_class_name)
+
+
+def get_task_config_class(task_name):
+    """Get the Config class for a task given its fully-qualified name.
+
+    Parameters
+    ----------
+    task_name : `str`
+        Name of the task, such as ``lsst.pipe.tasks.processCcd.ProcessCcdTask`.
+
+    Returns
+    -------
+    config_class : ``lsst.pipe.base.Config``\ -type
+        The configuration class (not an instance) corresponding to the task.
+    """
+    parts = task_name.split('.')
+    if len(parts) < 2:
+        raise SphinxError(
+            'The Task class must be fully-qualified, '
+            'of the form ``module.TaskName``. Got: {}'.format(task_name)
+        )
+    module_name = ".".join(parts[0:-1])
+    task_class_name = parts[-1]
+    task_class = getattr(import_module(module_name), task_class_name)
+
+    return task_class.ConfigClass
 
 
 def setup(app):
