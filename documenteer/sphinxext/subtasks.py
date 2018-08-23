@@ -5,6 +5,7 @@ Config class.
 __all__ = ('setup', 'SubtasksDirective')
 
 from importlib import import_module
+import inspect
 
 from docutils.parsers.rst import Directive
 try:
@@ -72,6 +73,29 @@ def get_task_config_class(task_name):
     task_class = getattr(import_module(module_name), task_class_name)
 
     return task_class.ConfigClass
+
+
+def get_subtask_fields(config_class):
+    """Get all configurable subtask fields from a Config class.
+
+    Parameters
+    ----------
+    config_class : ``lsst.pipe.base.Config``\ -type
+        The configuration class (not an instance) corresponding to a Task.
+
+    Returns
+    -------
+    subtask_fields : `dict`
+        Mapping where keys are the config attribute names and values are
+        subclasses of ``lsst.pex.config.Field`` (or specifically
+        ``ConfigurableField``).
+    """
+    from lsst.pex.config import ConfigurableField
+
+    def is_subtask_field(obj):
+        return isinstance(obj, ConfigurableField)
+
+    return dict(inspect.getmembers(config_class, is_subtask_field))
 
 
 def setup(app):
