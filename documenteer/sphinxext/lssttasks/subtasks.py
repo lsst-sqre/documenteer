@@ -4,15 +4,13 @@ Config class.
 
 __all__ = ('SubtasksDirective',)
 
-from importlib import import_module
-import inspect
-
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx.util.logging import getLogger
 from sphinx.errors import SphinxError
 
 from ..utils import parse_rst_content, make_python_xref_nodes
+from .taskutils import get_task_config_class, get_subtask_fields
 
 
 class SubtasksDirective(Directive):
@@ -129,52 +127,3 @@ class SubtasksDirective(Directive):
         section.append(doc_container_node)
 
         return section
-
-
-def get_task_config_class(task_name):
-    """Get the Config class for a task given its fully-qualified name.
-
-    Parameters
-    ----------
-    task_name : `str`
-        Name of the task, such as ``lsst.pipe.tasks.processCcd.ProcessCcdTask`.
-
-    Returns
-    -------
-    config_class : ``lsst.pipe.base.Config``\ -type
-        The configuration class (not an instance) corresponding to the task.
-    """
-    parts = task_name.split('.')
-    if len(parts) < 2:
-        raise SphinxError(
-            'The Task class must be fully-qualified, '
-            'of the form ``module.TaskName``. Got: {}'.format(task_name)
-        )
-    module_name = ".".join(parts[0:-1])
-    task_class_name = parts[-1]
-    task_class = getattr(import_module(module_name), task_class_name)
-
-    return task_class.ConfigClass
-
-
-def get_subtask_fields(config_class):
-    """Get all configurable subtask fields from a Config class.
-
-    Parameters
-    ----------
-    config_class : ``lsst.pipe.base.Config``\ -type
-        The configuration class (not an instance) corresponding to a Task.
-
-    Returns
-    -------
-    subtask_fields : `dict`
-        Mapping where keys are the config attribute names and values are
-        subclasses of ``lsst.pex.config.Field`` (or specifically
-        ``ConfigurableField``).
-    """
-    from lsst.pex.config import ConfigurableField
-
-    def is_subtask_field(obj):
-        return isinstance(obj, ConfigurableField)
-
-    return dict(inspect.getmembers(config_class, is_subtask_field))
