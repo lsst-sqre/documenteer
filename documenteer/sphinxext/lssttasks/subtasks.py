@@ -2,22 +2,17 @@
 Config class.
 """
 
-__all__ = ('setup', 'SubtasksDirective')
+__all__ = ('SubtasksDirective',)
 
 from importlib import import_module
 import inspect
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
-try:
-    # Sphinx 1.6+
-    from sphinx.util.logging import getLogger
-except ImportError:
-    getLogger = None
+from sphinx.util.logging import getLogger
 from sphinx.errors import SphinxError
-from pkg_resources import get_distribution, DistributionNotFound
 
-from .utils import parse_rst_content, make_python_xref_nodes
+from ..utils import parse_rst_content, make_python_xref_nodes
 
 
 class SubtasksDirective(Directive):
@@ -45,12 +40,7 @@ class SubtasksDirective(Directive):
         new_nodes : `list`
             Nodes to add to the doctree.
         """
-        if getLogger is not None:
-            # Sphinx 1.6+
-            logger = getLogger(__name__)
-        else:
-            # Previously Sphinx's app was also the logger
-            logger = self.state.document.settings.env.app
+        logger = getLogger(__name__)
 
         try:
             task_class_name = self.arguments[0]
@@ -188,14 +178,3 @@ def get_subtask_fields(config_class):
         return isinstance(obj, ConfigurableField)
 
     return dict(inspect.getmembers(config_class, is_subtask_field))
-
-
-def setup(app):
-    app.add_directive('lsst-subtasks', SubtasksDirective)
-
-    try:
-        __version__ = get_distribution('documenteer').version
-    except DistributionNotFound:
-        # package is not installed
-        __version__ = 'unknown'
-    return {'version': __version__}
