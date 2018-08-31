@@ -104,7 +104,9 @@ class SubtasksDirective(Directive):
         type_item.append(nodes.term(text="Field type"))
         field_type = '.'.join((type(field).__module__, type(field).__name__))
         type_item_content = nodes.definition()
-        type_item_content.append(nodes.paragraph(text=field_type))
+        type_item_content += self._make_python_xref_nodes(
+            field_type,
+            hide_namespace=True)
         type_item.append(type_item_content)
         dl.append(type_item)
 
@@ -114,18 +116,13 @@ class SubtasksDirective(Directive):
         target_type = '.'.join((field.target.__module__,
                                 field.target.__name__))
         default_item_content = nodes.definition()
-        default_item_content.append(nodes.paragraph(text=target_type))
+        default_item_content += self._make_python_xref_nodes(target_type)
         default_item.append(default_item_content)
         dl.append(default_item)
 
         # Doc for this ConfigurableField, parsed as rst
-        # http://www.sphinx-doc.org/en/master/extdev/markupapi.html
-        # #parsing-directive-content-as-rest
-        doc_content = field.doc
-        with switch_source_input(self.state, doc_content):
-            doc_container_node = nodes.container()
-            self.state.nested_parse(ViewList(doc_content.splitlines()),
-                                    0, doc_container_node)
+        doc_container_node = nodes.container()
+        doc_container_node += self._parse_rst_content(field.doc)
 
         # Augment documentation paragraph if the field is optional
         if field.optional:
@@ -141,6 +138,60 @@ class SubtasksDirective(Directive):
         section.append(doc_container_node)
 
         return section
+
+    def _make_python_xref_nodes(self, py_obj, hide_namespace=False):
+        """Make docutils nodes containing a cross-reference to a Python
+        object
+
+        Parameters
+        ----------
+        py_obj : `str`
+            Name of the Python object. For example
+            `mypackage.mymodule.MyClass`.
+        hide_namespace : `bool`, optional
+            If `True`, the namespace of the object is hidden in the rendered
+            cross reference. Internally, this uses ``:py:obj:`~{py_obj}` (note
+            tilde).
+
+        Returns
+        -------
+        instance from ``docutils.nodes``
+            Docutils node representing the cross reference.
+        """
+        if hide_namespace:
+            template = ':py:obj:`~{}`\n'
+        else:
+            template = ':py:obj:`{}`\n'
+        xref_text = template.format(py_obj)
+
+        return self._parse_rst_content(xref_text)
+
+    def _parse_rst_content(self, content):
+        """Parse rST-formatted string content into docutils nodes
+
+        Parameters
+        ----------
+        content : `str`
+            ReStructuredText-formatted content
+
+        Returns
+        -------
+        instance from ``docutils.nodes``
+            Docutils node representing the ``content``.
+        """
+        # http://www.sphinx-doc.org/en/master/extdev/markupapi.html
+        # #parsing-directive-content-as-rest
+        container_node = nodes.section()
+        container_node.document = self.state.document
+
+        viewlist = ViewList()
+        for i, line in enumerate(content.splitlines()):
+            viewlist.append(line, source='', offset=i)
+
+        with switch_source_input(self.state, viewlist):
+            self.state.nested_parse(viewlist, 0, container_node)
+
+        return container_node.children
 
 
 def get_task_config_class(task_name):
