@@ -1,7 +1,8 @@
 """Utilities for working with LSST Task classes and their configurations.
 """
 
-__all__ = ('get_task_config_class', 'get_subtask_fields', 'typestring')
+__all__ = ('get_task_config_class', 'get_task_config_fields',
+           'get_subtask_fields', 'typestring')
 
 from importlib import import_module
 import inspect
@@ -33,6 +34,28 @@ def get_task_config_class(task_name):
     task_class = getattr(import_module(module_name), task_class_name)
 
     return task_class.ConfigClass
+
+
+def get_task_config_fields(config_class):
+    """Get all configuration Fields from a Config class.
+
+    Parameters
+    ----------
+    config_class : ``lsst.pipe.base.Config``\ -type
+        The configuration class (not an instance) corresponding to a Task.
+
+    Returns
+    -------
+    config_fields : `dict`
+        Mapping where keys are the config attribute names and values are
+        subclasses of ``lsst.pex.config.Field``
+    """
+    from lsst.pex.config import Field
+
+    def is_config_field(obj):
+        return isinstance(obj, Field)
+
+    return dict(inspect.getmembers(config_class, is_config_field))
 
 
 def get_subtask_fields(config_class):
