@@ -1,7 +1,7 @@
 """Utilities for making Sphinx extensions.
 """
 
-__all__ = ('parse_rst_content', 'make_python_xref_nodes')
+__all__ = ('parse_rst_content', 'make_python_xref_nodes', 'make_section')
 
 from docutils import nodes
 from docutils.statemachine import ViewList
@@ -72,3 +72,27 @@ def make_python_xref_nodes(py_obj, state, hide_namespace=False):
     xref_text = template.format(py_obj)
 
     return parse_rst_content(xref_text, state)
+
+
+def make_section(section_id=None, contents=None):
+    """Make a docutils section node.
+
+    Parameters
+    ----------
+    section_id : `str`
+        Section identifier, which is appended to both the ``ids`` and ``names``
+        attributes.
+    contents : `list` of ``docutils.nodes``
+        List of docutils nodes that are inserted into the section.
+
+    Returns
+    -------
+    ``docutils.nodes.section``
+        Docutils section node.
+    """
+    section = nodes.section()
+    section['ids'].append(nodes.make_id(section_id))
+    section['names'].append(section_id)
+    if contents is not None:
+        section.extend(contents)
+    return section

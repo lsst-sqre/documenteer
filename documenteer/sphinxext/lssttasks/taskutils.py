@@ -1,7 +1,7 @@
 """Utilities for working with LSST Task classes and their configurations.
 """
 
-__all__ = ('get_task_config_class', 'get_subtask_fields')
+__all__ = ('get_task_config_class', 'get_subtask_fields', 'typestring')
 
 from importlib import import_module
 import inspect
@@ -56,3 +56,28 @@ def get_subtask_fields(config_class):
         return isinstance(obj, ConfigurableField)
 
     return dict(inspect.getmembers(config_class, is_subtask_field))
+
+
+def typestring(obj):
+    """Make a string for the object's type
+
+    Parameters
+    ----------
+    obj : obj
+        Python object.
+
+    Returns
+    -------
+    `str`
+        String representation of the object's type. This is the type's
+        importable namespace.
+
+    Examples
+    --------
+    >>> import docutils.nodes
+    >>> para = docutils.nodes.paragraph()
+    >>> typestring(para)
+    'docutils.nodes.paragraph'
+    """
+    obj_type = type(obj)
+    return '.'.join((obj_type.__module__, obj_type.__name__))
