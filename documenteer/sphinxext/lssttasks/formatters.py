@@ -3,7 +3,8 @@
 
 __all__ = (
     'get_field_formatter', 'format_field_nodes',
-    'format_configurablefield_nodes', 'create_dtype_item_node',
+    'format_configurablefield_nodes', 'format_listfield_nodes',
+    'create_dtype_item_node',
     'create_field_type_item_node', 'create_default_item_node',
     'create_default_target_item_node', 'create_description_node'
 )
@@ -129,6 +130,52 @@ def format_configurablefield_nodes(field_name, field, section_id, state):
 
     dl = nodes.definition_list()
     dl += create_default_target_item_node(field, state)
+    dl += create_field_type_item_node(field, state)
+
+    # Doc for this ConfigurableField, parsed as rst
+    desc_node = create_description_node(field, state)
+
+    # Package all the nodes into a `section`
+    section = make_section(
+        section_id=section_id,
+        contents=[title, dl, desc_node])
+
+    return section
+
+
+def format_listfield_nodes(field_name, field, section_id, state):
+    """Create a section node that documents a ListField config field.
+
+    Parameters
+    ----------
+    field_name : `str`
+        Name of the configuration field (the attribute name of on the config
+        class).
+    field : ``lsst.pex.config.ListField``
+        A configuration field.
+    section_id : `str`
+        Unique identifier for this field. This is used as the id and name of
+        the section node.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.section``
+        Section containing documentation nodes for the ListField.
+    """
+    from lsst.pex.config import ListField
+    if not isinstance(field, ListField):
+        message = ('Field {0} ({1!r}) is not an '
+                   'lsst.pex.config.ListField type. It is an {2!s}.')
+        raise ValueError(message.format(field_name, field, type(field)))
+
+    # Title is the field's attribute name
+    title = nodes.title(text=field_name)
+
+    dl = nodes.definition_list()
+    dl += create_default_item_node(field, state)
+    dl += create_dtype_item_node(field, state)
     dl += create_field_type_item_node(field, state)
 
     # Doc for this ConfigurableField, parsed as rst
@@ -286,4 +333,6 @@ FIELD_FORMATTERS = {
         format_configurablefield_nodes,
     'lsst.pex.config.config.Field':
         format_field_nodes,
+    'lsst.pex.config.listField.ListField':
+        format_listfield_nodes,
 }
