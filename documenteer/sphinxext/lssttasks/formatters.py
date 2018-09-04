@@ -4,7 +4,7 @@
 __all__ = (
     'get_field_formatter', 'format_field_nodes',
     'format_configurablefield_nodes', 'format_listfield_nodes',
-    'format_choicefield_nodes',
+    'format_choicefield_nodes', 'format_rangefield_nodes',
     'create_dtype_item_node',
     'create_field_type_item_node', 'create_default_item_node',
     'create_default_target_item_node', 'create_description_node'
@@ -255,6 +255,60 @@ def format_choicefield_nodes(field_name, field, section_id, state):
     return section
 
 
+def format_rangefield_nodes(field_name, field, section_id, state):
+    """Create a section node that documents a RangeField config field.
+
+    Parameters
+    ----------
+    field_name : `str`
+        Name of the configuration field (the attribute name of on the config
+        class).
+    field : ``lsst.pex.config.RangeField``
+        A configuration field.
+    section_id : `str`
+        Unique identifier for this field. This is used as the id and name of
+        the section node.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.section``
+        Section containing documentation nodes for the RangeField.
+    """
+    from lsst.pex.config import RangeField
+    if not isinstance(field, RangeField):
+        message = ('Field {0} ({1!r}) is not an lsst.pex.config.RangeField '
+                   'type. It is an {2!s}.')
+        raise ValueError(message.format(field_name, field, type(field)))
+
+    # Format definition list item for the range
+    range_node = nodes.definition_list_item()
+    range_node += nodes.term(text='Range')
+    range_node_def = nodes.definition()
+    range_node_def += nodes.paragraph(text=field.rangeString)
+    range_node += range_node_def
+
+    # Title is the field's attribute name
+    title = nodes.title(text=field_name)
+
+    dl = nodes.definition_list()
+    dl += create_default_item_node(field, state)
+    dl += range_node
+    dl += create_dtype_item_node(field, state)
+    dl += create_field_type_item_node(field, state)
+
+    # Doc for this field, parsed as rst
+    desc_node = create_description_node(field, state)
+
+    # Package all the nodes into a `section`
+    section = make_section(
+        section_id=section_id,
+        contents=[title, dl, desc_node])
+
+    return section
+
+
 def create_dtype_item_node(field, state):
     """Create a definition list item node that describes a field's dtype.
 
@@ -403,4 +457,6 @@ FIELD_FORMATTERS = {
         format_listfield_nodes,
     'lsst.pex.config.choiceField.ChoiceField':
         format_choicefield_nodes,
+    'lsst.pex.config.rangeField.RangeField':
+        format_rangefield_nodes,
 }
