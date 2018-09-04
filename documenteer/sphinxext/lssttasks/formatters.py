@@ -4,6 +4,7 @@
 __all__ = (
     'get_field_formatter', 'format_field_nodes',
     'format_configurablefield_nodes', 'format_listfield_nodes',
+    'format_choicefield_nodes',
     'create_dtype_item_node',
     'create_field_type_item_node', 'create_default_item_node',
     'create_default_target_item_node', 'create_description_node'
@@ -189,6 +190,71 @@ def format_listfield_nodes(field_name, field, section_id, state):
     return section
 
 
+def format_choicefield_nodes(field_name, field, section_id, state):
+    """Create a section node that documents a ChoiceField config field.
+
+    Parameters
+    ----------
+    field_name : `str`
+        Name of the configuration field (the attribute name of on the config
+        class).
+    field : ``lsst.pex.config.ChoiceField``
+        A configuration field.
+    section_id : `str`
+        Unique identifier for this field. This is used as the id and name of
+        the section node.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.section``
+        Section containing documentation nodes for the ChoiceField.
+    """
+    from lsst.pex.config import ChoiceField
+    if not isinstance(field, ChoiceField):
+        message = ('Field {0} ({1!r}) is not an lsst.pex.config.ChoiceField '
+                   'type. It is an {2!s}.')
+        raise ValueError(message.format(field_name, field, type(field)))
+
+    # Create a definition list for the choices
+    choice_dl = nodes.definition_list()
+    for choice_value, choice_doc in field.allowed.items():
+        item = nodes.definition_list_item()
+        item_term = nodes.term()
+        item_term += nodes.literal(text=repr(choice_value))
+        item += item_term
+        item_definition = nodes.definition()
+        item_definition.append(nodes.paragraph(text=choice_doc))
+        item += item_definition
+        choice_dl.append(item)
+
+    choices_node = nodes.definition_list_item()
+    choices_node.append(nodes.term(text='Choices'))
+    choices_definition = nodes.definition()
+    choices_definition.append(choice_dl)
+    choices_node.append(choices_definition)
+
+    # Title is the field's attribute name
+    title = nodes.title(text=field_name)
+
+    dl = nodes.definition_list()
+    dl += create_default_item_node(field, state)
+    dl += choices_node
+    dl += create_dtype_item_node(field, state)
+    dl += create_field_type_item_node(field, state)
+
+    # Doc for this ConfigurableField, parsed as rst
+    desc_node = create_description_node(field, state)
+
+    # Package all the nodes into a `section`
+    section = make_section(
+        section_id=section_id,
+        contents=[title, dl, desc_node])
+
+    return section
+
+
 def create_dtype_item_node(field, state):
     """Create a definition list item node that describes a field's dtype.
 
@@ -335,4 +401,6 @@ FIELD_FORMATTERS = {
         format_field_nodes,
     'lsst.pex.config.listField.ListField':
         format_listfield_nodes,
+    'lsst.pex.config.choiceField.ChoiceField':
+        format_choicefield_nodes,
 }
