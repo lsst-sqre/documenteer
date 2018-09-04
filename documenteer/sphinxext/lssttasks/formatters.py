@@ -12,7 +12,8 @@ __all__ = (
 
 from docutils import nodes
 
-from ..utils import parse_rst_content, make_python_xref_nodes, make_section
+from ..utils import (parse_rst_content, make_python_xref_nodes_for_type,
+                     make_section)
 from .taskutils import typestring
 
 
@@ -326,14 +327,9 @@ def create_dtype_item_node(field, state):
     """
     type_item = nodes.definition_list_item()
     type_item.append(nodes.term(text="Data type"))
-    if field.dtype.__module__ == 'builtins':
-        field_dtype = field.dtype.__name__
-    else:
-        field_dtype = '.'.join((field.dtype.__module__,
-                                field.dtype.__name__))
     type_item_content = nodes.definition()
-    type_item_content += make_python_xref_nodes(
-        field_dtype,
+    type_item_content += make_python_xref_nodes_for_type(
+        field.dtype,
         state,
         hide_namespace=False)
     type_item.append(type_item_content)
@@ -357,10 +353,9 @@ def create_field_type_item_node(field, state):
     """
     type_item = nodes.definition_list_item()
     type_item.append(nodes.term(text="Field type"))
-    field_type = typestring(field)
     type_item_content = nodes.definition()
-    type_item_content += make_python_xref_nodes(
-        field_type,
+    type_item_content += make_python_xref_nodes_for_type(
+        type(field),
         state,
         hide_namespace=True)
     type_item.append(type_item_content)
@@ -413,10 +408,9 @@ def create_default_target_item_node(field, state):
     """
     default_item = nodes.definition_list_item()
     default_item.append(nodes.term(text="Default"))
-    target_type = '.'.join((field.target.__module__,
-                            field.target.__name__))
     default_item_content = nodes.definition()
-    default_item_content += make_python_xref_nodes(target_type, state)
+    default_item_content += make_python_xref_nodes_for_type(field.target,
+                                                            state)
     default_item.append(default_item_content)
     return default_item
 

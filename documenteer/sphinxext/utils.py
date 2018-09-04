@@ -1,7 +1,8 @@
 """Utilities for making Sphinx extensions.
 """
 
-__all__ = ('parse_rst_content', 'make_python_xref_nodes', 'make_section')
+__all__ = ('parse_rst_content', 'make_python_xref_nodes',
+           'make_python_xref_nodes_for_type', 'make_section')
 
 from docutils import nodes
 from docutils.statemachine import ViewList
@@ -38,13 +39,15 @@ def parse_rst_content(content, state):
     return container_node.children
 
 
-def make_python_xref_nodes(py_obj, state, hide_namespace=False):
+def make_python_xref_nodes(py_typestr, state, hide_namespace=False):
     """Make docutils nodes containing a cross-reference to a Python object.
 
     Parameters
     ----------
-    py_obj : `str`
-        Name of the Python object. For example `mypackage.mymodule.MyClass`.
+    py_typestr : `str`
+        Name of the Python object. For example
+        ``'mypackage.mymodule.MyClass'``. If you have the object itself, or
+        its type, use the `make_python_xref_nodes_for_type` function instead.
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
     hide_namespace : `bool`, optional
@@ -64,14 +67,61 @@ def make_python_xref_nodes(py_obj, state, hide_namespace=False):
     .. code-block:: python
 
        make_python_xref_nodes('numpy.sin', self.state)
+
+    See also
+    --------
+    `make_python_xref_nodes_for_type`
     """
     if hide_namespace:
         template = ':py:obj:`~{}`\n'
     else:
         template = ':py:obj:`{}`\n'
-    xref_text = template.format(py_obj)
+    xref_text = template.format(py_typestr)
 
     return parse_rst_content(xref_text, state)
+
+
+def make_python_xref_nodes_for_type(py_type, state, hide_namespace=False):
+    """Make docutils nodes containing a cross-reference to a Python object,
+    given the object's type.
+
+    Parameters
+    ----------
+    py_type : `obj`
+        Type of an object. For example ``mypackage.mymodule.MyClass``. If you
+        have instance of the type, use ``type(myinstance)``.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+    hide_namespace : `bool`, optional
+        If `True`, the namespace of the object is hidden in the rendered
+        cross reference. Internally, this uses ``:py:obj:`~{py_obj}` (note
+        tilde).
+
+    Returns
+    -------
+    instance from ``docutils.nodes``
+        Docutils node representing the cross reference.
+
+    Examples
+    --------
+    If called from within a directive:
+
+    .. code-block:: python
+
+       make_python_xref_nodes(numpy.sin, self.state)
+
+    See also
+    --------
+    `make_python_xref_nodes`
+    """
+    if py_type.__module__ == 'builtins':
+        typestr = py_type.__name__
+    else:
+        typestr = '.'.join((py_type.__module__,
+                            py_type.__name__))
+    return make_python_xref_nodes(typestr,
+                                  state,
+                                  hide_namespace=hide_namespace)
 
 
 def make_section(section_id=None, contents=None):
