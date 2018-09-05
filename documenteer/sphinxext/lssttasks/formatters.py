@@ -6,10 +6,11 @@ __all__ = (
     'format_configurablefield_nodes', 'format_listfield_nodes',
     'format_choicefield_nodes', 'format_rangefield_nodes',
     'format_dictfield_nodes', 'format_configfield_nodes',
-    'format_configchoicefield_nodes',
+    'format_configchoicefield_nodes', 'format_configdictfield_nodes',
     'create_dtype_item_node',
     'create_field_type_item_node', 'create_default_item_node',
-    'create_default_target_item_node', 'create_description_node'
+    'create_default_target_item_node', 'create_keytype_item_node',
+    'create_valuetype_item_node', 'create_description_node'
 )
 
 from docutils import nodes
@@ -339,31 +340,13 @@ def format_dictfield_nodes(field_name, field, section_id, state):
                    'type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
-    keytype_node = nodes.definition_list_item()
-    keytype_node = nodes.term(text='Key type')
-    keytype_def = nodes.definition()
-    keytype_def += make_python_xref_nodes_for_type(
-        field.keytype,
-        state,
-        hide_namespace=False)
-    keytype_node += keytype_def
-
-    valuetype_node = nodes.definition_list_item()
-    valuetype_node = nodes.term(text='Value type')
-    valuetype_def = nodes.definition()
-    valuetype_def += make_python_xref_nodes_for_type(
-        field.itemtype,
-        state,
-        hide_namespace=False)
-    valuetype_node += valuetype_def
-
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
-    dl += keytype_node
-    dl += valuetype_node
+    dl += create_keytype_item_node(field, state)
+    dl += create_valuetype_item_node(field, state)
     dl += create_field_type_item_node(field, state)
 
     # Doc for this field, parsed as rst
@@ -502,6 +485,53 @@ def format_configchoicefield_nodes(field_name, field, section_id, state):
     return section
 
 
+def format_configdictfield_nodes(field_name, field, section_id, state):
+    """Create a section node that documents a ConfigDictField config field.
+
+    Parameters
+    ----------
+    field_name : `str`
+        Name of the configuration field (the attribute name of on the config
+        class).
+    field : ``lsst.pex.config.ConfigDictField``
+        A configuration field.
+    section_id : `str`
+        Unique identifier for this field. This is used as the id and name of
+        the section node.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.section``
+        Section containing documentation nodes for the ConfigDictField.
+    """
+    from lsst.pex.config import ConfigDictField
+    if not isinstance(field, ConfigDictField):
+        message = ('Field {0} ({1!r}) is not an '
+                   'lsst.pex.config.ConfigDictField type. It is an {2!s}.')
+        raise ValueError(message.format(field_name, field, type(field)))
+
+    # Title is the field's attribute name
+    title = nodes.title(text=field_name)
+
+    dl = nodes.definition_list()
+    dl += create_default_item_node(field, state)
+    dl += create_keytype_item_node(field, state)
+    dl += create_valuetype_item_node(field, state)
+    dl += create_field_type_item_node(field, state)
+
+    # Doc for this field, parsed as rst
+    desc_node = create_description_node(field, state)
+
+    # Package all the nodes into a `section`
+    section = make_section(
+        section_id=section_id,
+        contents=[title, dl, desc_node])
+
+    return section
+
+
 def create_dtype_item_node(field, state):
     """Create a definition list item node that describes a field's dtype.
 
@@ -607,6 +637,60 @@ def create_default_target_item_node(field, state):
     return default_item
 
 
+def create_keytype_item_node(field, state):
+    """Create a definition list item node that describes the key type
+    of a dict-type config field.
+
+    Parameters
+    ----------
+    field : ``lsst.pex.config.Field``
+        A ``lsst.pex.config.DictField`` or ``lsst.pex.config.DictConfigField``.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.definition_list_item``
+        Definition list item that describes the key type for the field.
+    """
+    keytype_node = nodes.definition_list_item()
+    keytype_node = nodes.term(text='Key type')
+    keytype_def = nodes.definition()
+    keytype_def += make_python_xref_nodes_for_type(
+        field.keytype,
+        state,
+        hide_namespace=False)
+    keytype_node += keytype_def
+    return keytype_node
+
+
+def create_valuetype_item_node(field, state):
+    """Create a definition list item node that describes the value type
+    of a dict-type config field.
+
+    Parameters
+    ----------
+    field : ``lsst.pex.config.Field``
+        A ``lsst.pex.config.DictField`` or ``lsst.pex.config.DictConfigField``.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.definition_list_item``
+        Definition list item that describes the value type for the field.
+    """
+    valuetype_node = nodes.definition_list_item()
+    valuetype_node = nodes.term(text='Value type')
+    valuetype_def = nodes.definition()
+    valuetype_def += make_python_xref_nodes_for_type(
+        field.itemtype,
+        state,
+        hide_namespace=False)
+    valuetype_node += valuetype_def
+    return valuetype_node
+
+
 def create_multiple_selections_node(field, state):
     """Create a definition list item node that describes whether multiple
     selections are allowed for a ConfigChoiceField.
@@ -680,4 +764,6 @@ FIELD_FORMATTERS = {
         format_configfield_nodes,
     'lsst.pex.config.configChoiceField.ConfigChoiceField':
         format_configchoicefield_nodes,
+    'lsst.pex.config.configDictField.ConfigDictField':
+        format_configdictfield_nodes,
 }
