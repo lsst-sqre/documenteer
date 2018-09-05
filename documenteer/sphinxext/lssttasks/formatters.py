@@ -6,6 +6,7 @@ __all__ = (
     'format_configurablefield_nodes', 'format_listfield_nodes',
     'format_choicefield_nodes', 'format_rangefield_nodes',
     'format_dictfield_nodes', 'format_configfield_nodes',
+    'format_configchoicefield_nodes',
     'create_dtype_item_node',
     'create_field_type_item_node', 'create_default_item_node',
     'create_default_target_item_node', 'create_description_node'
@@ -432,6 +433,75 @@ def format_configfield_nodes(field_name, field, section_id, state):
     return section
 
 
+def format_configchoicefield_nodes(field_name, field, section_id, state):
+    """Create a section node that documents a ConfigChoiceField config field.
+
+    Parameters
+    ----------
+    field_name : `str`
+        Name of the configuration field (the attribute name of on the config
+        class).
+    field : ``lsst.pex.config.ConfigChoiceField``
+        A configuration field.
+    section_id : `str`
+        Unique identifier for this field. This is used as the id and name of
+        the section node.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.section``
+        Section containing documentation nodes for the ConfigChoiceField.
+    """
+    from lsst.pex.config import ConfigChoiceField
+    if not isinstance(field, ConfigChoiceField):
+        message = ('Field {0} ({1!r}) is not an '
+                   'lsst.pex.config.ConfigChoiceField type. It is an {2!s}.')
+        raise ValueError(message.format(field_name, field, type(field)))
+
+    # Create a definition list for the choices
+    choice_dl = nodes.definition_list()
+    for choice_value, choice_class in field.typemap.items():
+        item = nodes.definition_list_item()
+        item_term = nodes.term()
+        item_term += nodes.literal(text=repr(choice_value))
+        item += item_term
+        item_definition = nodes.definition()
+        item_definition += make_python_xref_nodes_for_type(
+            choice_class,
+            state,
+            hide_namespace=False)
+        item += item_definition
+        choice_dl.append(item)
+
+    choices_node = nodes.definition_list_item()
+    choices_node.append(nodes.term(text='Choices'))
+    choices_definition = nodes.definition()
+    choices_definition.append(choice_dl)
+    choices_node.append(choices_definition)
+
+    # Title is the field's attribute name
+    title = nodes.title(text=field_name)
+
+    dl = nodes.definition_list()
+    dl += create_default_item_node(field, state)
+    dl += choices_node
+    dl += create_dtype_item_node(field, state)
+    dl += create_field_type_item_node(field, state)
+    dl += create_multiple_selections_node(field, state)
+
+    # Doc for this field, parsed as rst
+    desc_node = create_description_node(field, state)
+
+    # Package all the nodes into a `section`
+    section = make_section(
+        section_id=section_id,
+        contents=[title, dl, desc_node])
+
+    return section
+
+
 def create_dtype_item_node(field, state):
     """Create a definition list item node that describes a field's dtype.
 
@@ -537,6 +607,35 @@ def create_default_target_item_node(field, state):
     return default_item
 
 
+def create_multiple_selections_node(field, state):
+    """Create a definition list item node that describes whether multiple
+    selections are allowed for a ConfigChoiceField.
+
+    Parameters
+    ----------
+    field : ``lsst.pex.config.ConfigChoiceField``
+        An ``lsst.pex.config.ConfigChoiceField`` configuration field.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.definition_list_item``
+        Definition list item that describes with a term "Multiple selections."
+    """
+    default_item = nodes.definition_list_item()
+    default_item += nodes.term(text="Multiple selections")
+    default_item_content = nodes.definition()
+    if field.multi:
+        default_item_content += nodes.paragraph(
+            text='Allowed')
+    else:
+        default_item_content += nodes.paragraph(
+            text='Disallowed')
+    default_item += default_item_content
+    return default_item
+
+
 def create_description_node(field, state):
     """Creates docutils nodes for the Field's description, built from the
     field's ``doc`` and ``optional`` attributes.
@@ -579,4 +678,6 @@ FIELD_FORMATTERS = {
         format_dictfield_nodes,
     'lsst.pex.config.configField.ConfigField':
         format_configfield_nodes,
+    'lsst.pex.config.configChoiceField.ConfigChoiceField':
+        format_configchoicefield_nodes,
 }
