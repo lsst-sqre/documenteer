@@ -7,11 +7,13 @@ from pkg_resources import get_distribution, DistributionNotFound
 
 from .subtasks import SubtasksDirective
 from .taskconfigs import TaskConfigsDirective
+from .standaloneconfigs import StandaloneConfigsDirective
 
 
 def setup(app):
     app.add_directive('lsst-subtasks', SubtasksDirective)
     app.add_directive('lsst-task-configs', TaskConfigsDirective)
+    app.add_directive('lsst-configs', StandaloneConfigsDirective)
 
     try:
         __version__ = get_distribution('documenteer').version

@@ -2,7 +2,7 @@
 """
 
 __all__ = ('get_task_config_class', 'get_task_config_fields',
-           'get_subtask_fields', 'typestring')
+           'get_subtask_fields', 'typestring', 'get_type')
 
 from importlib import import_module
 import inspect
@@ -23,17 +23,33 @@ def get_task_config_class(task_name):
     config_class : ``lsst.pipe.base.Config``\ -type
         The configuration class (not an instance) corresponding to the task.
     """
-    parts = task_name.split('.')
-    if len(parts) < 2:
-        raise SphinxError(
-            'The Task class must be fully-qualified, '
-            'of the form ``module.TaskName``. Got: {}'.format(task_name)
-        )
-    module_name = ".".join(parts[0:-1])
-    task_class_name = parts[-1]
-    task_class = getattr(import_module(module_name), task_class_name)
+    task_class = get_type(task_name)
 
     return task_class.ConfigClass
+
+
+def get_type(type_name):
+    """Get a type given its importable name.
+
+    Parameters
+    ----------
+    task_name : `str`
+        Name of the Python type, such as ``mypackage.MyClass``.
+
+    Returns
+    -------
+    object
+        The object.
+    """
+    parts = type_name.split('.')
+    if len(parts) < 2:
+        raise SphinxError(
+            'Type must be fully-qualified, '
+            'of the form ``module.MyClass``. Got: {}'.format(type_name)
+        )
+    module_name = ".".join(parts[0:-1])
+    name = parts[-1]
+    return getattr(import_module(module_name), name)
 
 
 def get_task_config_fields(config_class):
