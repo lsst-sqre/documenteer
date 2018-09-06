@@ -7,7 +7,7 @@ __all__ = (
     'format_choicefield_nodes', 'format_rangefield_nodes',
     'format_dictfield_nodes', 'format_configfield_nodes',
     'format_configchoicefield_nodes', 'format_configdictfield_nodes',
-    'create_dtype_item_node',
+    'format_registryfield_nodes', 'create_dtype_item_node',
     'create_field_type_item_node', 'create_default_item_node',
     'create_default_target_item_node', 'create_keytype_item_node',
     'create_valuetype_item_node', 'create_description_node'
@@ -532,6 +532,76 @@ def format_configdictfield_nodes(field_name, field, section_id, state):
     return section
 
 
+def format_registryfield_nodes(field_name, field, section_id, state):
+    """Create a section node that documents a RegistryField config field.
+
+    Parameters
+    ----------
+    field_name : `str`
+        Name of the configuration field (the attribute name of on the config
+        class).
+    field : ``lsst.pex.config.RegistryField``
+        A configuration field.
+    section_id : `str`
+        Unique identifier for this field. This is used as the id and name of
+        the section node.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.section``
+        Section containing documentation nodes for the RegistryField.
+    """
+    from lsst.pex.config import RegistryField
+    if not isinstance(field, RegistryField):
+        message = ('Field {0} ({1!r}) is not an '
+                   'lsst.pex.config.RegistryField type. It is an {2!s}.')
+        raise ValueError(message.format(field_name, field, type(field)))
+
+    # Create a definition list for the choices
+    # This iteration is over field.registry.items(), not field.items(), so
+    # that the directive shows the configurables, not their ConfigClasses.
+    choice_dl = nodes.definition_list()
+    for choice_value, choice_class in field.registry.items():
+        item = nodes.definition_list_item()
+        item_term = nodes.term()
+        item_term += nodes.literal(text=repr(choice_value))
+        item += item_term
+        item_definition = nodes.definition()
+        item_definition += make_python_xref_nodes_for_type(
+            choice_class,
+            state,
+            hide_namespace=False)
+        item += item_definition
+        choice_dl.append(item)
+
+    choices_node = nodes.definition_list_item()
+    choices_node.append(nodes.term(text='Choices'))
+    choices_definition = nodes.definition()
+    choices_definition.append(choice_dl)
+    choices_node.append(choices_definition)
+
+    # Title is the field's attribute name
+    title = nodes.title(text=field_name)
+
+    dl = nodes.definition_list()
+    dl += create_default_item_node(field, state)
+    dl += choices_node
+    dl += create_field_type_item_node(field, state)
+    dl += create_multiple_selections_node(field, state)
+
+    # Doc for this field, parsed as rst
+    desc_node = create_description_node(field, state)
+
+    # Package all the nodes into a `section`
+    section = make_section(
+        section_id=section_id,
+        contents=[title, dl, desc_node])
+
+    return section
+
+
 def create_dtype_item_node(field, state):
     """Create a definition list item node that describes a field's dtype.
 
@@ -766,4 +836,6 @@ FIELD_FORMATTERS = {
         format_configchoicefield_nodes,
     'lsst.pex.config.configDictField.ConfigDictField':
         format_configdictfield_nodes,
+    'lsst.pex.config.registry.RegistryField':
+        format_registryfield_nodes,
 }

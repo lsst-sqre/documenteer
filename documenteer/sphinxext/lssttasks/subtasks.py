@@ -9,12 +9,17 @@ from sphinx.util.logging import getLogger
 from sphinx.errors import SphinxError
 
 from .taskutils import get_task_config_class, get_subtask_fields
-from .formatters import format_configurablefield_nodes
+from .formatters import get_field_formatter
 
 
 class SubtasksDirective(Directive):
     """``lsst-subtasks`` directive that renders documentation for the subtasks
     associated with an ``lsst.pipe.base.Task``.
+
+    Notes
+    -----
+    Subtasks come from ConfigurableField and RegistryField types of
+    ``lsst.pex.config`` configuration fields.
 
     Examples
     --------
@@ -51,14 +56,19 @@ class SubtasksDirective(Directive):
 
         all_nodes = []
         for field_name, field in subtask_fields.items():
-            iid = '.'.join((task_config_class.__module__,
-                            task_config_class.__name__,
-                            field_name,
-                            'subtask-config'))
+            field_id = '.'.join((task_config_class.__module__,
+                                 task_config_class.__name__,
+                                 field_name,
+                                 'subtask-config'))
+            try:
+                format_field_nodes = get_field_formatter(field)
+            except ValueError:
+                logger.debug('Skipping unknown config field type, '
+                             '{0!r}'.format(field))
+                continue
+
             all_nodes.append(
-                format_configurablefield_nodes(
-                    field_name, field, iid, self.state
-                )
+                format_field_nodes(field_name, field, field_id, self.state)
             )
 
         return all_nodes

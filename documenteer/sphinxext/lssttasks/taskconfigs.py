@@ -32,7 +32,7 @@ class TaskConfigsDirective(Directive):
         new_nodes : `list`
             Nodes to add to the doctree.
         """
-        from lsst.pex.config import ConfigurableField
+        from lsst.pex.config import ConfigurableField, RegistryField
 
         logger = getLogger(__name__)
 
@@ -49,7 +49,7 @@ class TaskConfigsDirective(Directive):
         all_nodes = []
         for field_name, field in config_fields.items():
             # Skip fields documented via the `lsst-subtasks` directive
-            if isinstance(field, (ConfigurableField,)):
+            if isinstance(field, (ConfigurableField, RegistryField)):
                 continue
 
             field_id = '.'.join((

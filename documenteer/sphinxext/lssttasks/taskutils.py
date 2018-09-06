@@ -86,13 +86,13 @@ def get_subtask_fields(config_class):
     -------
     subtask_fields : `dict`
         Mapping where keys are the config attribute names and values are
-        subclasses of ``lsst.pex.config.Field`` (or specifically
-        ``ConfigurableField``).
+        subclasses of ``lsst.pex.config.ConfigurableField`` or
+        ``RegistryField``).
     """
-    from lsst.pex.config import ConfigurableField
+    from lsst.pex.config import ConfigurableField, RegistryField
 
     def is_subtask_field(obj):
-        return isinstance(obj, ConfigurableField)
+        return isinstance(obj, (ConfigurableField, RegistryField))
 
     return dict(inspect.getmembers(config_class, is_subtask_field))
 
