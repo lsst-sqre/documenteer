@@ -64,14 +64,15 @@ def get_task_config_fields(config_class):
     -------
     config_fields : `dict`
         Mapping where keys are the config attribute names and values are
-        subclasses of ``lsst.pex.config.Field``
+        subclasses of ``lsst.pex.config.Field``. The mapping is alphabetically
+        ordered by attribute name.
     """
     from lsst.pex.config import Field
 
     def is_config_field(obj):
         return isinstance(obj, Field)
 
-    return dict(inspect.getmembers(config_class, is_config_field))
+    return _get_alphabetical_members(config_class, is_config_field)
 
 
 def get_subtask_fields(config_class):
@@ -87,14 +88,50 @@ def get_subtask_fields(config_class):
     subtask_fields : `dict`
         Mapping where keys are the config attribute names and values are
         subclasses of ``lsst.pex.config.ConfigurableField`` or
-        ``RegistryField``).
+        ``RegistryField``). The mapping is alphabetically ordered by
+        attribute name.
     """
     from lsst.pex.config import ConfigurableField, RegistryField
 
     def is_subtask_field(obj):
         return isinstance(obj, (ConfigurableField, RegistryField))
 
-    return dict(inspect.getmembers(config_class, is_subtask_field))
+    return _get_alphabetical_members(config_class, is_subtask_field)
+
+
+def _get_alphabetical_members(obj, predicate):
+    """Get members of an object, sorted alphabetically.
+
+    Parameters
+    ----------
+    obj
+        An object.
+    predicate : callable
+        Callable that takes an attribute and returns a bool of whether the
+        attribute should be returned or not.
+
+    Returns
+    -------
+    members : `dict`
+        Dictionary of
+
+        - Keys: attribute name
+        - Values: attribute
+
+        The dictionary is ordered according to the attribute name.
+
+    Notes
+    -----
+    This uses the insertion-order-preserved nature of `dict` in Python 3.6+.
+
+    See also
+    --------
+    `inspect.getmembers`
+    """
+    fields = dict(inspect.getmembers(obj, predicate))
+    keys = list(fields.keys())
+    keys.sort()
+    return {k: fields[k] for k in keys}
 
 
 def typestring(obj):
