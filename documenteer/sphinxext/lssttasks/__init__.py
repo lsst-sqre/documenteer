@@ -8,12 +8,15 @@ from pkg_resources import get_distribution, DistributionNotFound
 from .subtasks import SubtasksDirective
 from .taskconfigs import TaskConfigsDirective
 from .standaloneconfigs import StandaloneConfigsDirective
+from .crossrefs import TaskTopicTargetDirective
 
 
 def setup(app):
     app.add_directive('lsst-subtasks', SubtasksDirective)
     app.add_directive('lsst-task-configs', TaskConfigsDirective)
     app.add_directive('lsst-configs', StandaloneConfigsDirective)
+    app.add_directive(
+        TaskTopicTargetDirective.directive_name, TaskTopicTargetDirective)
 
     try:
         __version__ = get_distribution('documenteer').version
