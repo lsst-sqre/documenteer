@@ -18,6 +18,7 @@ from docutils import nodes
 from ..utils import (parse_rst_content, make_python_xref_nodes_for_type,
                      make_section)
 from .taskutils import typestring
+from .crossrefs import pending_task_xref
 
 
 def get_field_formatter(field):
@@ -609,10 +610,10 @@ def format_registryfield_nodes(field_name, field, section_id, state):
         item_term += nodes.literal(text=repr(choice_value))
         item += item_term
         item_definition = nodes.definition()
-        item_definition += make_python_xref_nodes_for_type(
-            choice_class,
-            state,
-            hide_namespace=False)
+        def_para = nodes.paragraph()
+        name = '.'.join((choice_class.__module__, choice_class.__name__))
+        def_para += pending_task_xref(rawsource=name)
+        item_definition += def_para
         item += item_definition
         choice_dl.append(item)
 
@@ -741,9 +742,11 @@ def create_default_target_item_node(field, state):
     default_item = nodes.definition_list_item()
     default_item.append(nodes.term(text="Default"))
     default_item_content = nodes.definition()
-    default_item_content += make_python_xref_nodes_for_type(field.target,
-                                                            state)
-    default_item.append(default_item_content)
+    para = nodes.paragraph()
+    name = '.'.join((field.target.__module__, field.target.__name__))
+    para += pending_task_xref(rawsource=name)
+    default_item_content += para
+    default_item += default_item_content
     return default_item
 
 
