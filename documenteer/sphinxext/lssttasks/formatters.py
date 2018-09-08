@@ -185,6 +185,30 @@ def format_listfield_nodes(field_name, field, section_id, state):
         hide_namespace=False)
     itemtype_node += itemtype_def
 
+    minlength_node = None
+    if field.minLength:
+        minlength_node = nodes.definition_list_item()
+        minlength_node += nodes.term(text='Minimum length')
+        minlength_def = nodes.definition()
+        minlength_def += nodes.paragraph(text=str(field.minLength))
+        minlength_node += minlength_def
+
+    maxlength_node = None
+    if field.maxLength:
+        maxlength_node = nodes.definition_list_item()
+        maxlength_node += nodes.term(text='Maximum length')
+        maxlength_def = nodes.definition()
+        maxlength_def += nodes.paragraph(text=str(field.maxLength))
+        maxlength_node += maxlength_def
+
+    length_node = None
+    if field.length:
+        length_node = nodes.definition_list_item()
+        length_node += nodes.term(text='Required length')
+        length_def = nodes.definition()
+        length_def += nodes.paragraph(text=str(field.length))
+        length_node += length_def
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
 
@@ -192,6 +216,12 @@ def format_listfield_nodes(field_name, field, section_id, state):
     dl += create_default_item_node(field, state)
     dl += itemtype_node
     dl += create_field_type_item_node(field, state)
+    if minlength_node:
+        dl += minlength_node
+    if maxlength_node:
+        dl += maxlength_node
+    if length_node:
+        dl += length_node
 
     # Doc for this ConfigurableField, parsed as rst
     desc_node = create_description_node(field, state)
