@@ -2,6 +2,7 @@
 """
 
 __all__ = ('format_task_id', 'TaskTopicTargetDirective',
+           'ConfigurableTopicTargetDirective',
            'pending_task_xref', 'task_ref_role',
            'process_pending_task_xref_nodes')
 
@@ -61,20 +62,71 @@ class TaskTopicTargetDirective(Directive):
         logger.debug('%s using Task class %s',
                      self.directive_name, task_class_name)
 
-        target_id = format_task_id(task_class_name)
-        target_node = nodes.target('', '', ids=[target_id])
-
-        # Store these task topic nodes in the environment for later cross
-        # referencing.
-        if not hasattr(env, 'lsst_tasks'):
-            env.lsst_tasks = {}
-        env.lsst_tasks[target_id] = {
-            'docname': env.docname,
-            'lineno': self.lineno,
-            'target': target_node,
-        }
+        target_node = _create_configurable_reference_node(
+            task_class_name, env, self.lineno, is_task=True)
 
         return [target_node]
+
+
+class ConfigurableTopicTargetDirective(Directive):
+    """``lsst-configurable`` directive that labels a Configurable's topic page.
+
+    Configurables are essentially generalized tasks. They have a ConfigClass,
+    but don't have run methods.
+    """
+
+    directive_name = 'lsst-configurable'
+    """Default name of this directive.
+    """
+
+    has_content = False
+
+    required_arguments = 1
+
+    def run(self):
+        """Main entrypoint method.
+
+        Returns
+        -------
+        new_nodes : `list`
+            Nodes to add to the doctree.
+        """
+        env = self.state.document.settings.env
+        logger = getLogger(__name__)
+
+        try:
+            configurable_class_name = self.arguments[0]
+        except IndexError:
+            raise SphinxError(
+                '{} directive requires a Configurable class name as an '
+                'argument'.format(self.directive_name)
+            )
+        logger.debug('%s using Configurable class %s',
+                     self.directive_name, configurable_class_name)
+
+        target_node = _create_configurable_reference_node(
+            configurable_class_name, env, self.lineno, is_task=False)
+
+        return [target_node]
+
+
+def _create_configurable_reference_node(configurable_class_name, env, lineno,
+                                        is_task=True):
+    target_id = format_task_id(configurable_class_name)
+    target_node = nodes.target('', '', ids=[target_id])
+
+    # Store these task/configurable topic nodes in the environment for later
+    # cross referencing.
+    if not hasattr(env, 'lsst_tasks'):
+        env.lsst_tasks = {}
+    env.lsst_tasks[target_id] = {
+        'docname': env.docname,
+        'lineno': lineno,
+        'target': target_node,
+        'is_task': False
+    }
+
+    return target_node
 
 
 class pending_task_xref(nodes.Inline, nodes.Element):
