@@ -175,12 +175,22 @@ def format_listfield_nodes(field_name, field, section_id, state):
                    'lsst.pex.config.ListField type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
+    # ListField's store their item types in the itemtype attribute
+    itemtype_node = nodes.definition_list_item()
+    itemtype_node += nodes.term(text='Item type')
+    itemtype_def = nodes.definition()
+    itemtype_def += make_python_xref_nodes_for_type(
+        field.itemtype,
+        state,
+        hide_namespace=False)
+    itemtype_node += itemtype_def
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
-    dl += create_dtype_item_node(field, state)
+    dl += itemtype_node
     dl += create_field_type_item_node(field, state)
 
     # Doc for this ConfigurableField, parsed as rst
