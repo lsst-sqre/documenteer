@@ -49,10 +49,10 @@ def format_config_id(config_class_name):
 
 
 class TaskTopicTargetDirective(Directive):
-    """``lsst-task`` directive that labels a Task's topic page.
+    """``lsst-tasktopic`` directive that labels a Task's topic page.
     """
 
-    directive_name = 'lsst-task'
+    directive_name = 'lsst-task-topic'
     """Default name of this directive.
     """
 
@@ -88,13 +88,14 @@ class TaskTopicTargetDirective(Directive):
 
 
 class ConfigurableTopicTargetDirective(Directive):
-    """``lsst-configurable`` directive that labels a Configurable's topic page.
+    """``lsst-configurable-topic`` directive that labels a Configurable's topic
+    page.
 
     Configurables are essentially generalized tasks. They have a ConfigClass,
     but don't have run methods.
     """
 
-    directive_name = 'lsst-configurable'
+    directive_name = 'lsst-configurable-topic'
     """Default name of this directive.
     """
 
@@ -149,12 +150,12 @@ def _create_configurable_reference_node(configurable_class_name, env, lineno,
 
 
 class ConfigTopicTargetDirective(Directive):
-    """``lsst-config`` directive that labels a Config topic page.
+    """``lsst-config-topic`` directive that labels a Config topic page.
 
     Configs are lsst.pex.config.config.Config subclasses.
     """
 
-    directive_name = 'lsst-config'
+    directive_name = 'lsst-config-topic'
     """Default name of this directive.
     """
 
@@ -247,7 +248,7 @@ def task_ref_role(name, rawtext, text, lineno, inliner,
 
 def process_pending_task_xref_nodes(app, doctree, fromdocname):
     """Process the ``pending_task_xref`` nodes during the ``doctree-resolved``
-    event to insert links to the locations of ``lsst-task`` directives.
+    event to insert links to the locations of ``lsst-task-topic`` directives.
     """
     logger = getLogger(__name__)
     env = app.builder.env
@@ -256,14 +257,15 @@ def process_pending_task_xref_nodes(app, doctree, fromdocname):
         content = []
 
         # The source of the node is the class name the user entered via the
-        # lsst-task role. For example:
+        # lsst-task-topic role. For example:
         # lsst.pipe.tasks.processCcd.ProcessCcdTask
         text = node.rawsource
         task_id = format_task_id(text)
         class_name = text.split('.')[-1]  # just the name of the class
 
         if hasattr(env, 'lsst_tasks') and task_id in env.lsst_tasks:
-            # A task topic, marked up with the lsst-task directive is available
+            # A task topic, marked up with the lsst-task-topic directive is
+            # available
             task_data = env.lsst_tasks[task_id]
 
             ref_node = nodes.reference('', '')
@@ -298,7 +300,7 @@ def process_pending_task_xref_nodes(app, doctree, fromdocname):
 def config_ref_role(name, rawtext, text, lineno, inliner,
                     options=None, content=None):
     """Process a role that references the target nodes created by the
-    ``lsst-config`` directive.
+    ``lsst-config-topic`` directive.
 
     Parameters
     ----------
@@ -336,7 +338,7 @@ def config_ref_role(name, rawtext, text, lineno, inliner,
 
 def process_pending_config_xref_nodes(app, doctree, fromdocname):
     """Process the ``pending_config_xref`` nodes during the ``doctree-resolved``
-    event to insert links to the locations of ``lsst-config`` directives.
+    event to insert links to the locations of ``lsst-config-topic`` directives.
 
     See also
     --------
@@ -351,7 +353,7 @@ def process_pending_config_xref_nodes(app, doctree, fromdocname):
         content = []
 
         # The source of the node is the class name the user entered via the
-        # lsst-config role. For example:
+        # lsst-config-topic role. For example:
         # lsst.pipe.tasks.processCcd.ProcessCcdConfig
         text = node.rawsource
         config_id = format_config_id(text)
@@ -384,7 +386,7 @@ def process_pending_config_xref_nodes(app, doctree, fromdocname):
 
             content.append(literal_node)
 
-            message = 'lsst-config could not find a reference to %s'
+            message = 'lsst-config-topic could not find a reference to %s'
             logger.warning(message, text, location=node)
 
         # replacing the pending_config_xref node with this reference

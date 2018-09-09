@@ -12,9 +12,13 @@ from .formatters import get_field_formatter
 
 
 class StandaloneConfigsDirective(Directive):
-    """``lsst-configs`` directive that renders documentation for the
+    """``lsst-config-fields`` directive that renders documentation for the
     configuration fields associated with standalone ``lsst.pex.config.Config``
     class.
+    """
+
+    directive_name = 'lsst-config-fields'
+    """Default name of this directive.
     """
 
     has_content = False
@@ -34,9 +38,11 @@ class StandaloneConfigsDirective(Directive):
         try:
             config_class_name = self.arguments[0]
         except IndexError:
-            raise SphinxError('lsst-configs directive requires a Config class '
-                              'name as an argument')
-        logger.debug('lsst-configs using Config class %s', config_class_name)
+            raise SphinxError(
+                '{} directive requires a Config class '
+                'name as an argument'.format(self.directive_name))
+        logger.debug('%s using Config class %s', self.directive_name,
+                     config_class_name)
 
         config_class = get_type(config_class_name)
 

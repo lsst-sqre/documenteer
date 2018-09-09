@@ -13,11 +13,15 @@ from .formatters import get_field_formatter
 
 
 class TaskConfigsDirective(Directive):
-    """``lsst-task-configs`` directive that renders documentation for the
-    configuration fields associated iwth an ``lsst.pipe.base.Task``.
+    """``lsst-task-config-fields`` directive that renders documentation for the
+    configuration fields associated with an ``lsst.pipe.base.Task``.
 
-    Configurable subtasks are documented by the ``lsst-subtasks`` directive
-    instead.
+    Configurable subtasks are documented by the ``lsst-task-config-subtasks``
+    directive instead.
+    """
+
+    directive_name = 'lsst-task-config-fields'
+    """Default name of this directive.
     """
 
     has_content = False
@@ -39,16 +43,18 @@ class TaskConfigsDirective(Directive):
         try:
             task_class_name = self.arguments[0]
         except IndexError:
-            raise SphinxError('lsst-subtasks directive requires a Task class '
-                              'name as an argument')
-        logger.debug('lsst-taskconfigs using Task class %s', task_class_name)
+            raise SphinxError(
+                '{} directive requires a Task class '
+                'name as an argument'.format(self.directive_name))
+        logger.debug('%s using Task class %s', task_class_name)
 
         task_config_class = get_task_config_class(task_class_name)
         config_fields = get_task_config_fields(task_config_class)
 
         all_nodes = []
         for field_name, field in config_fields.items():
-            # Skip fields documented via the `lsst-subtasks` directive
+            # Skip fields documented via the `lsst-task-config-subtasks`
+            # directive
             if isinstance(field, (ConfigurableField, RegistryField)):
                 continue
 

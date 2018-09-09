@@ -1,5 +1,5 @@
-"""Sphinx directive ``lsst-subtasks`` that documents the subtasks in a Task's
-Config class.
+"""Sphinx directive ``lsst-task-config-subtasks`` that documents the subtasks
+in a Task's Config class.
 """
 
 __all__ = ('SubtasksDirective',)
@@ -13,8 +13,8 @@ from .formatters import get_field_formatter
 
 
 class SubtasksDirective(Directive):
-    """``lsst-subtasks`` directive that renders documentation for the subtasks
-    associated with an ``lsst.pipe.base.Task``.
+    """``lsst-task-config-subtasks`` directive that renders documentation for
+    the subtasks associated with an ``lsst.pipe.base.Task``.
 
     Notes
     -----
@@ -27,7 +27,11 @@ class SubtasksDirective(Directive):
 
     .. code-block:: rst
 
-       .. lsst-subtasks:: lsst.pipe.tasks.processCcd.ProcessCcdTask
+       .. lsst-task-config-subtasks:: lsst.pipe.tasks.processCcd.ProcessCcdTask
+    """
+
+    directive_name = 'lsst-task-config-subtasks'
+    """Default name of this directive.
     """
 
     has_content = False
@@ -47,9 +51,11 @@ class SubtasksDirective(Directive):
         try:
             task_class_name = self.arguments[0]
         except IndexError:
-            raise SphinxError('lsst-subtasks directive requires a Task class '
-                              'name as an argument')
-        logger.debug('lsst-subtasks using Task class %s', task_class_name)
+            raise SphinxError(
+                '{} directive requires a Task class name as an '
+                'argument'.format(self.directive_name))
+        logger.debug('%s using Task class %s', self.directive_name,
+                     task_class_name)
 
         task_config_class = get_task_config_class(task_class_name)
         subtask_fields = get_subtask_fields(task_config_class)

@@ -16,9 +16,17 @@ from .crossrefs import (
 
 
 def setup(app):
-    app.add_directive('lsst-subtasks', SubtasksDirective)
-    app.add_directive('lsst-task-configs', TaskConfigsDirective)
-    app.add_directive('lsst-configs', StandaloneConfigsDirective)
+    app.add_directive(
+        SubtasksDirective.directive_name,
+        SubtasksDirective)
+    app.add_directive(
+        TaskConfigsDirective.directive_name,
+        TaskConfigsDirective,
+    )
+    app.add_directive(
+        StandaloneConfigsDirective.directive_name,
+        StandaloneConfigsDirective
+    )
     app.add_directive(
         TaskTopicTargetDirective.directive_name, TaskTopicTargetDirective)
     app.add_directive(
