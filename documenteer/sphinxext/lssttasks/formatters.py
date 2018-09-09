@@ -18,7 +18,7 @@ from docutils import nodes
 from ..utils import (parse_rst_content, make_python_xref_nodes_for_type,
                      make_section)
 from .taskutils import typestring
-from .crossrefs import pending_task_xref
+from .crossrefs import pending_task_xref, pending_config_xref
 
 
 def get_field_formatter(field):
@@ -428,22 +428,32 @@ def format_configfield_nodes(field_name, field, section_id, state):
                    'type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
-    # Default configuration class
+    # Default configuration node
     default_config_node = nodes.definition_list_item()
     default_config_node = nodes.term(text='Default')
     default_config_def = nodes.definition()
-    default_config_def += make_python_xref_nodes_for_type(
-        field.default,
-        state,
-        hide_namespace=False)
+    default_config_def_para = nodes.paragraph()
+    name = '.'.join((field.default.__module__, field.default.__name__))
+    default_config_def_para += pending_config_xref(rawsource=name)
+    default_config_def += default_config_def_para
     default_config_node += default_config_def
+
+    # Default data type node
+    dtype_node = nodes.definition_list_item()
+    dtype_node = nodes.term(text='Data type')
+    dtype_def = nodes.definition()
+    dtype_def_para = nodes.paragraph()
+    name = '.'.join((field.dtype.__module__, field.dtype.__name__))
+    dtype_def_para += pending_config_xref(rawsource=name)
+    dtype_def += dtype_def_para
+    dtype_node += dtype_def
 
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
 
     dl = nodes.definition_list()
     dl += default_config_node
-    dl += create_dtype_item_node(field, state)
+    dl += dtype_node
     dl += create_field_type_item_node(field, state)
 
     # Doc for this field, parsed as rst
@@ -492,10 +502,10 @@ def format_configchoicefield_nodes(field_name, field, section_id, state):
         item_term += nodes.literal(text=repr(choice_value))
         item += item_term
         item_definition = nodes.definition()
-        item_definition += make_python_xref_nodes_for_type(
-            choice_class,
-            state,
-            hide_namespace=False)
+        def_para = nodes.paragraph()
+        name = '.'.join((choice_class.__module__, choice_class.__name__))
+        def_para += pending_config_xref(rawsource=name)
+        item_definition += def_para
         item += item_definition
         choice_dl.append(item)
 
@@ -553,13 +563,23 @@ def format_configdictfield_nodes(field_name, field, section_id, state):
                    'lsst.pex.config.ConfigDictField type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
+    # Valuetype links to a Config task topic
+    value_item = nodes.definition_list_item()
+    value_item += nodes.term(text="Value type")
+    value_item_def = nodes.definition()
+    value_item_def_para = nodes.paragraph()
+    name = '.'.join((field.itemtype.__module__, field.itemtype.__name__))
+    value_item_def_para += pending_config_xref(rawsource=name)
+    value_item_def += value_item_def_para
+    value_item += value_item_def
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
     dl += create_keytype_item_node(field, state)
-    dl += create_valuetype_item_node(field, state)
+    dl += value_item
     dl += create_field_type_item_node(field, state)
 
     # Doc for this field, parsed as rst
