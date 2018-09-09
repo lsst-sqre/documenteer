@@ -521,7 +521,6 @@ def format_configchoicefield_nodes(field_name, field, section_id, state):
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
     dl += choices_node
-    dl += create_dtype_item_node(field, state)
     dl += create_field_type_item_node(field, state)
     dl += create_multiple_selections_node(field, state)
 
