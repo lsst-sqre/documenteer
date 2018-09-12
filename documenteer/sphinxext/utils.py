@@ -4,6 +4,8 @@
 __all__ = ('parse_rst_content', 'make_python_xref_nodes',
            'make_python_xref_nodes_for_type', 'make_section')
 
+import re
+
 from docutils import nodes
 from docutils.statemachine import ViewList
 from sphinx.util.docutils import switch_source_input
@@ -146,3 +148,65 @@ def make_section(section_id=None, contents=None):
     if contents is not None:
         section.extend(contents)
     return section
+
+
+ROLE_DISPLAY_PATTERN = re.compile(r'(?P<display>.+)<(?P<reference>.+)>')
+
+
+def split_role_content(role_rawsource):
+    """Split the ``rawsource`` of a role into standard components.
+
+    Parameters
+    ----------
+    role_rawsource : `str`
+        The content of the role: its ``rawsource`` attribute.
+
+    Returns
+    -------
+    parts : `dict`
+        Dictionary with keys:
+
+        ``last_component`` (`bool`)
+           If `True`, the display should show only the last component of a
+           namespace. The user signals this by prefixing the role's content
+           with a ``~`` character.
+
+        ``display`` (`str`)
+           Custom display content. See Examples.
+
+        ``ref`` (`str`)
+           The reference content. If the role doesn't have a custom display,
+           the reference will be the role's content. The ``ref`` never
+           includes a ``~`` prefix.
+
+    Examples
+    --------
+    >>> split_role_role('Tables <lsst.afw.table.Table>')
+    {'last_component': False, 'display': 'Tables',
+    'ref': 'lsst.afw.table.Table'}
+
+    >>> split_role_role('~lsst.afw.table.Table')
+    {'last_component': True, 'display': None, 'ref': 'lsst.afw.table.Table'}
+    """
+    parts = {
+        'last_component': False,
+        'display': None,
+        'ref': None
+    }
+
+    if role_rawsource.startswith('~'):
+        # Only the last part of a namespace should be shown.
+        parts['last_component'] = True
+        # Strip that marker off
+        role_rawsource = role_rawsource.lstrip('~')
+
+    match = ROLE_DISPLAY_PATTERN.match(role_rawsource)
+    if match:
+        parts['display'] = match.group('display').strip()
+        parts['ref'] = match.group('reference').strip()
+    else:
+        # No suggested display
+        parts['display'] = None
+        parts['ref'] = role_rawsource.strip()
+
+    return parts
