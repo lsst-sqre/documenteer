@@ -15,6 +15,8 @@ from docutils.parsers.rst import Directive
 from sphinx.util.logging import getLogger
 from sphinx.errors import SphinxError
 
+from ..utils import split_role_content
+
 
 def format_task_id(task_class_name):
     """Format the ID of a task topic reference node.
@@ -287,9 +289,18 @@ def process_pending_task_xref_nodes(app, doctree, fromdocname):
         # The source of the node is the class name the user entered via the
         # lsst-task-topic role. For example:
         # lsst.pipe.tasks.processCcd.ProcessCcdTask
-        text = node.rawsource
-        task_id = format_task_id(text)
-        class_name = text.split('.')[-1]  # just the name of the class
+        role_parts = split_role_content(node.rawsource)
+        task_id = format_task_id(role_parts['ref'])
+        if role_parts['display']:
+            # user's custom display text
+            display_text = role_parts['display']
+        elif role_parts['last_component']:
+            # just the name of the class
+            display_text = role_parts['ref'].split('.')[-1]
+        else:
+            display_text = role_parts['ref']
+        link_label = nodes.literal()
+        link_label += nodes.Text(display_text, display_text)
 
         if hasattr(env, 'lsst_tasks') and task_id in env.lsst_tasks:
             # A task topic, marked up with the lsst-task-topic directive is
@@ -302,24 +313,16 @@ def process_pending_task_xref_nodes(app, doctree, fromdocname):
                 fromdocname, task_data['docname'])
             ref_node['refuri'] += '#' + task_data['target']['refid']
 
-            link_label = nodes.Text(class_name, class_name)
-            literal_node = nodes.literal()
-            literal_node += link_label
-            ref_node += literal_node
+            ref_node += link_label
 
             content.append(ref_node)
 
         else:
-            # Fallback if the task topic isn't known. Just print the task class
-            # name.
-            literal_node = nodes.literal()
-            link_label = nodes.Text(class_name, class_name)
-            literal_node += link_label
-
-            content.append(literal_node)
+            # Fallback if the task topic isn't known. Just print the label text
+            content.append(link_label)
 
             message = 'lsst-task could not find a reference to %s'
-            logger.warning(message, text, location=node)
+            logger.warning(message, role_parts['ref'], location=node)
 
         # replacing the pending_task_xref node with this reference
         node.replace_self(content)
@@ -380,12 +383,20 @@ def process_pending_config_xref_nodes(app, doctree, fromdocname):
     for node in doctree.traverse(pending_config_xref):
         content = []
 
-        # The source of the node is the class name the user entered via the
-        # lsst-config-topic role. For example:
-        # lsst.pipe.tasks.processCcd.ProcessCcdConfig
-        text = node.rawsource
-        config_id = format_config_id(text)
-        class_name = text.split('.')[-1]  # just the name of the class
+        # The source of the node is the content the authored entered in the
+        # lsst-config role
+        role_parts = split_role_content(node.rawsource)
+        config_id = format_config_id(role_parts['ref'])
+        if role_parts['display']:
+            # user's custom display text
+            display_text = role_parts['display']
+        elif role_parts['last_component']:
+            # just the name of the class
+            display_text = role_parts['ref'].split('.')[-1]
+        else:
+            display_text = role_parts['ref']
+        link_label = nodes.literal()
+        link_label += nodes.Text(display_text, display_text)
 
         if hasattr(env, 'lsst_configs') and config_id in env.lsst_configs:
             # A config topic, marked up with the lsst-task directive is
@@ -398,24 +409,17 @@ def process_pending_config_xref_nodes(app, doctree, fromdocname):
                 fromdocname, config_data['docname'])
             ref_node['refuri'] += '#' + config_data['target']['refid']
 
-            link_label = nodes.Text(class_name, class_name)
-            literal_node = nodes.literal()
-            literal_node += link_label
-            ref_node += literal_node
+            ref_node += link_label
 
             content.append(ref_node)
 
         else:
-            # Fallback if the config topic isn't known. Just print the Config
-            # class name.
-            literal_node = nodes.literal()
-            link_label = nodes.Text(class_name, class_name)
-            literal_node += link_label
+            # Fallback if the config topic isn't known. Just print the
+            # role's formatted content.
+            content.append(link_label)
 
-            content.append(literal_node)
-
-            message = 'lsst-config-topic could not find a reference to %s'
-            logger.warning(message, text, location=node)
+            message = 'lsst-config could not find a reference to %s'
+            logger.warning(message, role_parts['ref'], location=node)
 
         # replacing the pending_config_xref node with this reference
         node.replace_self(content)
@@ -480,11 +484,21 @@ def process_pending_configfield_xref_nodes(app, doctree, fromdocname):
 
         # The source is the text the user entered into the role, which is
         # the importable name of the config class's and the attribute
-        text = node.rawsource
-        components = text.split('.')
-        field_name = components[-1]
-        class_namespace = components[:-1]
+        role_parts = split_role_content(node.rawsource)
+        namespace_components = role_parts['ref'].split('.')
+        field_name = namespace_components[-1]
+        class_namespace = namespace_components[:-1]
         configfield_id = format_configfield_id(class_namespace, field_name)
+        if role_parts['display']:
+            # user's custom display text
+            display_text = role_parts['display']
+        elif role_parts['last_component']:
+            # just the name of the class
+            display_text = role_parts['ref'].split('.')[-1]
+        else:
+            display_text = role_parts['ref']
+        link_label = nodes.literal()
+        link_label += nodes.Text(display_text, display_text)
 
         if hasattr(env, 'lsst_configfields') \
                 and configfield_id in env.lsst_configfields:
@@ -497,10 +511,7 @@ def process_pending_configfield_xref_nodes(app, doctree, fromdocname):
                 fromdocname, configfield_data['docname'])
             ref_node['refuri'] += '#' + configfield_id
 
-            link_label = nodes.Text(field_name, field_name)
-            literal_node = nodes.literal()
-            literal_node += link_label
-            ref_node += literal_node
+            ref_node += link_label
 
             content.append(ref_node)
 
@@ -514,7 +525,7 @@ def process_pending_configfield_xref_nodes(app, doctree, fromdocname):
             content.append(literal_node)
 
             message = 'lsst-config-field could not find a reference to %s'
-            logger.warning(message, text, location=node)
+            logger.warning(message, role_parts['ref'], location=node)
 
         # replacing the pending_configfield_xref node with this reference
         node.replace_self(content)
