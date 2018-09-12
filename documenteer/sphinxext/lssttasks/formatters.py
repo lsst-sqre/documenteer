@@ -41,11 +41,13 @@ def get_field_formatter(field):
             config class).
         field (``lsst.pex.config.Field``)
             A configuration field.
-        section_id (`str`)
+        field_id (`str`)
             Unique identifier for this field. This is used as the id and name
-            of the section node.
+            of the section node. with a -section suffix
         state (``docutils.statemachine.State``)
             Usually the directive's ``state`` attribute.
+        lineno (`int`)
+            Usually the directive's ``lineno`` attribute.
 
     Raises
     ------
@@ -58,7 +60,7 @@ def get_field_formatter(field):
         raise ValueError('Unknown field type {0!r}'.format(field))
 
 
-def format_field_nodes(field_name, field, section_id, state):
+def format_field_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a Field config field.
 
     Parameters
@@ -68,11 +70,13 @@ def format_field_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.Field``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -85,8 +89,13 @@ def format_field_nodes(field_name, field, section_id, state):
                    'lsst.pex.config.Field type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -98,13 +107,14 @@ def format_field_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
+        # contents=[ref_target, title, dl, desc_node])
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_configurablefield_nodes(field_name, field, section_id, state):
+def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigurableField config field.
 
     Parameters
@@ -114,11 +124,13 @@ def format_configurablefield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.ConfigurableField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -131,8 +143,13 @@ def format_configurablefield_nodes(field_name, field, section_id, state):
                    'lsst.pex.config.ConfigurableField type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_target_item_node(field, state)
@@ -143,13 +160,13 @@ def format_configurablefield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_listfield_nodes(field_name, field, section_id, state):
+def format_listfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ListField config field.
 
     Parameters
@@ -159,11 +176,13 @@ def format_listfield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.ListField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -210,8 +229,13 @@ def format_listfield_nodes(field_name, field, section_id, state):
         length_def += nodes.paragraph(text=str(field.length))
         length_node += length_def
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -229,13 +253,13 @@ def format_listfield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_choicefield_nodes(field_name, field, section_id, state):
+def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ChoiceField config field.
 
     Parameters
@@ -245,11 +269,13 @@ def format_choicefield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.ChoiceField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -280,8 +306,13 @@ def format_choicefield_nodes(field_name, field, section_id, state):
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -294,13 +325,13 @@ def format_choicefield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_rangefield_nodes(field_name, field, section_id, state):
+def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a RangeField config field.
 
     Parameters
@@ -310,11 +341,13 @@ def format_rangefield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.RangeField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -327,6 +360,10 @@ def format_rangefield_nodes(field_name, field, section_id, state):
                    'type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Format definition list item for the range
     range_node = nodes.definition_list_item()
     range_node += nodes.term(text='Range')
@@ -336,6 +373,7 @@ def format_rangefield_nodes(field_name, field, section_id, state):
 
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -348,13 +386,13 @@ def format_rangefield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_dictfield_nodes(field_name, field, section_id, state):
+def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a DictField config field.
 
     Parameters
@@ -364,11 +402,13 @@ def format_dictfield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.DictField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -381,8 +421,13 @@ def format_dictfield_nodes(field_name, field, section_id, state):
                    'type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -395,13 +440,13 @@ def format_dictfield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id,
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_configfield_nodes(field_name, field, section_id, state):
+def format_configfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigField config field.
 
     Parameters
@@ -411,11 +456,13 @@ def format_configfield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.ConfigField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -448,8 +495,13 @@ def format_configfield_nodes(field_name, field, section_id, state):
     dtype_def += dtype_def_para
     dtype_node += dtype_def
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += default_config_node
@@ -461,13 +513,13 @@ def format_configfield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_configchoicefield_nodes(field_name, field, section_id, state):
+def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigChoiceField config field.
 
     Parameters
@@ -477,11 +529,13 @@ def format_configchoicefield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.ConfigChoiceField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -515,8 +569,13 @@ def format_configchoicefield_nodes(field_name, field, section_id, state):
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -529,13 +588,13 @@ def format_configchoicefield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_configdictfield_nodes(field_name, field, section_id, state):
+def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigDictField config field.
 
     Parameters
@@ -545,11 +604,13 @@ def format_configdictfield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.ConfigDictField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -572,8 +633,13 @@ def format_configdictfield_nodes(field_name, field, section_id, state):
     value_item_def += value_item_def_para
     value_item += value_item_def
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -586,13 +652,13 @@ def format_configdictfield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
 
 
-def format_registryfield_nodes(field_name, field, section_id, state):
+def format_registryfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a RegistryField config field.
 
     Parameters
@@ -602,11 +668,13 @@ def format_registryfield_nodes(field_name, field, section_id, state):
         class).
     field : ``lsst.pex.config.RegistryField``
         A configuration field.
-    section_id : `str`
+    field_id : `str`
         Unique identifier for this field. This is used as the id and name of
-        the section node.
+        the section node. with a -section suffix
     state : ``docutils.statemachine.State``
         Usually the directive's ``state`` attribute.
+    lineno (`int`)
+        Usually the directive's ``lineno`` attribute.
 
     Returns
     -------
@@ -642,8 +710,13 @@ def format_registryfield_nodes(field_name, field, section_id, state):
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
 
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
     # Title is the field's attribute name
     title = nodes.title(text=field_name)
+    title += ref_target
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
@@ -656,7 +729,7 @@ def format_registryfield_nodes(field_name, field, section_id, state):
 
     # Package all the nodes into a `section`
     section = make_section(
-        section_id=section_id,
+        section_id=field_id + '-section',
         contents=[title, dl, desc_node])
 
     return section
@@ -877,6 +950,32 @@ def create_description_node(field, state):
         doc_container_node.append(optional_para)
 
     return doc_container_node
+
+
+def create_configfield_ref_target_node(target_id, env, lineno):
+    """Create a ``target`` node that marks a configuration field.
+
+    Internally, this also adds to the ``lsst_configfields`` attribute of the
+    environment that is consumed by `documenteer.sphinxext.lssttasks.
+    crossrefs.process_pending_configfield_xref_nodes`.
+
+    See also
+    --------
+    `documenteer.sphinxext.lssttasks.crossrefs.process_pending_configfield_xref_nodes`
+    """
+    target_node = nodes.target('', '', ids=[target_id])
+
+    # Store these task/configurable topic nodes in the environment for later
+    # cross referencing.
+    if not hasattr(env, 'lsst_configfields'):
+        env.lsst_configfields = {}
+    env.lsst_configfields[target_id] = {
+        'docname': env.docname,
+        'lineno': lineno,
+        'target': target_node,
+    }
+
+    return target_node
 
 
 FIELD_FORMATTERS = {

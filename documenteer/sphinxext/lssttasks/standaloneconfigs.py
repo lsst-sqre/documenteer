@@ -9,6 +9,7 @@ from sphinx.errors import SphinxError
 
 from .taskutils import get_type, get_task_config_fields
 from .formatters import get_field_formatter
+from .crossrefs import format_configfield_id
 
 
 class StandaloneConfigsDirective(Directive):
@@ -51,12 +52,10 @@ class StandaloneConfigsDirective(Directive):
         all_nodes = []
 
         for field_name, field in config_fields.items():
-            field_id = '.'.join((
-                config_class.__module__,
-                config_class.__name__,
-                field_name,
-                'field'
-            ))
+            field_id = format_configfield_id(
+                '.'.join((config_class.__module__,
+                          config_class.__name__)),
+                field_name)
 
             try:
                 format_field_nodes = get_field_formatter(field)
@@ -66,7 +65,8 @@ class StandaloneConfigsDirective(Directive):
                 continue
 
             all_nodes.append(
-                format_field_nodes(field_name, field, field_id, self.state)
+                format_field_nodes(field_name, field, field_id, self.state,
+                                   self.lineno)
             )
 
         return all_nodes

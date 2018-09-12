@@ -10,6 +10,7 @@ from sphinx.errors import SphinxError
 
 from .taskutils import get_task_config_class, get_task_config_fields
 from .formatters import get_field_formatter
+from .crossrefs import format_configfield_id
 
 
 class TaskConfigsDirective(Directive):
@@ -58,12 +59,10 @@ class TaskConfigsDirective(Directive):
             if isinstance(field, (ConfigurableField, RegistryField)):
                 continue
 
-            field_id = '.'.join((
-                task_config_class.__module__,
-                task_config_class.__name__,
-                field_name,
-                'field'
-            ))
+            field_id = format_configfield_id(
+                '.'.join((task_config_class.__module__,
+                          task_config_class.__name__)),
+                field_name)
 
             try:
                 format_field_nodes = get_field_formatter(field)
@@ -73,7 +72,8 @@ class TaskConfigsDirective(Directive):
                 continue
 
             all_nodes.append(
-                format_field_nodes(field_name, field, field_id, self.state)
+                format_field_nodes(field_name, field, field_id, self.state,
+                                   self.lineno)
             )
 
         return all_nodes
