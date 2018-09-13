@@ -75,6 +75,7 @@ def register_formatter(field_typestr):
     This decorator also performs common helpers for the formatter functions:
 
     - Does type checking on the field argument passed to a formatter.
+    - Assembles a section node from the nodes returned by the formatter.
     """
     def decorator_register(formatter):
 
@@ -82,6 +83,7 @@ def register_formatter(field_typestr):
         def wrapped_formatter(*args, **kwargs):
             field_name = args[0]
             field = args[1]
+            field_id = args[2]
 
             # Before running the formatter, do type checking
             field_type = get_type(field_typestr)
@@ -92,8 +94,14 @@ def register_formatter(field_typestr):
                     message.format(field_name, field, field_typestr,
                                    typestring(field)))
 
-            return formatter(*args, **kwargs)
+            # Run the formatter itself
+            nodes = formatter(*args, **kwargs)
 
+            # Package nodes from the formatter into a section
+            section = make_section(
+                section_id=field_id + '-section',
+                contents=nodes)
+            return section
 
         FIELD_FORMATTERS[field_typestr] = wrapped_formatter
 
@@ -155,12 +163,7 @@ def format_field_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.configurableField.ConfigurableField')
@@ -208,12 +211,7 @@ def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.listField.ListField')
@@ -318,12 +316,7 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.choiceField.ChoiceField')
@@ -399,12 +392,7 @@ def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.rangeField.RangeField')
@@ -469,12 +457,7 @@ def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.dictField.DictField')
@@ -524,12 +507,7 @@ def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id,
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.configField.ConfigField')
@@ -577,12 +555,7 @@ def format_configfield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.configChoiceField.ConfigChoiceField')
@@ -660,12 +633,7 @@ def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.configDictField.ConfigDictField')
@@ -714,12 +682,7 @@ def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 @register_formatter('lsst.pex.config.registry.RegistryField')
@@ -799,12 +762,7 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
     # Title for configuration field
     title = create_title_node(field_name, field, field_id, state, lineno)
 
-    # Package all the nodes into a `section`
-    section = make_section(
-        section_id=field_id + '-section',
-        contents=[title, dl, desc_node])
-
-    return section
+    return [title, dl, desc_node]
 
 
 def create_field_type_item_node(field, state):
