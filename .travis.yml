@@ -1,5 +1,10 @@
 sudo: false
 language: python
+git:
+  # Clone the full depth for setuptools_scm (to count commits in very large
+  # branches) and for the testing of documenteer's Git metadata inspection
+  # APIs.
+  depth: false
 matrix:
   include:
     - python: "3.5"
