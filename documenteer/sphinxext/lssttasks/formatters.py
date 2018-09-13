@@ -12,11 +12,13 @@ __all__ = (
     'create_description_node', 'create_title_node'
 )
 
+import functools
+
 from docutils import nodes
 
 from ..utils import (parse_rst_content, make_python_xref_nodes_for_type,
                      make_section)
-from .taskutils import typestring
+from .taskutils import typestring, get_type
 from .crossrefs import pending_task_xref, pending_config_xref
 
 
@@ -69,10 +71,33 @@ def get_field_formatter(field):
 def register_formatter(field_typestr):
     """Decorate a configuration field formatter function to register it with
     the `get_field_formatter` accessor.
+
+    This decorator also performs common helpers for the formatter functions:
+
+    - Does type checking on the field argument passed to a formatter.
     """
     def decorator_register(formatter):
-        FIELD_FORMATTERS[field_typestr] = formatter
-        return formatter
+
+        @functools.wraps(formatter)
+        def wrapped_formatter(*args, **kwargs):
+            field_name = args[0]
+            field = args[1]
+
+            # Before running the formatter, do type checking
+            field_type = get_type(field_typestr)
+            if not isinstance(field, field_type):
+                message = ('Field {0} ({1!r}) is not an '
+                           '{2} type. It is an {3}.')
+                raise ValueError(
+                    message.format(field_name, field, field_typestr,
+                                   typestring(field)))
+
+            return formatter(*args, **kwargs)
+
+
+        FIELD_FORMATTERS[field_typestr] = wrapped_formatter
+
+        return wrapped_formatter
     return decorator_register
 
 
@@ -100,12 +125,6 @@ def format_field_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the Field.
     """
-    from lsst.pex.config import Field
-    if not isinstance(field, Field):
-        message = ('Field {0} ({1!r}) is not an '
-                   'lsst.pex.config.Field type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Custom Field type item for the definition list
     field_type_item = nodes.definition_list_item()
     field_type_item.append(nodes.term(text="Field type"))
@@ -168,12 +187,6 @@ def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the ConfigurableField.
     """
-    from lsst.pex.config import ConfigurableField
-    if not isinstance(field, ConfigurableField):
-        message = ('Field {0} ({1!r}) is not an '
-                   'lsst.pex.config.ConfigurableField type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Custom default target definition list that links to Task topics
     default_item = nodes.definition_list_item()
     default_item.append(nodes.term(text="Default"))
@@ -227,12 +240,6 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the ListField.
     """
-    from lsst.pex.config import ListField
-    if not isinstance(field, ListField):
-        message = ('Field {0} ({1!r}) is not an '
-                   'lsst.pex.config.ListField type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # ListField's store their item types in the itemtype attribute
     itemtype_node = nodes.definition_list_item()
     itemtype_node += nodes.term(text='Item type')
@@ -343,12 +350,6 @@ def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the ChoiceField.
     """
-    from lsst.pex.config import ChoiceField
-    if not isinstance(field, ChoiceField):
-        message = ('Field {0} ({1!r}) is not an lsst.pex.config.ChoiceField '
-                   'type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Create a definition list for the choices
     choice_dl = nodes.definition_list()
     for choice_value, choice_doc in field.allowed.items():
@@ -430,12 +431,6 @@ def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the RangeField.
     """
-    from lsst.pex.config import RangeField
-    if not isinstance(field, RangeField):
-        message = ('Field {0} ({1!r}) is not an lsst.pex.config.RangeField '
-                   'type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Field type
     field_type_item = nodes.definition_list_item()
     field_type_item.append(nodes.term(text="Field type"))
@@ -506,12 +501,6 @@ def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the DictField.
     """
-    from lsst.pex.config import DictField
-    if not isinstance(field, DictField):
-        message = ('Field {0} ({1!r}) is not an lsst.pex.config.DictField '
-                   'type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Custom value type field for definition list
     valuetype_item = nodes.definition_list_item()
     valuetype_item = nodes.term(text='Value type')
@@ -567,12 +556,6 @@ def format_configfield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the ConfigField.
     """
-    from lsst.pex.config import ConfigField
-    if not isinstance(field, ConfigField):
-        message = ('Field {0} ({1!r}) is not an lsst.pex.config.ConfigField '
-                   'type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Default data type node
     dtype_node = nodes.definition_list_item()
     dtype_node = nodes.term(text='Data type')
@@ -626,12 +609,6 @@ def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the ConfigChoiceField.
     """
-    from lsst.pex.config import ConfigChoiceField
-    if not isinstance(field, ConfigChoiceField):
-        message = ('Field {0} ({1!r}) is not an '
-                   'lsst.pex.config.ConfigChoiceField type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Create a definition list for the choices
     choice_dl = nodes.definition_list()
     for choice_value, choice_class in field.typemap.items():
@@ -715,12 +692,6 @@ def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the ConfigDictField.
     """
-    from lsst.pex.config import ConfigDictField
-    if not isinstance(field, ConfigDictField):
-        message = ('Field {0} ({1!r}) is not an '
-                   'lsst.pex.config.ConfigDictField type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Valuetype links to a Config task topic
     value_item = nodes.definition_list_item()
     value_item += nodes.term(text="Value type")
@@ -775,12 +746,6 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the RegistryField.
     """
-    from lsst.pex.config import RegistryField
-    if not isinstance(field, RegistryField):
-        message = ('Field {0} ({1!r}) is not an '
-                   'lsst.pex.config.RegistryField type. It is an {2!s}.')
-        raise ValueError(message.format(field_name, field, type(field)))
-
     # Create a definition list for the choices
     # This iteration is over field.registry.items(), not field.items(), so
     # that the directive shows the configurables, not their ConfigClasses.
