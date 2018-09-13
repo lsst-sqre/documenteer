@@ -7,10 +7,9 @@ __all__ = (
     'format_choicefield_nodes', 'format_rangefield_nodes',
     'format_dictfield_nodes', 'format_configfield_nodes',
     'format_configchoicefield_nodes', 'format_configdictfield_nodes',
-    'format_registryfield_nodes', 'create_dtype_item_node',
-    'create_field_type_item_node', 'create_default_item_node',
-    'create_default_target_item_node', 'create_keytype_item_node',
-    'create_valuetype_item_node', 'create_description_node'
+    'format_registryfield_nodes', 'create_field_type_item_node',
+    'create_default_item_node', 'create_keytype_item_node',
+    'create_description_node', 'create_title_node'
 )
 
 from docutils import nodes
@@ -89,26 +88,39 @@ def format_field_nodes(field_name, field, field_id, state, lineno):
                    'lsst.pex.config.Field type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+    # Custom Field type item for the definition list
+    field_type_item = nodes.definition_list_item()
+    field_type_item.append(nodes.term(text="Field type"))
+    field_type_item_content = nodes.definition()
+    field_type_item_content_p = nodes.paragraph()
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        field.dtype,
+        state,
+        hide_namespace=False)[0].children[0]
+    field_type_item_content_p += nodes.Text(' ', ' ')
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        type(field),
+        state,
+        hide_namespace=True)[0].children[0]
+    if field.optional:
+        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+    field_type_item_content += field_type_item_content_p
+    field_type_item += field_type_item_content
 
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
-
+    # Definition list for key-value metadata
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
-    dl += create_dtype_item_node(field, state)
-    dl += create_field_type_item_node(field, state)
+    dl += field_type_item
 
     # Doc for this ConfigurableField, parsed as rst
     desc_node = create_description_node(field, state)
 
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
+
     # Package all the nodes into a `section`
     section = make_section(
         section_id=field_id + '-section',
-        # contents=[ref_target, title, dl, desc_node])
         contents=[title, dl, desc_node])
 
     return section
@@ -143,20 +155,26 @@ def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
                    'lsst.pex.config.ConfigurableField type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+    # Custom default target definition list that links to Task topics
+    default_item = nodes.definition_list_item()
+    default_item.append(nodes.term(text="Default"))
+    default_item_content = nodes.definition()
+    para = nodes.paragraph()
+    name = '.'.join((field.target.__module__, field.target.__name__))
+    para += pending_task_xref(rawsource=name)
+    default_item_content += para
+    default_item += default_item_content
 
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
-
+    # Definition list for key-value metadata
     dl = nodes.definition_list()
-    dl += create_default_target_item_node(field, state)
+    dl += default_item
     dl += create_field_type_item_node(field, state)
 
     # Doc for this ConfigurableField, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -229,6 +247,25 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
         length_def += nodes.paragraph(text=str(field.length))
         length_node += length_def
 
+    # Type description
+    field_type_item = nodes.definition_list_item()
+    field_type_item.append(nodes.term(text="Field type"))
+    field_type_item_content = nodes.definition()
+    field_type_item_content_p = nodes.paragraph()
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        field.itemtype,
+        state,
+        hide_namespace=False)[0].children[0]
+    field_type_item_content_p += nodes.Text(' ', ' ')
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        type(field),
+        state,
+        hide_namespace=True)[0].children[0]
+    if field.optional:
+        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+    field_type_item_content += field_type_item_content_p
+    field_type_item += field_type_item_content
+
     # Reference target
     env = state.document.settings.env
     ref_target = create_configfield_ref_target_node(field_id, env, lineno)
@@ -237,10 +274,10 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     title = nodes.title(text=field_name)
     title += ref_target
 
+    # Definition list for key-value metadata
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
-    dl += itemtype_node
-    dl += create_field_type_item_node(field, state)
+    dl += field_type_item
     if minlength_node:
         dl += minlength_node
     if maxlength_node:
@@ -250,6 +287,9 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
 
     # Doc for this ConfigurableField, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -306,22 +346,36 @@ def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+    # Field type
+    field_type_item = nodes.definition_list_item()
+    field_type_item.append(nodes.term(text="Field type"))
+    field_type_item_content = nodes.definition()
+    field_type_item_content_p = nodes.paragraph()
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        field.dtype,
+        state,
+        hide_namespace=False)[0].children[0]
+    field_type_item_content_p += nodes.Text(' ', ' ')
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        type(field),
+        state,
+        hide_namespace=True)[0].children[0]
+    if field.optional:
+        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+    field_type_item_content += field_type_item_content_p
+    field_type_item += field_type_item_content
 
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
-
+    # Definition list for key-value metadata
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
+    dl += field_type_item
     dl += choices_node
-    dl += create_dtype_item_node(field, state)
-    dl += create_field_type_item_node(field, state)
 
     # Doc for this ConfigurableField, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -360,9 +414,24 @@ def format_rangefield_nodes(field_name, field, field_id, state, lineno):
                    'type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+    # Field type
+    field_type_item = nodes.definition_list_item()
+    field_type_item.append(nodes.term(text="Field type"))
+    field_type_item_content = nodes.definition()
+    field_type_item_content_p = nodes.paragraph()
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        field.dtype,
+        state,
+        hide_namespace=False)[0].children[0]
+    field_type_item_content_p += nodes.Text(' ', ' ')
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        type(field),
+        state,
+        hide_namespace=True)[0].children[0]
+    if field.optional:
+        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+    field_type_item_content += field_type_item_content_p
+    field_type_item += field_type_item_content
 
     # Format definition list item for the range
     range_node = nodes.definition_list_item()
@@ -371,18 +440,17 @@ def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     range_node_def += nodes.paragraph(text=field.rangeString)
     range_node += range_node_def
 
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
-
+    # Definition list for key-value metadata
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
+    dl += field_type_item
     dl += range_node
-    dl += create_dtype_item_node(field, state)
-    dl += create_field_type_item_node(field, state)
 
     # Doc for this field, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -421,22 +489,28 @@ def format_dictfield_nodes(field_name, field, field_id, state, lineno):
                    'type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+    # Custom value type field for definition list
+    valuetype_item = nodes.definition_list_item()
+    valuetype_item = nodes.term(text='Value type')
+    valuetype_def = nodes.definition()
+    valuetype_def += make_python_xref_nodes_for_type(
+        field.itemtype,
+        state,
+        hide_namespace=False)
+    valuetype_item += valuetype_def
 
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
-
+    # Definition list for key-value metadata
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
-    dl += create_keytype_item_node(field, state)
-    dl += create_valuetype_item_node(field, state)
     dl += create_field_type_item_node(field, state)
+    dl += create_keytype_item_node(field, state)
+    dl += valuetype_item
 
     # Doc for this field, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -475,16 +549,6 @@ def format_configfield_nodes(field_name, field, field_id, state, lineno):
                    'type. It is an {2!s}.')
         raise ValueError(message.format(field_name, field, type(field)))
 
-    # Default configuration node
-    default_config_node = nodes.definition_list_item()
-    default_config_node = nodes.term(text='Default')
-    default_config_def = nodes.definition()
-    default_config_def_para = nodes.paragraph()
-    name = '.'.join((field.default.__module__, field.default.__name__))
-    default_config_def_para += pending_config_xref(rawsource=name)
-    default_config_def += default_config_def_para
-    default_config_node += default_config_def
-
     # Default data type node
     dtype_node = nodes.definition_list_item()
     dtype_node = nodes.term(text='Data type')
@@ -495,21 +559,16 @@ def format_configfield_nodes(field_name, field, field_id, state, lineno):
     dtype_def += dtype_def_para
     dtype_node += dtype_def
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
-
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
-
+    # Definition list for key-value metadata
     dl = nodes.definition_list()
-    dl += default_config_node
     dl += dtype_node
     dl += create_field_type_item_node(field, state)
 
     # Doc for this field, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -569,22 +628,35 @@ def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
-
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
+    # Field type
+    field_type_item = nodes.definition_list_item()
+    field_type_item.append(nodes.term(text="Field type"))
+    field_type_item_content = nodes.definition()
+    field_type_item_content_p = nodes.paragraph()
+    if field.multi:
+        multi_text = "Multi-selection "
+    else:
+        multi_text = "Single-selection "
+    field_type_item_content_p += nodes.Text(multi_text, multi_text)
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        type(field),
+        state,
+        hide_namespace=True)[0].children[0]
+    if field.optional:
+        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+    field_type_item_content += field_type_item_content_p
+    field_type_item += field_type_item_content
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
+    dl += field_type_item
     dl += choices_node
-    dl += create_field_type_item_node(field, state)
-    dl += create_multiple_selections_node(field, state)
 
     # Doc for this field, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -633,22 +705,17 @@ def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     value_item_def += value_item_def_para
     value_item += value_item_def
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
-
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
-
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
+    dl += create_field_type_item_node(field, state)
     dl += create_keytype_item_node(field, state)
     dl += value_item
-    dl += create_field_type_item_node(field, state)
 
     # Doc for this field, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -710,22 +777,35 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
 
-    # Reference target
-    env = state.document.settings.env
-    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
-
-    # Title is the field's attribute name
-    title = nodes.title(text=field_name)
-    title += ref_target
+    # Field type
+    field_type_item = nodes.definition_list_item()
+    field_type_item.append(nodes.term(text="Field type"))
+    field_type_item_content = nodes.definition()
+    field_type_item_content_p = nodes.paragraph()
+    if field.multi:
+        multi_text = "Multi-selection "
+    else:
+        multi_text = "Single-selection "
+    field_type_item_content_p += nodes.Text(multi_text, multi_text)
+    field_type_item_content_p += make_python_xref_nodes_for_type(
+        type(field),
+        state,
+        hide_namespace=True)[0].children[0]
+    if field.optional:
+        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+    field_type_item_content += field_type_item_content_p
+    field_type_item += field_type_item_content
 
     dl = nodes.definition_list()
     dl += create_default_item_node(field, state)
+    dl += field_type_item
     dl += choices_node
-    dl += create_field_type_item_node(field, state)
-    dl += create_multiple_selections_node(field, state)
 
     # Doc for this field, parsed as rst
     desc_node = create_description_node(field, state)
+
+    # Title for configuration field
+    title = create_title_node(field_name, field, field_id, state, lineno)
 
     # Package all the nodes into a `section`
     section = make_section(
@@ -733,32 +813,6 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
         contents=[title, dl, desc_node])
 
     return section
-
-
-def create_dtype_item_node(field, state):
-    """Create a definition list item node that describes a field's dtype.
-
-    Parameters
-    ----------
-    field : ``lsst.pex.config.Field``
-        A configuration field.
-    state : ``docutils.statemachine.State``
-        Usually the directive's ``state`` attribute.
-
-    Returns
-    -------
-    ``docutils.nodes.definition_list_item``
-        Definition list item that describes a field's data type.
-    """
-    type_item = nodes.definition_list_item()
-    type_item.append(nodes.term(text="Data type"))
-    type_item_content = nodes.definition()
-    type_item_content += make_python_xref_nodes_for_type(
-        field.dtype,
-        state,
-        hide_namespace=False)
-    type_item.append(type_item_content)
-    return type_item
 
 
 def create_field_type_item_node(field, state):
@@ -779,11 +833,15 @@ def create_field_type_item_node(field, state):
     type_item = nodes.definition_list_item()
     type_item.append(nodes.term(text="Field type"))
     type_item_content = nodes.definition()
-    type_item_content += make_python_xref_nodes_for_type(
+    type_item_content_p = nodes.paragraph()
+    type_item_content_p += make_python_xref_nodes_for_type(
         type(field),
         state,
-        hide_namespace=True)
-    type_item.append(type_item_content)
+        hide_namespace=True)[0].children
+    if field.optional:
+        type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+    type_item_content += type_item_content_p
+    type_item += type_item_content
     return type_item
 
 
@@ -814,34 +872,6 @@ def create_default_item_node(field, state):
     return default_item
 
 
-def create_default_target_item_node(field, state):
-    """Create a definition list item node that describes the default target
-    of a ConfigurableField config.
-
-    Parameters
-    ----------
-    field : ``lsst.pex.config.ConfigurableField``
-        A configuration field.
-    state : ``docutils.statemachine.State``
-        Usually the directive's ``state`` attribute.
-
-    Returns
-    -------
-    ``docutils.nodes.definition_list_item``
-        Definition list item that describes the default target of a
-        ConfigurableField config.
-    """
-    default_item = nodes.definition_list_item()
-    default_item.append(nodes.term(text="Default"))
-    default_item_content = nodes.definition()
-    para = nodes.paragraph()
-    name = '.'.join((field.target.__module__, field.target.__name__))
-    para += pending_task_xref(rawsource=name)
-    default_item_content += para
-    default_item += default_item_content
-    return default_item
-
-
 def create_keytype_item_node(field, state):
     """Create a definition list item node that describes the key type
     of a dict-type config field.
@@ -869,62 +899,6 @@ def create_keytype_item_node(field, state):
     return keytype_node
 
 
-def create_valuetype_item_node(field, state):
-    """Create a definition list item node that describes the value type
-    of a dict-type config field.
-
-    Parameters
-    ----------
-    field : ``lsst.pex.config.Field``
-        A ``lsst.pex.config.DictField`` or ``lsst.pex.config.DictConfigField``.
-    state : ``docutils.statemachine.State``
-        Usually the directive's ``state`` attribute.
-
-    Returns
-    -------
-    ``docutils.nodes.definition_list_item``
-        Definition list item that describes the value type for the field.
-    """
-    valuetype_node = nodes.definition_list_item()
-    valuetype_node = nodes.term(text='Value type')
-    valuetype_def = nodes.definition()
-    valuetype_def += make_python_xref_nodes_for_type(
-        field.itemtype,
-        state,
-        hide_namespace=False)
-    valuetype_node += valuetype_def
-    return valuetype_node
-
-
-def create_multiple_selections_node(field, state):
-    """Create a definition list item node that describes whether multiple
-    selections are allowed for a ConfigChoiceField.
-
-    Parameters
-    ----------
-    field : ``lsst.pex.config.ConfigChoiceField``
-        An ``lsst.pex.config.ConfigChoiceField`` configuration field.
-    state : ``docutils.statemachine.State``
-        Usually the directive's ``state`` attribute.
-
-    Returns
-    -------
-    ``docutils.nodes.definition_list_item``
-        Definition list item that describes with a term "Multiple selections."
-    """
-    default_item = nodes.definition_list_item()
-    default_item += nodes.term(text="Multiple selections")
-    default_item_content = nodes.definition()
-    if field.multi:
-        default_item_content += nodes.paragraph(
-            text='Allowed')
-    else:
-        default_item_content += nodes.paragraph(
-            text='Disallowed')
-    default_item += default_item_content
-    return default_item
-
-
 def create_description_node(field, state):
     """Creates docutils nodes for the Field's description, built from the
     field's ``doc`` and ``optional`` attributes.
@@ -944,12 +918,35 @@ def create_description_node(field, state):
     doc_container_node = nodes.container()
     doc_container_node += parse_rst_content(field.doc, state)
 
-    # Augment documentation paragraph if the field is optional
-    if field.optional:
-        optional_para = nodes.paragraph(text="Optional.")
-        doc_container_node.append(optional_para)
-
     return doc_container_node
+
+
+def create_title_node(field_name, field, field_id, state, lineno):
+    """Create docutils nodes for the configuration field's title and
+    reference target node.
+
+    Parameters
+    ----------
+    field : ``lsst.pex.config.Field``
+        A configuration field.
+    state : ``docutils.statemachine.State``
+        Usually the directive's ``state`` attribute.
+
+    Returns
+    -------
+    ``docutils.nodes.title``
+        Title containing nodes for the ``field``\ 's title and reference
+        target.
+    """
+    # Reference target
+    env = state.document.settings.env
+    ref_target = create_configfield_ref_target_node(field_id, env, lineno)
+
+    # Title is the field's attribute name
+    title = nodes.title(text=field_name)
+    title += ref_target
+
+    return title
 
 
 def create_configfield_ref_target_node(target_id, env, lineno):
