@@ -20,6 +20,13 @@ from .taskutils import typestring
 from .crossrefs import pending_task_xref, pending_config_xref
 
 
+FIELD_FORMATTERS = {}
+"""Internal mapping of field type strings to formatter functions.
+
+External users should access this through `get_field_formatter`.
+"""
+
+
 def get_field_formatter(field):
     """Get the config docutils node formatter function for document a config
     field.
@@ -59,6 +66,17 @@ def get_field_formatter(field):
         raise ValueError('Unknown field type {0!r}'.format(field))
 
 
+def register_formatter(field_typestr):
+    """Decorate a configuration field formatter function to register it with
+    the `get_field_formatter` accessor.
+    """
+    def decorator_register(formatter):
+        FIELD_FORMATTERS[field_typestr] = formatter
+        return formatter
+    return decorator_register
+
+
+@register_formatter('lsst.pex.config.config.Field')
 def format_field_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a Field config field.
 
@@ -126,6 +144,7 @@ def format_field_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.configurableField.ConfigurableField')
 def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigurableField config field.
 
@@ -184,6 +203,7 @@ def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.listField.ListField')
 def format_listfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ListField config field.
 
@@ -299,6 +319,7 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.choiceField.ChoiceField')
 def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ChoiceField config field.
 
@@ -385,6 +406,7 @@ def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.rangeField.RangeField')
 def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a RangeField config field.
 
@@ -460,6 +482,7 @@ def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.dictField.DictField')
 def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a DictField config field.
 
@@ -520,6 +543,7 @@ def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.configField.ConfigField')
 def format_configfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigField config field.
 
@@ -578,6 +602,7 @@ def format_configfield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.configChoiceField.ConfigChoiceField')
 def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigChoiceField config field.
 
@@ -666,6 +691,7 @@ def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.configDictField.ConfigDictField')
 def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigDictField config field.
 
@@ -725,6 +751,7 @@ def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     return section
 
 
+@register_formatter('lsst.pex.config.registry.RegistryField')
 def format_registryfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a RegistryField config field.
 
@@ -973,27 +1000,3 @@ def create_configfield_ref_target_node(target_id, env, lineno):
     }
 
     return target_node
-
-
-FIELD_FORMATTERS = {
-    'lsst.pex.config.configurableField.ConfigurableField':
-        format_configurablefield_nodes,
-    'lsst.pex.config.config.Field':
-        format_field_nodes,
-    'lsst.pex.config.listField.ListField':
-        format_listfield_nodes,
-    'lsst.pex.config.choiceField.ChoiceField':
-        format_choicefield_nodes,
-    'lsst.pex.config.rangeField.RangeField':
-        format_rangefield_nodes,
-    'lsst.pex.config.dictField.DictField':
-        format_dictfield_nodes,
-    'lsst.pex.config.configField.ConfigField':
-        format_configfield_nodes,
-    'lsst.pex.config.configChoiceField.ConfigChoiceField':
-        format_configchoicefield_nodes,
-    'lsst.pex.config.configDictField.ConfigDictField':
-        format_configdictfield_nodes,
-    'lsst.pex.config.registry.RegistryField':
-        format_registryfield_nodes,
-}
