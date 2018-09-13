@@ -3,6 +3,7 @@
 
 __all__ = ('StandaloneConfigsDirective',)
 
+from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx.util.logging import getLogger
 from sphinx.errors import SphinxError
@@ -68,5 +69,10 @@ class StandaloneConfigsDirective(Directive):
                 format_field_nodes(field_name, field, field_id, self.state,
                                    self.lineno)
             )
+
+        # Fallback if no configuration items are present
+        if len(all_nodes) == 0:
+            message = 'No configuration fields.'
+            return [nodes.paragraph(text=message)]
 
         return all_nodes
