@@ -6,6 +6,11 @@ Documenteer
 
 Documenteer is developed on GitHub at https://github.com/lsst-sqre/documenteer.
 
+.. toctree::
+   :maxdepth: 1
+
+   changelog
+
 Pipelines projects
 ==================
 
