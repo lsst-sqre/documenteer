@@ -4,11 +4,14 @@
 __all__ = ('TaskApiDirective',)
 
 
+from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx.errors import SphinxError
 from sphinx.util.logging import getLogger
-from sphinx.util.inspect import getdoc
+from sphinx.util.inspect import getdoc, Signature
 from sphinx.util.docstrings import prepare_docstring
+from sphinx.addnodes import desc, desc_signature, desc_content, desc_addname
+from sphinx.domains.python import _pseudo_parse_arglist, PyXRefRole
 
 from .taskutils import get_type
 
@@ -48,6 +51,107 @@ class TaskApiDirective(Directive):
             '%s running with %r', self.directive_name, task_class_name)
 
         task_class = get_type(task_class_name)
+
+        nodes = self._format_summary_node(task_class)
+
+        return nodes
+
+    def _format_summary_node(self, task_class):
+        """Format a section node containg a summary of a Task class's key APIs.
+        """
+        modulename = task_class.__module__
+        classname = task_class.__name__
+        nodes = []
+
+        nodes.append(
+            self._format_class_nodes(task_class))
+
+        methods = ('run', 'runDataRef')
+        for method in methods:
+            if hasattr(task_class, method):
+                method_obj = getattr(task_class, method)
+                nodes.append(
+                    self._format_method_nodes(method_obj,
+                                              modulename,
+                                              classname))
+        return nodes
+
+    def _format_class_nodes(self, task_class):
+        """Create a ``desc`` node summarizing the class docstring.
+        """
+        # Patterned after PyObject.handle_signature in Sphinx.
+        # https://github.com/sphinx-doc/sphinx/blob/3e57ea0a5253ac198c1bff16c40abe71951bb586/sphinx/domains/python.py#L246
+
+        modulename = task_class.__module__
+        classname = task_class.__name__
+        fullname = '.'.join((modulename, classname))
+
+        # The signature term
+        signature = Signature(task_class, bound_method=False)
+        desc_sig_node = self._format_signature(
+            signature, modulename, classname, fullname, 'py:class')
+
+        # The content is the one-sentence summary.
+        summary_text = extract_docstring_summary(get_docstring(task_class))
+        content_node_p = nodes.paragraph(text=summary_text)
+        content_node = desc_content()
+        content_node += content_node_p
+
+        desc_node = desc()
+        desc_node['noindex'] = True
+        desc_node['domain'] = 'py'
+        desc_node['objtype'] = 'class'
+        desc_node += desc_sig_node
+        desc_node += content_node
+        return desc_node
+
+    def _format_method_nodes(self, task_method, modulename, classname):
+        """Create a ``desc`` node summarizing a method docstring.
+        """
+        methodname = task_method.__name__
+        fullname = '.'.join((modulename, classname, methodname))
+
+        # The signature term
+        signature = Signature(task_method, bound_method=True)
+        desc_sig_node = self._format_signature(
+            signature, modulename, classname, fullname, 'py:meth')
+
+        # The content is the one-sentence summary.
+        summary_text = extract_docstring_summary(get_docstring(task_method))
+        content_node_p = nodes.paragraph(text=summary_text)
+        content_node = desc_content()
+        content_node += content_node_p
+
+        desc_node = desc()
+        desc_node['noindex'] = True
+        desc_node['domain'] = 'py'
+        desc_node['objtype'] = 'method'
+        desc_node += desc_sig_node
+        desc_node += content_node
+        return desc_node
+
+    def _format_signature(self, signature, modulename, classname, fullname,
+                          refrole):
+        xref = PyXRefRole()
+
+        arglist = signature.format_args().lstrip('(').rstrip(')')
+
+        desc_sig_node = desc_signature()
+        desc_sig_node['module'] = modulename
+        desc_sig_node['class'] = classname
+        desc_sig_node['fullname'] = fullname
+        name_xref_nodes, _ = xref(
+            refrole,
+            '~' + fullname,
+            '~' + fullname,
+            self.lineno,
+            self.state.inliner)
+        desc_sig_name_node = desc_addname()
+        desc_sig_name_node += name_xref_nodes
+        desc_sig_node += desc_sig_name_node
+        _pseudo_parse_arglist(desc_sig_node, arglist)
+
+        return desc_sig_node
 
 
 def get_docstring(obj):
