@@ -386,7 +386,10 @@ def build_package_configs(project_name,
 
     # List of patterns, relative to source directory, that match files and
     # directories to ignore when looking for source files.
-    c['exclude_patterns'] = ['_build', 'README.rst']
+    c['exclude_patterns'] = [
+        '_build',
+        'README.rst',
+    ]
 
     # Show rendered todo directives in package docs since they're developer
     # facing.
@@ -502,6 +505,8 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
         'ups',
         # Recommended directory for pip installing doc eng Python packages
         '.pyvenv',
+        # GitHub templates
+        '.github',
     ]
 
     # Substitutions available on every page

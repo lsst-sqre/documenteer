@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.3.0 (2018-09-19)
+------------------
 
 - New ``remote-code-block``, which works like the ``literalinclude`` directive, but allows you to include content from a URL over the web.
   You can use this directive after adding ``documenteer.sphinxext`` to the extensions list in a project's ``conf.py``.
@@ -48,7 +48,8 @@ Unreleased
 - Recognize a new field in the ``metadata.yaml`` files of Sphinx technotes called ``exclude_patterns``.
   This is an array of file or directory paths that will be ignored by Sphinx during its build, as well as extensions like our ``get_project_content_commit_date`` for looking up commit date of content files.
 
-- Updated to Sphinx >1.7.0, <0.2.0.
+- Updated to Sphinx >1.7.0, <1.8.0.
+  Sphinx 1.8.0 is known to be incompatible with ``documenteer.sphinxrunner``.
 
 - Updated to lsst-sphinx-bootstrap-theme 0.3.x for pipelines docs.
 
