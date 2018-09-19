@@ -36,6 +36,7 @@ def _insert_extensions(c):
         'sphinx_automodapi.smart_resolver',
         'breathe',
         'documenteer.sphinxext',
+        'documenteer.sphinxext.lssttasks',
     ]
     return c
 
@@ -377,8 +378,10 @@ def build_package_configs(project_name,
     if copyright is not None:
         c['copyright'] = copyright
     else:
-        c['copyright'] = 'Copyright {:s} LSST contributors.'.format(
-            date.strftime('%Y-%m-%d'))
+        # Use this copyright for now. Ultimately we want to gather COPYRIGHT
+        # files and build an integrated copyright that way.
+        c['copyright'] = '2015-{year} LSST contributors.'.format(
+            year=date.year)
     c['version'] = version
     c['release'] = version
 

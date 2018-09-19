@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+- New directives and roles for documenting tasks in LSST Science Pipelines.
+
+  - The ``lsst-task-config-fields``, ``lsst-task-config-subtasks``, and ``lsst-config-fields`` directives automatically generate documentation for configuration fields and subtasks in Tasks.
+  - The ``lsst-task-topic`` and ``lsst-config-topic`` directives mark pages that document a given task or configuration class.
+  - The ``lsst-task``, ``lsst-config``, and ``lsst-config-field`` roles create references to task topics or configuration fields.
+
 0.3.0 (2018-09-19)
 ------------------
 
