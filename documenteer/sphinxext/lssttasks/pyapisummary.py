@@ -1,8 +1,53 @@
 """Sphinx extensions for summarizing the Python API for tasks.
 """
 
+__all__ = ('TaskApiDirective',)
+
+
+from docutils.parsers.rst import Directive
+from sphinx.errors import SphinxError
+from sphinx.util.logging import getLogger
 from sphinx.util.inspect import getdoc
 from sphinx.util.docstrings import prepare_docstring
+
+from .taskutils import get_type
+
+
+class TaskApiDirective(Directive):
+    """``lsst-task-api-summary`` directive that renders a summary of a LSST
+    Science Pipelines Task's Python API and links to the regular Python API
+    documentation from ``automodapi``.
+    """
+
+    directive_name = 'lsst-task-api-summary'
+    """Default name of this directive.
+    """
+
+    has_content = False
+
+    required_arguments = 1
+
+    def run(self):
+        """Main entrypoint method.
+
+        Returns
+        -------
+        new_nodes : `list`
+            Nodes to add to the doctree.
+        """
+        logger = getLogger(__name__)
+
+        try:
+            task_class_name = self.arguments[0]
+        except IndexError:
+            raise SphinxError(
+                '{} directive requires a Task class '
+                'name as an argument'.format(self.directive_name))
+
+        logger.debug(
+            '%s running with %r', self.directive_name, task_class_name)
+
+        task_class = get_type(task_class_name)
 
 
 def get_docstring(obj):

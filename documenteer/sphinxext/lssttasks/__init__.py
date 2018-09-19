@@ -14,6 +14,7 @@ from .crossrefs import (
     pending_configfield_xref, task_ref_role, config_ref_role,
     configfield_ref_role, process_pending_task_xref_nodes,
     process_pending_config_xref_nodes, process_pending_configfield_xref_nodes)
+from .pyapisummary import TaskApiDirective
 
 
 def setup(app):
@@ -36,6 +37,9 @@ def setup(app):
     app.add_directive(
         ConfigTopicTargetDirective.directive_name,
         ConfigTopicTargetDirective)
+    app.add_directive(
+        TaskApiDirective.directive_name,
+        TaskApiDirective)
     app.add_node(pending_task_xref)
     app.add_node(pending_config_xref)
     app.add_node(pending_configfield_xref)
