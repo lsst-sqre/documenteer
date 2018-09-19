@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.3.0 (2018-09-19)
+------------------
 
 - New ``remote-code-block``, which works like the ``literalinclude`` directive, but allows you to include content from a URL over the web.
   You can use this directive after adding ``documenteer.sphinxext`` to the extensions list in a project's ``conf.py``.
