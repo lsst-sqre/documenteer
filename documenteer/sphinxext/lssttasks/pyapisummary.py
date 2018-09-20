@@ -55,6 +55,7 @@ class TaskApiDirective(Directive):
         new_nodes = []
         new_nodes.extend(self._format_import_example(task_class))
         new_nodes.extend(self._format_summary_node(task_class))
+        new_nodes.extend(self._format_api_docs_link_message(task_class))
 
         return new_nodes
 
@@ -177,6 +178,41 @@ class TaskApiDirective(Directive):
         literal_node['language'] = 'py'
 
         return [literal_node]
+
+    def _format_api_docs_link_message(self, task_class):
+        """Format a message referring the reader to the full API docs.
+
+        Parameters
+        ----------
+        task_class : ``lsst.pipe.base.Task``-type
+            The Task class.
+
+        Returns
+        -------
+        nodes : `list` of docutils nodes
+            Docutils nodes showing a link to the full API docs.
+        """
+        fullname = '{0.__module__}.{0.__name__}'.format(task_class)
+
+        p_node = nodes.paragraph()
+
+        _ = 'See the '
+        p_node += nodes.Text(_, _)
+
+        xref = PyXRefRole()
+        xref_nodes, _ = xref(
+            'py:class',
+            '~' + fullname,
+            '~' + fullname,
+            self.lineno,
+            self.state.inliner)
+
+        p_node += xref_nodes
+
+        _ = ' API reference for complete details.'
+        p_node += nodes.Text(_, _)
+
+        return [p_node]
 
 
 def get_docstring(obj):
