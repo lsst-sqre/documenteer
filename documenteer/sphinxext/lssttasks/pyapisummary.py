@@ -52,9 +52,11 @@ class TaskApiDirective(Directive):
 
         task_class = get_type(task_class_name)
 
-        nodes = self._format_summary_node(task_class)
+        new_nodes = []
+        new_nodes.extend(self._format_import_example(task_class))
+        new_nodes.extend(self._format_summary_node(task_class))
 
-        return nodes
+        return new_nodes
 
     def _format_summary_node(self, task_class):
         """Format a section node containg a summary of a Task class's key APIs.
@@ -152,6 +154,29 @@ class TaskApiDirective(Directive):
         _pseudo_parse_arglist(desc_sig_node, arglist)
 
         return desc_sig_node
+
+    def _format_import_example(self, task_class):
+        """Generate nodes that show a code sample demonstrating how to import
+        the task class.
+
+        Parameters
+        ----------
+        task_class : ``lsst.pipe.base.Task``-type
+            The Task class.
+
+        Returns
+        -------
+        nodes : `list` of docutils nodes
+            Docutils nodes showing a class import statement.
+        """
+        code = 'from {0.__module__} import {0.__name__}'.format(task_class)
+
+        # This is a bare-bones version of what Sphinx's code-block directive
+        # does. The 'language' attr triggers the pygments treatment.
+        literal_node = nodes.literal_block(code, code)
+        literal_node['language'] = 'py'
+
+        return [literal_node]
 
 
 def get_docstring(obj):
