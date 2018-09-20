@@ -11,7 +11,7 @@ from sphinx.util.logging import getLogger
 from sphinx.util.inspect import getdoc, Signature
 from sphinx.util.docstrings import prepare_docstring
 from sphinx.addnodes import (desc, desc_signature, desc_content, desc_addname,
-                             desc_annotation)
+                             desc_annotation, seealso)
 from sphinx.domains.python import _pseudo_parse_arglist, PyXRefRole
 
 from .taskutils import get_type
@@ -96,10 +96,9 @@ class TaskApiDirective(Directive):
             signature, modulename, classname, fullname, 'py:class')
 
         # The content is the one-sentence summary.
-        summary_text = extract_docstring_summary(get_docstring(task_class))
-        content_node_p = nodes.paragraph(text=summary_text)
         content_node = desc_content()
-        content_node += content_node_p
+        content_node += self._create_doc_summary(task_class, fullname,
+                                                 'py:class')
 
         desc_node = desc()
         desc_node['noindex'] = True
@@ -121,10 +120,9 @@ class TaskApiDirective(Directive):
             signature, modulename, classname, fullname, 'py:meth')
 
         # The content is the one-sentence summary.
-        summary_text = extract_docstring_summary(get_docstring(task_method))
-        content_node_p = nodes.paragraph(text=summary_text)
         content_node = desc_content()
-        content_node += content_node_p
+        content_node += self._create_doc_summary(task_method, fullname,
+                                                 'py:meth')
 
         desc_node = desc()
         desc_node['noindex'] = True
@@ -167,6 +165,37 @@ class TaskApiDirective(Directive):
         _pseudo_parse_arglist(desc_sig_node, arglist)
 
         return desc_sig_node
+
+    def _create_doc_summary(self, obj, fullname, refrole):
+        """Create a paragraph containing the object's one-sentence docstring
+        summary with a link to further documentation.
+
+        The paragrah should be inserted into the ``desc`` node's
+        ``desc_content``.
+        """
+        summary_text = extract_docstring_summary(get_docstring(obj))
+        summary_text = summary_text.strip()
+        # Strip the last "." because the linked ellipses take its place
+        if summary_text.endswith('.'):
+            summary_text = summary_text.rstrip('.')
+        content_node_p = nodes.paragraph(text=summary_text)
+        content_node_p += self._create_api_details_link(fullname, refrole)
+        return content_node_p
+
+    def _create_api_details_link(self, fullname, refrole):
+        """Appends a link to the API docs, labelled as "...", that is appended
+        to the content paragraph of an API description.
+
+        This affordance indicates that more documentation is available, and
+        that by clicking on the ellipsis the user can find that documentation.
+        """
+        ref_text = '... <{}>'.format(fullname)
+        xref = PyXRefRole()
+        xref_nodes, _ = xref(
+            refrole, ref_text, ref_text,
+            self.lineno,
+            self.state.inliner)
+        return xref_nodes
 
     def _format_import_example(self, task_class):
         """Generate nodes that show a code sample demonstrating how to import
@@ -224,7 +253,10 @@ class TaskApiDirective(Directive):
         _ = ' API reference for complete details.'
         p_node += nodes.Text(_, _)
 
-        return [p_node]
+        seealso_node = seealso()
+        seealso_node += p_node
+
+        return [seealso_node]
 
 
 def get_docstring(obj):
