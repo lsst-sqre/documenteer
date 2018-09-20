@@ -70,6 +70,10 @@ class TaskApiDirective(Directive):
         nodes.append(
             self._format_class_nodes(task_class))
 
+        nodes.append(
+            self._format_config_nodes(modulename, classname)
+        )
+
         methods = ('run', 'runDataRef')
         for method in methods:
             if hasattr(task_class, method):
@@ -149,6 +153,8 @@ class TaskApiDirective(Directive):
             prefix = 'class'
         elif refrole == 'py:meth':
             prefix = 'method'
+        elif refrole == 'py:attr':
+            prefix = 'attribute'
         if prefix:
             desc_sig_node += desc_annotation(prefix, prefix)
 
@@ -162,7 +168,8 @@ class TaskApiDirective(Directive):
         desc_sig_name_node = desc_addname()
         desc_sig_name_node += name_xref_nodes
         desc_sig_node += desc_sig_name_node
-        _pseudo_parse_arglist(desc_sig_node, arglist)
+        if refrole in ('py:class', 'py:meth'):
+            _pseudo_parse_arglist(desc_sig_node, arglist)
 
         return desc_sig_node
 
@@ -196,6 +203,44 @@ class TaskApiDirective(Directive):
             self.lineno,
             self.state.inliner)
         return xref_nodes
+
+    def _format_config_nodes(self, modulename, classname):
+        """Create a ``desc`` node summarizing the config attribute
+
+        The ``config`` attribute is not statically available from a task class.
+        This method manually creates a signature and docstring for the
+        config attribute.
+        """
+        fullname = '{0}.{1}.config'.format(modulename, classname)
+
+        # The signature term
+        desc_sig_node = desc_signature()
+        desc_sig_node['module'] = modulename
+        desc_sig_node['class'] = classname
+        desc_sig_node['fullname'] = fullname
+
+        prefix = 'attribute'
+        desc_sig_node += desc_annotation(prefix, prefix)
+        desc_sig_name_node = desc_addname('config', 'config')
+        # Fakes the look of a cross reference.
+        desc_sig_name_node['classes'].extend(['xref', 'py'])
+        desc_sig_node += desc_sig_name_node
+
+        # The content is the one-sentence summary.
+        summary_text = (
+            'Access configuration fields and retargetable subtasks.'
+        )
+        content_node_p = nodes.paragraph(text=summary_text)
+        content_node = desc_content()
+        content_node += content_node_p
+
+        desc_node = desc()
+        desc_node['noindex'] = True
+        desc_node['domain'] = 'py'
+        desc_node['objtype'] = 'attribute'
+        desc_node += desc_sig_node
+        desc_node += content_node
+        return desc_node
 
     def _format_import_example(self, task_class):
         """Generate nodes that show a code sample demonstrating how to import
