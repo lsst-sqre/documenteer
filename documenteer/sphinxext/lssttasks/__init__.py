@@ -8,9 +8,10 @@ from pkg_resources import get_distribution, DistributionNotFound
 from .subtasks import SubtasksDirective
 from .taskconfigs import TaskConfigsDirective
 from .standaloneconfigs import StandaloneConfigsDirective
+from .topics import (
+    TaskTopicDirective, ConfigurableTopicDirective, ConfigTopicDirective)
 from .crossrefs import (
-    TaskTopicTargetDirective, ConfigurableTopicTargetDirective,
-    ConfigTopicTargetDirective, pending_task_xref, pending_config_xref,
+    pending_task_xref, pending_config_xref,
     pending_configfield_xref, task_ref_role, config_ref_role,
     configfield_ref_role, process_pending_task_xref_nodes,
     process_pending_config_xref_nodes, process_pending_configfield_xref_nodes)
@@ -30,13 +31,13 @@ def setup(app):
         StandaloneConfigsDirective
     )
     app.add_directive(
-        TaskTopicTargetDirective.directive_name, TaskTopicTargetDirective)
+        TaskTopicDirective.directive_name, TaskTopicDirective)
     app.add_directive(
-        ConfigurableTopicTargetDirective.directive_name,
-        ConfigurableTopicTargetDirective)
+        ConfigurableTopicDirective.directive_name,
+        ConfigurableTopicDirective)
     app.add_directive(
-        ConfigTopicTargetDirective.directive_name,
-        ConfigTopicTargetDirective)
+        ConfigTopicDirective.directive_name,
+        ConfigTopicDirective)
     app.add_directive(
         TaskApiDirective.directive_name,
         TaskApiDirective)
