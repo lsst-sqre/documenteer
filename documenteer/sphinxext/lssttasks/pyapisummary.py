@@ -10,7 +10,8 @@ from sphinx.errors import SphinxError
 from sphinx.util.logging import getLogger
 from sphinx.util.inspect import getdoc, Signature
 from sphinx.util.docstrings import prepare_docstring
-from sphinx.addnodes import desc, desc_signature, desc_content, desc_addname
+from sphinx.addnodes import (desc, desc_signature, desc_content, desc_addname,
+                             desc_annotation)
 from sphinx.domains.python import _pseudo_parse_arglist, PyXRefRole
 
 from .taskutils import get_type
@@ -143,6 +144,17 @@ class TaskApiDirective(Directive):
         desc_sig_node['module'] = modulename
         desc_sig_node['class'] = classname
         desc_sig_node['fullname'] = fullname
+
+        # Prefix the API signature with the API type
+        prefix = None
+        if refrole == 'py:class':
+            prefix = 'class'
+        elif refrole == 'py:meth':
+            prefix = 'method'
+        if prefix:
+            desc_sig_node += desc_annotation(prefix, prefix)
+
+        # The API name is linked to the canonical API docs
         name_xref_nodes, _ = xref(
             refrole,
             '~' + fullname,
