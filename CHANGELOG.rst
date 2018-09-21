@@ -9,6 +9,8 @@ Unreleased
   - The ``lsst-task-config-fields``, ``lsst-task-config-subtasks``, and ``lsst-config-fields`` directives automatically generate documentation for configuration fields and subtasks in Tasks.
   - The ``lsst-task-topic`` and ``lsst-config-topic`` directives mark pages that document a given task or configuration class.
   - The ``lsst-task``, ``lsst-config``, and ``lsst-config-field`` roles create references to task topics or configuration fields.
+  - The ``lsst-task-api-summary`` directive autogenerates a summary of the of a task's key APIs.
+    This directive does not replace the autodoc-generated documentation for the task's class, but instead provides an affordance that creates a bridge from the task topic to the API reference topic.
 
 0.3.0 (2018-09-19)
 ------------------
