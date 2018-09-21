@@ -179,3 +179,20 @@ These roles link to task or config topic pages and to individual configuration f
    **See also:**
 
    The :rst:dir:`lsst-task-config-fields`, :rst:dir:`lsst-task-config-subtasks`, and :rst:dir:`lsst-config-fields` directives create the configuration field documentation that this role references.
+
+Task interface directives
+=========================
+
+.. rst:directive:: .. lsst-task-api-summary:: task_name
+
+   Generate a summary of the task's Python API.
+
+   **Required argument:**
+
+   - Name of the task class.
+
+   **Example:**
+
+   .. code-block:: rst
+
+      .. lsst-task-api-summary:: lsst.pipe.tasks.assembleCoadd.AssembleCoaddTask
