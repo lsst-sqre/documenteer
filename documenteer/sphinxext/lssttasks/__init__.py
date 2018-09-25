@@ -16,6 +16,10 @@ from .crossrefs import (
     configfield_ref_role, process_pending_task_xref_nodes,
     process_pending_config_xref_nodes, process_pending_configfield_xref_nodes)
 from .pyapisummary import TaskApiDirective
+from .topiclists import (
+    TaskListDirective, CmdLineTaskListDirective, PipelineTaskListDirective,
+    ConfigurableListDirective, ConfigListDirective,
+    task_topic_list, process_task_topic_list)
 
 
 def setup(app):
@@ -39,14 +43,31 @@ def setup(app):
         ConfigTopicDirective.directive_name,
         ConfigTopicDirective)
     app.add_directive(
+        TaskListDirective.directive_name,
+        TaskListDirective)
+    app.add_directive(
+        CmdLineTaskListDirective.directive_name,
+        CmdLineTaskListDirective)
+    app.add_directive(
+        PipelineTaskListDirective.directive_name,
+        PipelineTaskListDirective)
+    app.add_directive(
+        ConfigurableListDirective.directive_name,
+        ConfigurableListDirective)
+    app.add_directive(
+        ConfigListDirective.directive_name,
+        ConfigListDirective)
+    app.add_directive(
         TaskApiDirective.directive_name,
         TaskApiDirective)
     app.add_node(pending_task_xref)
     app.add_node(pending_config_xref)
     app.add_node(pending_configfield_xref)
+    app.add_node(task_topic_list)
     app.connect('doctree-resolved', process_pending_task_xref_nodes)
     app.connect('doctree-resolved', process_pending_config_xref_nodes)
     app.connect('doctree-resolved', process_pending_configfield_xref_nodes)
+    app.connect('doctree-resolved', process_task_topic_list)
     app.add_role('lsst-task', task_ref_role)
     app.add_role('lsst-config', config_ref_role)
     app.add_role('lsst-config-field', configfield_ref_role)
