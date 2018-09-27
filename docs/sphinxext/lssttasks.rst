@@ -79,6 +79,8 @@ These directives list configuration fields associated with a task or configurati
    - Use :rst:dir:`lsst-task-config-fields` or :rst:dir:`lsst-task-config-subtasks` to list configuration fields when working within a task topic.
    - :rst:role:`lsst-config-field`: role for cross-referencing individual fields documented with this directive.
 
+.. _lssttasks-topic-markers:
+
 Topic markers
 =============
 
@@ -97,11 +99,20 @@ Use these directives at the top of either a task or standalone config topic page
 
    - Name of the task class.
 
+   **Content:**
+
+   You can optionally add a one or two sentence summary of the task as the directive's content.
+   This summary is used by the :ref:`topic listing directives <lssttasks-topic-listings>`.
+   This content is **optional**.
+   If not set, the summary is set from the task's docstring.
+
    **Example:**
 
    .. code-block:: rst
 
       .. lsst-task-topic:: lsst.pipe.tasks.processCcd.ProcessCcdTask
+
+         Summary of ProcessCcdTask.
 
 .. rst:directive:: .. lsst-config-topic:: config_name
 
@@ -111,11 +122,171 @@ Use these directives at the top of either a task or standalone config topic page
 
    - Name of the config class.
 
+   **Content:**
+
+   You can optionally add a one or two sentence summary of the config as the directive's content.
+   This summary is used by the :ref:`topic listing directives <lssttasks-topic-listings>`.
+   This content is **optional**.
+   If not set, the summary is set from the config's docstring.
+
    **Example:**
 
    .. code-block:: rst
 
       .. lsst-config-topic:: lsst.pipe.tasks.colorterms.Colorterm
+
+         Summary of Colorterm.
+
+.. _lssttasks-topic-listings:
+
+Topic listings
+==============
+
+These directives make listings of topics labeled by :ref:`topic markers <lssttasks-topic-markers>`:
+
+- :rst:dir:`lsst-tasks`
+- :rst:dir:`lsst-cmdlinetasks`
+- :rst:dir:`lsst-pipelinetasks`
+- :rst:dir:`lsst-configurables`
+- :rst:dir:`lsst-configs`
+
+.. rst:directive:: lsst-tasks
+
+   List task topics that are marked with the :rst:dir:`lsst-task-topic` directive.
+   Only ``lsst.pipe.base.Task``-types that are not ``CmdLineTask`` or ``PipelineTask``-types are listed by this directive.
+
+   **Options**
+
+   ``root``
+      The root Python package that tasks must belong to to be including in the listing.
+      For example, ``:root: lsst.pipe.tasks`` means that only tasks in the ``lsst.pipe.tasks`` Python subpackage are included in the listing.
+
+   ``toctree``
+      If set, a :rst:dir:`toctree` is automatically generated for pages that appear in a given directory.
+      For example, if task topics are in a ``tasks/`` subdirectory, set ``:toctree: tasks``.
+      The :rst:dir:`toctree` is hidden.
+
+      If this directive is listing topics that are already included by another :rst:dir:`toctree`, **don't set this option.**
+
+      Note that ``toctree`` doesn't filter tasks using the same critera as the ``root`` option.
+      Generally the directory structure should be set up so that ``toctree`` effectively corresponds to the filtering criteria set by ``root``, though.
+
+   **Example:**
+
+   .. code-block:: rst
+
+      .. lsst-tasks::
+         :root: lsst.pipe.tasks
+         :toctree: tasks
+
+.. rst:directive:: lsst-cmdlinetasks
+
+   List task topics that are marked with the :rst:dir:`lsst-task-topic` directive that correspond to ``lsst.pipe.base.CmdLineTask``-types.
+
+   **Options**
+
+   ``root``
+      The root Python package that tasks must belong to to be including in the listing.
+      For example, ``:root: lsst.pipe.tasks`` means that only tasks in the ``lsst.pipe.tasks`` Python subpackage are included in the listing.
+
+   ``toctree``
+      If set, a :rst:dir:`toctree` is automatically generated for pages that appear in a given directory.
+      For example, if task topics are in a ``tasks/`` subdirectory, set ``:toctree: tasks``.
+      The :rst:dir:`toctree` is hidden.
+
+      If this directive is listing topics that are already included by another :rst:dir:`toctree`, **don't set this option.**
+
+      Note that ``toctree`` doesn't filter tasks using the same critera as the ``root`` option.
+      Generally the directory structure should be set up so that ``toctree`` effectively corresponds to the filtering criteria set by ``root``, though.
+
+   **Example:**
+
+   .. code-block:: rst
+
+      .. lsst-cmdlinetasks::
+         :root: lsst.pipe.tasks
+         :toctree: tasks
+
+.. rst:directive:: lsst-pipelinetasks
+
+   List task topics that are marked with the :rst:dir:`lsst-task-topic` directive that correspond to ``lsst.pipe.base.PipelineTask``-types.
+
+   **Options**
+
+   ``root``
+      The root Python package that tasks must belong to to be including in the listing.
+      For example, ``:root: lsst.pipe.tasks`` means that only tasks in the ``lsst.pipe.tasks`` Python subpackage are included in the listing.
+
+   ``toctree``
+      If set, a :rst:dir:`toctree` is automatically generated for pages that appear in a given directory.
+      For example, if task topics are in a ``tasks/`` subdirectory, set ``:toctree: tasks``.
+      The :rst:dir:`toctree` is hidden.
+
+      If this directive is listing topics that are already included by another :rst:dir:`toctree`, **don't set this option.**
+
+      Note that ``toctree`` doesn't filter tasks using the same critera as the ``root`` option.
+      Generally the directory structure should be set up so that ``toctree`` effectively corresponds to the filtering criteria set by ``root``, though.
+
+   **Example:**
+
+   .. code-block:: rst
+
+      .. lsst-pipelinetasks::
+         :root: lsst.pipe.tasks
+         :toctree: tasks
+
+.. rst:directive:: lsst-configurables
+
+   List "configurable" topics that are marked with the :rst:dir:`lsst-task-topic` directive that correspond to generic configurable types.
+
+   **Options**
+
+   ``root``
+      The root Python package that configurables must belong to to be including in the listing.
+      For example, ``:root: lsst.pipe.tasks`` means that only configurables in the ``lsst.pipe.tasks`` Python subpackage are included in the listing.
+
+   ``toctree``
+      If set, a :rst:dir:`toctree` is automatically generated for pages that appear in a given directory.
+      For example, if configurable topics are in a ``configurables/`` subdirectory, set ``:toctree: configurables``.
+      The :rst:dir:`toctree` is hidden.
+
+      If this directive is listing topics that are already included by another :rst:dir:`toctree`, **don't set this option.**
+
+   **Example:**
+
+   .. code-block:: rst
+
+      .. lsst-configurables::
+         :root: lsst.pipe.tasks
+         :toctree: configurables
+
+.. rst:directive:: lsst-configs
+
+   List "config" topics that are marked with the :rst:dir:`lsst-config-topic` directive that correspond to ``lsst.pex.config.Config``-types.
+
+   **Options**
+
+   ``root``
+      The root Python package that configs must belong to to be including in the listing.
+      For example, ``:root: lsst.pipe.tasks`` means that only configs in the ``lsst.pipe.tasks`` Python subpackage are included in the listing.
+
+   ``toctree``
+      If set, a :rst:dir:`toctree` is automatically generated for pages that appear in a given directory.
+      For example, if configurable topics are in a ``configurables/`` subdirectory, set ``:toctree: configurables``.
+      The :rst:dir:`toctree` is hidden.
+
+      If this directive is listing topics that are already included by another :rst:dir:`toctree`, **don't set this option.**
+
+      Note that ``toctree`` doesn't filter tasks using the same critera as the ``root`` option.
+      Generally the directory structure should be set up so that ``toctree`` effectively corresponds to the filtering criteria set by ``root``, though.
+
+   **Example:**
+
+   .. code-block:: rst
+
+      .. lsst-configs::
+         :root: lsst.pipe.tasks
+         :toctree: configs
 
 Cross-reference roles
 =====================

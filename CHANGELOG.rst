@@ -11,6 +11,10 @@ Unreleased
   - The ``lsst-task``, ``lsst-config``, and ``lsst-config-field`` roles create references to task topics or configuration fields.
   - The ``lsst-task-api-summary`` directive autogenerates a summary of the of a task's key APIs.
     This directive does not replace the autodoc-generated documentation for the task's class, but instead provides an affordance that creates a bridge from the task topic to the API reference topic.
+  - The ``lsst-tasks``, ``lsst-cmdlinetasks``, ``lsst-pipelinetasks``, ``lsst-configurables``, and
+    ``lsst-configs`` directives create listings of topics.
+    These listings not only link to the topic, but also show a summary that's either extracted from the corresponding docstring or set through the ``lsst-task-topic`` or ``lsst-config-topic`` directives.
+    These directives also generate a toctree.
 
 0.3.0 (2018-09-19)
 ------------------
