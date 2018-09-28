@@ -5,11 +5,13 @@ __all__ = ('setup',)
 
 from pkg_resources import get_distribution, DistributionNotFound
 
+from ..utils import SphinxExtension
+extension = SphinxExtension()  # noqa: E402
+
 from .subtasks import SubtasksDirective
 from .taskconfigs import TaskConfigsDirective
 from .standaloneconfigs import StandaloneConfigsDirective
-from .topics import (
-    TaskTopicDirective, ConfigurableTopicDirective, ConfigTopicDirective)
+from .topics import *  # noqa: F401, F403
 from .crossrefs import (
     pending_task_xref, pending_config_xref,
     pending_configfield_xref, task_ref_role, config_ref_role,
@@ -23,6 +25,7 @@ from .topiclists import (
 
 
 def setup(app):
+    extension.setup(app)
     app.add_directive(
         SubtasksDirective.directive_name,
         SubtasksDirective)
@@ -34,14 +37,14 @@ def setup(app):
         StandaloneConfigsDirective.directive_name,
         StandaloneConfigsDirective
     )
-    app.add_directive(
-        TaskTopicDirective.directive_name, TaskTopicDirective)
-    app.add_directive(
-        ConfigurableTopicDirective.directive_name,
-        ConfigurableTopicDirective)
-    app.add_directive(
-        ConfigTopicDirective.directive_name,
-        ConfigTopicDirective)
+    # app.add_directive(
+    #     TaskTopicDirective.directive_name, TaskTopicDirective)
+    # app.add_directive(
+    #     ConfigurableTopicDirective.directive_name,
+    #     ConfigurableTopicDirective)
+    # app.add_directive(
+    #     ConfigTopicDirective.directive_name,
+    #     ConfigTopicDirective)
     app.add_directive(
         TaskListDirective.directive_name,
         TaskListDirective)

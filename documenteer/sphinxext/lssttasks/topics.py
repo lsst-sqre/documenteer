@@ -14,6 +14,7 @@ from sphinx.util.docutils import switch_source_input
 from .crossrefs import format_task_id, format_config_id
 from .taskutils import get_type, get_docstring, extract_docstring_summary
 from ..utils import parse_rst_content
+from . import extension
 
 
 class BaseTopicDirective(Directive):
@@ -26,7 +27,7 @@ class BaseTopicDirective(Directive):
     required_arguments = 1
 
     @property
-    def directive_name(self):
+    def name(self):
         raise NotImplementedError
 
     def get_type(self, class_name):
@@ -54,10 +55,10 @@ class BaseTopicDirective(Directive):
         except IndexError:
             raise SphinxError(
                 '{0} directive requires a class name as an '
-                'argument'.format(self.directive_name)
+                'argument'.format(self.name)
             )
         self._logger.debug('%s using class %s',
-                           self.directive_name, class_name)
+                           self.name, class_name)
 
         summary_node = self._create_summary_node(class_name)
 
@@ -103,6 +104,7 @@ class BaseTopicDirective(Directive):
         return parse_rst_content(summary_text, self.state)
 
 
+@extension.directive
 class ConfigurableTopicDirective(BaseTopicDirective):
     """``lsst-configurable-topic`` directive that labels a Configurable's topic
     page.
@@ -111,7 +113,7 @@ class ConfigurableTopicDirective(BaseTopicDirective):
     but don't have run methods.
     """
 
-    directive_name = 'lsst-configurable-topic'
+    name = 'lsst-configurable-topic'
     """Default name of this directive.
     """
 
@@ -122,11 +124,12 @@ class ConfigurableTopicDirective(BaseTopicDirective):
         return format_task_id(class_name)
 
 
+@extension.directive
 class TaskTopicDirective(BaseTopicDirective):
     """``lsst-task-topic`` directive that labels a Task's topic page.
     """
 
-    directive_name = 'lsst-task-topic'
+    name = 'lsst-task-topic'
     """Default name of this directive.
     """
 
@@ -144,13 +147,14 @@ class TaskTopicDirective(BaseTopicDirective):
         return format_task_id(class_name)
 
 
+@extension.directive
 class ConfigTopicDirective(BaseTopicDirective):
     """``lsst-config-topic`` directive that labels a Config topic page.
 
     Configs are lsst.pex.config.config.Config subclasses.
     """
 
-    directive_name = 'lsst-config-topic'
+    name = 'lsst-config-topic'
     """Default name of this directive.
     """
 
