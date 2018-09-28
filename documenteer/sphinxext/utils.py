@@ -2,13 +2,17 @@
 """
 
 __all__ = ('parse_rst_content', 'make_python_xref_nodes',
-           'make_python_xref_nodes_for_type', 'make_section')
+           'make_python_xref_nodes_for_type', 'make_section',
+           'SphinxExtension')
 
 import re
 
 from docutils import nodes
 from docutils.statemachine import ViewList
+from sphinx.errors import SphinxError
 from sphinx.util.docutils import switch_source_input
+from sphinx.util.logging import getLogger
+from pkg_resources import get_distribution, DistributionNotFound
 
 
 def parse_rst_content(content, state):
@@ -210,3 +214,153 @@ def split_role_content(role_rawsource):
         parts['ref'] = role_rawsource.strip()
 
     return parts
+
+
+class SphinxExtension:
+    """Sphinx extension that registers new directives, roles, nodes, and event
+    callbacks.
+
+    Examples
+    --------
+    Create an extension instance in the module where you have the ``setup``
+    function for a Sphinx extension.
+
+    .. code-block:: python
+
+       from docutils import nodes
+       from docutils.parsers.rst import Directive
+
+       from documenteer.sphinxext.utils import SphinxExtension
+
+
+       # module-level instance. All members of the Sphinx extension refer to
+       # this instance.
+       extension = SphinxExtension()
+
+       # Decorate a directive class to register it with the extension
+       @extension.directive
+       def MyDirective(Directive):
+
+           # By putting a ``name`` attribute in your directive, SphinxExtension
+           # will use that name for the directive name.
+           name = "my-directive"
+
+           def run(self):
+               return [nodes.paragraph(text='Hello world')
+
+       # Now your setup function just calls the setup method on the
+       # SphinxExtension instance
+       def setup():
+           extension.setup()
+    """
+
+    _logger = getLogger(__name__)
+
+    def __init__(self):
+        self._directives = {}
+        self._roles = {}
+        self._nodes = []
+        self._callbacks = []
+
+    def setup(self, app, version=None, package_version='documenteer'):
+        """Set up the extension in the Sphinx application.
+
+        Parameters
+        ----------
+        app : `sphinx.Sphinx`
+            The Sphinx application instance. This is provided through the
+            ``setup`` function in your extension's root module.
+        """
+        for name, directive in self._directives.items():
+            app.add_directive(name, directive)
+        for name, role in self._roles.items():
+            app.add_role(name, role)
+        for node in self._nodes:
+            app.add_node(node)
+        for callback, event in self._callbacks:
+            app.connect(event, callback)
+
+        try:
+            version = get_distribution('documenteer').version
+        except DistributionNotFound:
+            # package is not installed
+            version = 'unknown'
+        return {'version': version}
+
+    def directive(self, directive):
+        """Decorate a directive class to register it with the Sphinx extension.
+
+        Parameters
+        ----------
+        directive : ``docutils.parsers.rst.Directive``-type
+            Directive class. It must have a ``name`` attribute that specifies
+            the directive's name.
+
+        Returns
+        -------
+        directive : ``docutils.parsers.rst.Directive``-type
+            Directive class.
+        """
+        if not hasattr(directive, 'name'):
+            raise SphinxError('Directive {0!r} does not have a required '
+                              '"name" attribute.'.format(directive))
+        if directive in self._directives:
+            # skip an already-registered directive
+            return directive
+        self._logger.debug(
+            'Registering {0.name} directive ({0!r})'.format(directive))
+        self._directives.append(directive)
+        return directive
+
+    def role(self, role, name):
+        """Decorate a role function to register it with the Sphinx extension.
+
+        Parameters
+        ----------
+        role
+            Role function.
+        name : `str`
+            Name of the role in reStructuredText.
+
+        Returns
+        -------
+        directive : ``docutils.parsers.rst.Directive``-type
+            Directive class.
+        """
+        self._logger.debug(
+            'Registering {0} role ({1!r})'.format(name, role))
+        self._roles[name] = role
+        return role
+
+    def node(self, node):
+        """Decorate a node to register it with the Sphinx extension.
+
+        Parameters
+        ----------
+        node
+            Node class.
+
+        Returns
+        -------
+        directive : ``docutils.parsers.rst.Directive``-type
+            Directive class.
+        """
+        self._logger.debug(
+            'Registering node {0!r}'.format(node))
+        if node not in self._nodes:
+            self._nodes.append(node)
+        return node
+
+    def callback(self, func, event):
+        """Decorate a Sphinx event callback function to register it with the
+        Sphinx extension.
+
+        Parameters
+        ----------
+        func : callable
+            The callback function
+        event : `str`
+            The name of the Sphinx event. See
+            http://www.sphinx-doc.org/en/master/extdev/appapi.html#sphinx-core-events
+        """
+        self._callbacks.append((func, event))
