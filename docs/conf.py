@@ -86,15 +86,13 @@ default_role = 'py:obj'
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'requests': ('http://docs.python-requests.org/en/v2.9.1/', None),
-    'developer': ('https://developer.lsst.io/v/DM-14852/', None),
+    'developer': ('https://developer.lsst.io/', None),
     'pybtex': ('https://docs.pybtex.org/', None),
+    'sphinx': ('http://www.sphinx-doc.org/en/master/', None),
 }
 
 # -- Options for linkcheck builder ----------------------------------------
 
-linkcheck_ignore = [
-    'https://documenteer.lsst.io'  # ignored until site is up
-]
 linkcheck_retries = 2
 
 # -- Options for HTML output ----------------------------------------------
