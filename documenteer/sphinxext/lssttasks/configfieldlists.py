@@ -1,25 +1,25 @@
-"""Docutils formatters for different Task and Task configuration objects.
+"""Directives that list configuration fields asssociated with tasks or
+config objects.
 """
 
 __all__ = (
-    'get_field_formatter', 'format_field_nodes',
-    'format_configurablefield_nodes', 'format_listfield_nodes',
-    'format_choicefield_nodes', 'format_rangefield_nodes',
-    'format_dictfield_nodes', 'format_configfield_nodes',
-    'format_configchoicefield_nodes', 'format_configdictfield_nodes',
-    'format_registryfield_nodes', 'create_field_type_item_node',
-    'create_default_item_node', 'create_keytype_item_node',
-    'create_description_node', 'create_title_node'
+    'ConfigFieldListingDirective', 'SubtaskListingDirective',
+    'StandaloneConfigFieldsDirective',
 )
 
 import functools
 
 from docutils import nodes
+from docutils.parsers.rst import Directive
+from sphinx.util.logging import getLogger
+from sphinx.errors import SphinxError
 
 from ..utils import (parse_rst_content, make_python_xref_nodes_for_type,
                      make_section)
-from .taskutils import typestring, get_type
-from .crossrefs import pending_task_xref, pending_config_xref
+from .taskutils import (typestring, get_type, get_task_config_class,
+                        get_task_config_fields, get_subtask_fields)
+from .crossrefs import (pending_task_xref, pending_config_xref,
+                        format_configfield_id)
 
 
 FIELD_FORMATTERS = {}
@@ -27,6 +27,216 @@ FIELD_FORMATTERS = {}
 
 External users should access this through `get_field_formatter`.
 """
+
+
+class ConfigFieldListingDirective(Directive):
+    """``lsst-task-config-fields`` directive that renders documentation for
+    the configuration fields associated with an ``lsst.pipe.base.Task``.
+
+    Configurable subtasks are documented by the ``lsst-task-config-subtasks``
+    directive instead.
+    """
+
+    directive_name = 'lsst-task-config-fields'
+    """Default name of this directive.
+    """
+
+    has_content = False
+
+    required_arguments = 1
+
+    def run(self):
+        """Main entrypoint method.
+
+        Returns
+        -------
+        new_nodes : `list`
+            Nodes to add to the doctree.
+        """
+        from lsst.pex.config import ConfigurableField, RegistryField
+
+        logger = getLogger(__name__)
+
+        try:
+            task_class_name = self.arguments[0]
+        except IndexError:
+            raise SphinxError(
+                '{} directive requires a Task class '
+                'name as an argument'.format(self.directive_name))
+        logger.debug('%s using Task class %s', task_class_name)
+
+        task_config_class = get_task_config_class(task_class_name)
+        config_fields = get_task_config_fields(task_config_class)
+
+        all_nodes = []
+        for field_name, field in config_fields.items():
+            # Skip fields documented via the `lsst-task-config-subtasks`
+            # directive
+            if isinstance(field, (ConfigurableField, RegistryField)):
+                continue
+
+            field_id = format_configfield_id(
+                '.'.join((task_config_class.__module__,
+                          task_config_class.__name__)),
+                field_name)
+
+            try:
+                format_field_nodes = get_field_formatter(field)
+            except ValueError:
+                logger.debug('Skipping unknown config field type, '
+                             '{0!r}'.format(field))
+                continue
+
+            all_nodes.append(
+                format_field_nodes(field_name, field, field_id, self.state,
+                                   self.lineno)
+            )
+
+        # Fallback if no configuration items are present
+        if len(all_nodes) == 0:
+            message = 'No configuration fields.'
+            return [nodes.paragraph(text=message)]
+
+        return all_nodes
+
+
+class SubtaskListingDirective(Directive):
+    """``lsst-task-config-subtasks`` directive that renders documentation for
+    the subtasks associated with an ``lsst.pipe.base.Task``.
+
+    Notes
+    -----
+    Subtasks come from ConfigurableField and RegistryField types of
+    ``lsst.pex.config`` configuration fields.
+
+    Examples
+    --------
+    Use the directive like this:
+
+    .. code-block:: rst
+
+       .. lsst-task-config-subtasks:: lsst.pipe.tasks.processCcd.ProcessCcdTask
+    """
+
+    directive_name = 'lsst-task-config-subtasks'
+    """Default name of this directive.
+    """
+
+    has_content = False
+
+    required_arguments = 1
+
+    def run(self):
+        """Main entrypoint method.
+
+        Returns
+        -------
+        new_nodes : `list`
+            Nodes to add to the doctree.
+        """
+        logger = getLogger(__name__)
+
+        try:
+            task_class_name = self.arguments[0]
+        except IndexError:
+            raise SphinxError(
+                '{} directive requires a Task class name as an '
+                'argument'.format(self.directive_name))
+        logger.debug('%s using Task class %s', self.directive_name,
+                     task_class_name)
+
+        task_config_class = get_task_config_class(task_class_name)
+        subtask_fields = get_subtask_fields(task_config_class)
+
+        all_nodes = []
+        for field_name, field in subtask_fields.items():
+            field_id = format_configfield_id(
+                '.'.join((task_config_class.__module__,
+                          task_config_class.__name__)),
+                field_name)
+            try:
+                format_field_nodes = get_field_formatter(field)
+            except ValueError:
+                logger.debug('Skipping unknown config field type, '
+                             '{0!r}'.format(field))
+                continue
+
+            all_nodes.append(
+                format_field_nodes(field_name, field, field_id, self.state,
+                                   self.lineno)
+            )
+
+        # Fallback if no configuration items are present
+        if len(all_nodes) == 0:
+            message = 'No subtasks.'
+            return [nodes.paragraph(text=message)]
+
+        return all_nodes
+
+
+class StandaloneConfigFieldsDirective(Directive):
+    """``lsst-config-fields`` directive that renders documentation for the
+    configuration fields associated with standalone ``lsst.pex.config.Config``
+    class.
+    """
+
+    directive_name = 'lsst-config-fields'
+    """Default name of this directive.
+    """
+
+    has_content = False
+
+    required_arguments = 1
+
+    def run(self):
+        """Main entrypoint method.
+
+        Returns
+        -------
+        new_nodes : `list`
+            Nodes to add to the doctree.
+        """
+        logger = getLogger(__name__)
+
+        try:
+            config_class_name = self.arguments[0]
+        except IndexError:
+            raise SphinxError(
+                '{} directive requires a Config class '
+                'name as an argument'.format(self.directive_name))
+        logger.debug('%s using Config class %s', self.directive_name,
+                     config_class_name)
+
+        config_class = get_type(config_class_name)
+
+        config_fields = get_task_config_fields(config_class)
+
+        all_nodes = []
+
+        for field_name, field in config_fields.items():
+            field_id = format_configfield_id(
+                '.'.join((config_class.__module__,
+                          config_class.__name__)),
+                field_name)
+
+            try:
+                format_field_nodes = get_field_formatter(field)
+            except ValueError:
+                logger.debug('Skipping unknown config field type, '
+                             '{0!r}'.format(field))
+                continue
+
+            all_nodes.append(
+                format_field_nodes(field_name, field, field_id, self.state,
+                                   self.lineno)
+            )
+
+        # Fallback if no configuration items are present
+        if len(all_nodes) == 0:
+            message = 'No configuration fields.'
+            return [nodes.paragraph(text=message)]
+
+        return all_nodes
 
 
 def get_field_formatter(field):

@@ -6,7 +6,7 @@ Overview of the pipelines.lsst.io build system
 
 This page is a high-level overview of the tools and processes for building the `pipelines.lsst.io`_ documentation.
 
-To learn how to build the `pipelines.lsst.io`_ site in practice, see :ref:`developer:building-pipelines-lsst-io-locally`.
+To learn how to build the `pipelines.lsst.io`_ site in practice, see :ref:`developer:local-pipelines-lsst-io-build`.
 For more background on contributing to `pipelines.lsst.io`_ documentation, see :ref:`developer:stack-documentation-overview`.
 
 .. _pipelines-build-documenteer:
@@ -97,7 +97,7 @@ Documenteer documentation:
 Other LSST sites:
 
 - `DMTN-030 Science Pipelines Documentation Design`_
-- :ref:`developer:stack-documentation-system-overview`
+- :ref:`developer:stack-documentation-overview`
 
 .. |package-docs| replace:: :doc:`package-docs <package-docs-cli>`
 .. |stack-docs| replace:: :doc:`stack-docs <stack-docs-cli>`

@@ -2,8 +2,6 @@
 """
 
 __all__ = ('format_task_id', 'format_config_id', 'format_configfield_id',
-           'TaskTopicTargetDirective', 'ConfigurableTopicTargetDirective',
-           'ConfigTopicTargetDirective',
            'pending_task_xref', 'task_ref_role', 'config_ref_role',
            'configfield_ref_role',
            'process_pending_task_xref_nodes',
@@ -11,9 +9,7 @@ __all__ = ('format_task_id', 'format_config_id', 'format_configfield_id',
            'process_pending_configfield_xref_nodes')
 
 from docutils import nodes
-from docutils.parsers.rst import Directive
 from sphinx.util.logging import getLogger
-from sphinx.errors import SphinxError
 
 from ..utils import split_role_content
 
@@ -70,158 +66,6 @@ def format_configfield_id(config_class_name, field_name):
     """
     return nodes.make_id(
         'lsst-configfield-{0}-{1}'.format(config_class_name, field_name))
-
-
-class TaskTopicTargetDirective(Directive):
-    """``lsst-tasktopic`` directive that labels a Task's topic page.
-    """
-
-    directive_name = 'lsst-task-topic'
-    """Default name of this directive.
-    """
-
-    has_content = False
-
-    required_arguments = 1
-
-    def run(self):
-        """Main entrypoint method.
-
-        Returns
-        -------
-        new_nodes : `list`
-            Nodes to add to the doctree.
-        """
-        env = self.state.document.settings.env
-        logger = getLogger(__name__)
-
-        try:
-            task_class_name = self.arguments[0]
-        except IndexError:
-            raise SphinxError(
-                '{} directive requires a Task class name as an '
-                'argument'.format(self.directive_name)
-            )
-        logger.debug('%s using Task class %s',
-                     self.directive_name, task_class_name)
-
-        target_node = _create_configurable_reference_node(
-            task_class_name, env, self.lineno, is_task=True)
-
-        return [target_node]
-
-
-class ConfigurableTopicTargetDirective(Directive):
-    """``lsst-configurable-topic`` directive that labels a Configurable's topic
-    page.
-
-    Configurables are essentially generalized tasks. They have a ConfigClass,
-    but don't have run methods.
-    """
-
-    directive_name = 'lsst-configurable-topic'
-    """Default name of this directive.
-    """
-
-    has_content = False
-
-    required_arguments = 1
-
-    def run(self):
-        """Main entrypoint method.
-
-        Returns
-        -------
-        new_nodes : `list`
-            Nodes to add to the doctree.
-        """
-        env = self.state.document.settings.env
-        logger = getLogger(__name__)
-
-        try:
-            configurable_class_name = self.arguments[0]
-        except IndexError:
-            raise SphinxError(
-                '{} directive requires a Configurable class name as an '
-                'argument'.format(self.directive_name)
-            )
-        logger.debug('%s using Configurable class %s',
-                     self.directive_name, configurable_class_name)
-
-        target_node = _create_configurable_reference_node(
-            configurable_class_name, env, self.lineno, is_task=False)
-
-        return [target_node]
-
-
-def _create_configurable_reference_node(configurable_class_name, env, lineno,
-                                        is_task=True):
-    target_id = format_task_id(configurable_class_name)
-    target_node = nodes.target('', '', ids=[target_id])
-
-    # Store these task/configurable topic nodes in the environment for later
-    # cross referencing.
-    if not hasattr(env, 'lsst_tasks'):
-        env.lsst_tasks = {}
-    env.lsst_tasks[target_id] = {
-        'docname': env.docname,
-        'lineno': lineno,
-        'target': target_node,
-        'is_task': False
-    }
-
-    return target_node
-
-
-class ConfigTopicTargetDirective(Directive):
-    """``lsst-config-topic`` directive that labels a Config topic page.
-
-    Configs are lsst.pex.config.config.Config subclasses.
-    """
-
-    directive_name = 'lsst-config-topic'
-    """Default name of this directive.
-    """
-
-    has_content = False
-
-    required_arguments = 1
-
-    def run(self):
-        """Main entrypoint method.
-
-        Returns
-        -------
-        new_nodes : `list`
-            Nodes to add to the doctree.
-        """
-        env = self.state.document.settings.env
-        logger = getLogger(__name__)
-
-        try:
-            config_class_name = self.arguments[0]
-        except IndexError:
-            raise SphinxError(
-                '{} directive requires a Config class name as an '
-                'argument'.format(self.directive_name)
-            )
-        logger.debug('%s using Config class %s',
-                     self.directive_name, config_class_name)
-
-        target_id = format_config_id(config_class_name)
-        target_node = nodes.target('', '', ids=[target_id])
-
-        # Store these config topic nodes in the environment for later
-        # cross referencing.
-        if not hasattr(env, 'lsst_configs'):
-            env.lsst_configs = {}
-        env.lsst_configs[target_id] = {
-            'docname': env.docname,
-            'lineno': self.lineno,
-            'target': target_node,
-        }
-
-        return [target_node]
 
 
 class pending_task_xref(nodes.Inline, nodes.Element):
@@ -302,10 +146,11 @@ def process_pending_task_xref_nodes(app, doctree, fromdocname):
         link_label = nodes.literal()
         link_label += nodes.Text(display_text, display_text)
 
-        if hasattr(env, 'lsst_tasks') and task_id in env.lsst_tasks:
+        if hasattr(env, 'lsst_task_topics') and \
+                task_id in env.lsst_task_topics:
             # A task topic, marked up with the lsst-task-topic directive is
             # available
-            task_data = env.lsst_tasks[task_id]
+            task_data = env.lsst_task_topics[task_id]
 
             ref_node = nodes.reference('', '')
             ref_node['refdocname'] = task_data['docname']
@@ -398,10 +243,11 @@ def process_pending_config_xref_nodes(app, doctree, fromdocname):
         link_label = nodes.literal()
         link_label += nodes.Text(display_text, display_text)
 
-        if hasattr(env, 'lsst_configs') and config_id in env.lsst_configs:
+        if hasattr(env, 'lsst_task_topics') and \
+                config_id in env.lsst_task_topics:
             # A config topic, marked up with the lsst-task directive is
             # available
-            config_data = env.lsst_configs[config_id]
+            config_data = env.lsst_task_topics[config_id]
 
             ref_node = nodes.reference('', '')
             ref_node['refdocname'] = config_data['docname']
