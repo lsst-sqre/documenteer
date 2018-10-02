@@ -5,9 +5,9 @@ __all__ = ('setup',)
 
 from pkg_resources import get_distribution, DistributionNotFound
 
-from .subtasks import SubtasksDirective
-from .taskconfigs import TaskConfigsDirective
-from .standaloneconfigs import StandaloneConfigsDirective
+from .configfieldlists import (
+    ConfigFieldListingDirective, SubtaskListingDirective,
+    StandaloneConfigFieldsDirective)
 from .topics import (
     TaskTopicDirective, ConfigurableTopicDirective, ConfigTopicDirective)
 from .crossrefs import (
@@ -24,15 +24,15 @@ from .topiclists import (
 
 def setup(app):
     app.add_directive(
-        SubtasksDirective.directive_name,
-        SubtasksDirective)
-    app.add_directive(
-        TaskConfigsDirective.directive_name,
-        TaskConfigsDirective,
+        ConfigFieldListingDirective.directive_name,
+        ConfigFieldListingDirective,
     )
     app.add_directive(
-        StandaloneConfigsDirective.directive_name,
-        StandaloneConfigsDirective
+        SubtaskListingDirective.directive_name,
+        SubtaskListingDirective)
+    app.add_directive(
+        StandaloneConfigFieldsDirective.directive_name,
+        StandaloneConfigFieldsDirective
     )
     app.add_directive(
         TaskTopicDirective.directive_name, TaskTopicDirective)
