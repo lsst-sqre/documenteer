@@ -222,6 +222,7 @@ def _insert_automodapi_configs(c):
     c['autosummary_generate'] = True
 
     c['automodapi_toctreedirnm'] = 'py-api'
+    c['automodsumm_inherited_members'] = True
 
     # Docstrings for classes and methods are inherited from parents.
     c['autodoc_inherit_docstrings'] = True
