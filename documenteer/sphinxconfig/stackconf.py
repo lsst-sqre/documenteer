@@ -57,6 +57,7 @@ def _insert_intersphinx_mapping(c):
         'matplotlib': ('https://matplotlib.org/', None),
         'sklearn': ('http://scikit-learn.org/stable/', None),
         'pandas': ('http://pandas.pydata.org/pandas-docs/stable/', None),
+        'astropy': ('http://docs.astropy.org/en/v3.0.x/', None),
     }
     c['intersphinx_timeout'] = 10.0  # seconds
     c['intersphinx_cache_limit'] = 5  # days
@@ -223,6 +224,7 @@ def _insert_automodapi_configs(c):
     c['autosummary_generate'] = True
 
     c['automodapi_toctreedirnm'] = 'py-api'
+    c['automodsumm_inherited_members'] = True
 
     # Docstrings for classes and methods are inherited from parents.
     c['autodoc_inherit_docstrings'] = True
