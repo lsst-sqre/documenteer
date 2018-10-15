@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+0.4.1 (2018-10-15)
+------------------
+
+- Add ``documenteer.sphinxext.lssttasks`` to the Sphinx extensions available for pipelines.lsst.io documentation builds.
+
+- For pipelines.lsst.io builds, Documenteer ignores the ``home/`` directory that's created at the root of the ``pipelines_lsst_io`` directory.
+  This directory is created as part of the ci.lsst.codes ``sqre/infra/documenteer`` job and shouldn't be part of the documentation build.
+
 0.4.0 (2018-10-14)
 ------------------
 
