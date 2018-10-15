@@ -16,7 +16,6 @@ Unreleased
     These listings not only link to the topic, but also show a summary that's either extracted from the corresponding docstring or set through the ``lsst-task-topic`` or ``lsst-config-topic`` directives.
     These directives also generate a toctree.
 
-
 - Added Astropy to the intersphinx configuration.
 
 - Enabled ``automodsumm_inherited_members`` in the stackconf for stack documentation.
@@ -24,6 +23,9 @@ Unreleased
 
   1. It is actually responsible for ensuring that inherited members of classes appear in our docs.
   2. Without this, classes that have a ``__slots__`` attribute (typically through inheritance of a ``collections.abc`` class) won't have *any* of their members documented. See https://jira.lsstcorp.org/browse/DM-16102 for discussion.
+
+- ``todo`` directives are now hidden when using ``build_pipelines_lsst_io_configs``.
+  They are still shown, by default, for standalone package documentation builds, which are primarily developer-facing.
 
 0.3.0 (2018-09-19)
 ------------------
