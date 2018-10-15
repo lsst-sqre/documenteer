@@ -95,6 +95,11 @@ intersphinx_mapping = {
 
 linkcheck_retries = 2
 
+# Since Jira is currently down at this time
+linkcheck_ignore = [r'^https://jira.lsstcorp.org/browse/']
+
+linkcheck_timeout = 15
+
 # -- Options for HTML output ----------------------------------------------
 
 templates_path = [
