@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.4.0 (2018-10-14)
+------------------
 
 - New directives and roles for documenting tasks in LSST Science Pipelines.
 
