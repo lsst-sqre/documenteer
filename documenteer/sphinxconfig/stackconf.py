@@ -36,6 +36,7 @@ def _insert_extensions(c):
         'sphinx_automodapi.smart_resolver',
         'breathe',
         'documenteer.sphinxext',
+        'documenteer.sphinxext.lssttasks'
     ]
     return c
 
@@ -488,16 +489,13 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
     c['version'] = current_release
     c['release'] = current_release
 
-    # List of patterns, relative to source directory, that match files and
-    # directories to ignore when looking for source files.
-    c['exclude_patterns'] = ['_build', 'README.rst']
-
     # Hide todo directives in the "published" documentation on the main site.
     c['todo_include_todos'] = False
 
     # List of patterns, relative to source directory, that match files and
     # directories to ignore when looking for source files.
     c['exclude_patterns'] = [
+        'README.rst',
         # Build products
         '_build',
         # Source for release notes (contents are included in built pages)
@@ -509,6 +507,11 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
         '.pyvenv',
         # GitHub templates
         '.github',
+        # This 'home' directory is created by the docubase image for the
+        # sqre/infra/documenteer ci.lsst.codes Jenkins job. Ideally this
+        # shouldn't be in the directory at all, but we certainly need to
+        # ignore it while its here.
+        'home',
     ]
 
     # Substitutions available on every page
