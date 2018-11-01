@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+0.4.2 (2018-11-01)
+------------------
+
+- Handle cases where an object does not have a docstring in ``documenteer.sphinxext.lssttasks.taskutils.get_docstring``.
+  This improves the reliability of the ``lsst-task-api-summary`` directive.
+  See `DM-16102 <https://jira.lsstcorp.org/browse/DM-16102>`__.
+
 0.4.1 (2018-10-15)
 ------------------
 

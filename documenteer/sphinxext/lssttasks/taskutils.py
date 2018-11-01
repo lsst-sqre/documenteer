@@ -11,6 +11,7 @@ import inspect
 from sphinx.errors import SphinxError
 from sphinx.util.inspect import getdoc
 from sphinx.util.docstrings import prepare_docstring
+from sphinx.util.logging import getLogger
 
 
 def get_task_config_class(task_name):
@@ -176,8 +177,17 @@ def get_docstring(obj):
     lines : `list` of `str`
         Individual docstring lines with common indentation removed, and
         newline characters stripped.
+
+    Notes
+    -----
+    If the object does not have a docstring, a docstring with the content
+    ``"Undocumented."`` is created.
     """
     docstring = getdoc(obj, allow_inherited=True)
+    if docstring is None:
+        logger = getLogger(__name__)
+        logger.warning("Object %s doesn't have a docstring.", obj)
+        docstring = 'Undocumented'
     # ignore is simply the number of initial lines to ignore when determining
     # the docstring's baseline indent level. We really want "1" here.
     return prepare_docstring(docstring, ignore=1)
