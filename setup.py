@@ -43,7 +43,9 @@ extras_require = {
     # For technical note Sphinx projects
     'technote': [
         'lsst-dd-rtd-theme==0.2.1',
-        'sphinxcontrib-bibtex'
+        # 0.4.1 is incompatible with Sphinx <1.8.0. Unpin once we upgrade
+        # Sphinx.
+        'sphinxcontrib-bibtex==0.4.0'
     ],
 
     # For the pipelines.lsst.io documentation project

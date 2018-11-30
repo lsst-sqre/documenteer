@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.4.3 (2018-11-30)
+------------------
+
+- Pin `sphinxcontrib-bibtex <https://sphinxcontrib-bibtex.readthedocs.io>`__ to version 0.4.0 since later versions are incompatible with Sphinx <1.8.0.
+  `DM-16651 <https://jira.lsstcorp.org/browse/DM-16651>`__.
+
 0.4.2 (2018-11-01)
 ------------------
 
