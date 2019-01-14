@@ -55,7 +55,7 @@ def _insert_intersphinx_mapping(c):
         'numpy': ('https://docs.scipy.org/doc/numpy/', None),
         'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
         'matplotlib': ('https://matplotlib.org/', None),
-        'sklearn': ('http://scikit-learn.org/stable/', None),
+        'sklearn': ('https://scikit-learn.org/stable/', None),
         'pandas': ('http://pandas.pydata.org/pandas-docs/stable/', None),
         'astropy': ('http://docs.astropy.org/en/v3.0.x/', None),
     }

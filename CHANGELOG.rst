@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+- Updated scikit-learn's intersphinx inventory URL (now available as HTTPS) in the ``documenteer.sphinxconfig.stackconf``.
+
 0.4.3 (2018-11-30)
 ------------------
 
