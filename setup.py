@@ -53,7 +53,8 @@ extras_require = {
         'lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0',
         'numpydoc>=0.8.0,<0.9.0',
         'sphinx-automodapi>=0.7,<0.8',
-        'breathe==4.4.0'
+        'breathe==4.4.0',
+        'sphinx-jinja==1.1.0',
     ],
 
     # For documenteer development environments

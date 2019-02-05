@@ -30,6 +30,7 @@ def _insert_extensions(c):
         'sphinx.ext.coverage',
         'sphinx.ext.mathjax',
         'sphinx.ext.ifconfig',
+        'sphinxcontrib.jinja',
         'sphinx-prompt',
         'numpydoc',
         'sphinx_automodapi.automodapi',
