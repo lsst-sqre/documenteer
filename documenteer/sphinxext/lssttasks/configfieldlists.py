@@ -919,18 +919,33 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
     ``docutils.nodes.section``
         Section containing documentation nodes for the RegistryField.
     """
+    from lsst.pex.config.registry import ConfigurableWrapper
+
     # Create a definition list for the choices
     # This iteration is over field.registry.items(), not field.items(), so
     # that the directive shows the configurables, not their ConfigClasses.
     choice_dl = nodes.definition_list()
     for choice_value, choice_class in field.registry.items():
+        # Introspect the class name from item in the registry. This is harder
+        # than it should be. Most registry items seem to fall in the first
+        # category. Some are ConfigurableWrapper types that expose the
+        # underlying task class through the _target attribute.
+        if hasattr(choice_class, '__module__') \
+                and hasattr(choice_class, '__name__'):
+            name = '.'.join((choice_class.__module__, choice_class.__name__))
+        elif isinstance(choice_class, ConfigurableWrapper):
+            name = '.'.join((choice_class._target.__class__.__module__,
+                             choice_class._target.__class__.__name__))
+        else:
+            name = '.'.join((choice_class.__class__.__module__,
+                             choice_class.__class__.__name__))
+
         item = nodes.definition_list_item()
         item_term = nodes.term()
         item_term += nodes.literal(text=repr(choice_value))
         item += item_term
         item_definition = nodes.definition()
         def_para = nodes.paragraph()
-        name = '.'.join((choice_class.__module__, choice_class.__name__))
         def_para += pending_task_xref(rawsource=name)
         item_definition += def_para
         item += item_definition

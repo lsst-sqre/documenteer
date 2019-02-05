@@ -1,10 +1,11 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.4.4 (2019-02-05)
+------------------
 
 - Updated scikit-learn's intersphinx inventory URL (now available as HTTPS) in the ``documenteer.sphinxconfig.stackconf``.
+- Fixed the ``lsst-task-config-subtasks`` directive so that it can introspect items in an ``lsst.pex.config`` ``Registry`` that are wrapped by a ``ConfigurableWrapper``. :jira:`DM-17661`.
 
 0.4.3 (2018-11-30)
 ------------------
