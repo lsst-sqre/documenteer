@@ -380,8 +380,8 @@ def build_package_configs(project_name,
     if copyright is not None:
         c['copyright'] = copyright
     else:
-        c['copyright'] = 'Copyright {:s} LSST contributors.'.format(
-            date.strftime('%Y-%m-%d'))
+        c['copyright'] = '{:s} LSST contributors'.format(
+            date.strftime('%Y'))
     c['version'] = version
     c['release'] = version
 
@@ -482,7 +482,7 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
 
     # Use this copyright for now. Ultimately we want to gather COPYRIGHT files
     # and build an integrated copyright that way.
-    c['copyright'] = '2015-{year} LSST contributors.'.format(
+    c['copyright'] = '2015-{year} LSST contributors'.format(
         year=date.year)
 
     # Always define the "version" as the EUPS tag of the latest release.
