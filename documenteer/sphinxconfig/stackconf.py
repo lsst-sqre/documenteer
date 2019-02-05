@@ -291,8 +291,47 @@ def _insert_graphviz_configs(c):
     return c
 
 
+def _insert_eups_version(c, eups_version=None):
+    """Insert information about the current EUPS tag into the configuration
+    namespace.
+
+    Parameters
+    ----------
+    eups_version
+        The EUPS version string (as opposed to tag). This comes from the
+        __version__ attribute of individual modules. It will be None for the
+        full Stack build where only the EUPS_TAG is relevant.
+    """
+    if eups_version is not None:
+        c['release_eups_tag'] = 'unknown'
+        c['release_git_ref'] = 'master'
+        c['release'] = eups_version
+        c['version'] = eups_version
+
+    else:
+        # Attempt to get the eups tag from the build environment
+        eups_tag = os.getenv('EUPS_TAG')
+        if eups_tag is None:
+            eups_tag = 'd_latest'
+
+        # Build the git tag that's equivalent to the eups_tag
+        if eups_tag in ('d_latest', 'w_latest'):
+            git_ref = 'master'
+        else:
+            git_ref = eups_tag.replace('_', '.')
+
+        c['release_eups_tag'] = eups_tag
+        c['release_git_ref'] = git_ref
+
+        # These are some standard Sphinx configuration values
+        c['version'] = eups_tag
+        c['release'] = eups_tag
+
+    return c
+
+
 def build_package_configs(project_name,
-                          version='unknown',
+                          version=None,
                           copyright=None,
                           doxygen_xml_dirname=None):
     """Builds a `dict` of Sphinx configurations useful for the ``doc/conf.py``
@@ -372,6 +411,9 @@ def build_package_configs(project_name,
     # Graphviz configurations
     c = _insert_graphviz_configs(c)
 
+    # Add versioning information
+    c = _insert_eups_version(c, eups_version=version)
+
     try:
         date = read_git_commit_timestamp()
     except Exception:
@@ -382,8 +424,6 @@ def build_package_configs(project_name,
     else:
         c['copyright'] = '{:s} LSST contributors'.format(
             date.strftime('%Y'))
-    c['version'] = version
-    c['release'] = version
 
     c['today'] = date.strftime('%Y-%m-%d')
 
@@ -401,8 +441,7 @@ def build_package_configs(project_name,
     return c
 
 
-def build_pipelines_lsst_io_configs(*, project_name, current_release,
-                                    copyright=None):
+def build_pipelines_lsst_io_configs(*, project_name, copyright=None):
     """Build a `dict` of Sphinx configurations that populate the ``conf.py``
     of the main pipelines_lsst_io Sphinx project for LSST Science Pipelines
     documentation.
@@ -414,8 +453,7 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
 
        _g = globals()
        _g.update(build_pipelines_lsst_io_configs(
-           project_name='LSST Science Pipelines',
-           current_release='16_0')
+           project_name='LSST Science Pipelines')
 
     You can subsequently customize the Sphinx configuration by directly
     assigning global variables, as usual in a Sphinx ``config.py``, e.g.::
@@ -427,8 +465,6 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
     ----------
     project_name : `str`
         Name of the project
-    current_release : `str`
-        EUPS tag associated with the most recent release.
     copyright : `str`, optional
         Copyright statement. Do not include the 'Copyright (c)' string; it'll
         be added automatically.
@@ -475,6 +511,9 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
     # Graphviz configurations
     c = _insert_graphviz_configs(c)
 
+    # Add versioning information
+    c = _insert_eups_version(c)
+
     # Always use "now" as the date for the main site's docs because we can't
     # look at the Git history of each stack package.
     date = datetime.datetime.now()
@@ -484,10 +523,6 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
     # and build an integrated copyright that way.
     c['copyright'] = '2015-{year} LSST contributors'.format(
         year=date.year)
-
-    # Always define the "version" as the EUPS tag of the latest release.
-    c['version'] = current_release
-    c['release'] = current_release
 
     # Hide todo directives in the "published" documentation on the main site.
     c['todo_include_todos'] = False
@@ -516,7 +551,9 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
 
     # Substitutions available on every page
     c['rst_epilog'] = """
-.. |current-release| replace:: {current_release}
-    """.format(current_release=current_release)
+.. |eups-tag| replace:: {eups_tag}
+.. |eups-tag-mono| replace:: ``{eups_tag}``
+.. |eups-tag-bold| replace:: **{eups_tag}**
+    """.format(eups_tag=c['release_eups_tag'])
 
     return c
