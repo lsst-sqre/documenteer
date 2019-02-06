@@ -347,6 +347,17 @@ def _insert_rst_epilog(c):
     return c
 
 
+def _insert_jinja_configuration(c):
+    """Insert the configuration for the sphinx-jinja extension.
+
+    The "default" Jinja context includes all variables in the conf.py
+    configuration namespace.
+    """
+    c['jinja_contexts'] = {'default': c}
+
+    return c
+
+
 def build_package_configs(project_name,
                           version=None,
                           copyright=None,
@@ -457,6 +468,9 @@ def build_package_configs(project_name,
 
     # Insert rst_epilog configuration
     c = _insert_rst_epilog(c)
+
+    # Set up the context for the sphinx-jinja extension
+    c = _insert_jinja_configuration(c)
 
     return c
 
@@ -571,5 +585,8 @@ def build_pipelines_lsst_io_configs(*, project_name, copyright=None):
 
     # Insert rst_epilog configuration
     c = _insert_rst_epilog(c)
+
+    # Set up the context for the sphinx-jinja extension
+    c = _insert_jinja_configuration(c)
 
     return c
