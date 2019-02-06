@@ -61,6 +61,8 @@ def setup(app):
     app.add_role('lcr', lsst_doc_shortlink_role)
     # LSST Camera Change Notice
     app.add_role('lcn', lsst_doc_shortlink_role)
+    # LSST Operations
+    app.add_role('lso', lsst_doc_shortlink_role)
     # LSST Data Management Test Report
     app.add_role('dmtr', lsst_doc_shortlink_role)
     # LSST Document
