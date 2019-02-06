@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.4.5 (2019-02-06)
+------------------
+
+- Added a new ``lso`` role for linking to LSST Operations documents in DocuShare.
+
 0.4.4 (2019-02-05)
 ------------------
 
