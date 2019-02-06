@@ -346,6 +346,25 @@ def _insert_eups_version(c, eups_version=None):
         '/etc/conda3_packages-linux-64.txt')
     c['scipipe_conda_git_ref'] = scipipe_conda_ref
 
+    # Insert information about the Git ref for the demo that matches the
+    # EUPS tag. Like conda environments, the demo is only tagged for weekly
+    # builds or major releases.
+    if git_ref.startswith('d.'):
+        pipelines_demo_ref = 'master'
+    else:
+        pipelines_demo_ref = git_ref
+    c['pipelines_demo_ref'] = pipelines_demo_ref
+
+    # Insert information about the Git ref for the lsst/lsst repo
+    # (newinstall.sh) that corresponds to the this eups tag. Again, the
+    # repo is only tagged with major releases and weeklies. Daily tags
+    # fall back to master
+    if git_ref.startswith('d.'):
+        newinstall_ref = 'master'
+    else:
+        newinstall_ref = git_ref
+    c['newinstall_ref'] = newinstall_ref
+
     return c
 
 
@@ -468,7 +487,7 @@ def build_package_configs(project_name,
     if copyright is not None:
         c['copyright'] = copyright
     else:
-        c['copyright'] = '{:s} LSST contributors'.format(
+        c['copyright'] = '{:s} LSST contributors.'.format(
             date.strftime('%Y'))
 
     c['today'] = date.strftime('%Y-%m-%d')
