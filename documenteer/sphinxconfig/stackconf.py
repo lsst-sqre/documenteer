@@ -328,6 +328,24 @@ def _insert_eups_version(c, eups_version=None):
         c['version'] = eups_tag
         c['release'] = eups_tag
 
+    # Now insert information about the Conda environments
+    if git_ref.startswith('d.'):
+        # There are no daily tags for the daily tags, so fall back to the
+        # master branch of the https://github.com/lsst/scipipe_conda_env
+        # repo
+        scipipe_conda_ref = 'master'
+    else:
+        scipipe_conda_ref = git_ref
+    c['scipipe_conda_env_mac_url'] = (
+        'https://github.com/lsst/scipipe_conda_env/blob/' +
+        scipipe_conda_ref +
+        '/etc/conda3_packages-osx-64.txt')
+    c['scipipe_conda_env_linux_url'] = (
+        'https://github.com/lsst/scipipe_conda_env/blob/' +
+        scipipe_conda_ref +
+        '/etc/conda3_packages-linux-64.txt')
+    c['scipipe_conda_git_ref'] = scipipe_conda_ref
+
     return c
 
 
