@@ -292,41 +292,93 @@ def _insert_graphviz_configs(c):
     return c
 
 
-def _insert_eups_version(c, eups_version=None):
-    """Insert information about the current EUPS tag into the configuration
-    namespace.
+def _insert_single_package_eups_version(c, eups_version):
+    """Insert version information into the configuration namespace.
 
     Parameters
     ----------
     eups_version
         The EUPS version string (as opposed to tag). This comes from the
-        __version__ attribute of individual modules. It will be None for the
-        full Stack build where only the EUPS_TAG is relevant.
+        ``__version__`` attribute of individual modules and is only set for
+        single package documentation builds that use the
+        `build_package_configs` configuration entrypoint.
+
+    Notes
+    -----
+    The variables are:
+
+    ``release_eups_tag``
+        Always ``current``.
+    ``version``, ``release``
+        Equal to ``eups_version``.
+    ``release_git_ref``
+        Always ``master``.
+    ``scipipe_conda_ref``
+        Always ``master``.
+    ``newinstall_ref``
+        Always ``master``.
+    ``pipelines_demo_ref``
+        Always ``master``.
     """
-    if eups_version is not None:
-        c['release_eups_tag'] = 'unknown'
-        c['release_git_ref'] = 'master'
-        c['release'] = eups_version
-        c['version'] = eups_version
+    c['release_eups_tag'] = 'current'
+    c['release_git_ref'] = 'master'
+    c['version'] = eups_version
+    c['release'] = eups_version
+    c['scipipe_conda_ref'] = 'master'
+    c['pipelines_demo_ref'] = 'master'
+    c['newinstall_ref'] = 'master'
+    return c
 
+
+def _insert_eups_version(c):
+    """Insert information about the current EUPS tag into the configuration
+    namespace.
+
+    The variables are:
+
+    ``release_eups_tag``
+        The EUPS tag (obtained from the ``EUPS_TAG`` environment variable,
+        falling back to ``d_latest`` if not available).
+    ``version``, ``release``
+        Same as ``release_eups_tag``.
+    ``release_git_ref``
+        The git ref (branch or tag) corresponding ot the EUPS tag.
+    ``scipipe_conda_ref``
+        Git ref for the https://github.com/lsst/scipipe_conda_env repo.
+    ``newinstall_ref``
+        Git ref for the https://github.com/lsst/lsst repo.
+    ``pipelines_demo_ref``
+        Git ref for the https://github.com/lsst/lsst_dm_stack_demo repo.
+    """
+    # Attempt to get the eups tag from the build environment
+    eups_tag = os.getenv('EUPS_TAG')
+    if eups_tag is None:
+        eups_tag = 'd_latest'
+
+    # Try to guess the git ref that corresponds to this tag
+    if eups_tag in ('d_latest', 'w_latest', 'current'):
+        git_ref = 'master'
+    elif eups_tag.startswith('d_'):
+        # Daily EUPS tags are not tagged on git
+        git_ref = 'master'
+    elif eups_tag.startswith('v'):
+        # Major version or release candidate tag
+        git_ref = eups_tag.lstrip('v').replace('_', '.')
+    elif eups_tag.startswith('w_'):
+        # Regular weekly tag
+        git_ref = eups_tag.replace('_', '.')
     else:
-        # Attempt to get the eups tag from the build environment
-        eups_tag = os.getenv('EUPS_TAG')
-        if eups_tag is None:
-            eups_tag = 'd_latest'
+        # Ideally shouldn't get to this point
+        git_ref = 'master'
 
-        # Build the git tag that's equivalent to the eups_tag
-        if eups_tag in ('d_latest', 'w_latest'):
-            git_ref = 'master'
-        else:
-            git_ref = eups_tag.replace('_', '.')
-
-        c['release_eups_tag'] = eups_tag
-        c['release_git_ref'] = git_ref
-
-        # These are some standard Sphinx configuration values
-        c['version'] = eups_tag
-        c['release'] = eups_tag
+    # Now set variables for the Jinja context
+    c['release_eups_tag'] = eups_tag
+    c['release_git_ref'] = git_ref
+    c['version'] = eups_tag
+    c['release'] = eups_tag
+    c['scipipe_conda_ref'] = git_ref
+    c['pipelines_demo_ref'] = git_ref
+    c['newinstall_ref'] = git_ref
 
     return c
 
@@ -440,7 +492,7 @@ def build_package_configs(project_name,
     c = _insert_graphviz_configs(c)
 
     # Add versioning information
-    c = _insert_eups_version(c, eups_version=version)
+    c = _insert_single_package_eups_version(c, version)
 
     try:
         date = read_git_commit_timestamp()
@@ -450,7 +502,7 @@ def build_package_configs(project_name,
     if copyright is not None:
         c['copyright'] = copyright
     else:
-        c['copyright'] = '{:s} LSST contributors'.format(
+        c['copyright'] = '{:s} LSST contributors.'.format(
             date.strftime('%Y'))
 
     c['today'] = date.strftime('%Y-%m-%d')
