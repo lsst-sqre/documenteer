@@ -330,6 +330,22 @@ def _insert_eups_version(c, eups_version=None):
     return c
 
 
+def _insert_rst_epilog(c):
+    """Insert the rst_epilog variable into the configuration.
+
+    This should be applied after other configurations so that the epilog can
+    use other configuration variables.
+    """
+    # Substitutions available on every page
+    c['rst_epilog'] = """
+.. |eups-tag| replace:: {eups_tag}
+.. |eups-tag-mono| replace:: ``{eups_tag}``
+.. |eups-tag-bold| replace:: **{eups_tag}**
+    """.format(eups_tag=c['release_eups_tag'])
+
+    return c
+
+
 def build_package_configs(project_name,
                           version=None,
                           copyright=None,
@@ -437,6 +453,9 @@ def build_package_configs(project_name,
     # Show rendered todo directives in package docs since they're developer
     # facing.
     c['todo_include_todos'] = True
+
+    # Insert rst_epilog configuration
+    c = _insert_rst_epilog(c)
 
     return c
 
@@ -549,11 +568,7 @@ def build_pipelines_lsst_io_configs(*, project_name, copyright=None):
         'home',
     ]
 
-    # Substitutions available on every page
-    c['rst_epilog'] = """
-.. |eups-tag| replace:: {eups_tag}
-.. |eups-tag-mono| replace:: ``{eups_tag}``
-.. |eups-tag-bold| replace:: **{eups_tag}**
-    """.format(eups_tag=c['release_eups_tag'])
+    # Insert rst_epilog configuration
+    c = _insert_rst_epilog(c)
 
     return c
