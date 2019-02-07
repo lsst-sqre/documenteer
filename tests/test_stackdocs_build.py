@@ -108,3 +108,18 @@ def test_remove_existing_links(temp_dirname):
     build.remove_existing_links(root_packages_path)
     assert not os.path.exists(os.path.join(root_packages_path,
                                            'package_alpha'))
+
+
+def test_list_packages_in_eups_table():
+    table_text = (
+        "# commented line"
+        "setupRequired(afw)"
+        "setupRequired(display_ds9)"
+        "setupRequired(meas_extensions_photometryKron)"
+    )
+
+    listed_packages = build.list_packages_in_eups_table(table_text)
+    assert 'afw' in listed_packages
+    assert 'display_ds9' in listed_packages
+    assert 'meas_extensions_photometryKron' in listed_packages
+    assert len(listed_packages) == 3
