@@ -1088,7 +1088,7 @@ def create_description_node(field, state):
     Returns
     -------
     ``docutils.nodes.section``
-        Section containing nodes for the ``field``\ 's description.
+        Section containing nodes for the description of the ``field``.
     """
     doc_container_node = nodes.container()
     doc_container_node += parse_rst_content(field.doc, state)
@@ -1110,7 +1110,7 @@ def create_title_node(field_name, field, field_id, state, lineno):
     Returns
     -------
     ``docutils.nodes.title``
-        Title containing nodes for the ``field``\ 's title and reference
+        Title containing nodes for the title of the ``field`` and reference
         target.
     """
     # Reference target
