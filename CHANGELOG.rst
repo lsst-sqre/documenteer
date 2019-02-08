@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+- The stack documentation build now requires that packages be explicitly required by the main documentation project's EUPS table file.
+  Before, a package only needed a ``doc/manifest.yaml`` file and to be currently set up in the EUPS environment to be linked into the documentation build.
+  This would lead to packages being included in a documentation build despite not being a part of that stack product.
+
 0.4.5 (2019-02-06)
 ------------------
 
