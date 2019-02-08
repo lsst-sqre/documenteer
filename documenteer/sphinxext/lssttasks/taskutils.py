@@ -24,7 +24,7 @@ def get_task_config_class(task_name):
 
     Returns
     -------
-    config_class : ``lsst.pipe.base.Config``\ -type
+    config_class : ``lsst.pipe.base.Config``-type
         The configuration class (not an instance) corresponding to the task.
     """
     task_class = get_type(task_name)
@@ -61,7 +61,7 @@ def get_task_config_fields(config_class):
 
     Parameters
     ----------
-    config_class : ``lsst.pipe.base.Config``\ -type
+    config_class : ``lsst.pipe.base.Config``-type
         The configuration class (not an instance) corresponding to a Task.
 
     Returns
@@ -84,7 +84,7 @@ def get_subtask_fields(config_class):
 
     Parameters
     ----------
-    config_class : ``lsst.pipe.base.Config``\ -type
+    config_class : ``lsst.pipe.base.Config``-type
         The configuration class (not an instance) corresponding to a Task.
 
     Returns

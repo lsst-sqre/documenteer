@@ -8,6 +8,33 @@ Unreleased
   Before, a package only needed a ``doc/manifest.yaml`` file and to be currently set up in the EUPS environment to be linked into the documentation build.
   This would lead to packages being included in a documentation build despite not being a part of that stack product.
 
+- This release adds the `sphinx-jinja`_ extension for ``documenteer[pipelines]`` installations.
+  This extension makes it possible to dynamically create content with Jinja templating.
+
+  The ``documenteer.sphinxconfig.stackconf`` module sets up a ``default`` context for the ``jinja`` directive that includes all module attributes in the Sphinx config module.
+
+- The ``documenteer.sphinxconfig.stackconf`` module includes several new configuration attributes that are driven by the presence of an ``EUPS_TAG`` environment variable.
+  The overall intent of these variables is to make it possible to render installation documentation for the https://pipelines.lsst.io documentation project from the ``EUPS_TAG`` environment variable.
+  The variables are:
+
+  - ``release_eups_tag``
+  - ``release_git_ref``
+  - ``release``
+  - ``version``
+  - ``scipipe_conda_ref``
+  - ``newinstall_ref``
+  - ``pipelines_demo_ref``
+
+  These variables are accessible from the ``jinja`` directive's context.
+
+- This release also added some new substitutions to the ``rst_epilog`` of stack-based projects:
+
+  - ``|eups-tag|`` --- the current EUPS tag, based on the ``EUPS_TAG`` environment variable.
+  - ``|eups-tag-mono|`` --- monospace typeface version of ``|eups-tag|``.
+  - ``|eups-tag-bold|`` --- bold typeface version of ``|eups-tag|``.
+
+- Fixed some bugs with the display of copyrights in stack-based projects.
+
 0.4.5 (2019-02-06)
 ------------------
 
@@ -260,3 +287,4 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 .. _astropy_helpers: https://pypi.org/project/astropy-helpers/
 .. _`sphinx-automodapi`: https://pypi.org/project/sphinx-automodapi/
 .. _numpydoc: https://pypi.org/project/numpydoc/
+.. _sphinx-jinja: https://github.com/tardyp/sphinx-jinja

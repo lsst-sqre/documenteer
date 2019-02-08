@@ -30,6 +30,7 @@ def _insert_extensions(c):
         'sphinx.ext.coverage',
         'sphinx.ext.mathjax',
         'sphinx.ext.ifconfig',
+        'sphinxcontrib.jinja',
         'sphinx-prompt',
         'numpydoc',
         'sphinx_automodapi.automodapi',
@@ -291,8 +292,126 @@ def _insert_graphviz_configs(c):
     return c
 
 
+def _insert_single_package_eups_version(c, eups_version):
+    """Insert version information into the configuration namespace.
+
+    Parameters
+    ----------
+    eups_version
+        The EUPS version string (as opposed to tag). This comes from the
+        ``__version__`` attribute of individual modules and is only set for
+        single package documentation builds that use the
+        `build_package_configs` configuration entrypoint.
+
+    Notes
+    -----
+    The variables are:
+
+    ``release_eups_tag``
+        Always ``current``.
+    ``version``, ``release``
+        Equal to ``eups_version``.
+    ``release_git_ref``
+        Always ``master``.
+    ``scipipe_conda_ref``
+        Always ``master``.
+    ``newinstall_ref``
+        Always ``master``.
+    ``pipelines_demo_ref``
+        Always ``master``.
+    """
+    c['release_eups_tag'] = 'current'
+    c['release_git_ref'] = 'master'
+    c['version'] = eups_version
+    c['release'] = eups_version
+    c['scipipe_conda_ref'] = 'master'
+    c['pipelines_demo_ref'] = 'master'
+    c['newinstall_ref'] = 'master'
+    return c
+
+
+def _insert_eups_version(c):
+    """Insert information about the current EUPS tag into the configuration
+    namespace.
+
+    The variables are:
+
+    ``release_eups_tag``
+        The EUPS tag (obtained from the ``EUPS_TAG`` environment variable,
+        falling back to ``d_latest`` if not available).
+    ``version``, ``release``
+        Same as ``release_eups_tag``.
+    ``release_git_ref``
+        The git ref (branch or tag) corresponding ot the EUPS tag.
+    ``scipipe_conda_ref``
+        Git ref for the https://github.com/lsst/scipipe_conda_env repo.
+    ``newinstall_ref``
+        Git ref for the https://github.com/lsst/lsst repo.
+    ``pipelines_demo_ref``
+        Git ref for the https://github.com/lsst/lsst_dm_stack_demo repo.
+    """
+    # Attempt to get the eups tag from the build environment
+    eups_tag = os.getenv('EUPS_TAG')
+    if eups_tag is None:
+        eups_tag = 'd_latest'
+
+    # Try to guess the git ref that corresponds to this tag
+    if eups_tag in ('d_latest', 'w_latest', 'current'):
+        git_ref = 'master'
+    elif eups_tag.startswith('d_'):
+        # Daily EUPS tags are not tagged on git
+        git_ref = 'master'
+    elif eups_tag.startswith('v'):
+        # Major version or release candidate tag
+        git_ref = eups_tag.lstrip('v').replace('_', '.')
+    elif eups_tag.startswith('w_'):
+        # Regular weekly tag
+        git_ref = eups_tag.replace('_', '.')
+    else:
+        # Ideally shouldn't get to this point
+        git_ref = 'master'
+
+    # Now set variables for the Jinja context
+    c['release_eups_tag'] = eups_tag
+    c['release_git_ref'] = git_ref
+    c['version'] = eups_tag
+    c['release'] = eups_tag
+    c['scipipe_conda_ref'] = git_ref
+    c['pipelines_demo_ref'] = git_ref
+    c['newinstall_ref'] = git_ref
+
+    return c
+
+
+def _insert_rst_epilog(c):
+    """Insert the rst_epilog variable into the configuration.
+
+    This should be applied after other configurations so that the epilog can
+    use other configuration variables.
+    """
+    # Substitutions available on every page
+    c['rst_epilog'] = """
+.. |eups-tag| replace:: {eups_tag}
+.. |eups-tag-mono| replace:: ``{eups_tag}``
+.. |eups-tag-bold| replace:: **{eups_tag}**
+    """.format(eups_tag=c['release_eups_tag'])
+
+    return c
+
+
+def _insert_jinja_configuration(c):
+    """Insert the configuration for the sphinx-jinja extension.
+
+    The "default" Jinja context includes all variables in the conf.py
+    configuration namespace.
+    """
+    c['jinja_contexts'] = {'default': c}
+
+    return c
+
+
 def build_package_configs(project_name,
-                          version='unknown',
+                          version=None,
                           copyright=None,
                           doxygen_xml_dirname=None):
     """Builds a `dict` of Sphinx configurations useful for the ``doc/conf.py``
@@ -372,6 +491,9 @@ def build_package_configs(project_name,
     # Graphviz configurations
     c = _insert_graphviz_configs(c)
 
+    # Add versioning information
+    c = _insert_single_package_eups_version(c, version)
+
     try:
         date = read_git_commit_timestamp()
     except Exception:
@@ -380,10 +502,8 @@ def build_package_configs(project_name,
     if copyright is not None:
         c['copyright'] = copyright
     else:
-        c['copyright'] = 'Copyright {:s} LSST contributors.'.format(
-            date.strftime('%Y-%m-%d'))
-    c['version'] = version
-    c['release'] = version
+        c['copyright'] = '{:s} LSST contributors.'.format(
+            date.strftime('%Y'))
 
     c['today'] = date.strftime('%Y-%m-%d')
 
@@ -398,11 +518,16 @@ def build_package_configs(project_name,
     # facing.
     c['todo_include_todos'] = True
 
+    # Insert rst_epilog configuration
+    c = _insert_rst_epilog(c)
+
+    # Set up the context for the sphinx-jinja extension
+    c = _insert_jinja_configuration(c)
+
     return c
 
 
-def build_pipelines_lsst_io_configs(*, project_name, current_release,
-                                    copyright=None):
+def build_pipelines_lsst_io_configs(*, project_name, copyright=None):
     """Build a `dict` of Sphinx configurations that populate the ``conf.py``
     of the main pipelines_lsst_io Sphinx project for LSST Science Pipelines
     documentation.
@@ -414,8 +539,7 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
 
        _g = globals()
        _g.update(build_pipelines_lsst_io_configs(
-           project_name='LSST Science Pipelines',
-           current_release='16_0')
+           project_name='LSST Science Pipelines')
 
     You can subsequently customize the Sphinx configuration by directly
     assigning global variables, as usual in a Sphinx ``config.py``, e.g.::
@@ -427,8 +551,6 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
     ----------
     project_name : `str`
         Name of the project
-    current_release : `str`
-        EUPS tag associated with the most recent release.
     copyright : `str`, optional
         Copyright statement. Do not include the 'Copyright (c)' string; it'll
         be added automatically.
@@ -475,6 +597,9 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
     # Graphviz configurations
     c = _insert_graphviz_configs(c)
 
+    # Add versioning information
+    c = _insert_eups_version(c)
+
     # Always use "now" as the date for the main site's docs because we can't
     # look at the Git history of each stack package.
     date = datetime.datetime.now()
@@ -482,12 +607,8 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
 
     # Use this copyright for now. Ultimately we want to gather COPYRIGHT files
     # and build an integrated copyright that way.
-    c['copyright'] = '2015-{year} LSST contributors.'.format(
+    c['copyright'] = '2015-{year} LSST contributors'.format(
         year=date.year)
-
-    # Always define the "version" as the EUPS tag of the latest release.
-    c['version'] = current_release
-    c['release'] = current_release
 
     # Hide todo directives in the "published" documentation on the main site.
     c['todo_include_todos'] = False
@@ -514,9 +635,10 @@ def build_pipelines_lsst_io_configs(*, project_name, current_release,
         'home',
     ]
 
-    # Substitutions available on every page
-    c['rst_epilog'] = """
-.. |current-release| replace:: {current_release}
-    """.format(current_release=current_release)
+    # Insert rst_epilog configuration
+    c = _insert_rst_epilog(c)
+
+    # Set up the context for the sphinx-jinja extension
+    c = _insert_jinja_configuration(c)
 
     return c

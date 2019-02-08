@@ -53,18 +53,18 @@ extras_require = {
         'lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0',
         'numpydoc>=0.8.0,<0.9.0',
         'sphinx-automodapi>=0.7,<0.8',
-        'breathe==4.4.0'
+        'breathe==4.4.0',
+        'sphinx-jinja==1.1.0',
     ],
 
     # For documenteer development environments
     'dev': [
         'wheel>=0.29.0',
         'twine>=1.8.1',
-        'pytest==3.0.4',
-        'pytest-cov==2.4.0',
-        'pytest-flake8==0.8.1',
+        'pytest==4.2.0',
+        'pytest-cov==2.6.1',
+        'pytest-flake8==1.0.4',
         'pytest-mock==1.4.0',
-        'flake8==3.3.0',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
         'sphinx-click>=1.2.0,<1.3.0',

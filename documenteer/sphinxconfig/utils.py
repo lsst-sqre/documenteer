@@ -8,10 +8,10 @@ import git
 
 from sphinx.util.matching import Matcher
 
-TICKET_BRANCH_PATTERN = re.compile('^tickets/([A-Z]+-[0-9]+)$')
+TICKET_BRANCH_PATTERN = re.compile(r'^tickets/([A-Z]+-[0-9]+)$')
 
 # does it start with vN and look like a version tag?
-TAG_PATTERN = re.compile('^v\d')
+TAG_PATTERN = re.compile(r'^v\d')
 
 
 def read_git_branch():
@@ -24,7 +24,7 @@ def read_git_branch():
         try:
             repo = git.repo.base.Repo(search_parent_directories=True)
             return repo.active_branch.name
-        except:
+        except Exception:
             return ''
 
 
