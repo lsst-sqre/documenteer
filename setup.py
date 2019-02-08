@@ -60,11 +60,10 @@ extras_require = {
     'dev': [
         'wheel>=0.29.0',
         'twine>=1.8.1',
-        'pytest==3.0.4',
-        'pytest-cov==2.4.0',
-        'pytest-flake8==0.8.1',
+        'pytest==4.2.0',
+        'pytest-cov==2.6.1',
+        'pytest-flake8==1.0.4',
         'pytest-mock==1.4.0',
-        'flake8==3.3.0',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
         'sphinx-click>=1.2.0,<1.3.0',
