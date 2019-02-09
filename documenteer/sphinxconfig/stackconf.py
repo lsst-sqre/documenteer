@@ -502,7 +502,7 @@ def build_package_configs(project_name,
     if copyright is not None:
         c['copyright'] = copyright
     else:
-        c['copyright'] = '{:s} LSST contributors.'.format(
+        c['copyright'] = '{:s} LSST contributors'.format(
             date.strftime('%Y'))
 
     c['today'] = date.strftime('%Y-%m-%d')
