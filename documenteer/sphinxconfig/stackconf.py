@@ -59,6 +59,9 @@ def _insert_intersphinx_mapping(c):
         'sklearn': ('https://scikit-learn.org/stable/', None),
         'pandas': ('http://pandas.pydata.org/pandas-docs/stable/', None),
         'astropy': ('http://docs.astropy.org/en/v3.0.x/', None),
+        'astro_metadata_translator': (
+            'https://astro-metadata-translator.lsst.io', None),
+        'firefly_client': ('https://firefly-client.lsst.io', None)
     }
     c['intersphinx_timeout'] = 10.0  # seconds
     c['intersphinx_cache_limit'] = 5  # days
@@ -78,7 +81,7 @@ def _insert_html_configs(c, *, project_name, short_project_name):
     # Theme options are theme-specific and customize the look and feel of a
     # theme further.  For a list of options available for each theme, see the
     # documentation.
-    c['html_theme_options'] = {}
+    c['html_theme_options'] = {'logotext': short_project_name}
 
     # The name for this set of Sphinx documents.  If None, it defaults to
     # "<project> v<release> documentation".
@@ -502,7 +505,7 @@ def build_package_configs(project_name,
     if copyright is not None:
         c['copyright'] = copyright
     else:
-        c['copyright'] = '{:s} LSST contributors.'.format(
+        c['copyright'] = '{:s} LSST contributors'.format(
             date.strftime('%Y'))
 
     c['today'] = date.strftime('%Y-%m-%d')
