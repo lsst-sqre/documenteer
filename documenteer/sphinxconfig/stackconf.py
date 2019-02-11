@@ -59,6 +59,9 @@ def _insert_intersphinx_mapping(c):
         'sklearn': ('https://scikit-learn.org/stable/', None),
         'pandas': ('http://pandas.pydata.org/pandas-docs/stable/', None),
         'astropy': ('http://docs.astropy.org/en/v3.0.x/', None),
+        'astro_metadata_translator': (
+            'https://astro-metadata-translator.lsst.io', None),
+        'firefly_client': ('https://firefly-client.lsst.io', None)
     }
     c['intersphinx_timeout'] = 10.0  # seconds
     c['intersphinx_cache_limit'] = 5  # days
