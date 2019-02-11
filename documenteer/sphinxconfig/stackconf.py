@@ -78,7 +78,7 @@ def _insert_html_configs(c, *, project_name, short_project_name):
     # Theme options are theme-specific and customize the look and feel of a
     # theme further.  For a list of options available for each theme, see the
     # documentation.
-    c['html_theme_options'] = {}
+    c['html_theme_options'] = {'logotext': short_project_name}
 
     # The name for this set of Sphinx documents.  If None, it defaults to
     # "<project> v<release> documentation".
