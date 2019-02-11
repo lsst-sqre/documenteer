@@ -1,12 +1,13 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.5.0 (2019-02-11)
+------------------
 
 - The stack documentation build now requires that packages be explicitly required by the main documentation project's EUPS table file.
   Before, a package only needed a ``doc/manifest.yaml`` file and to be currently set up in the EUPS environment to be linked into the documentation build.
   This would lead to packages being included in a documentation build despite not being a part of that stack product.
+  :jirab:`DM-17765`
 
 - This release adds the `sphinx-jinja`_ extension for ``documenteer[pipelines]`` installations.
   This extension makes it possible to dynamically create content with Jinja templating.
@@ -26,6 +27,7 @@ Unreleased
   - ``pipelines_demo_ref``
 
   These variables are accessible from the ``jinja`` directive's context.
+  :jirab:`DM-17065`
 
 - This release also added some new substitutions to the ``rst_epilog`` of stack-based projects:
 
@@ -33,7 +35,18 @@ Unreleased
   - ``|eups-tag-mono|`` --- monospace typeface version of ``|eups-tag|``.
   - ``|eups-tag-bold|`` --- bold typeface version of ``|eups-tag|``.
 
+  The ``|current-release|`` substitution is no longer available.
+
 - Fixed some bugs with the display of copyrights in stack-based projects.
+
+- The project's name is also used as the ``logotext`` at the top of the page for stack-based projects.
+  Previously the ``logotext`` would always be "LSST Science Pipelines."
+  :jirab:`DM-17263`
+
+- Added the following projects to the intersphinx inventory of stack-based projects:
+
+  - ``firefly_client``
+  - ``astro_metadata_translator``
 
 0.4.5 (2019-02-06)
 ------------------
