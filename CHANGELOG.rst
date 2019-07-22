@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.5.1 (2019-07-22)
+------------------
+
+- Pin docutils temporarily to ``0.14``.
+  The latest release, 0.15, is currently incompatible with the ``:jira:`` role.
+
 0.5.0 (2019-02-11)
 ------------------
 
