@@ -39,7 +39,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Documenteer'
-copyright = '2018 Association of Universities for Research in Astronomy'
+copyright = '2015-2019 Association of Universities for Research in Astronomy'
 author = 'LSST Data Management'
 
 # The version info for the project you're documenting, acts as replacement for
