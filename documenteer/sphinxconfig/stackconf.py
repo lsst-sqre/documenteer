@@ -32,6 +32,7 @@ def _insert_extensions(c):
         'sphinx.ext.ifconfig',
         'sphinxcontrib.jinja',
         'sphinx-prompt',
+        'sphinxcontrib.autoprogram',
         'numpydoc',
         'sphinx_automodapi.automodapi',
         'sphinx_automodapi.smart_resolver',
