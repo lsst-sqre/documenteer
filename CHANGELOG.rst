@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.5.2 (2019-08-01)
+------------------
 
 - Add `sphinxcontrib.autoprogram <https://sphinxcontrib-autoprogram.readthedocs.io/en/stable/>`_ to enable automated reference documentation of argparse-based command-line scripts.
   This extension is available with the ``documenteer[pipelines]`` installation extra and enabled by default for LSST Science Pipelines projects.
