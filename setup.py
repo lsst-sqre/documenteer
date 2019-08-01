@@ -12,8 +12,8 @@ url = 'https://github.com/lsst-sqre/documenteer'
 classifiers = [
     'Development Status :: 4 - Beta',
     'License :: OSI Approved :: MIT License',
-    'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
 ]
 keywords = 'sphinx documentation lsst'
 
@@ -56,6 +56,7 @@ extras_require = {
         'sphinx-automodapi>=0.7,<0.8',
         'breathe==4.4.0',
         'sphinx-jinja==1.1.0',
+        'sphinxcontrib-autoprogram>=0.1.5,<0.2.0',
     ],
 
     # For documenteer development environments
