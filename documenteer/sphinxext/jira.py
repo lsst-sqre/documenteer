@@ -97,8 +97,8 @@ def jira_bracket_role(name, rawtext, text, lineno, inliner,
     """
     node_list, _ = jira_role(name, rawtext, text, lineno, inliner,
                              options=options, content=None, oxford_comma=False)
-    node_list = nodes.raw(text=open_symbol, format='html') \
-        + node_list + nodes.raw(text=close_symbol, format='html')
+    node_list.insert(0, nodes.raw(text=open_symbol, format='html'))
+    node_list.append(nodes.raw(text=close_symbol, format='html'))
     return node_list, []
 
 
