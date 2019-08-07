@@ -1,11 +1,18 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.5.3 (2019-08-07)
+------------------
+
+- Enabled the ``html_use_index`` and ``html_domain_indices`` configurations for Stack documentation projects to enable automatic index generation.
+  The ``genindex`` contains links to all command-line options and Python objects (Sphinx's domains).
+  This also opens us up to a more general content index by way of the `index directive <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#index-generating-markup>`_.
+  :jira:`20850`
 
 - Fixed compatibility with docutils 0.15.
   Now Sphinx will control which version of docutils is used, which should now be 0.15.
+
+- Also updated the intersphinx URL for Pandas to use https.
 
 0.5.2 (2019-08-01)
 ------------------
