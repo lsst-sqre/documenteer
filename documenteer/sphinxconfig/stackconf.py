@@ -58,7 +58,7 @@ def _insert_intersphinx_mapping(c):
         'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
         'matplotlib': ('https://matplotlib.org/', None),
         'sklearn': ('https://scikit-learn.org/stable/', None),
-        'pandas': ('http://pandas.pydata.org/pandas-docs/stable/', None),
+        'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
         'astropy': ('http://docs.astropy.org/en/v3.0.x/', None),
         'astro_metadata_translator': (
             'https://astro-metadata-translator.lsst.io', None),
@@ -126,10 +126,10 @@ def _insert_html_configs(c, *, project_name, short_project_name):
     c['html_use_smartypants'] = True
 
     # If false, no module index is generated.
-    c['html_domain_indices'] = False
+    c['html_domain_indices'] = True
 
     # If false, no index is generated.
-    c['html_use_index'] = False
+    c['html_use_index'] = True
 
     # If true, the index is split into individual pages for each letter.
     c['html_split_index'] = False
