@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+- Fixed compatibility with docutils 0.15.
+  Now Sphinx will control which version of docutils is used, which should now be 0.15.
+
 0.5.2 (2019-08-01)
 ------------------
 
