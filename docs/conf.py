@@ -85,7 +85,7 @@ default_role = 'py:obj'
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
-    'requests': ('http://docs.python-requests.org/en/v2.9.1/', None),
+    'requests': ('http://3.python-requests.org', None),
     'developer': ('https://developer.lsst.io/', None),
     'pybtex': ('https://docs.pybtex.org/', None),
     'sphinx': ('http://www.sphinx-doc.org/en/master/', None),
