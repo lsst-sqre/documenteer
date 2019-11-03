@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.5.4 (2019-11-03)
+------------------
+
+- This new version of the technote sphinx theme should fix the edition link in the sidebar for non-main editions. :jirab:`20839`
+
 0.5.3 (2019-08-07)
 ------------------
 
