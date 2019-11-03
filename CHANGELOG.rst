@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.4.6 (2019-11-03)
+------------------
+
+- This new version of the technote sphinx theme should fix the edition link in the sidebar for non-main editions. :jirab:`DM-20839`
+- Fixed compatibility with docutils 0.15. (backported from 0.5.3).
+
 0.4.5 (2019-02-06)
 ------------------
 
