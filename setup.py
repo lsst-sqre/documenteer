@@ -60,7 +60,7 @@ extras_require = {
     'dev': [
         'wheel>=0.29.0',
         'twine>=1.8.1',
-        'pytest==4.2.0',
+        'pytest==4.5.0',
         'pytest-cov==2.6.1',
         'pytest-flake8==1.0.4',
         'pytest-mock==1.4.0',
