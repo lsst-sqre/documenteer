@@ -1,10 +1,17 @@
 Change Log
 ==========
 
+0.5.5 (2019-12-09)
+------------------
+
+- Technote configuration now uses ``yaml.safe_load`` instead of ``yaml.load``.
+  See the `pyyaml docs for details <https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation>`__.
+  :jirab:`DM-22537`
+
 0.5.4 (2019-11-03)
 ------------------
 
-- This new version of the technote sphinx theme should fix the edition link in the sidebar for non-main editions. :jirab:`20839`
+- This new version of the technote sphinx theme should fix the edition link in the sidebar for non-main editions. :jirab:`DM-20839`
 
 0.5.3 (2019-08-07)
 ------------------
@@ -12,7 +19,7 @@ Change Log
 - Enabled the ``html_use_index`` and ``html_domain_indices`` configurations for Stack documentation projects to enable automatic index generation.
   The ``genindex`` contains links to all command-line options and Python objects (Sphinx's domains).
   This also opens us up to a more general content index by way of the `index directive <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#index-generating-markup>`_.
-  :jira:`20850`
+  :jira:`DM-20850`
 
 - Fixed compatibility with docutils 0.15.
   Now Sphinx will control which version of docutils is used, which should now be 0.15.
@@ -24,7 +31,7 @@ Change Log
 
 - Add `sphinxcontrib.autoprogram <https://sphinxcontrib-autoprogram.readthedocs.io/en/stable/>`_ to enable automated reference documentation of argparse-based command-line scripts.
   This extension is available with the ``documenteer[pipelines]`` installation extra and enabled by default for LSST Science Pipelines projects.
-  :jira:`20767`
+  :jira:`DM-20767`
 
 - Update the official list of tested and supported Python versions to Python 3.6 and 3.7.
 
@@ -134,7 +141,7 @@ Change Log
   This configuration is critical:
 
   1. It is actually responsible for ensuring that inherited members of classes appear in our docs.
-  2. Without this, classes that have a ``__slots__`` attribute (typically through inheritance of a ``collections.abc`` class) won't have *any* of their members documented. See https://jira.lsstcorp.org/browse/DM-16102 for discussion.
+  2. Without this, classes that have a ``__slots__`` attribute (typically through inheritance of a ``collections.abc`` class) won't have *any* of their members documented. See :jira:`DM-16102` for discussion.
 
 - ``todo`` directives are now hidden when using ``build_pipelines_lsst_io_configs``.
   They are still shown, by default, for standalone package documentation builds, which are primarily developer-facing.
