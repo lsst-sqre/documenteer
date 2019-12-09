@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+0.5.5 (2019-12-09)
+------------------
+
+- Technote configuration now uses ``yaml.safe_load`` instead of ``yaml.load``.
+  See the `pyyaml docs for details <https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation>`__.
+  :jirab:`DM-22537`
+
 0.5.4 (2019-11-03)
 ------------------
 
