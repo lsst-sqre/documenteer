@@ -62,7 +62,7 @@ def configure_technote(meta_stream):
         Dictionary of configurations that should be added to the ``conf.py``
         global namespace.
     """
-    _metadata = yaml.load(meta_stream)
+    _metadata = yaml.safe_load(meta_stream)
     confs = _build_confs(_metadata)
     return confs
 
