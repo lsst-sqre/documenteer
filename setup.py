@@ -30,7 +30,7 @@ long_description = read('README.rst')
 
 # Core dependencies
 install_requires = [
-    'Sphinx>=1.7.0,<1.8.0',
+    'Sphinx>=2.0.0',
     'PyYAML',
     'sphinx-prompt',
     'GitPython',
@@ -43,17 +43,15 @@ extras_require = {
     # For technical note Sphinx projects
     'technote': [
         'lsst-dd-rtd-theme==0.2.2',
-        # 0.4.1 is incompatible with Sphinx <1.8.0. Unpin once we upgrade
-        # Sphinx.
-        'sphinxcontrib-bibtex==0.4.0'
+        'sphinxcontrib-bibtex==1.0.0'
     ],
 
     # For the pipelines.lsst.io documentation project
     'pipelines': [
         'lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0',
-        'numpydoc>=0.8.0,<0.9.0',
-        'sphinx-automodapi>=0.7,<0.8',
-        'breathe==4.4.0',
+        'numpydoc==0.9.1',
+        'sphinx-automodapi==0.12',
+        'breathe==4.14.0',
         'sphinx-jinja==1.1.0',
         'sphinxcontrib-autoprogram>=0.1.5,<0.2.0',
     ],
@@ -68,7 +66,7 @@ extras_require = {
         'pytest-mock==1.4.0',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
-        'sphinx-click>=1.2.0,<1.3.0',
+        'sphinx-click==2.3.1',
     ],
 }
 # Add project dependencies to the dev dependencies
