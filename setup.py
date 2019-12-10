@@ -34,7 +34,7 @@ install_requires = [
     'sphinx-prompt',
     'GitPython',
     'requests',
-    'click>=6.7,<7.0'
+    'click'
 ]
 
 # Project-specific dependencies
