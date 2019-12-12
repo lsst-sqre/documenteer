@@ -285,9 +285,9 @@ todo_include_todos = True
 # ============================================================================
 # #MATHJAX MathJax extension configuration
 # ============================================================================
-# FIXME update this in light of the MathJax CDN deprecation
+# http://docs.mathjax.org/en/v2.7-latest/start.html#using-a-content-delivery-network-cdn
 mathjax_path = (
-    'https://cdn.mathjax.org/mathjax/latest/'
+    'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/'
     'MathJax.js?config=default'
 )
 
