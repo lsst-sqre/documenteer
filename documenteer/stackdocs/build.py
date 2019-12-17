@@ -276,6 +276,12 @@ def find_package_docs(package_dir, skippedNames=None):
           the static documentation directory in the package. If there
           isn't a declared ``_static`` directory, this dictionary is empty.
 
+        - ``doxygen_index_xml_path`` (`str`). Path of the doxygen index.xml
+          file for a package. None if one doesn't exist.
+
+        - ``doxygen_xml_paths`` (`list` of `str`). List of paths to individual
+          Doxygen XML files, other than ``index.xml``.
+
     Raises
     ------
     NoPackageDocs
@@ -389,10 +395,32 @@ def find_package_docs(package_dir, skippedNames=None):
             static_dirs[relative_static_dir] = full_static_dir
             logger.debug('Found _static doc dir: {0}'.format(full_static_dir))
 
-    Dirs = namedtuple('Dirs', ['module_dirs', 'package_dirs', 'static_dirs'])
+    xml_dir = os.path.join(doc_dir, 'xml')
+
+    doxygen_index_xml_path = os.path.join(xml_dir, 'index.xml')
+    if os.path.exists(doxygen_index_xml_path):
+        logger.debug('Found Doxygen index.xml: %s', doxygen_index_xml_path)
+        doxygen_xml_paths = []
+        with os.scandir(xml_dir) as it:
+            for entry in it:
+                if entry.name != 'index.xml':
+                    doxygen_xml_paths.append(
+                        os.path.join(xml_dir, entry.name)
+                    )
+    else:
+        doxygen_index_xml_path = None
+        doxygen_xml_paths = []
+
+    Dirs = namedtuple(
+        'Dirs',
+        ['module_dirs', 'package_dirs', 'static_dirs',
+         'doxygen_index_xml_path', 'doxygen_xml_paths']
+    )
     return Dirs(module_dirs=module_dirs,
                 package_dirs=package_dirs,
-                static_dirs=static_dirs)
+                static_dirs=static_dirs,
+                doxygen_index_xml_path=doxygen_index_xml_path,
+                doxygen_xml_paths=doxygen_xml_paths)
 
 
 class NoPackageDocs(Exception):
