@@ -53,6 +53,7 @@ extras_require = {
         'breathe==4.14.0',
         'sphinx-jinja==1.1.0',
         'sphinxcontrib-autoprogram>=0.1.5,<0.2.0',
+        'exhale==0.2.3',
     ],
 
     # For documenteer development environments

@@ -56,9 +56,10 @@ extensions = [
     'numpydoc',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
-    'breathe',
     'documenteer.sphinxext',
-    'documenteer.sphinxext.lssttasks'
+    'documenteer.sphinxext.lssttasks',
+    'breathe',
+    'exhale',
 ]
 
 # ============================================================================
