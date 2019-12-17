@@ -4,12 +4,14 @@
 __all__ = ('run_build_cli', 'build_stack_docs')
 
 import argparse
+from copy import deepcopy
 from collections import namedtuple
 import logging
 import os
 import sys
 import re
 
+from lxml import etree
 from pkg_resources import get_distribution, DistributionNotFound
 import yaml
 
@@ -104,6 +106,7 @@ def build_stack_docs(root_project_dir, skippedNames=None):
     listed_packages = list_packages_in_eups_table(table_data)
 
     # Link to documentation directories of packages from the root project
+    all_package_docs = []
     for package_name, package_info in packages.items():
         if package_name not in listed_packages:
             logger.debug(
@@ -115,6 +118,7 @@ def build_stack_docs(root_project_dir, skippedNames=None):
             package_docs = find_package_docs(
                 package_info['dir'],
                 skippedNames=skippedNames)
+            all_package_docs.append(package_docs)
         except NoPackageDocs as e:
             logger.debug(
                 'Skipping {0} doc linking. {1}'.format(package_name,
@@ -124,6 +128,13 @@ def build_stack_docs(root_project_dir, skippedNames=None):
         link_directories(root_modules_dir, package_docs.module_dirs)
         link_directories(root_packages_dir, package_docs.package_dirs)
         link_directories(root_static_dir, package_docs.static_dirs)
+
+    # Directory containing all Doxygen-generated XML content
+    # TODO make this configurable
+    doxygen_xml_dir = os.path.join(root_project_dir, '_xml')
+    if not os.path.isdir(doxygen_xml_dir):
+        os.makedirs(doxygen_xml_dir)
+    merge_doxygen_xml(doxygen_xml_dir, all_package_docs)
 
     # Trigger the Sphinx build
     return_code = run_sphinx(root_project_dir)
@@ -481,3 +492,42 @@ def remove_existing_links(root_dir):
         if os.path.islink(full_name):
             logger.debug('Deleting existing symlink {0}'.format(full_name))
             os.remove(full_name)
+
+
+def merge_doxygen_xml(xml_dir, packages):
+    """Symlink individual xml files from packages into the XML directory
+    of the build, and create a combined index.xml.
+
+    Parameters
+    ----------
+    xml_dir : `str`
+        Directory in the Sphinx source tree where XML files from Doxygen
+        are symlinked to.
+    packages : Dirs
+        A named tuple descripting the source documentation.
+    """
+    doxygenindex = etree.Element("doxygenindex")
+    # root_index['xmlns:xsi'] = "http://www.w3.org/2001/XMLSchema-instance"
+    # root_index['xsi:noNamespaceSchemaLocation'] = "index.xsd"
+    # doxygenindex['version'] = "1.8.13"
+
+    for package in packages:
+        print(package)
+        if package.doxygen_index_xml_path is not None:
+            # Capture index.xml contents
+            package_tree = etree.parse(package.doxygen_index_xml_path)
+            package_root = package_tree.getroot()
+            for child in package_root.iterchildren():
+                doxygenindex.append(deepcopy(child))
+
+        # Symlink xml files over
+        for xml_path in package.doxygen_xml_paths:
+            dest_path = os.path.join(xml_dir, os.path.basename(xml_path))
+            os.symlink(xml_path, dest_path)
+
+    merged_xml_path = os.path.join(xml_dir, 'index.xml')
+    merged_xml_content = etree.tostring(
+        doxygenindex,
+        encoding='unicode', method='text')
+    with open(merged_xml_path, 'w') as fp:
+        fp.write(merged_xml_content)

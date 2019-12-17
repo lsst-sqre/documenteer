@@ -54,6 +54,7 @@ extras_require = {
         'sphinx-jinja==1.1.0',
         'sphinxcontrib-autoprogram>=0.1.5,<0.2.0',
         'exhale==0.2.3',
+        'lxml==4.4.2',
     ],
 
     # For documenteer development environments
