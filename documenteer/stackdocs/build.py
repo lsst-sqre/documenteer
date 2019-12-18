@@ -4,15 +4,14 @@
 __all__ = ('run_build_cli', 'build_stack_docs')
 
 import argparse
-from collections import namedtuple
 import logging
 import os
 import sys
 import re
 
 from pkg_resources import get_distribution, DistributionNotFound
-import yaml
 
+from .pkgdiscovery import find_package_docs, NoPackageDocs
 from ..sphinxrunner import run_sphinx
 
 try:
@@ -114,16 +113,15 @@ def build_stack_docs(root_project_dir, skippedNames=None):
         try:
             package_docs = find_package_docs(
                 package_info['dir'],
-                skippedNames=skippedNames)
+                skipped_names=skippedNames)
         except NoPackageDocs as e:
             logger.debug(
-                'Skipping {0} doc linking. {1}'.format(package_name,
-                                                       str(e)))
+                'Skipping %s doc linking. %s', package_name, e)
             continue
 
         link_directories(root_modules_dir, package_docs.module_dirs)
         link_directories(root_packages_dir, package_docs.package_dirs)
-        link_directories(root_static_dir, package_docs.static_dirs)
+        link_directories(root_static_dir, package_docs.static_doc_dirs)
 
     # Trigger the Sphinx build
     return_code = run_sphinx(root_project_dir)
@@ -244,160 +242,6 @@ def list_packages_in_eups_table(table_text):
     listed_packages = [m.group('name') for m in pattern.finditer(table_text)]
     logger.debug('Packages listed in the table file: %r', listed_packages)
     return listed_packages
-
-
-def find_package_docs(package_dir, skippedNames=None):
-    """Find documentation directories in a package using ``manifest.yaml``.
-
-    Parameters
-    ----------
-    package_dir : `str`
-        Directory of an EUPS package.
-    skippedNames : `list` of `str`, optional
-        List of package or module names to skip when creating links.
-
-    Returns
-    -------
-    doc_dirs : namedtuple
-        Attributes of the namedtuple are:
-
-        - ``package_dirs`` (`dict`). Keys are package names (for example,
-          ``'afw'``). Values are absolute directory paths to the package's
-          documentation directory inside the package's ``doc`` directory. If
-          there is no package-level documentation the dictionary will be empty.
-
-        - ``modules_dirs`` (`dict`). Keys are module names (for example,
-          ``'lsst.afw.table'``). Values are absolute directory paths to the
-          module's directory inside the package's ``doc`` directory. If a
-          package has no modules the returned dictionary will be empty.
-
-        - ``static_doc_dirs`` (`dict`). Keys are directory names relative to
-          the ``_static`` directory. Values are absolute directory paths to
-          the static documentation directory in the package. If there
-          isn't a declared ``_static`` directory, this dictionary is empty.
-
-    Raises
-    ------
-    NoPackageDocs
-       Raised when the ``manifest.yaml`` file cannot be found in a package.
-
-    Notes
-    -----
-    Stack packages have documentation in subdirectories of their `doc`
-    directory. The ``manifest.yaml`` file declares what these directories are
-    so that they can be symlinked into the root project.
-
-    There are three types of documentation directories:
-
-    1. Package doc directories contain documentation for the EUPS package
-       aspect. This is optional.
-    2. Module doc directories contain documentation for a Python package
-       aspect. These are optional.
-    3. Static doc directories are root directories inside the package's
-       ``doc/_static/`` directory. These are optional.
-
-    These are declared in a package's ``doc/manifest.yaml`` file. For example:
-
-    .. code-block:: yaml
-
-       package: "afw"
-       modules:
-         - "lsst.afw.image"
-         - "lsst.afw.geom"
-       statics:
-         - "_static/afw"
-
-    This YAML declares *module* documentation directories:
-
-    - ``afw/doc/lsst.afw.image/``
-    - ``afw/doc/lsst.afw.geom/``
-
-    It also declares a *package* documentation directory:
-
-    - ``afw/doc/afw``
-
-    And a static documentaton directory:
-
-    - ``afw/doc/_static/afw``
-    """
-    logger = logging.getLogger(__name__)
-
-    if skippedNames is None:
-        skippedNames = []
-
-    doc_dir = os.path.join(package_dir, 'doc')
-    modules_yaml_path = os.path.join(doc_dir, 'manifest.yaml')
-
-    if not os.path.exists(modules_yaml_path):
-        raise NoPackageDocs(
-            'Manifest YAML not found: {0}'.format(modules_yaml_path))
-
-    with open(modules_yaml_path) as f:
-        manifest_data = yaml.safe_load(f)
-
-    module_dirs = {}
-    package_dirs = {}
-    static_dirs = {}
-
-    if 'modules' in manifest_data:
-        for module_name in manifest_data['modules']:
-            if module_name in skippedNames:
-                logger.debug('Skipping module {0}'.format(module_name))
-                continue
-            module_dir = os.path.join(doc_dir, module_name)
-
-            # validate that the module's documentation directory does exist
-            if not os.path.isdir(module_dir):
-                message = 'module doc dir not found: {0}'.format(module_dir)
-                logger.warning(message)
-                continue
-
-            module_dirs[module_name] = module_dir
-            logger.debug('Found module doc dir {0}'.format(module_dir))
-
-    if 'package' in manifest_data:
-        package_name = manifest_data['package']
-
-        full_package_dir = os.path.join(doc_dir, package_name)
-
-        # validate the directory exists
-        if os.path.isdir(full_package_dir) \
-                and package_name not in skippedNames:
-            package_dirs[package_name] = full_package_dir
-            logger.debug('Found package doc dir {0}'.format(full_package_dir))
-        else:
-            logger.warning('package doc dir excluded or not found: {0}'.format(
-                full_package_dir))
-
-    if 'statics' in manifest_data:
-        for static_dirname in manifest_data['statics']:
-            full_static_dir = os.path.join(doc_dir, static_dirname)
-
-            # validate the directory exists
-            if not os.path.isdir(full_static_dir):
-                message = '_static doc dir not found: {0}'.format(
-                    full_static_dir)
-                logger.warning(message)
-                continue
-
-            # Make a relative path to `_static` that's used as the
-            # link source in the root docproject's _static/ directory
-            relative_static_dir = os.path.relpath(
-                full_static_dir,
-                os.path.join(doc_dir, '_static'))
-
-            static_dirs[relative_static_dir] = full_static_dir
-            logger.debug('Found _static doc dir: {0}'.format(full_static_dir))
-
-    Dirs = namedtuple('Dirs', ['module_dirs', 'package_dirs', 'static_dirs'])
-    return Dirs(module_dirs=module_dirs,
-                package_dirs=package_dirs,
-                static_dirs=static_dirs)
-
-
-class NoPackageDocs(Exception):
-    """Exception raised when documentation is not found for an EUPS package.
-    """
 
 
 def link_directories(root_dir, package_doc_dirs):
