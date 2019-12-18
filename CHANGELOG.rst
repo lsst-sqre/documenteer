@@ -4,6 +4,23 @@ Change Log
 0.6.0 (unreleased)
 ------------------
 
+- Documenteer now works with Sphinx 2.0+.
+  By default, Documenteer will install the latest version of Sphinx for you.
+  Other dependency upgrades:
+
+  - The ``click`` version now floats.
+  - ``numpydoc`` is pinned at 0.8.0.
+  - ``sphinx-automodapi`` is pinned at 0.12.
+  - ``breathe`` is pinned at 4.14.0.
+
+  Updates to development or test dependencies:
+
+  - pytest is pinned to 4.5.0 (to match the pytest used by the ``lsst_distrib`` stack).
+  - sphinx-click is pinned to 2.3.1.
+
+- Python 3.6 is no longer officially supported.
+  Documenteer is tested with Python 3.7.
+
 - New Sphinx configuration facilities should prevent recursion issues by more cleanly populating the Python attributes in the configuration module:
 
   - Technote projects now import ``documenteer.conf.technote`` in their ``conf.py`` files.
