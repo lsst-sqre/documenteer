@@ -1,6 +1,21 @@
 Change Log
 ==========
 
+0.6.0 (unreleased)
+------------------
+
+- New Sphinx configuration facilities should prevent recursion issues by more cleanly populating the Python attributes in the configuration module:
+
+  - Technote projects now import ``documenteer.conf.technote`` in their ``conf.py`` files.
+  - Stack projects now import ``documenteer.conf.pipelines`` in their ``conf.py`` files.
+  - Individual Stack packages now import ``documenteer.conf.pipelinespkg`` in their ``conf.py`` files.
+
+  The previous configuration sub-package, ``documenteer.sphinxconf`` is deprecated.
+  Overall, the configurations are compatible.
+  :jirab:`DM-20866`
+
+- Updated the MathJax CDN URL to point to cdnjs.
+
 0.5.5 (2019-12-09)
 ------------------
 
