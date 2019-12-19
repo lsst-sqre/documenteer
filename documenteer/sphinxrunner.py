@@ -8,11 +8,7 @@ import logging
 import sys
 
 from sphinx.application import Sphinx
-try:
-    from sphinx.cmd.build import handle_exception
-except ImportError:
-    # Sphinx <1.8
-    from sphinx.cmdline import handle_exception
+from sphinx.cmd.build import handle_exception
 from sphinx.util.docutils import docutils_namespace, patch_docutils
 
 

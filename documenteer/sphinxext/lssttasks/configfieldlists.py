@@ -8,6 +8,7 @@ __all__ = (
 )
 
 import functools
+from typing import Dict, Callable, Any
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
@@ -22,7 +23,9 @@ from .crossrefs import (pending_task_xref, pending_config_xref,
                         format_configfield_id)
 
 
-FIELD_FORMATTERS = {}
+# FIXME import typing of the lsst.pex.config.Field and
+# docutils.statemachine.State parameters.
+FIELD_FORMATTERS: Dict[str, Callable[[str, Any, str, Any, int], Any]] = {}
 """Internal mapping of field type strings to formatter functions.
 
 External users should access this through `get_field_formatter`.

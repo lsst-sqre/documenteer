@@ -7,11 +7,7 @@ __all__ = ('setup', 'ModuleTocTree', 'PackageTocTree')
 import docutils
 from docutils.parsers.rst import Directive, directives
 import sphinx
-try:
-    # Sphinx 1.6+
-    from sphinx.util.logging import getLogger
-except ImportError:
-    getLogger = None
+from sphinx.util.logging import getLogger
 from sphinx.util.nodes import set_source_info
 from pkg_resources import get_distribution, DistributionNotFound
 
@@ -47,12 +43,7 @@ class ModuleTocTree(Directive):
         new_nodes : `list`
             Nodes to add to the doctree.
         """
-        if getLogger is not None:
-            # Sphinx 1.6+
-            logger = getLogger(__name__)
-        else:
-            # Previously Sphinx's app was also the logger
-            logger = self.state.document.settings.env.app
+        logger = getLogger(__name__)
 
         env = self.state.document.settings.env
         new_nodes = []
@@ -140,12 +131,7 @@ class PackageTocTree(Directive):
         new_nodes : `list`
             Nodes to add to the doctree.
         """
-        if getLogger is not None:
-            # Sphinx 1.6+
-            logger = getLogger(__name__)
-        else:
-            # Previously Sphinx's app was also the logger
-            logger = self.state.document.settings.env.app
+        logger = getLogger(__name__)
 
         env = self.state.document.settings.env
         new_nodes = []
