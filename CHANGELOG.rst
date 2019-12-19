@@ -33,6 +33,9 @@ Change Log
 
 - Updated the MathJax CDN URL to point to cdnjs.
 
+- Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
+  :jirab:`DM-22717`
+
 0.5.5 (2019-12-09)
 ------------------
 
