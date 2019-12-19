@@ -1,50 +1,14 @@
 """Stack documentation build system.
 """
 
-__all__ = ('run_build_cli', 'build_stack_docs')
+__all__ = ('build_stack_docs',)
 
-import argparse
 import logging
 import os
-import sys
 import re
-
-from pkg_resources import get_distribution, DistributionNotFound
 
 from .pkgdiscovery import find_package_docs, NoPackageDocs
 from ..sphinxrunner import run_sphinx
-
-try:
-    __version__ = get_distribution('documenteer').version
-except DistributionNotFound:
-    # package is not installed
-    __version__ = 'unknown'
-
-
-def run_build_cli():
-    """Command line entrypoint for the ``build-stack-docs`` program.
-    """
-    args = parse_args()
-
-    if args.verbose:
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s %(levelname)s %(name)s: %(message)s')
-
-    logger = logging.getLogger(__name__)
-
-    logger.info('build-stack-docs version {0}'.format(__version__))
-
-    return_code = build_stack_docs(args.root_project_dir)
-    if return_code == 0:
-        logger.info('build-stack-docs succeeded')
-        sys.exit(0)
-    else:
-        logger.error('Sphinx errored: code {0:d}'.format(return_code))
-        sys.exit(1)
 
 
 def build_stack_docs(root_project_dir, skippedNames=None):
@@ -126,32 +90,6 @@ def build_stack_docs(root_project_dir, skippedNames=None):
     # Trigger the Sphinx build
     return_code = run_sphinx(root_project_dir)
     return return_code
-
-
-def parse_args():
-    """Create an argument parser for the ``build-stack-docs`` program.
-
-    Returns
-    -------
-    args : `argparse.Namespace`
-        Parsed argument object.
-    """
-    parser = argparse.ArgumentParser(
-        description="Build a Sphinx documentation site for an EUPS stack, "
-                    "such as pipelines.lsst.io.",
-        epilog="Version {0}".format(__version__)
-    )
-    parser.add_argument(
-        '-d', '--dir',
-        dest='root_project_dir',
-        help="Root Sphinx project directory")
-    parser.add_argument(
-        '-v', '--verbose',
-        dest='verbose',
-        action='store_true', default=False,
-        help='Enable Verbose output (debug level logging)'
-    )
-    return parser.parse_args()
 
 
 def discover_setup_packages():
