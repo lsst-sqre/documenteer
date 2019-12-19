@@ -43,6 +43,7 @@ nosetests.xml
 coverage.xml
 *,cover
 pytest_session.txt
+.mypy_cache
 
 # Translations
 *.mo
