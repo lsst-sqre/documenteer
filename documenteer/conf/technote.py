@@ -74,11 +74,12 @@ __all__ = (
 
 import datetime
 from pathlib import Path
+from typing import Any, Optional, Dict, List, Tuple, Union
 
 import lsst_dd_rtd_theme
 import yaml
 
-from ..sphinxconfig.utils import (
+from documenteer.sphinxconfig.utils import (
     read_git_branch,
     get_project_content_commit_date)
 
@@ -127,8 +128,13 @@ if 'version' in _metadata:
     version = _metadata['version']
 
 # The edit_url is used for "Edit on GitHub" functionality
+_github_url: Optional[str]
+_edit_url: Optional[str]
 if 'github_url' in _metadata:
     _github_url = _metadata['github_url']
+else:
+    _github_url = None
+if _github_url is not None:
     if not _github_url.endswith('/'):
         _github_url = _github_url + '/'
     _edit_url = '{_github_url}blob/{_git_branch}/index.rst'
@@ -210,7 +216,7 @@ html_theme_path = [lsst_dd_rtd_theme.get_html_theme_path()]
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {}
+html_theme_options: Dict[str, Any] = {}
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -243,7 +249,7 @@ else:
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
-html_extra_path = []
+html_extra_path: List[str] = []
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
@@ -294,6 +300,6 @@ mathjax_path = (
 # ============================================================================
 # #INTER Intersphinx configuration
 # ============================================================================
-intersphinx_mapping = {}
+intersphinx_mapping: Dict[str, Tuple[Union[str, None]]] = {}
 intersphinx_timeout = 10.0  # seconds
 intersphinx_cache_limit = 5  # days
