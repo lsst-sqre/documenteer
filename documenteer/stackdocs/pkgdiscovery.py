@@ -2,14 +2,119 @@
 and their documentation.
 """
 
-__all__ = ('Package', 'NoPackageDocs', 'find_package_docs')
+__all__ = ('discover_setup_packages', 'find_table_file',
+           'list_packages_in_eups_table', 'Package', 'NoPackageDocs',
+           'find_package_docs')
 
 from dataclasses import dataclass, field
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Union
 
 import yaml
+
+
+def discover_setup_packages(
+        scope: Optional[List[str]] = None) -> Dict[str, Dict[str, str]]:
+    """Summarize packages currently set up by EUPS, listing their
+    set up directories and EUPS version names.
+
+    Parameters
+    ----------
+    scope
+        Names of packages that are in scope to include in the returned package
+        data. Leave as `None` if packages should not be filtered.
+
+    Returns
+    -------
+    packages
+       Dictionary with keys that are EUPS package names. Values are
+       dictionaries with fields:
+
+       - ``'dir'``: absolute directory path of the set up package.
+       - ``'version'``: EUPS version string for package.
+
+    Notes
+    -----
+    This function imports the ``eups`` Python package, which is assumed to
+    be available in the build environmen. This function is designed to
+    encapsulate all direct EUPS interactions need by the stack documentation
+    build process.
+    """
+    logger = logging.getLogger(__name__)
+
+    # Not a PyPI dependency; assumed to be available in the build environment.
+    import eups
+
+    eups_client = eups.Eups()
+    products = eups_client.getSetupProducts()
+
+    packages = {}
+    for package in products:
+        name = package.name
+        if scope is not None and name not in scope:
+            logger.debug('Ignoring %s since it is not in scope.', name)
+            continue
+        info = {
+            'dir': package.dir,
+            'version': package.version
+        }
+        packages[name] = info
+        logger.debug(
+            'Found setup package: %s %s %s',
+            name, info['version'], info['dir'])
+
+    return packages
+
+
+def find_table_file(
+        root_project_dir: Union[str, Path]) -> Path:
+    """Find the EUPS table file for a project.
+
+    Parameters
+    ----------
+    root_project_dir
+        Path to the root directory of the main documentation project. This
+        is the directory containing the ``conf.py`` file and a ``ups``
+        directory.
+
+    Returns
+    -------
+    table_path
+        Path to the EUPS table file.
+    """
+    root_project_dir = Path(root_project_dir)
+    ups_dir_path = root_project_dir / 'ups'
+    table_path = None
+    for p in ups_dir_path.iterdir():
+        if p.suffix == '.table' and p.is_file():
+            table_path = p
+    if table_path is None:
+        raise RuntimeError(
+            f'Could not find the EUPS table file for {root_project_dir}')
+    return table_path
+
+
+def list_packages_in_eups_table(table_text: str) -> List[str]:
+    """List the names of packages that are required by an EUPS table file.
+
+    Parameters
+    ----------
+    table_text
+        The text content of an EUPS table file.
+
+    Returns
+    -------
+    names
+        List of package names that are required byy the EUPS table file.
+    """
+    logger = logging.getLogger(__name__)
+    # This pattern matches required product names in EUPS table files.
+    pattern = re.compile(r'setupRequired\((?P<name>\w+)\)')
+    listed_packages = [m.group('name') for m in pattern.finditer(table_text)]
+    logger.debug('Packages listed in the table file: %r', listed_packages)
+    return listed_packages
 
 
 @dataclass

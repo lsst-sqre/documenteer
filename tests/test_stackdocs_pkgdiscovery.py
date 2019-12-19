@@ -8,7 +8,7 @@ import shutil
 import pytest
 
 from documenteer.stackdocs.pkgdiscovery import (
-    find_package_docs, NoPackageDocs)
+    list_packages_in_eups_table, find_package_docs, NoPackageDocs)
 
 
 @pytest.fixture
@@ -41,3 +41,18 @@ def test_find_package_docs_nonexistent():
     package_dir = Path(__file__).parent / 'data' / 'package_beta'
     with pytest.raises(NoPackageDocs):
         find_package_docs(package_dir)
+
+
+def test_list_packages_in_eups_table():
+    table_text = (
+        "# commented line"
+        "setupRequired(afw)"
+        "setupRequired(display_ds9)"
+        "setupRequired(meas_extensions_photometryKron)"
+    )
+
+    listed_packages = list_packages_in_eups_table(table_text)
+    assert 'afw' in listed_packages
+    assert 'display_ds9' in listed_packages
+    assert 'meas_extensions_photometryKron' in listed_packages
+    assert len(listed_packages) == 3
