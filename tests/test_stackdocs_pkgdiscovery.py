@@ -34,6 +34,9 @@ def test_find_package_docs():
     expected_static_dir = package_dir / 'doc' / '_static/' / 'package_alpha'
     assert package_docs.static_doc_dirs['package_alpha'] == expected_static_dir
 
+    expected_doxygen_conf = package_dir / 'doc' / 'doxygen.conf.in'
+    assert package_docs.doxygen_conf_path == expected_doxygen_conf
+
 
 def test_find_package_docs_nonexistent():
     """Test when an EUPS package does not have a doc/manifest.yaml file.

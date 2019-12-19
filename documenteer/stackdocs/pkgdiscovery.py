@@ -289,6 +289,10 @@ def find_package_docs(
             package.static_doc_dirs[relative_static_dir] = full_static_dir
             logger.debug('Found _static doc dir: %s', full_static_dir)
 
+    doxygen_conf_path = package.doc_dir / 'doxygen.conf.in'
+    if doxygen_conf_path.is_file():
+        package.doxygen_conf_path = doxygen_conf_path
+
     return package
 
 
