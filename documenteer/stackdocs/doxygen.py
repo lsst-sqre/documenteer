@@ -3,6 +3,8 @@
 
 __all__ = ('DoxygenConfiguration,')
 
+from copy import deepcopy
+from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import List
@@ -181,3 +183,40 @@ class DoxygenConfiguration:
                 f'{tag_name} {sep} {item}'
             )
             sep = '+='
+
+    def __add__(self, other: "DoxygenConfiguration") -> "DoxygenConfiguration":
+        """Append other's configurations to this configuration, yielding a
+        new configuration.
+
+        The behavior for adding configurations:
+
+        - If a tag is single value, then the value from `other` replaces the
+          value from this configuration (unless the value is a default).
+        - If a tag is a sequence of values, then the items from `other` are
+          appended after the items from this configuration.
+        """
+        new_config: "DoxygenConfiguration" = deepcopy(self)
+        self._append_config(new_config, other)
+        return new_config
+
+    def __iadd__(
+            self, other: "DoxygenConfiguration") -> "DoxygenConfiguration":
+        """Append other's configuration, in place.
+        """
+        self._append_config(self, other)
+        return self
+
+    def _append_config(
+            self,
+            mutated_config: "DoxygenConfiguration",
+            new_config: "DoxygenConfiguration") -> None:
+        for tag_field in fields(new_config):
+            attrname = tag_field.name
+            new_value = getattr(new_config, attrname)
+            if isinstance(new_value, Iterable):
+                getattr(mutated_config, attrname).extend(new_value)
+            else:
+                if new_value == tag_field.default:
+                    continue
+                else:
+                    setattr(mutated_config, tag_field.name, new_value)

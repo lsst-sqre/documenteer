@@ -56,3 +56,37 @@ def test_str_list_tag():
     doxygenconf._render_str_list(lines, 'FILE_PATTERNS', value)
     assert lines[0] == f'FILE_PATTERNS = {value[0]}'
     assert lines[1] == f'FILE_PATTERNS += {value[1]}'
+
+
+def test_inplace_append_config():
+    """Test += operation on two configurations.
+    """
+    config_a = DoxygenConfiguration(
+        generate_html=True
+    )
+
+    config_b = DoxygenConfiguration(
+        inputs=[Path(__file__).parent]
+    )
+
+    config_a += config_b
+
+    assert config_a.generate_html is True
+    assert len(config_a.inputs) == 1
+
+
+def test_add_config():
+    """Test + operation on two configurations.
+    """
+    config_a = DoxygenConfiguration(
+        generate_html=True
+    )
+
+    config_b = DoxygenConfiguration(
+        inputs=[Path(__file__).parent]
+    )
+
+    config = config_a + config_b
+
+    assert config.generate_html is True
+    assert len(config.inputs) == 1
