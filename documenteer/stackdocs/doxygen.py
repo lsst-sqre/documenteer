@@ -1,7 +1,8 @@
 """Configuration and execution of Doxygen at the stack level.
 """
 
-__all__ = ('DoxygenConfiguration', 'run_doxygen')
+__all__ = (
+    'DoxygenConfiguration', 'preprocess_package_doxygen_conf', 'run_doxygen')
 
 from copy import deepcopy
 import csv
@@ -15,6 +16,7 @@ import subprocess
 from typing import List, Tuple
 
 from documenteer.utils import working_directory
+from .pkgdiscovery import Package
 
 _PATH_LIKE = (
     "EXAMPLE_PATH",
@@ -408,6 +410,43 @@ class EntryParsingError(RuntimeError):
     """Internal exception raised when an individual line in a Doxygen
     configuration file can't be parsed, and must be skipped.
     """
+
+
+def preprocess_package_doxygen_conf(
+        *, conf: DoxygenConfiguration, package: Package) -> None:
+    """Preprocess a Doxygen configuration for an individual package that is
+    based on a package's ``doxygen.conf.in`` file.
+
+    This function adds paths to the ``INPUT`` configuration tag, and plays an
+    equivalent role to sconsUtils to add configurations to the
+    ``doxygen.conf.in`` template for a package.
+
+    Parameters
+    ----------
+    conf
+        A `DoxygenConfiguration` for an individual package. Most likely,
+        this configuration is based on a ``doxygen.conf.in`` file, which has
+        not been processed by ``sconsUtils``, and thus does not have INPUT
+        configurations set.
+    package
+        Metadata about the package itself.
+
+    Notes
+    -----
+    The only default package paths that are added to the Doxygen ``INPUT``
+    configuration tag are:
+
+    - ``include``
+
+    The ``doc`` and ``python`` directories are handled exclusively by Sphinx.
+    The ``src`` directory isn't handled because Doxygen documentation comments
+    are written exclusively in header files per the LSST DM standard.
+    The ``examples`` directory is also deprecated in the Sphinx regime.
+    """
+    dirnames = ['include']
+    for path in map(lambda p: package.root_dir / p, dirnames):
+        if path.is_dir():
+            conf.inputs.append(path)
 
 
 def run_doxygen(*, conf: DoxygenConfiguration, root_dir: Path) -> int:

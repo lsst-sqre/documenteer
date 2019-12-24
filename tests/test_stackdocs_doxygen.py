@@ -3,7 +3,9 @@
 
 from pathlib import Path
 
-from documenteer.stackdocs.doxygen import DoxygenConfiguration
+from documenteer.stackdocs.doxygen import (
+    DoxygenConfiguration, preprocess_package_doxygen_conf)
+from documenteer.stackdocs.pkgdiscovery import find_package_docs
 
 
 def test_default_doxygenconfiguration():
@@ -131,3 +133,22 @@ def test_parse_doxygen_conf():
     assert conf.generate_xml is True
 
     assert conf.exclude_patterns == ['*/afw/src/*/*.cc']
+
+
+def test_preprocess_package_doxygen_conf():
+    """Test the preprocess_package_doxygen_conf function using
+    tests/data/package_alpha.
+    """
+    package = find_package_docs(
+        package_dir=Path(__file__).parent / 'data' / 'package_alpha'
+    )
+    conf_text = package.doxygen_conf_in_path.read_text()
+    conf = DoxygenConfiguration.from_doxygen_conf(
+        conf_text, package.root_dir)
+    preprocess_package_doxygen_conf(
+        conf=conf,
+        package=package
+    )
+    expected_include_dir = package.root_dir / 'include'
+
+    assert expected_include_dir in conf.inputs
