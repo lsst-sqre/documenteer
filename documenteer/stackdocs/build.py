@@ -5,10 +5,11 @@ __all__ = ('build_stack_docs',)
 
 import logging
 import os
+from typing import Dict
 
 from .pkgdiscovery import (
     discover_setup_packages, find_table_file, list_packages_in_eups_table,
-    find_package_docs, NoPackageDocs)
+    find_package_docs, NoPackageDocs, Package)
 from ..sphinxrunner import run_sphinx
 
 
@@ -62,22 +63,27 @@ def build_stack_docs(root_project_dir, skippedNames=None):
     table_path = find_table_file(root_project_dir)
     listed_packages = list_packages_in_eups_table(table_path.read_text())
     # Find package setup by EUPS
-    packages = discover_setup_packages(scope=listed_packages)
+    set_up_packages = discover_setup_packages(scope=listed_packages)
 
-    # Link to documentation directories of packages from the root project
-    for package_name, package_info in packages.items():
+    # Determine what packages have documentation content, and get Package
+    # metadata objects about those
+    packages: Dict[str, Package] = {}
+    for package_name, package_info in set_up_packages.items():
         try:
             package_docs = find_package_docs(
                 package_info['dir'],
                 skipped_names=skippedNames)
+            packages[package_name] = package_docs
         except NoPackageDocs as e:
             logger.debug(
                 'Skipping %s doc linking. %s', package_name, e)
             continue
 
-        link_directories(root_modules_dir, package_docs.module_dirs)
-        link_directories(root_packages_dir, package_docs.package_dirs)
-        link_directories(root_static_dir, package_docs.static_doc_dirs)
+    # Link to documentation directories of packages from the root project
+    for package_name, package in packages.items():
+        link_directories(root_modules_dir, package.module_dirs)
+        link_directories(root_packages_dir, package.package_dirs)
+        link_directories(root_static_dir, package.static_doc_dirs)
 
     # Trigger the Sphinx build
     return_code = run_sphinx(root_project_dir)
