@@ -204,8 +204,12 @@ class DoxygenConfiguration:
             self, lines: List[str], tag_name: str, value: List[Path]) -> None:
         sep = '='
         for p in value:
+            path_str = str(p.resolve())
+            # Quote paths with whitespaces
+            if ' ' in path_str:
+                path_str = f'"{path_str}"'
             lines.append(
-                f'{tag_name} {sep} {p.resolve()}'
+                f'{tag_name} {sep} {path_str}'
             )
             sep = '+='
 
