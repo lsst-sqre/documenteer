@@ -10,6 +10,8 @@ from typing import Dict
 from .pkgdiscovery import (
     discover_setup_packages, find_table_file, list_packages_in_eups_table,
     find_package_docs, NoPackageDocs, Package)
+from .doxygen import (
+    DoxygenConfiguration, preprocess_package_doxygen_conf, run_doxygen)
 from ..sphinxrunner import run_sphinx
 
 
@@ -84,6 +86,42 @@ def build_stack_docs(root_project_dir, skippedNames=None):
         link_directories(root_modules_dir, package.module_dirs)
         link_directories(root_packages_dir, package.package_dirs)
         link_directories(root_static_dir, package.static_doc_dirs)
+
+    # Build Doxygen configuration
+    doxygen_build_dir = root_project_dir / '_doxygen'
+    doxygen_xml_dir = doxygen_build_dir / 'xml'
+    os.makedirs(doxygen_xml_dir, exist_ok=True)
+    doxygen_conf = DoxygenConfiguration(xml_output=doxygen_xml_dir)
+    for package_name, package in packages.items():
+        if package.doxygen_conf_path:
+            # Use a doxygen.conf file that is already preprocessed by
+            # sconsUtils
+            package_doxygen_conf = DoxygenConfiguration.from_doxygen_conf(
+                conf_text=package.doxygen_conf_path.read_text(),
+                root_dir=package.doxygen_conf_path.parent
+            )
+        elif package.doxygen_conf_path_in:
+            # Fall back to the doxygen.conf.in template file
+            package_doxygen_conf = DoxygenConfiguration.from_doxygen_conf(
+                conf_text=package.doxygen_conf_in_path.read_text(),
+                root_dir=package.doxygen_conf_in_path.parent
+            )
+            # Add input paths for C++ source directories that are absent
+            # in a doxygen.conf.in template
+            preprocess_package_doxygen_conf(
+                conf=package_doxygen_conf,
+                package=package
+            )
+
+        else:
+            # No Doxygen configuration for this package
+            continue
+
+        # Append package's configurations to the root configuration
+        doxygen_conf += package_doxygen_conf
+
+    # Trigger Doxygen build
+    return_code = run_doxygen(conf=doxygen_conf, root_dir=doxygen_build_dir)
 
     # Trigger the Sphinx build
     return_code = run_sphinx(root_project_dir)
