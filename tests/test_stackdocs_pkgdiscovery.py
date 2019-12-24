@@ -34,8 +34,10 @@ def test_find_package_docs():
     expected_static_dir = package_dir / 'doc' / '_static/' / 'package_alpha'
     assert package_docs.static_doc_dirs['package_alpha'] == expected_static_dir
 
-    expected_doxygen_conf = package_dir / 'doc' / 'doxygen.conf.in'
-    assert package_docs.doxygen_conf_path == expected_doxygen_conf
+    expected_doxygen_conf_in = package_dir / 'doc' / 'doxygen.conf.in'
+    assert package_docs.doxygen_conf_in_path == expected_doxygen_conf_in
+
+    assert package_docs.doxygen_conf_path is None
 
 
 def test_find_package_docs_nonexistent():
