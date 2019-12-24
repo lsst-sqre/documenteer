@@ -1,16 +1,20 @@
 """Configuration and execution of Doxygen at the stack level.
 """
 
-__all__ = ('DoxygenConfiguration,')
+__all__ = ('DoxygenConfiguration', 'run_doxygen')
 
 from copy import deepcopy
 import csv
 from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
 import logging
+import os
 from pathlib import Path
 import re
+import subprocess
 from typing import List, Tuple
+
+from documenteer.utils import working_directory
 
 _PATH_LIKE = (
     "EXAMPLE_PATH",
@@ -404,3 +408,30 @@ class EntryParsingError(RuntimeError):
     """Internal exception raised when an individual line in a Doxygen
     configuration file can't be parsed, and must be skipped.
     """
+
+
+def run_doxygen(*, conf: DoxygenConfiguration, root_dir: Path) -> int:
+    """Run Doxygen.
+
+    Parameters
+    ----------
+    conf
+        A `DoxygenConfiguration` that configures the Doxygen build.
+    root_dir
+        The directory that is considered the root of the Doxygen build.
+        This is the directory where the Doxygen configuration is written
+        as ``doxygen.conf``.
+
+    Returns
+    -------
+    status
+        The shell status code returned by the ``doxygen`` executable.
+    """
+    os.makedirs(root_dir, exist_ok=True)
+
+    with working_directory(root_dir):
+        conf_path = Path('doxygen.conf')
+        conf_path.write_text(conf.render())
+        result = subprocess.run(['doxygen', str(conf_path)])
+
+    return result.returncode
