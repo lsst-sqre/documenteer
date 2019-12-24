@@ -90,3 +90,44 @@ def test_add_config():
 
     assert config.generate_html is True
     assert len(config.inputs) == 1
+
+
+def test_parse_doxygen_conf():
+    conf_path = Path(__file__).parent / 'data' / 'afw.doxygen.conf'
+    conf_text = conf_path.read_text()
+
+    root = conf_path.parent
+
+    conf = DoxygenConfiguration.from_doxygen_conf(
+        conf_text, root)
+
+    assert conf.inputs == [
+        Path(
+            '/Users/square/j/ws/release/tarball/ad013b8585/build/stack/minicon'
+            'da3-4.7.10-4d7b902/EupsBuildDir/DarwinX86/afw-19.0.0-2-g1c703f9ef'
+            '+1/afw-19.0.0-2-g1c703f9ef+1/doc'),
+        Path(
+            '/Users/square/j/ws/release/tarball/ad013b8585/build/stack/minicon'
+            'da3-4.7.10-4d7b902/EupsBuildDir/DarwinX86/afw-19.0.0-2-g1c703f9ef'
+            '+1/afw-19.0.0-2-g1c703f9ef+1/include'),
+        Path(
+            '/Users/square/j/ws/release/tarball/ad013b8585/build/stack/minicon'
+            'da3-4.7.10-4d7b902/EupsBuildDir/DarwinX86/afw-19.0.0-2-g1c703f9ef'
+            '+1/afw-19.0.0-2-g1c703f9ef+1/python'),
+        Path(
+            '/Users/square/j/ws/release/tarball/ad013b8585/build/stack/minicon'
+            'da3-4.7.10-4d7b902/EupsBuildDir/DarwinX86/afw-19.0.0-2-g1c703f9ef'
+            '+1/afw-19.0.0-2-g1c703f9ef+1/src'),
+        root.joinpath(Path('examples/imageDisplay.ipynb'))
+    ]
+
+    assert conf.excludes == [
+        root.joinpath(
+            Path('include/lsst/afw/detection/FootprintArray.cc')),
+        root.joinpath(
+            Path('include/lsst/afw/detection/detail/dgPsf.cc'))
+    ]
+
+    assert conf.generate_xml is True
+
+    assert conf.exclude_patterns == ['*/afw/src/*/*.cc']

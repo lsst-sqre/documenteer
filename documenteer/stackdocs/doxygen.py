@@ -4,10 +4,44 @@
 __all__ = ('DoxygenConfiguration,')
 
 from copy import deepcopy
+import csv
 from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
+import logging
 from pathlib import Path
-from typing import List
+import re
+from typing import List, Tuple
+
+_PATH_LIKE = (
+    "EXAMPLE_PATH",
+    "EXCLUDE",
+    "INCLUDE_PATH",
+    "@INCLUDE_PATH",
+    "INPUT",
+    "IMAGE_PATH",
+    "GENERATE_TAGFILE"
+)
+"""Names of path-like Doxygen configuration tags.
+"""
+
+_BLANK_LINE_PATTERN = re.compile(r"^\s*$")
+"""Regular expression for a blank line in a Doxygen configuration file.
+"""
+
+_CONFIG_PATTERN = re.compile(
+    # Configuration name
+    r"^\s*(?P<name>\S+)"
+    # Assignment operator
+    r"\s*\+?=\s*"
+    # Configuration value
+    r"(?P<value>.*)"
+)
+"""Regular expression for a Doxygen configuration file.
+"""
+
+_COMMENT_PATTERN = re.compile(r'^[ \t]*##')
+"""Regular expression for comment lines in a Doxygen configuration file.
+"""
 
 
 @dataclass
@@ -220,3 +254,149 @@ class DoxygenConfiguration:
                     continue
                 else:
                     setattr(mutated_config, tag_field.name, new_value)
+
+    @classmethod
+    def from_doxygen_conf(
+            cls, conf_text: str, root_dir: Path) -> "DoxygenConfiguration":
+        """Create a new DoxygenConfiguration from the the content of a
+        ``doxygen.conf`` or ``doxygen.conf.in`` file.
+
+        Parameters
+        ----------
+        conf_text
+            The text content of a ``doxygen.conf`` file.
+        root_dir
+            Directory containing the ``doxygen.conf`` file. This directory
+            path is used to resolve any relative paths within the configuration
+            file.
+
+        Returns
+        -------
+        doxygen_configuration
+            A DoxygenConfiguration instance populated with configurations
+            parsed from ``doxygen_conf``.
+
+        Notes
+        -----
+        Only select tags from the Doxygen configuration file are parsed
+        and incorporated into the DoxygenConfiguration instance:
+
+        - INPUT
+        - EXCLUDE
+        - EXCLUDE_PATTERNS
+        - EXCLUDE_SYMBOLS
+
+        These are the only tags that individual packages should need to
+        configure with respect to a stack-wide Doxygen build.
+        """
+        # logger = logging.getLogger(__name__)
+
+        # Filter out comment lines
+        conf_text = '\n'.join(
+            [l for l in conf_text.split('\n')
+             if not _COMMENT_PATTERN.match(l)]
+        )
+
+        # Filter out blank lines
+        cont_text = re.sub(r"\n+", "\n", conf_text)
+
+        # Remove line continuations
+        sep = '\a'
+        conf_text = re.sub(r"\s*\\\n+\s*", sep, cont_text)
+
+        doxygen_conf = cls()
+
+        for entry in conf_text.split("\n"):
+            try:
+                name, values = DoxygenConfiguration._parse_entry(
+                    entry=entry,
+                    sep=sep)
+            except EntryParsingError:
+                continue
+            if len(values) == 0:
+                continue
+
+            # Assign selected values to the Doxygen configuration
+            # Only the following tags are relevant for incorporation from
+            # a single package's doxygen.conf file.
+            if name == 'INPUT':
+                paths = DoxygenConfiguration._convert_to_paths(
+                    values, root_dir)
+                doxygen_conf.inputs.extend(paths)
+            elif name == 'EXCLUDE':
+                paths = DoxygenConfiguration._convert_to_paths(
+                    values, root_dir)
+                doxygen_conf.excludes.extend(paths)
+            elif name == 'EXCLUDE_PATTERNS':
+                doxygen_conf.exclude_patterns.extend(values)
+            elif name == 'EXCLUDE_SYMBOLS':
+                doxygen_conf.exclude_symbols.extend(values)
+
+        return doxygen_conf
+
+    @staticmethod
+    def _parse_entry(*, entry: str, sep: str) -> Tuple[str, List[str]]:
+        logger = logging.getLogger(__name__)
+
+        if _BLANK_LINE_PATTERN.match(entry):
+            raise EntryParsingError
+
+        match = _CONFIG_PATTERN.match(entry)
+        if match is None:
+            logger.warning(
+                'Did not match an expected Doxygen conf line: %r', entry)
+            raise EntryParsingError
+
+        name = match.group('name')
+        is_path_like = name in _PATH_LIKE  # True if config is path-like
+
+        raw_value = match.group('value')
+
+        # Path entries can be double-quoted if they are paths that might
+        # contain spaces.
+        # An entry could look like:
+        #   a "b c" "d" or "a b" c d
+        # Use the csv package to handle this.
+        # We have to be careful to only do this processing on PATH-like
+        # doxygen components.
+        if is_path_like:
+            # skipinitialspace handles multiple spaces between items
+            csv_reader = csv.reader(
+                [raw_value],
+                delimiter=' ',
+                quotechar='"',
+                skipinitialspace=True)
+            value = sep.join(next(csv_reader))
+        else:
+            # Replace spaces with separators unless the string contains a
+            # double quote
+            if not re.search(r'"', raw_value):
+                value = re.sub(r"\s+", sep, raw_value)
+            else:
+                value = raw_value
+
+        # Remove all single and double quotes
+        value = re.sub("[\"']", "", value)
+
+        # Split based on the separator and eliminate empty items
+        split_values = [v.strip() for v in value.split(sep)]
+        split_values = [v for v in split_values if v]
+
+        return name, split_values
+
+    @staticmethod
+    def _convert_to_paths(values: List[str], root_dir: Path) -> List[Path]:
+        paths = []
+        for v in values:
+            p = Path(v)
+            if p.is_absolute():
+                paths.append(p)
+            else:
+                paths.append(root_dir.joinpath(p))
+        return paths
+
+
+class EntryParsingError(RuntimeError):
+    """Internal exception raised when an individual line in a Doxygen
+    configuration file can't be parsed, and must be skipped.
+    """
