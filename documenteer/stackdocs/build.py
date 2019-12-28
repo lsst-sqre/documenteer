@@ -5,7 +5,8 @@ __all__ = ('build_stack_docs',)
 
 import logging
 import os
-from typing import Dict
+from pathlib import Path
+from typing import Dict, List, Optional, Union
 
 from .pkgdiscovery import (
     discover_setup_packages, find_table_file, list_packages_in_eups_table,
@@ -15,50 +16,56 @@ from .doxygen import (
 from ..sphinxrunner import run_sphinx
 
 
-def build_stack_docs(root_project_dir, skippedNames=None):
+def build_stack_docs(
+        root_project_dir: Union[Path, str],
+        skipped_names: Optional[List[str]] = None,
+        skippedNames: Optional[List[str]] = None,
+        enable_doxygen_conf: bool = True,
+        enable_doxygen: bool = True,
+        enable_package_links: bool = True,
+        enable_sphinx: bool = True) -> int:
     """Build stack Sphinx documentation (main entrypoint).
 
     Parameters
     ----------
-    root_project_dir : `str`
+    root_project_dir
         Path to the root directory of the main documentation project. This
         is the directory containing the ``conf.py`` file.
-    skippedNames : `list`, optional
+    skipped_names
         Optional list of packages to skip while creating symlinks.
+    skippedNames
+        Old name for the ``skipped_names`` parameter.
+    enable_doxygen_conf
+        Enable building the configuration for the Doxygen build.
+    enable_doxygen
+        Enable the Doxygen build. If enabled, ``enable_doxygen_conf`` is
+        automatically enabled.
+    enable_package_links
+        Enable linking the documentation directories of individual packages
+        into the root documentation directory.
+    enable_sphinx:
+        Enable the Sphinx build. If enabled, ``enable_package_links`` is
+        automatically enabled.
+
+    Returns
+    -------
+    sphinx_status
+        The shell status code for the Sphinx build. If ``enable_sphinx`` is
+        ``False``, the status defaults to ``0``.
     """
     logger = logging.getLogger(__name__)
 
-    # Create the directory where module content is symlinked
-    # NOTE: this path is hard-wired in for pipelines.lsst.io, but could be
-    # refactored as a configuration.
-    root_modules_dir = os.path.join(root_project_dir, 'modules')
-    if os.path.isdir(root_modules_dir):
-        logger.info('Deleting any existing modules/ symlinks')
-        remove_existing_links(root_modules_dir)
-    else:
-        logger.info('Creating modules/ dir at {0}'.format(root_modules_dir))
-        os.makedirs(root_modules_dir)
+    # Reconcile arguments
+    root_project_dir = Path(root_project_dir)
 
-    # Create directory for package content
-    root_packages_dir = os.path.join(root_project_dir, 'packages')
-    if os.path.isdir(root_packages_dir):
-        # Clear out existing module links
-        logger.info('Deleting any existing packages/ symlinks')
-        remove_existing_links(root_packages_dir)
-    else:
-        logger.info('Creating packages/ dir at {0}'.format(root_packages_dir))
-        os.makedirs(root_packages_dir)
+    if skipped_names is None:
+        skipped_names = skippedNames  # fall back to old name
 
-    # Ensure _static directory exists (but do not delete any existing
-    # directory contents)
-    root_static_dir = os.path.join(root_project_dir, '_static')
-    if os.path.isdir(root_static_dir):
-        # Clear out existing directory links
-        logger.info('Deleting any existing _static/ symlinks')
-        remove_existing_links(root_static_dir)
-    else:
-        logger.info('Creating _static/ at {0}'.format(root_static_dir))
-        os.makedirs(root_static_dir)
+    if enable_doxygen:
+        enable_doxygen_conf = True
+
+    if enable_sphinx:
+        enable_package_links = True
 
     # Get packages explicitly required in the table file to filter out
     # implicit dependencies later.
@@ -74,58 +81,94 @@ def build_stack_docs(root_project_dir, skippedNames=None):
         try:
             package_docs = find_package_docs(
                 package_info['dir'],
-                skipped_names=skippedNames)
+                skipped_names=skipped_names)
             packages[package_name] = package_docs
         except NoPackageDocs as e:
             logger.debug(
-                'Skipping %s doc linking. %s', package_name, e)
+                'No documentation content found for %s (skipping).\n%s',
+                package_name, e)
             continue
 
-    # Link to documentation directories of packages from the root project
-    for package_name, package in packages.items():
-        link_directories(root_modules_dir, package.module_dirs)
-        link_directories(root_packages_dir, package.package_dirs)
-        link_directories(root_static_dir, package.static_doc_dirs)
-
-    # Build Doxygen configuration
-    doxygen_build_dir = root_project_dir / '_doxygen'
-    doxygen_xml_dir = doxygen_build_dir / 'xml'
-    os.makedirs(doxygen_xml_dir, exist_ok=True)
-    doxygen_conf = DoxygenConfiguration(xml_output=doxygen_xml_dir)
-    for package_name, package in packages.items():
-        if package.doxygen_conf_path:
-            # Use a doxygen.conf file that is already preprocessed by
-            # sconsUtils
-            package_doxygen_conf = DoxygenConfiguration.from_doxygen_conf(
-                conf_text=package.doxygen_conf_path.read_text(),
-                root_dir=package.doxygen_conf_path.parent
-            )
-        elif package.doxygen_conf_path_in:
-            # Fall back to the doxygen.conf.in template file
-            package_doxygen_conf = DoxygenConfiguration.from_doxygen_conf(
-                conf_text=package.doxygen_conf_in_path.read_text(),
-                root_dir=package.doxygen_conf_in_path.parent
-            )
-            # Add input paths for C++ source directories that are absent
-            # in a doxygen.conf.in template
-            preprocess_package_doxygen_conf(
-                conf=package_doxygen_conf,
-                package=package
-            )
-
+    if enable_package_links:
+        # Create the directory where module content is symlinked
+        # NOTE: this path is hard-wired in for pipelines.lsst.io, but could be
+        # refactored as a configuration.
+        root_modules_dir = os.path.join(root_project_dir, 'modules')
+        if os.path.isdir(root_modules_dir):
+            logger.info('Deleting any existing modules/ symlinks')
+            remove_existing_links(root_modules_dir)
         else:
-            # No Doxygen configuration for this package
-            continue
+            logger.info('Creating modules/ dir at %s', root_modules_dir)
+            os.makedirs(root_modules_dir)
 
-        # Append package's configurations to the root configuration
-        doxygen_conf += package_doxygen_conf
+        # Create directory for package content
+        root_packages_dir = os.path.join(root_project_dir, 'packages')
+        if os.path.isdir(root_packages_dir):
+            # Clear out existing module links
+            logger.info('Deleting any existing packages/ symlinks')
+            remove_existing_links(root_packages_dir)
+        else:
+            logger.info('Creating packages/ dir at %s', root_packages_dir)
+            os.makedirs(root_packages_dir)
 
-    # Trigger Doxygen build
-    return_code = run_doxygen(conf=doxygen_conf, root_dir=doxygen_build_dir)
+        # Ensure _static directory exists (but do not delete any existing
+        # directory contents)
+        root_static_dir = os.path.join(root_project_dir, '_static')
+        if os.path.isdir(root_static_dir):
+            # Clear out existing directory links
+            logger.info('Deleting any existing _static/ symlinks')
+            remove_existing_links(root_static_dir)
+        else:
+            logger.info('Creating _static/ at {0}'.format(root_static_dir))
+            os.makedirs(root_static_dir)
+
+        # Link to documentation directories of packages from the root project
+        for package_name, package in packages.items():
+            link_directories(root_modules_dir, package.module_dirs)
+            link_directories(root_packages_dir, package.package_dirs)
+            link_directories(root_static_dir, package.static_doc_dirs)
+
+    if enable_doxygen_conf:
+        doxygen_build_dir = root_project_dir / '_doxygen'
+        doxygen_xml_dir = doxygen_build_dir / 'xml'
+        os.makedirs(doxygen_xml_dir, exist_ok=True)
+        doxygen_conf = DoxygenConfiguration(xml_output=doxygen_xml_dir)
+        for package_name, package in packages.items():
+            if package.doxygen_conf_path:
+                # Use a doxygen.conf file that is already preprocessed by
+                # sconsUtils
+                package_doxygen_conf = DoxygenConfiguration.from_doxygen_conf(
+                    conf_text=package.doxygen_conf_path.read_text(),
+                    root_dir=package.doxygen_conf_path.parent
+                )
+            elif package.doxygen_conf_in_path:
+                # Fall back to the doxygen.conf.in template file
+                package_doxygen_conf = DoxygenConfiguration.from_doxygen_conf(
+                    conf_text=package.doxygen_conf_in_path.read_text(),
+                    root_dir=package.doxygen_conf_in_path.parent
+                )
+                # Add input paths for C++ source directories that are absent
+                # in a doxygen.conf.in template
+                preprocess_package_doxygen_conf(
+                    conf=package_doxygen_conf,
+                    package=package
+                )
+
+            else:
+                # No Doxygen configuration for this package
+                continue
+
+            # Append package's configurations to the root configuration
+            doxygen_conf += package_doxygen_conf
+
+        if enable_doxygen:
+            run_doxygen(conf=doxygen_conf, root_dir=doxygen_build_dir)
 
     # Trigger the Sphinx build
-    return_code = run_sphinx(root_project_dir)
-    return return_code
+    if enable_sphinx:
+        return run_sphinx(root_project_dir)
+    else:
+        return 0
 
 
 def link_directories(root_dir, package_doc_dirs):

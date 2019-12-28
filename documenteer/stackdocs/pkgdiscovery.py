@@ -50,7 +50,7 @@ def discover_setup_packages(
     eups_client = eups.Eups()
     products = eups_client.getSetupProducts()
 
-    packages = {}
+    packages: Dict[str, Dict[str, str]] = {}
     for package in products:
         name = package.name
         if scope is not None and name not in scope:
@@ -169,7 +169,7 @@ class Package:
 
 
 def find_package_docs(
-        package_dir: Path,
+        package_dir: Union[str, Path],
         skipped_names: Optional[List[str]] = None) -> Package:
     """Find documentation directories in a package using ``manifest.yaml``
     and heuristics.
