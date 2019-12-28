@@ -98,8 +98,30 @@ def help(ctx, topic, **kw):
          'exclude from the documentation. Provide multiple -s options to skip '
          'multiple names.'
 )
+@click.option(
+    '--enable-doxygen-conf/--disable-doxygen-conf',
+    help='Toggle creating a Doxygen configuration.',
+    default=True
+)
+@click.option(
+    '--enable-doxygen/--disable-doxygen',
+    help='Toggle running a Doxygen build.',
+    default=True
+)
+@click.option(
+    '--enable-symlinks/--disable-symlinks',
+    help=('Toggle symlinking package documentation directories (disable for '
+          'debugging only).'),
+    default=True
+)
+@click.option(
+    '--enable-sphinx/--disable-sphinx',
+    help='Toggle running a Sphinx build.',
+    default=True
+)
 @click.pass_context
-def build(ctx, skip):
+def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
+          enable_sphinx):
     """Build documentation as HTML.
 
     This command performs these steps:
@@ -124,7 +146,12 @@ def build(ctx, skip):
     """
     return_code = build_stack_docs(
         ctx.obj['root_project_dir'],
-        skippedNames=skip)
+        skipped_names=skip,
+        enable_doxygen_conf=enable_doxygen_conf,
+        enable_doxygen=enable_doxygen,
+        enable_package_links=enable_symlinks,
+        enable_sphinx=enable_sphinx
+    )
     if return_code > 0:
         sys.exit(return_code)
 
