@@ -6,25 +6,27 @@ __all__ = ('run_sphinx',)
 import os
 import logging
 import sys
+from pathlib import Path
+from typing import Union, Dict, List
 
 from sphinx.application import Sphinx
 from sphinx.cmd.build import handle_exception
 from sphinx.util.docutils import docutils_namespace, patch_docutils
 
 
-def run_sphinx(root_dir):
+def run_sphinx(root_dir: Union[str, Path]) -> int:
     """Run the Sphinx build process.
 
     Parameters
     ----------
-    root_dir : `str`
+    root_dir
         Root directory of the Sphinx project and content source. This directory
         conatains both the root ``index.rst`` file and the ``conf.py``
         configuration file.
 
     Returns
     -------
-    status : `int`
+    status
         Sphinx status code. ``0`` is expected. Greater than ``0`` indicates
         an error.
 
@@ -48,17 +50,17 @@ def run_sphinx(root_dir):
     outdir = os.path.join(root_dir, '_build', 'html')
     doctreedir = os.path.join(root_dir, '_build', 'doctree')
     builder = 'html'
-    confoverrides = {}
+    confoverrides: Dict = {}
     status = sys.stdout  # set to None for 'quiet' mode
     warning = sys.stderr
     error = sys.stderr
     freshenv = False  # attempt to re-use existing build artificats
     warningiserror = False
-    tags = []
+    tags: List = []
     verbosity = 0
     jobs = 1  # number of processes
     force_all = True
-    filenames = []
+    filenames: List = []
 
     logger.debug('Sphinx config: srcdir={0}'.format(srcdir))
     logger.debug('Sphinx config: confdir={0}'.format(confdir))
@@ -82,7 +84,8 @@ def run_sphinx(root_dir):
             return app.statuscode
     except (Exception, KeyboardInterrupt) as exc:
         args = MockSphinxNamespace(verbosity=verbosity, traceback=True)
-        handle_exception(app, args, exc, error)
+        if app is not None:
+            handle_exception(app, args, exc, error)
         return 1
 
 
