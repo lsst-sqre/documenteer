@@ -93,6 +93,9 @@ def test_add_config():
     assert config.generate_html is True
     assert len(config.inputs) == 1
 
+    # file_patterns should stay the same, not grow
+    assert len(config.file_patterns) == len(config_a.file_patterns)
+
 
 def test_parse_doxygen_conf():
     conf_path = Path(__file__).parent / 'data' / 'afw.doxygen.conf'

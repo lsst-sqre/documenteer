@@ -8,12 +8,13 @@ from copy import deepcopy
 import csv
 from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
+import itertools
 import logging
 import os
 from pathlib import Path
 import re
 import subprocess
-from typing import List, Tuple
+from typing import List, Tuple, Set, Any
 
 from documenteer.utils import working_directory
 from .pkgdiscovery import Package
@@ -258,7 +259,16 @@ class DoxygenConfiguration:
             attrname = tag_field.name
             new_value = getattr(new_config, attrname)
             if isinstance(new_value, Iterable):
-                getattr(mutated_config, attrname).extend(new_value)
+                # This algorithm lets us filter duplicates while preserving
+                # order. The trick with typing is that seen.add does not
+                # return a type, but mypy expects a boolean given the logical
+                # expression.
+                _existing_values = getattr(mutated_config, attrname)
+                seen: Set[Any] = set()
+                setattr(mutated_config, attrname, [
+                    x for x in itertools.chain(_existing_values, new_value)
+                    if not (x in seen or seen.add(x))]  # type: ignore
+                )
             else:
                 if new_value == tag_field.default:
                     continue
