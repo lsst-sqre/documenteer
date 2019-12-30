@@ -171,10 +171,11 @@ def clean(ctx):
     - ``modules`` (symlinks to the module doc directories of Stack packages)
     - ``packages`` (symlinks to the package doc directories of Stack packages)
     - ``py-api`` (pages created by automodapi for the Python API reference)
+    - ``_doxygen`` (the Doxygen build)
     """
     logger = logging.getLogger(__name__)
 
-    dirnames = ['py-api', '_build', 'modules', 'packages']
+    dirnames = ['py-api', '_build', 'modules', 'packages', '_doxygen']
     dirnames = [os.path.join(ctx.obj['root_project_dir'], dirname)
                 for dirname in dirnames]
     for dirname in dirnames:
