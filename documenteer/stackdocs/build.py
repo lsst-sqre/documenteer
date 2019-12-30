@@ -20,6 +20,7 @@ def build_stack_docs(
         root_project_dir: Union[Path, str],
         skipped_names: Optional[List[str]] = None,
         skippedNames: Optional[List[str]] = None,
+        prefer_doxygen_conf_in: bool = True,
         enable_doxygen_conf: bool = True,
         enable_doxygen: bool = True,
         enable_package_links: bool = True,
@@ -35,6 +36,11 @@ def build_stack_docs(
         Optional list of packages to skip while creating symlinks.
     skippedNames
         Old name for the ``skipped_names`` parameter.
+    prefer_doxygen_conf_in
+        Prefer using doxygen.conf.in files as the basis for package's Doxygen
+        configuration. This mode is useful when building stack documentation
+        from a binary distribution of the Stack since the paths in each
+        package's ``doxygen.conf`` file refer to paths on the build server.
     enable_doxygen_conf
         Enable building the configuration for the Doxygen build.
     enable_doxygen
@@ -134,7 +140,7 @@ def build_stack_docs(
         os.makedirs(doxygen_xml_dir, exist_ok=True)
         doxygen_conf = DoxygenConfiguration(xml_output=doxygen_xml_dir)
         for package_name, package in packages.items():
-            if package.doxygen_conf_path:
+            if package.doxygen_conf_path and not prefer_doxygen_conf_in:
                 # Use a doxygen.conf file that is already preprocessed by
                 # sconsUtils
                 package_doxygen_conf = DoxygenConfiguration.from_doxygen_conf(
@@ -163,6 +169,10 @@ def build_stack_docs(
 
         if enable_doxygen:
             run_doxygen(conf=doxygen_conf, root_dir=doxygen_build_dir)
+        else:
+            # Write the doxygen configuration for debugging
+            doxygen_conf_path = doxygen_build_dir / 'doxygen.conf'
+            doxygen_conf_path.write_text(doxygen_conf.render())
 
     # Trigger the Sphinx build
     if enable_sphinx:

@@ -119,9 +119,17 @@ def help(ctx, topic, **kw):
     help='Toggle running a Sphinx build.',
     default=True
 )
+@click.option(
+    '--use-doxygen-conf-in/--use-doxygen-conf',
+    help=(
+        'Use doxygen.conf.in files in packages rather than the '
+        'sconsUtils-generated doxygen.conf files.'
+    ),
+    default=True,
+)
 @click.pass_context
 def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
-          enable_sphinx):
+          enable_sphinx, use_doxygen_conf_in):
     """Build documentation as HTML.
 
     This command performs these steps:
@@ -147,6 +155,7 @@ def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
     return_code = build_stack_docs(
         ctx.obj['root_project_dir'],
         skipped_names=skip,
+        prefer_doxygen_conf_in=use_doxygen_conf_in,
         enable_doxygen_conf=enable_doxygen_conf,
         enable_doxygen=enable_doxygen,
         enable_package_links=enable_symlinks,
