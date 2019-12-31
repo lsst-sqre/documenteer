@@ -24,7 +24,9 @@ def build_stack_docs(
         enable_doxygen_conf: bool = True,
         enable_doxygen: bool = True,
         enable_package_links: bool = True,
-        enable_sphinx: bool = True) -> int:
+        enable_sphinx: bool = True,
+        select_doxygen_packages: Optional[List[str]] = None,
+        skip_doxygen_packages: Optional[List[str]] = None) -> int:
     """Build stack Sphinx documentation (main entrypoint).
 
     Parameters
@@ -49,9 +51,16 @@ def build_stack_docs(
     enable_package_links
         Enable linking the documentation directories of individual packages
         into the root documentation directory.
-    enable_sphinx:
+    enable_sphinx
         Enable the Sphinx build. If enabled, ``enable_package_links`` is
         automatically enabled.
+    select_doxygen_packages
+        If set, only EUPS packages named in this sequence will be processed by
+        Doxygen. Packages still need to be set up and have ``doxygen.conf.in``
+        files.
+    skip_doxygen_packages
+        If set, EUPS packages named in this sequence will be removed from the
+        set of packages processed by Doxygen.
 
     Returns
     -------
@@ -139,7 +148,15 @@ def build_stack_docs(
         doxygen_xml_dir = doxygen_build_dir / 'xml'
         os.makedirs(doxygen_xml_dir, exist_ok=True)
         doxygen_conf = DoxygenConfiguration()
-        for package_name, package in packages.items():
+        doxygen_packages = set(packages.keys())
+        if select_doxygen_packages is not None \
+                and len(select_doxygen_packages) > 0:
+            doxygen_packages.intersection_update(select_doxygen_packages)
+        if skip_doxygen_packages is not None \
+                and len(skip_doxygen_packages) > 0:
+            doxygen_packages.difference_update(skip_doxygen_packages)
+        for package_name in doxygen_packages:
+            package = packages[package_name]
             if package.doxygen_conf_path and not prefer_doxygen_conf_in:
                 # Use a doxygen.conf file that is already preprocessed by
                 # sconsUtils

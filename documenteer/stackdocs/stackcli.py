@@ -127,9 +127,24 @@ def help(ctx, topic, **kw):
     ),
     default=True,
 )
+@click.option(
+    '--dox',
+    multiple=True,
+    help=(
+        'Run Doxygen on only the packages explicitly listed, rather than '
+        'automatically discovering set up packages.'
+    ),
+)
+@click.option(
+    '--skip-dox',
+    multiple=True,
+    help=(
+        'Skip running Doxygen on these packages.'
+    ),
+)
 @click.pass_context
 def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
-          enable_sphinx, use_doxygen_conf_in):
+          enable_sphinx, use_doxygen_conf_in, dox, skip_dox):
     """Build documentation as HTML.
 
     This command performs these steps:
@@ -159,7 +174,9 @@ def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
         enable_doxygen_conf=enable_doxygen_conf,
         enable_doxygen=enable_doxygen,
         enable_package_links=enable_symlinks,
-        enable_sphinx=enable_sphinx
+        enable_sphinx=enable_sphinx,
+        select_doxygen_packages=dox,
+        skip_doxygen_packages=skip_dox
     )
     if return_code > 0:
         sys.exit(return_code)
