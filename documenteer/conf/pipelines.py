@@ -160,6 +160,8 @@ exclude_patterns = [
     'README.rst',
     # Build products
     '_build',
+    # Doxygen build products
+    '_doxygen',
     # Source for release notes (contents are included in built pages)
     'releases/note-source/*.rst',
     'releases/tickets-source/*.rst',
