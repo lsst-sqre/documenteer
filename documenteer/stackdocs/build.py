@@ -138,7 +138,7 @@ def build_stack_docs(
         doxygen_build_dir = root_project_dir / '_doxygen'
         doxygen_xml_dir = doxygen_build_dir / 'xml'
         os.makedirs(doxygen_xml_dir, exist_ok=True)
-        doxygen_conf = DoxygenConfiguration(xml_output=doxygen_xml_dir)
+        doxygen_conf = DoxygenConfiguration()
         for package_name, package in packages.items():
             if package.doxygen_conf_path and not prefer_doxygen_conf_in:
                 # Use a doxygen.conf file that is already preprocessed by
@@ -166,6 +166,8 @@ def build_stack_docs(
 
             # Append package's configurations to the root configuration
             doxygen_conf += package_doxygen_conf
+
+        doxygen_conf.xml_output = doxygen_xml_dir
 
         if enable_doxygen:
             run_doxygen(conf=doxygen_conf, root_dir=doxygen_build_dir)
