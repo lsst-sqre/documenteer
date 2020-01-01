@@ -169,6 +169,54 @@ class DoxygenConfiguration:
     """Whether to include the program listing in the XML output.
     """
 
+    create_subdirs: bool = field(
+        default=False,
+        metadata={
+            'doxygen_tag': 'CREATE_SUBDIRS'
+        }
+    )
+    """Whether Doxygen should create subdirectories.
+
+    This should be NO for breathe/exhale to work.
+    """
+
+    full_path_names: bool = field(
+        default=True,
+        metadata={
+            'doxygen_tag': 'FULL_PATH_NAMES'
+        }
+    )
+    """Doxygen keeps the full path of each file, rather than stripping it.
+    """
+
+    enable_preprocessing: bool = field(
+        default=True,
+        metadata={
+            'doxygen_tag': 'ENABLE_PREPROCESSING'
+        }
+    )
+
+    macro_expansion: bool = field(
+        default=True,
+        metadata={
+            'doxygen_tag': 'MACRO_EXPANSION'
+        }
+    )
+
+    expand_only_predef: bool = field(
+        default=False,
+        metadata={
+            'doxygen_tag': 'EXPAND_ONLY_PREDEF'
+        }
+    )
+
+    skip_function_macros: bool = field(
+        default=False,
+        metadata={
+            'doxygen_tag': 'SKIP_FUNCTION_MACROS'
+        }
+    )
+
     def __str__(self) -> str:
         return self.render()
 
