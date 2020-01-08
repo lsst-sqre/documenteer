@@ -64,7 +64,7 @@ __all__ = (
     'html_use_index',
     'html_split_index',
     'html_show_sourcelink',
-    'html_show_sphinx',
+    'html_copy_source',
     'html_show_sphinx',
     'html_show_copyright',
     'html_file_suffix',
@@ -266,7 +266,10 @@ html_use_index = True
 html_split_index = False
 
 # If true, links to the reST sources are added to the pages.
-html_show_sourcelink = True
+html_show_sourcelink = False
+
+# Do not copy reST source for each page into the build
+html_copy_source = False
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is
 # True.
