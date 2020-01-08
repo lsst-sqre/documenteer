@@ -64,6 +64,7 @@ extras_require = {
         'pytest-flake8==1.0.4',
         'pytest-mock==1.4.0',
         'pytest-mypy==0.4.2',
+        'sphinx-autodoc-typehints==1.10.3',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
         'sphinx-click==2.3.1',

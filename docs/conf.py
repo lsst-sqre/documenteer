@@ -25,6 +25,7 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx_click.ext',
     'numpydoc',
+    'sphinx_autodoc_typehints',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
     'documenteer.sphinxext'
