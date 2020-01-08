@@ -145,3 +145,6 @@ html_static_path: List[str] = []
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False
+
+# -- Options for the API reference ----------------------------------------
+numpydoc_show_class_members = False
