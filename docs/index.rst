@@ -69,6 +69,18 @@ Python API reference
    :skip: ModuleTocTree
    :skip: PackageTocTree
 
+.. automodapi:: documenteer.stackdocs.build
+
+.. automodapi:: documenteer.stackdocs.doxygen
+
+.. automodapi:: documenteer.stackdocs.packagecli
+
+.. automodapi:: documenteer.stackdocs.pkgdiscovery
+
+.. automodapi:: documenteer.stackdocs.rootdiscovery
+
+.. automodapi:: documenteer.stackdocs.stackcli
+
 .. automodapi:: documenteer.requestsutils
    :no-main-docstr:
 
