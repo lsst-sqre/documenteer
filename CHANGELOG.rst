@@ -28,10 +28,22 @@ Change Log
   - Individual Stack packages now import ``documenteer.conf.pipelinespkg`` in their ``conf.py`` files.
 
   The previous configuration sub-package, ``documenteer.sphinxconf`` is deprecated.
-  Overall, the configurations are compatible.
   :jirab:`DM-20866`
 
-- Updated the MathJax CDN URL to point to cdnjs.
+  Overall, the configurations are compatible with these exceptions:
+
+  - ReStructuredText source files are no longer copied into the built site for Pipelines projects (``html_copy_source`` is ``False``).
+    This change reduces the upload site of the pipelines.lsst.io site.
+  - Updated the MathJax CDN URL to point to cdnjs.
+
+- The stack documentation build (``stack-docs build``) can now run a Doxygen build to generate an XML inventory of the Stack's C++ API.
+  This built-in Doxygen build considers all Stack packages with a ``dox/doxygen.conf.in`` file.
+  Documenteer creates a Doxygen configuration from the contents of each package's ``doxygen.conf.in`` file, along with built-in defaults appropriate for pipelines.lsst.io.
+  For example, individual packages can add to the ``EXCLUDE`` tag.
+  By default, each package's ``include`` directory is included in the Doxygen build.
+  This Doxygen build replaces, and is independent of, the Doxygen build tooling in sconsUtils_, and lsstDoxygen_.
+
+  :jirab:`DM-22698`
 
 - Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
   :jirab:`DM-22717`
@@ -376,3 +388,5 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 .. _`sphinx-automodapi`: https://pypi.org/project/sphinx-automodapi/
 .. _numpydoc: https://pypi.org/project/numpydoc/
 .. _sphinx-jinja: https://github.com/tardyp/sphinx-jinja
+.. _sconsUtils: https://github.com/lsst/sconsUtils
+.. _lsstDoxygen: https://github.com/lsst/lsstDoxygen
