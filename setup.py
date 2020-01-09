@@ -64,6 +64,7 @@ extras_require = {
         'pytest-flake8==1.0.4',
         'pytest-mock==1.4.0',
         'pytest-mypy==0.4.2',
+        'sphinx-autodoc-typehints==1.10.3',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
         'sphinx-click==2.3.1',
@@ -84,7 +85,7 @@ setup_requires = [
 console_scripts = [
     'stack-docs = documenteer.stackdocs.stackcli:main',
     'package-docs = documenteer.stackdocs.packagecli:main',
-    'build-stack-docs = documenteer.stackdocs.build:run_build_cli',
+    'build-stack-docs = documenteer.bin.buildstackdocs:run_build_cli',
     'refresh-lsst-bib = documenteer.bin.refreshlsstbib:run'
 ]
 

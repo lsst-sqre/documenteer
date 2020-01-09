@@ -98,8 +98,53 @@ def help(ctx, topic, **kw):
          'exclude from the documentation. Provide multiple -s options to skip '
          'multiple names.'
 )
+@click.option(
+    '--enable-doxygen-conf/--disable-doxygen-conf',
+    help='Toggle creating a Doxygen configuration.',
+    default=True
+)
+@click.option(
+    '--enable-doxygen/--disable-doxygen',
+    help='Toggle running a Doxygen build.',
+    default=True
+)
+@click.option(
+    '--enable-symlinks/--disable-symlinks',
+    help=('Toggle symlinking package documentation directories (disable for '
+          'debugging only).'),
+    default=True
+)
+@click.option(
+    '--enable-sphinx/--disable-sphinx',
+    help='Toggle running a Sphinx build.',
+    default=True
+)
+@click.option(
+    '--use-doxygen-conf-in/--use-doxygen-conf',
+    help=(
+        'Use doxygen.conf.in files in packages rather than the '
+        'sconsUtils-generated doxygen.conf files.'
+    ),
+    default=True,
+)
+@click.option(
+    '--dox',
+    multiple=True,
+    help=(
+        'Run Doxygen on only the packages explicitly listed, rather than '
+        'automatically discovering set up packages.'
+    ),
+)
+@click.option(
+    '--skip-dox',
+    multiple=True,
+    help=(
+        'Skip running Doxygen on these packages.'
+    ),
+)
 @click.pass_context
-def build(ctx, skip):
+def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
+          enable_sphinx, use_doxygen_conf_in, dox, skip_dox):
     """Build documentation as HTML.
 
     This command performs these steps:
@@ -124,7 +169,15 @@ def build(ctx, skip):
     """
     return_code = build_stack_docs(
         ctx.obj['root_project_dir'],
-        skippedNames=skip)
+        skipped_names=skip,
+        prefer_doxygen_conf_in=use_doxygen_conf_in,
+        enable_doxygen_conf=enable_doxygen_conf,
+        enable_doxygen=enable_doxygen,
+        enable_package_links=enable_symlinks,
+        enable_sphinx=enable_sphinx,
+        select_doxygen_packages=dox,
+        skip_doxygen_packages=skip_dox
+    )
     if return_code > 0:
         sys.exit(return_code)
 
@@ -144,10 +197,11 @@ def clean(ctx):
     - ``modules`` (symlinks to the module doc directories of Stack packages)
     - ``packages`` (symlinks to the package doc directories of Stack packages)
     - ``py-api`` (pages created by automodapi for the Python API reference)
+    - ``_doxygen`` (the Doxygen build)
     """
     logger = logging.getLogger(__name__)
 
-    dirnames = ['py-api', '_build', 'modules', 'packages']
+    dirnames = ['py-api', '_build', 'modules', 'packages', '_doxygen']
     dirnames = [os.path.join(ctx.obj['root_project_dir'], dirname)
                 for dirname in dirnames]
     for dirname in dirnames:

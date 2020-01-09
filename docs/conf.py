@@ -25,6 +25,7 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx_click.ext',
     'numpydoc',
+    'sphinx_autodoc_typehints',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
     'documenteer.sphinxext'
@@ -40,7 +41,10 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Documenteer'
-copyright = '2015-2019 Association of Universities for Research in Astronomy'
+copyright = (
+    '2015-2020 '
+    'Association of Universities for Research in Astronomy, Inc. (AURA)'
+)
 author = 'LSST Data Management'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -144,3 +148,6 @@ html_static_path: List[str] = []
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False
+
+# -- Options for the API reference ----------------------------------------
+numpydoc_show_class_members = False

@@ -32,7 +32,9 @@ Stack build and set up
 ======================
 
 The prerequisite for the Stack documentation build is that the Stack is already built and set up.
-Not only does this make the Stack importable so that Sphinx can introspect the Python APIs, it also means that Doxygen has already run (through SCons_\ /`sconsUtils`_ and `lsstDoxygen`_) and generated XML files with C++ API descriptions.
+Sphinx imports Python packages to generate documentation for their APIs.
+
+.. Not only does this make the Stack importable so that Sphinx can introspect the Python APIs, it also means that Doxygen has already run (through SCons_\ /`sconsUtils`_ and `lsstDoxygen`_) and generated XML files with C++ API descriptions.
 
 The :ref:`main documentation repository <developer:stack-docs-system-main-repo>` (`pipelines_lsst_io`_) has an EUPS table file.
 This table file defines all the Stack packages that should be set up and that are available for inclusion in the Stack documentation build.
@@ -47,6 +49,26 @@ The next step of the build is to run |stack-docs|, from Documenteer.
 
 The |stack-docs| app begins by discovering packages that are set up by EUPS and that also have :ref:`doc/manifest.yaml <developer:docdir-manifest-yaml>` files.
 Following the :ref:`doc/manifest.yaml <developer:docdir-manifest-yaml>` file, |stack-docs| symlinks the :ref:`module <developer:docdir-module-doc-directories>` and :ref:`package documentation directories <developer:docdir-package-doc-directory>` into the :file:`modules/` and :file:`packages/` directories of the `pipelines_lsst_io`_ repository.
+
+.. _pipelines-build-doxygen:
+
+The Doxygen build
+=================
+
+Doxygen_ extracts information from the source code to generate the C++ API reference.
+Documenteer runs Doxygen as a step in the |stack-docs| command.
+
+First, Documenteer identifies which packages contain a :file:`doc/doxygen.conf.in` file.
+Any package containing a Doxygen configuration stub file, even if empty, is presumed to potentially contain source material the C++ API reference.
+
+Second, Documenteer constructs a Doxygen configuration.
+By default, the :file:`include` directory of each relevant package is included in the ``INPUT`` Doxygen configuration tag.
+Individual packages can also add other paths to the ``INPUT`` tag, remove paths (``EXCLUDE`` or ``EXCLUDE_PATTERNS`` tags),  or exclude symbols (``EXCLUDE_SYMBOLS`` tag).
+
+This combined Doxygen configuration 
+Finally, Documenteer uses this combined Doxygen configuration to run the :command:`doxygen` command and generate XML files that describe the API.
+
+For more information about Documenteer's built-in Doxygen build, see the `documenteer.stackdocs.doxygen` module, and the `~documenteer.stackdocs.doxygen.run_doxygen` and `~documenteer.stackdocs.doxygen.DoxygenConfiguration` APIs in particular.
 
 .. _pipelines-build-sphinx:
 
@@ -74,16 +96,6 @@ The :file:`py-api` directory is entirely transient.
 In fact, the |stack-docs-clean| command will delete it.
 
 See :ref:`developer:module-homepage` for more information on the `automodapi`_ directives.
-
-.. _pipelines-build-cppapi:
-
-C++ API reference
-=================
-
-The `breathe`_ directives in :ref:`module homepages <developer:module-homepage>` generate the C++ API reference documentation.
-`breathe`_ consumes the XML created by Doxygen during the initial (SCons_\ /sconsUtils_) build of each Stack package.
-
-See :ref:`developer:module-homepage` for more information on the `breathe`_ directives.
 
 .. _pipelines-build-related:
 
@@ -122,3 +134,4 @@ Other LSST sites:
 .. _`SQR-006`: https://sqr-006.lsst.io
 .. _`DMTN-030`:
 .. _`DMTN-030 Science Pipelines Documentation Design`: https://dmtn-030.lsst.io
+.. _Doxygen: http://www.doxygen.nl
