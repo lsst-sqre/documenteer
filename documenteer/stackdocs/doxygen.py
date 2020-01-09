@@ -91,7 +91,7 @@ class DoxygenConfiguration:
             'doxygen_tag': 'RECURSIVE'
         }
     )
-    """Whether or not directories listed in `inputs` should be searched
+    """Whether or not directories listed in ``inputs`` should be searched
     recursively.
     """
 
@@ -101,7 +101,8 @@ class DoxygenConfiguration:
             'doxygen_tag': 'FILE_PATTERNS'
         }
     )
-    """File extensions to include from the directories described by `inputs`.
+    """File extensions to include from the directories described by
+    ``inputs``.
     """
 
     exclude_patterns: List[str] = field(
