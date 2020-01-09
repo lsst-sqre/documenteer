@@ -193,7 +193,7 @@ def find_package_docs(
 
     Notes
     -----
-    Stack packages have documentation in subdirectories of their `doc`
+    Stack packages have documentation in subdirectories of their ``doc``
     directory. The ``manifest.yaml`` file declares what these directories are
     so that they can be symlinked into the root project.
 
