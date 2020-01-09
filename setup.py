@@ -74,12 +74,8 @@ extras_require = {
 extras_require['dev'].extend(extras_require['technote'])
 extras_require['dev'].extend(extras_require['pipelines'])
 
-# Dependencies for tests_require (python setup.py test)
-tests_require = extras_require['dev']
-
 setup_requires = [
     'setuptools_scm',
-    'pytest-runner>=2.11.1,<3',
 ]
 
 console_scripts = [
@@ -103,7 +99,6 @@ setup(
     packages=find_packages(exclude=['docs', 'tests*']),
     install_requires=install_requires,
     setup_requires=setup_requires,
-    tests_require=tests_require,
     extras_require=extras_require,
     entry_points={'console_scripts': console_scripts},
     use_scm_version=True,
