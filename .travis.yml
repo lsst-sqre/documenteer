@@ -1,5 +1,4 @@
 dist: xenial
-sudo: false
 language: python
 git:
   # Clone the full depth for setuptools_scm (to count commits in very large
