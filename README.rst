@@ -1,3 +1,6 @@
+.. image:: https://img.shields.io/badge/documenteer-lsst.io-brightgreen.svg
+   :target: https://documenteer.lsst.io
+   :alt: Documentation
 .. image:: https://img.shields.io/pypi/v/documenteer.svg?style=flat-square
    :target: https://pypi.python.org/pypi/documenteer
    :alt: PyPI
@@ -10,6 +13,9 @@
 .. image:: https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square
    :alt: For Python 3.7+
    :target: https://pypi.python.org/pypi/documenteer
+.. image:: https://travis-ci.com/lsst-sqre/documenteer.svg
+   :target: https://travis-ci.com/lsst-sqre/documenteer
+   :alt: CI Service
 
 ###########
 Documenteer
