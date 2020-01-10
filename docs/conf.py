@@ -96,6 +96,13 @@ intersphinx_mapping = {
     'sphinx': ('http://www.sphinx-doc.org/en/master/', None),
 }
 
+# Warnings to ignore
+nitpick_ignore = [
+    # This link to the base pybtex still never resolves because it is not
+    # in pybtex's intersphinx'd API reference.
+    ('py:class', 'pybtex.style.formatting.plain.Style'),
+]
+
 # -- Options for linkcheck builder ----------------------------------------
 
 linkcheck_retries = 2

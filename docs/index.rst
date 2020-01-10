@@ -34,59 +34,13 @@ Sphinx extensions
 
    sphinxext/lssttasks
 
-Python API reference
-====================
+Reference
+=========
 
-.. automodapi:: documenteer.sphinxconfig.stackconf
-   :no-main-docstr:
+.. toctree::
+   :maxdepth: 1
 
-.. automodapi:: documenteer.sphinxconfig.technoteconf
-   :no-main-docstr:
+   api
 
-.. automodapi:: documenteer.sphinxconfig.utils
-   :no-main-docstr:
 
-.. automodapi:: documenteer.sphinxext
-   :no-main-docstr:
 
-.. FIXME I couldn't get intersphinx to resolve inherited members, and no-inherited-members doesn't work, hence I'm skipping this API.
-
-.. automodapi:: documenteer.sphinxext.bibtex
-   :no-main-docstr:
-   :no-inherited-members:
-   :skip: LsstBibtexStyle
-
-.. automodapi:: documenteer.sphinxext.jira
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxext.lsstdocushare
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxext.mockcoderefs
-   :no-main-docstr:
-
-.. FIXME I couldn't get intersphinx to resolve inherited members, and no-inherited-members doesn't work, hence I'm skipping this API.
-
-.. automodapi:: documenteer.sphinxext.packagetoctree
-   :no-main-docstr:
-   :no-inherited-members:
-   :skip: ModuleTocTree
-   :skip: PackageTocTree
-
-.. automodapi:: documenteer.stackdocs.build
-
-.. automodapi:: documenteer.stackdocs.doxygen
-
-.. automodapi:: documenteer.stackdocs.packagecli
-
-.. automodapi:: documenteer.stackdocs.pkgdiscovery
-
-.. automodapi:: documenteer.stackdocs.rootdiscovery
-
-.. automodapi:: documenteer.stackdocs.stackcli
-
-.. automodapi:: documenteer.requestsutils
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxrunner
-   :no-main-docstr:
