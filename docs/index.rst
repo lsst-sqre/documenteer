@@ -42,5 +42,11 @@ Reference
 
    api
 
+Developer guide
+===============
 
+.. toctree::
+   :maxdepth: 1
 
+   dev/development
+   dev/release
