@@ -48,6 +48,22 @@ Change Log
 - Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
   :jirab:`DM-22717`
 
+- Improved packaging:
+
+  - PEP 518-ify the build process by adding a ``pyproject.toml`` file.
+  - Removed the deprecated pytest-runner plugin.
+  - Moved most of the packaging configuration to ``setup.cfg``.
+
+  :jirab:`DM-22957`
+
+- Documentation improvements:
+  - Added a new Developer guide and Release procedure guide.
+  - Added an installation page.
+  - Moved the Python API reference to its own page.
+  - Improved the README to list features.
+
+- Added GitHub community health features: contributing, support, and code of conduct files.
+
 0.5.5 (2019-12-09)
 ------------------
 
