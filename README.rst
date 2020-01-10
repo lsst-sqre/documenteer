@@ -8,48 +8,75 @@
    :alt: Uses wheel
    :target: https://pypi.python.org/pypi/documenteer
 .. image:: https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square
-   :alt: For Python 3.5+
+   :alt: For Python 3.7+
    :target: https://pypi.python.org/pypi/documenteer
 
 ###########
 Documenteer
 ###########
 
-Sphinx documentation tools for `LSST Data Management <https://www.lsst.org/about/dm>`_ projects.
+Documenteer provides tools, extensions, and configurations for LSST Data Management's Sphinx documentation projects, include technotes_ and stacks (such as the `LSST Science Pipelines`_).
+
+.. _technotes: https://developer.lsst.io/project-docs/technotes.html
+.. _LSST Science Pipelines: https://pipelines.lsst.io
+
+For more information about Documenteer, see the documentation at https://documenteer.lsst.io.
 
 Browse the `lsst-doc-engineering <https://github.com/topics/lsst-doc-engineering>`_ GitHub topic for more LSST documentation engineering projects.
 
-Installation
-============
+Quick installation:
+===================
 
-How you install Documenteer depends on the project you're using it for:
+For technical note projects::
 
-- For technical note projects: ``pip install documenteer[technote]``
-- For the https://pipelines.lsst.io project: ``pip install documenteer[pipelines]``
+    pip install "documenteer[technote]"
 
-Development
-===========
+For the stack projects (such as the `LSST Science Pipelines`_)::
 
-Create a virtual environment with your method of choice (virtualenvwrapper or conda) and then clone or fork, and install::
+   pip install "documenteer[pipelines]"
 
-   git clone https://github.com/lsst-sqre/documenteer.git
-   cd documenteer
-   pip install -e ".[dev]"
+Features
+========
 
-To make a release:
+Configurations
+--------------
 
-1. Update ``CHANGELOG.rst``.
-2. Tag: ``git tag -s X.Y.Z -m "X.Y.Z"``
-3. Push: ``git push --tags``
+Documenteer includes preset configurations for common LSST DM Sphinx projects.
+By using Documenteer, you can also ensure that Sphinx extensions required by these configurations are installed.
 
-Use a `PEP 440-compliant <https://www.python.org/dev/peps/pep-0440/>`_ version identifiers.
+From the ``conf.py`` for technotes::
 
-`Travis CI <https://travis-ci.org/lsst-sqre/documenteer>`_ handles the PyPI deployment.
+    from documenteer.conf.technote import *
+ 
+From the ``conf.py`` for a stack package::
 
-License and info
-================
+    from documenteer.conf.pipelinespkg import *
 
-Documenteer is a project by the `Large Synoptic Survey Telescope <https://www.lsst.org>`_.
+    project = "example"
+    html_theme_options['logotext'] = project
+    html_title = project
+    html_short_title = project
 
-MIT licensed.
-See `LICENSE <./LICENSE>`_ for details.
+From the ``conf.py`` for the LSST Science Pipelines documentation::
+
+    from documenteer.conf.pipelines import *
+
+Command-line tools
+------------------
+
+- `package-docs`_ builds documentation for individual packages in the LSST Science Pipelines
+- `stack-docs`_ builds documentation for entire Stacks, such as the LSST Science Pipelines
+- `refresh-lsst-bib`_ maintains LSST's common BibTeX files in individual technote repositories
+
+.. _package-docs: https://documenteer.lsst.io/pipelines/package-docs-cli.html
+.. _stack-docs: https://documenteer.lsst.io/pipelines/stack-docs-cli.html
+.. _refresh-lsst-bib: https://developer.lsst.io/project-docs/technotes.html#using-bibliographies-in-restructuredtext-technotes
+
+Sphinx extensions
+-----------------
+
+- Roles for linking to LSST documents and Jira tickets
+- The ``remote-code-block`` directive
+- The ``module-toctree`` and ``package-toctree`` directives for the LSST Science Pipelines documentation
+- `Extensions for documenting LSST Science Pipelines tasks <https://documenteer.lsst.io/sphinxext/lssttasks.html>`_
+- Support for LSST BibTeX files with `sphinxcontrib-bibtex <http://sphinxcontrib-bibtex.readthedocs.io>`_
