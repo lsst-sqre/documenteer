@@ -22,6 +22,8 @@ For LSST Stack projects (such as https://pipelines.lsst.io and EUPS packages):
 
    pip install "documenteer[pipelines]"
 
+See :doc:`/pipelines/install` for more information.
+
 Installation from source
 ========================
 
