@@ -19,12 +19,9 @@ Pipelines projects
 ==================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   pipelines/install
-   pipelines/build-overview
-   pipelines/stack-docs-cli
-   pipelines/package-docs-cli
+   pipelines/index
 
 Sphinx extensions
 =================
