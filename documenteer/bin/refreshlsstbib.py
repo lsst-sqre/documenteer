@@ -1,6 +1,8 @@
 """Command line executable to refresh lsst bib files.
 """
 
+__all__ = ['run', 'make_parser']
+
 import argparse
 import logging
 import os
@@ -20,7 +22,7 @@ except DistributionNotFound:
 def run():
     """Command line entrypoint for the ``refresh-lsst-bib`` program.
     """
-    args = parse_args()
+    args = make_parser().parse_args()
 
     if args.verbose:
         log_level = logging.DEBUG
@@ -43,15 +45,16 @@ def run():
     sys.exit(error_count)
 
 
-def parse_args():
+def make_parser():
     """Create an argument parser for the ``refresh-lsst-bib`` program.
 
     Returns
     -------
-    args : `argparse.Namespace`
-        Parsed argument object.
+    args : `argparse.ArgumentParser`
+        ArgumentParser instance.
     """
     parser = argparse.ArgumentParser(
+        prog='refresh-lsst-bib',
         description="Download LSST .bib bibliography files from the "
                     "lsst-texmf GitHub repository.",
         epilog="Version {}".format(__version__)
@@ -67,7 +70,7 @@ def parse_args():
         action='store_true', default=False,
         help='Enable Verbose output (debug level logging)'
     )
-    return parser.parse_args()
+    return parser
 
 
 def process_bib_files(local_dir):

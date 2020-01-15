@@ -24,6 +24,8 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.ifconfig',
     'sphinx_click.ext',
+    'sphinxcontrib.autoprogram',
+    'sphinx-prompt',
     'numpydoc',
     'sphinx_autodoc_typehints',
     'sphinx_automodapi.automodapi',

@@ -9,6 +9,7 @@ Documenteer provides centralized configuration and tooling for technotes.
    :maxdepth: 2
 
    configuration
+   refresh-lsst-bib
 
 .. seealso::
 
