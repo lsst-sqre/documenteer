@@ -17,3 +17,4 @@ Documenteer also includes Sphinx extensions to help document domain-specific top
    build-overview
    stack-docs-cli
    package-docs-cli
+   configuration
