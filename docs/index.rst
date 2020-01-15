@@ -23,6 +23,14 @@ Pipelines projects
 
    pipelines/index
 
+Technote projects
+=================
+
+.. toctree::
+   :maxdepth: 2
+
+   technotes/index
+
 Sphinx extensions
 =================
 
