@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.5.6 (2020-01-16)
+------------------
+
+- Dropped the use of `pytest-runner <https://pypi.org/project/pytest-runner/>`_, since it's now deprecated.
+  :jirab:`DM-23095`
+
 0.5.5 (2019-12-09)
 ------------------
 

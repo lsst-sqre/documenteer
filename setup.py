@@ -80,7 +80,6 @@ tests_require = extras_require['dev']
 
 setup_requires = [
     'setuptools_scm',
-    'pytest-runner>=2.11.1,<3',
 ]
 
 console_scripts = [
