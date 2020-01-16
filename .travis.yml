@@ -1,5 +1,4 @@
 dist: xenial
-sudo: false
 language: python
 git:
   # Clone the full depth for setuptools_scm (to count commits in very large
@@ -14,10 +13,10 @@ matrix:
     - python: "3.7"
       env: PYPI_DEPLOY=true LTD_SKIP_UPLOAD=false
 install:
-  - "pip install -e .[dev]"
+  - "pip install .[dev]"
   - "pip install ltd-conveyor"
 script:
-  - "python setup.py test"
+  - "pytest"
   - "cd docs && make linkcheck && make html && cd ../"
 after_success:
   - 'ltd upload --product "documenteer" --travis --dir docs/_build/html'
