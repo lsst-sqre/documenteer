@@ -72,6 +72,7 @@ __all__ = (
     'html_show_copyright',
     'html_file_suffix',
     'html_search_language',
+    'html_extra_path',
     # AUTOMODAPI
     'numpydoc_show_class_members',
     'autosummary_generate',
@@ -292,6 +293,7 @@ html_file_suffix = '.html'
 # Language to be used for generating the HTML full-text search index.
 html_search_language = 'en'
 
+html_extra_path = ['_doxygen/html']
 
 # ============================================================================
 # #AUTOMODAPI automodapi and autodoc configuration

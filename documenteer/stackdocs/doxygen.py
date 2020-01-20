@@ -125,6 +125,33 @@ class DoxygenConfiguration:
     or class names.
     """
 
+    project_name: str = field(
+        default='The LSST Science Pipelines',
+        metadata={
+            'doxygen_tag': 'PROJECT_NAME'
+        }
+    )
+    """Name of the Doxygen project (used in the HTML output).
+    """
+
+    project_brief: str = field(
+        default='C++ API Reference',
+        metadata={
+            'doxygen_tag': 'PROJECT_BRIEF'
+        }
+    )
+    """Brief description (subtile) of the project.
+    """
+
+    output_directory: Path = field(
+        default_factory=lambda: Path.cwd(),
+        metadata={
+            'doxygen_tag': 'OUTPUT_DIRECTORY'
+        }
+    )
+    """Directory where Doxygen output will be generated, by default.
+    """
+
     generate_html: bool = field(
         default=False,
         metadata={
@@ -150,6 +177,33 @@ class DoxygenConfiguration:
         }
     )
     """Whether or not ot generate XML output.
+    """
+
+    html_output: Path = field(
+        default_factory=lambda: Path('html'),
+        metadata={
+            'doxygen_tag': 'HTML_OUTPUT'
+        }
+    )
+    """Directory where the HTML build will be put.
+    """
+
+    use_mathjax: bool = field(
+        default=True,
+        metadata={
+            'doxygen_tag': 'USE_MATHJAX'
+        }
+    )
+    """Enable MathJax to render math, rather than LaTeX.
+    """
+
+    mathjax_format: str = field(
+        default='SVG',
+        metadata={
+            'doxygen_tag': 'MATHJAX_FORMAT'
+        }
+    )
+    """Format of the MathJax output in the HTML build.
     """
 
     xml_output: Path = field(

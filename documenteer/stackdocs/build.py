@@ -185,6 +185,13 @@ def build_stack_docs(
             doxygen_conf += package_doxygen_conf
 
         doxygen_conf.xml_output = doxygen_xml_dir
+        doxygen_conf.generate_html = True
+        doxygen_conf.output_directory = doxygen_build_dir
+        doxygen_conf.html_output = doxygen_build_dir / 'html' / 'cpp-api'
+        # Pre-create the html/cpp-api directory since Doxygen can't; we want
+        # this directory structure to let Sphinx copy the entirety of cpp-api
+        # to the output directory.
+        os.makedirs(doxygen_conf.html_output, exist_ok=True)
 
         if enable_doxygen:
             run_doxygen(conf=doxygen_conf, root_dir=doxygen_build_dir)
