@@ -170,6 +170,15 @@ class DoxygenConfiguration:
     """Whether or not to generate LaTeX output.
     """
 
+    tagfile: Path = field(
+        default_factory=lambda: Path('doxygen.tag'),
+        metadata={
+            'doxygen_tag': 'GENERATE_TAGFILE'
+        }
+    )
+    """Whether or not to generate LaTeX output.
+    """
+
     generate_xml: bool = field(
         default=True,
         metadata={

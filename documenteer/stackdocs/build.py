@@ -185,6 +185,7 @@ def build_stack_docs(
             doxygen_conf += package_doxygen_conf
 
         doxygen_conf.xml_output = doxygen_xml_dir
+        doxygen_conf.tagfile = doxygen_build_dir / 'doxygen.tag'
         doxygen_conf.generate_html = True
         doxygen_conf.output_directory = doxygen_build_dir
         doxygen_conf.html_output = doxygen_build_dir / 'html' / 'cpp-api'
