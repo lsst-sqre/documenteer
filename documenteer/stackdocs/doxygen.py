@@ -235,6 +235,8 @@ class DoxygenConfiguration:
             value = getattr(self, tag_field.name)
             if tag_field.type == bool:
                 self._render_bool(lines, tag_name, value)
+            elif tag_field.type == str:
+                self._render_str(lines, tag_name, value)
             elif tag_field.type == List[Path]:
                 self._render_path_list(lines, tag_name, value)
             elif tag_field.type == List[str]:
@@ -249,6 +251,16 @@ class DoxygenConfiguration:
             line = f'{tag_name} = YES'
         else:
             line = f'{tag_name} = NO'
+        lines.append(line)
+
+    def _render_str(
+            self, lines: List[str], tag_name: str, value: str) -> None:
+        if value == '':
+            return
+        elif ' ' in value:
+            line = f'{tag_name} = "{value}"'
+        else:
+            line = f'{tag_name} = {value}'
         lines.append(line)
 
     def _render_path(
@@ -307,7 +319,8 @@ class DoxygenConfiguration:
         for tag_field in fields(new_config):
             attrname = tag_field.name
             new_value = getattr(new_config, attrname)
-            if isinstance(new_value, Iterable):
+            if isinstance(new_value, Iterable) \
+                    and not isinstance(new_value, str):
                 # This algorithm lets us filter duplicates while preserving
                 # order. The trick with typing is that seen.add does not
                 # return a type, but mypy expects a boolean given the logical
