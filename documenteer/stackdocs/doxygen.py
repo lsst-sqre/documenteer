@@ -253,6 +253,15 @@ class DoxygenConfiguration:
     """Doxygen keeps the full path of each file, rather than stripping it.
     """
 
+    strip_from_path: List[Path] = field(
+        default_factory=list,
+        metadata={
+            'doxygen_tag': 'STRIP_FROM_PATH'
+        }
+    )
+    """Path prefixes to strip from path names.
+    """
+
     enable_preprocessing: bool = field(
         default=True,
         metadata={
@@ -552,9 +561,9 @@ def preprocess_package_doxygen_conf(
     """Preprocess a Doxygen configuration for an individual package that is
     based on a package's ``doxygen.conf.in`` file.
 
-    This function adds paths to the ``INPUT`` configuration tag, and plays an
-    equivalent role to sconsUtils to add configurations to the
-    ``doxygen.conf.in`` template for a package.
+    This function adds paths to the ``INPUT`` and ``STRIP_FROM_PATH``
+    configuration tags, and plays an equivalent role to sconsUtils to add
+    configurations to the ``doxygen.conf.in`` template for a package.
 
     Parameters
     ----------
@@ -577,11 +586,16 @@ def preprocess_package_doxygen_conf(
     The ``src`` directory isn't handled because Doxygen documentation comments
     are written exclusively in header files per the LSST DM standard.
     The ``examples`` directory is also deprecated in the Sphinx regime.
+
+    The function also addes the ``include`` directory of the package to the
+    ``STRIP_FROM_PATH`` tag so that we don't publish build system-specific
+    paths for header files.
     """
     dirnames = ['include']
     for path in map(lambda p: package.root_dir / p, dirnames):
         if path.is_dir():
             conf.inputs.append(path)
+            conf.strip_from_path.append(path)
 
 
 def run_doxygen(*, conf: DoxygenConfiguration, root_dir: Path) -> int:
