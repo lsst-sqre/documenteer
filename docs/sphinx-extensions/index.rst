@@ -8,3 +8,4 @@ Sphinx extensions provided by Documenteer
    lssttasks
    jira-reference
    docushare-reference
+   remote-code-block
