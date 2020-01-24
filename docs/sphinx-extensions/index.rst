@@ -1,0 +1,8 @@
+#########################################
+Sphinx extensions provided by Documenteer
+#########################################
+
+.. toctree::
+   :maxdepth: 2
+
+   lssttasks

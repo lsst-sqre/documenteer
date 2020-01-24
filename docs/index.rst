@@ -15,8 +15,21 @@ Getting started
    install
    changelog
 
+Sphinx extensions
+=================
+
+Documenteer provides several Sphinx extensions.
+These extensions are designed for LSST documentation projects, but are may be generally useful:
+
+.. toctree::
+   :maxdepth: 2
+
+   sphinx-extensions/index
+
 Pipelines projects
 ==================
+
+A guide to using Documenteer for LSST Science Pipelines documentation:
 
 .. toctree::
    :maxdepth: 2
@@ -26,18 +39,12 @@ Pipelines projects
 Technote projects
 =================
 
+A guide to writing reStructuredText-formatted LSST technical notes (technotes) using Sphinx and Documenteer:
+
 .. toctree::
    :maxdepth: 2
 
    technotes/index
-
-Sphinx extensions
-=================
-
-.. toctree::
-   :maxdepth: 1
-
-   sphinxext/lssttasks
 
 Reference
 =========
