@@ -9,3 +9,4 @@ Sphinx extensions provided by Documenteer
    jira-reference
    docushare-reference
    remote-code-block
+   package-toctree
