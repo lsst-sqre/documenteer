@@ -10,3 +10,4 @@ Sphinx extensions provided by Documenteer
    docushare-reference
    remote-code-block
    package-toctree
+   lsst-pybtex-style
