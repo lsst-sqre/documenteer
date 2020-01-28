@@ -24,6 +24,8 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.ifconfig',
     'sphinx_click.ext',
+    'sphinxcontrib.autoprogram',
+    'sphinx-prompt',
     'numpydoc',
     'sphinx_autodoc_typehints',
     'sphinx_automodapi.automodapi',
@@ -95,6 +97,13 @@ intersphinx_mapping = {
     'pybtex': ('https://docs.pybtex.org/', None),
     'sphinx': ('http://www.sphinx-doc.org/en/master/', None),
 }
+
+# Warnings to ignore
+nitpick_ignore = [
+    # This link to the base pybtex still never resolves because it is not
+    # in pybtex's intersphinx'd API reference.
+    ('py:class', 'pybtex.style.formatting.plain.Style'),
+]
 
 # -- Options for linkcheck builder ----------------------------------------
 

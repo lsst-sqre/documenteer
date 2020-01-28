@@ -5,13 +5,23 @@ Change Log
 ------------------
 
 - Documenteer now works with Sphinx 2.0+.
-  By default, Documenteer will install the latest version of Sphinx for you.
-  Other dependency upgrades:
+
+- Documenteer's dependencies now cleanly map to each use case:
+
+  - ``pip install documenteer`` installs _only the dependencies required to use Documenteer's own Sphinx extensions.
+    The dependencies are not strictly pinned (aside from Sphinx >= 2.0).
+
+  - ``pip install documenteer[technote]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and extensions used by all technote projects.
+
+  - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and exetnsions used by pipelines.lsst.io.
+
+  Specific dependency upgrades:
 
   - The ``click`` version now floats.
   - ``numpydoc`` is pinned at 0.8.0.
   - ``sphinx-automodapi`` is pinned at 0.12.
-  - ``breathe`` is pinned at 4.14.0.
+  - ``breathe`` is dropped.
+  - ``sphinx-prompt`` is moved from a core dependency to an extra.
 
   Updates to development or test dependencies:
 
@@ -47,6 +57,23 @@ Change Log
 
 - Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
   :jirab:`DM-22717`
+
+- Improved packaging:
+
+  - PEP 518-ify the build process by adding a ``pyproject.toml`` file.
+  - Removed the deprecated pytest-runner plugin.
+  - Moved most of the packaging configuration to ``setup.cfg``.
+
+  :jirab:`DM-22957`
+
+- Documentation improvements:
+
+  - Added a new Developer guide and Release procedure guide.
+  - Added an installation page.
+  - Moved the Python API reference to its own page.
+  - Improved the README to list features.
+
+- Added GitHub community health features: contributing, support, and code of conduct files.
 
 0.5.5 (2019-12-09)
 ------------------

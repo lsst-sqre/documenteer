@@ -4,24 +4,24 @@ To use this configuration in a Sphinx technote project, write a conf.py
 containing::
 
     from documenteer.conf.technote import *
-
-This configuration is broken down into these sections:
-
-#METADATA
-    Configurations based on metadata.yaml
-#EXT
-    Sphinx extensions
-#SPHINX
-    Core Sphinx configurations
-#HTML
-    HTML builder and theme configuration
-#TODO
-    todo extension configuration
-#MATHJAX
-    MathJax extension configuration
-#INTER
-    Intersphinx configuration
 """
+
+# This configuration is broken down into these sections:
+#
+# #METADATA
+#     Configurations based on metadata.yaml
+# #EXT
+#     Sphinx extensions
+# #SPHINX
+#     Core Sphinx configurations
+# #HTML
+#     HTML builder and theme configuration
+# #TODO
+#     todo extension configuration
+# #MATHJAX
+#     MathJax extension configuration
+# #INTER
+#     Intersphinx configuration
 
 # Ordered as they are declared in this module
 __all__ = (

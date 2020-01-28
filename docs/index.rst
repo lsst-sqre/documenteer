@@ -6,83 +6,59 @@ Documenteer
 
 Documenteer is developed on GitHub at https://github.com/lsst-sqre/documenteer.
 
+Getting started
+===============
+
 .. toctree::
    :maxdepth: 1
 
+   install
    changelog
-
-Pipelines projects
-==================
-
-.. toctree::
-   :maxdepth: 1
-
-   pipelines/install
-   pipelines/build-overview
-   pipelines/stack-docs-cli
-   pipelines/package-docs-cli
 
 Sphinx extensions
 =================
 
+Documenteer provides several Sphinx extensions.
+These extensions are designed for LSST documentation projects, but are may be generally useful:
+
+.. toctree::
+   :maxdepth: 2
+
+   sphinx-extensions/index
+
+Pipelines projects
+==================
+
+A guide to using Documenteer for LSST Science Pipelines documentation:
+
+.. toctree::
+   :maxdepth: 2
+
+   pipelines/index
+
+Technote projects
+=================
+
+A guide to writing reStructuredText-formatted LSST technical notes (technotes) using Sphinx and Documenteer:
+
+.. toctree::
+   :maxdepth: 2
+
+   technotes/index
+
+Reference
+=========
+
 .. toctree::
    :maxdepth: 1
 
-   sphinxext/lssttasks
+   api
 
-Python API reference
-====================
+Developer guide
+===============
 
-.. automodapi:: documenteer.sphinxconfig.stackconf
-   :no-main-docstr:
+.. toctree::
+   :maxdepth: 1
 
-.. automodapi:: documenteer.sphinxconfig.technoteconf
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxconfig.utils
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxext
-   :no-main-docstr:
-
-.. FIXME I couldn't get intersphinx to resolve inherited members, and no-inherited-members doesn't work, hence I'm skipping this API.
-
-.. automodapi:: documenteer.sphinxext.bibtex
-   :no-main-docstr:
-   :no-inherited-members:
-   :skip: LsstBibtexStyle
-
-.. automodapi:: documenteer.sphinxext.jira
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxext.lsstdocushare
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxext.mockcoderefs
-   :no-main-docstr:
-
-.. FIXME I couldn't get intersphinx to resolve inherited members, and no-inherited-members doesn't work, hence I'm skipping this API.
-
-.. automodapi:: documenteer.sphinxext.packagetoctree
-   :no-main-docstr:
-   :no-inherited-members:
-   :skip: ModuleTocTree
-   :skip: PackageTocTree
-
-.. automodapi:: documenteer.stackdocs.build
-
-.. automodapi:: documenteer.stackdocs.doxygen
-
-.. automodapi:: documenteer.stackdocs.packagecli
-
-.. automodapi:: documenteer.stackdocs.pkgdiscovery
-
-.. automodapi:: documenteer.stackdocs.rootdiscovery
-
-.. automodapi:: documenteer.stackdocs.stackcli
-
-.. automodapi:: documenteer.requestsutils
-   :no-main-docstr:
-
-.. automodapi:: documenteer.sphinxrunner
-   :no-main-docstr:
+   dev/development
+   dev/release

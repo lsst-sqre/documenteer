@@ -4,31 +4,34 @@ To use this configuration in a Sphinx project, write a conf.py::
 
     from documenteer.conf.pipelines import *
 
-This configuration is broken down into these sections:
+For additional documentation, see:
 
-#EXT
-    Sphinx extensions
-#SPHINX
-    Core Sphinx configurations
-#INTER
-    Intersphinx configuration
-#HTML
-    HTML builder and theme configuration
-#AUTOMODAPI
-    automodapi and autodoc configuration
-#GRAPHVIZ
-    graphviz configuration
-#MATPLOTLIB
-    matplotlib extension configuration
-#TODO
-    todo extension configuration
-#EUPS
-    Compute EUPS tag and versioning information
-#JINJA
-    Jinja extension configuration
-#EPILOG
-    rst_epilog is reStructured text content present on every page
+    https://documenteer.lsst.io/pipelines/configuration.html#pipelines-conf
 """
+# This configuration is broken down into these sections:
+#
+# #EXT
+#     Sphinx extensions
+# #SPHINX
+#     Core Sphinx configurations
+# #INTER
+#     Intersphinx configuration
+# #HTML
+#     HTML builder and theme configuration
+# #AUTOMODAPI
+#     automodapi and autodoc configuration
+# #GRAPHVIZ
+#     graphviz configuration
+# #MATPLOTLIB
+#     matplotlib extension configuration
+# #TODO
+#     todo extension configuration
+# #EUPS
+#     Compute EUPS tag and versioning information
+# #JINJA
+#     Jinja extension configuration
+# #EPILOG
+#     rst_epilog is reStructured text content present on every page
 
 __all__ = (
     # EXT
@@ -115,7 +118,6 @@ extensions = [
     'numpydoc',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
-    'breathe',
     'documenteer.sphinxext',
     'documenteer.sphinxext.lssttasks'
 ]

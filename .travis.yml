@@ -1,5 +1,4 @@
 dist: xenial
-sudo: false
 language: python
 git:
   # Clone the full depth for setuptools_scm (to count commits in very large
@@ -14,21 +13,21 @@ matrix:
       env: PYPI_DEPLOY=true LTD_SKIP_UPLOAD=false
       install:
         - "pip install Sphinx==2.3.*"
-        - "pip install .[dev]"
+        - "pip install .[dev,technote,pipelines]"
     - python: "3.7"
       install:
         - "pip install Sphinx==2.2.*"
-        - "pip install .[dev]"
+        - "pip install .[dev,technote,pipelines]"
     - python: "3.7"
       install:
         - "pip install Sphinx==2.1.*"
-        - "pip install .[dev]"
+        - "pip install .[dev,technote,pipelines]"
     - python: "3.7"
       install:
         - "pip install Sphinx==2.0.*"
-        - "pip install .[dev]"
+        - "pip install .[dev,technote,pipelines]"
 script:
-  - "python setup.py test"
+  - "pytest"
   - "cd docs && make linkcheck && make html && cd ../"
 after_success:
   - "pip install ltd-conveyor"

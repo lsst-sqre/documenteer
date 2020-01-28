@@ -2,35 +2,39 @@
 Installing Documenteer for pipelines.lsst.io
 ############################################
 
-Installation in the Stack environment
-=====================================
-
 The "pipelines" version of Documenteer provides additional dependencies needed to build the `pipelines.lsst.io <https://pipelines.lsst.io>`_ documentation site for the LSST Science Pipelines.
-Since Documenteer needs to work inside the Python environment of LSST DM's EUPS Stack, the safest way to install Documenteer is in a virtual environment layered on top of the Stack's Python.
 
-First, `install and set up <https://pipelines.lsst.io/install/newinstall.html>`__ the LSST Science Pipeline Stack.
+At the moment, the recommended procedure for installing Documenteer for stack work is to pip-install it into the set up Conda environment, using the version corresponding to the ``master`` branch of the pipelines_lsst_io_ repository.
 
-Then create a virtual environment and install the "pipelines" version of Documenteer into it:
+.. _pipelines_lsst_io: https://github.com/lsst/pipelines_lsst_io
 
-.. code-block:: bash
+Prerequisites
+=============
 
-   python -m venv --system-site-packages --without-pip pyvenv
-   source pyvenv/bin/activate
-   curl https://bootstrap.pypa.io/get-pip.py | python
-   pyvenv/bin/pip install "documenteer[pipelines]"
+Before starting this tutorial, you’ll need a working stack.
+For more information, see the `LSST Science Pipelines installation guide`_.
 
-Documenteer requires Python 3.5 and newer.
+The stack environment must be set up in the shell that you are installing Documenteer with.
+
+.. _`LSST Science Pipelines installation guide`: https://pipelines.lsst.io/install/newinstall.html
+
+Pip installation of Documenteer
+===============================
+
+Install Documenteer based on the requirements of the pipelines_lsst_io_ repository:
+
+.. code-block:: sh
+
+   curl -O https://raw.githubusercontent.com/lsst/pipelines_lsst_io/master/requirements.txt
+   pip install -r requirements.txt
 
 .. tip::
 
-   When working with the LSST Science Pipelines, the best method for installing Documenteer is through the `requirements.txt <https://github.com/lsst/pipelines_lsst_io/blob/master/requirements.txt>`__ file in the `pipelines_lsst_io <https://github.com/lsst/pipelines_lsst_io>`_ repository.
-   This way your working copy of Documenteer is compatible with the documentation project.
+   Do this step *after* having set up the stack with the :command:`setup` command.
 
-Further reading
-===============
+Next steps
+==========
 
-.. FIXME update these links to developer.lsst.io
+- `Building single-package documentation locally <https://developer.lsst.io/stack/building-single-package-docs.html>`__ (DM Developer Guide)
 
-- `Building single-package documentation locally <https://developer.lsst.io/v/DM-14852/stack/building-single-package-docs.html>`__ (DM Developer Guide)
-
-- `Building the pipelines.lsst.io site locally <https://developer.lsst.io/v/DM-14852/stack/building-pipelines-lsst-io-locally.html>`__ (DM Developer Guide)
+- `Building the pipelines.lsst.io site locally <https://developer.lsst.io/stack/building-pipelines-lsst-io-locally.html>`__ (DM Developer Guide)
