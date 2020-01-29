@@ -7,10 +7,14 @@ import logging
 import os
 import shutil
 import sys
+import re
+from typing import Sequence, Optional, Any
+
 import click
 
 from .build import build_stack_docs
 from .rootdiscovery import discover_conf_py_directory
+from .doxygentag import get_tag_entity_names
 
 
 # Add -h as a help shortcut option
@@ -210,3 +214,64 @@ def clean(ctx):
             logger.debug('Cleaned up %r', dirname)
         else:
             logger.debug('Did not clean up %r (missing)', dirname)
+
+
+@main.command()
+@click.option(
+    '-t', '--type', 'api_types',
+    multiple=True,
+    type=click.Choice(['namespace', 'struct', 'class', 'file', 'define',
+                       'group', 'variable', 'typedef', 'enumeration',
+                       'function']),
+    help=(
+        'Type of documentation to list. Omit to list all API types. Provide '
+        'multiple arguments to list several API types. "class" includes both '
+        'classes and their methods.'
+    )
+)
+@click.option(
+    '-p', '--pattern',
+    type=str,
+    help=(
+        'Regular expression pattern to filter API names.'
+    )
+)
+@click.option(
+    '--escape/--no-escape',
+    default=True,
+    help=(
+        'Escape the name so it can be used in reStructuredText (default).'
+    )
+)
+@click.pass_context
+def listcc(ctx: Any, api_types: Sequence[str], pattern: Optional[str],
+           escape: bool) -> None:
+    """List C++ API names available in the Doxygen tag file for cross-linking.
+
+    To make a cross-link from a reStructuredText file or Python docstring, use
+    the syntax::
+
+        :lsstcc:`{{name}}`
+
+    Example usage::
+
+        stack-docs listcc -t class -t function -p lsst::afw::table
+    """
+    tag_path = os.path.join(
+        ctx.obj['root_project_dir'], '_doxygen', 'doxygen.tag')
+
+    if pattern:
+        p = re.compile(pattern)
+
+    if not api_types:
+        api_types = ['namespace', 'struct', 'class', 'file', 'define',
+                     'group', 'variable', 'typedef', 'enumeration', 'function']
+    entities = get_tag_entity_names(tag_path=tag_path, kinds=api_types)
+    for name in entities:
+        if pattern:
+            if not p.search(name):
+                continue
+        if escape:
+            print(name.replace('<', r'\<').replace('>', r'\>'))
+        else:
+            print(name)
