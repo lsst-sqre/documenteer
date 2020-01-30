@@ -49,8 +49,10 @@ Change Log
 
 - The stack documentation build (``stack-docs build``) can now run a Doxygen build to generate an HTML site and tag file of the C++ API.
   The HTML site is copied into the ``cpp-api`` directory of the Sphinx site, during the Sphinx build.
-  ReStructuredText content can now link into embedded Doxygen-generate site using the `sphinxcontrib-doxylink <https://sphinxcontrib-doxylink.readthedocs.io/en/latest/>`_ extension with the new ``lsstcc`` role.
   This Doxygen build replaces, and is independent of, the Doxygen build tooling in sconsUtils_, and lsstDoxygen_.
+
+  ReStructuredText content can now link into embedded Doxygen-generate site using the `sphinxcontrib-doxylink <https://sphinxcontrib-doxylink.readthedocs.io/en/latest/>`_ extension with the new ``lsstcc`` role.
+  Authors can use a new command, ``stack-docs listcc`` to find available APIs for linking.
 
   The built-in Doxygen build considers all Stack packages with a ``doc/doxygen.conf.in`` file.
   Documenteer creates a Doxygen configuration from the contents of each package's ``doxygen.conf.in`` file, along with built-in defaults appropriate for pipelines.lsst.io.
