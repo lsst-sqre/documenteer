@@ -34,26 +34,14 @@ Stack build and set up
 The prerequisite for the Stack documentation build is that the Stack is already built and set up.
 Sphinx imports Python packages to generate documentation for their APIs.
 
-.. Not only does this make the Stack importable so that Sphinx can introspect the Python APIs, it also means that Doxygen has already run (through SCons_\ /`sconsUtils`_ and `lsstDoxygen`_) and generated XML files with C++ API descriptions.
-
 The :ref:`main documentation repository <developer:stack-docs-system-main-repo>` (`pipelines_lsst_io`_) has an EUPS table file.
 This table file defines all the Stack packages that should be set up and that are available for inclusion in the Stack documentation build.
 See :ref:`developer:add-to-pipelines-lsst-io` for details.
 
-.. _pipelines-build-linking:
-
-Package documentation linking
-=============================
-
-The next step of the build is to run |stack-docs|, from Documenteer.
-
-The |stack-docs| app begins by discovering packages that are set up by EUPS and that also have :ref:`doc/manifest.yaml <developer:docdir-manifest-yaml>` files.
-Following the :ref:`doc/manifest.yaml <developer:docdir-manifest-yaml>` file, |stack-docs| symlinks the :ref:`module <developer:docdir-module-doc-directories>` and :ref:`package documentation directories <developer:docdir-package-doc-directory>` into the :file:`modules/` and :file:`packages/` directories of the `pipelines_lsst_io`_ repository.
-
 .. _pipelines-build-doxygen:
 
-The Doxygen build
-=================
+Doxygen build
+=============
 
 Doxygen_ extracts information from the source code to generate the C++ API reference.
 Documenteer runs Doxygen as a step in the |stack-docs| command.
@@ -65,10 +53,22 @@ Second, Documenteer constructs a Doxygen configuration.
 By default, the :file:`include` directory of each relevant package is included in the ``INPUT`` Doxygen configuration tag.
 Individual packages can also add other paths to the ``INPUT`` tag, remove paths (``EXCLUDE`` or ``EXCLUDE_PATTERNS`` tags),  or exclude symbols (``EXCLUDE_SYMBOLS`` tag).
 
-This combined Doxygen configuration 
-Finally, Documenteer uses this combined Doxygen configuration to run the :command:`doxygen` command and generate XML files that describe the API.
+Finally, Documenteer uses this combined Doxygen configuration to run the :command:`doxygen` command to generate an HTML site and tag file that exclusively documents the C++ API reference.
+Sphinx copies the Doxygen site into the :file:`cpp-api` directory during its build so that the Doxygen-generated API reference effectively becomes an sub-site of the Sphinx-rendered site.
+The pipelines.lsst.io documentation project has a special :rst:role:`lsstcc` role, created through doxylink_ extension, using the Doxygen tag file, that allows reStructuredText content to link to C++ API reference pages in the Doxygen site.
 
 For more information about Documenteer's built-in Doxygen build, see the `documenteer.stackdocs.doxygen` module, and the `~documenteer.stackdocs.doxygen.run_doxygen` and `~documenteer.stackdocs.doxygen.DoxygenConfiguration` APIs in particular.
+From a documentation writer's perspective, see also: :doc:`cpp-api-linking`.
+
+.. _pipelines-build-linking:
+
+Package documentation linking
+=============================
+
+The next step of the build is to run |stack-docs|, from Documenteer.
+
+The |stack-docs| app begins by discovering packages that are set up by EUPS and that also have :ref:`doc/manifest.yaml <developer:docdir-manifest-yaml>` files.
+Following the :ref:`doc/manifest.yaml <developer:docdir-manifest-yaml>` file, |stack-docs| symlinks the :ref:`module <developer:docdir-module-doc-directories>` and :ref:`package documentation directories <developer:docdir-package-doc-directory>` into the :file:`modules/` and :file:`packages/` directories of the `pipelines_lsst_io`_ repository.
 
 .. _pipelines-build-sphinx:
 
@@ -135,3 +135,4 @@ Other LSST sites:
 .. _`DMTN-030`:
 .. _`DMTN-030 Science Pipelines Documentation Design`: https://dmtn-030.lsst.io
 .. _Doxygen: http://www.doxygen.nl
+.. _doxylink: https://pythonhosted.org/sphinxcontrib-doxylink/
