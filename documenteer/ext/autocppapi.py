@@ -4,8 +4,9 @@ a namespace.
 
 __all__ = ['setup', 'AutoCppApi']
 
+import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Any
+from typing import TYPE_CHECKING, Dict, List, Sequence, Optional, Any
 import xml.etree.ElementTree as ET
 
 from docutils.nodes import Node
@@ -63,6 +64,32 @@ def load_symbolmap(
         f'Could not load tag file for Doxylink {doxylink_role} role')
 
 
+def filter_symbolmap(
+    symbol_map: doxylink.SymbolMap,
+    kinds: Optional[Sequence[str]] = None,
+    match: Optional[str] = None
+) -> List[str]:
+    names: List[str] = []
+    pattern: Optional[Any]
+    if match:
+        pattern = re.compile(match)
+    else:
+        pattern = None
+    for key in symbol_map._mapping.keys():
+        entry = symbol_map[key]
+        if kinds:
+            if entry.kind in kinds:
+                if pattern:
+                    if pattern.search(key):
+                        names.append(key)
+                else:
+                    names.append(key)
+        else:
+            names.append(key)
+    names.sort()
+    return names
+
+
 class AutoCppApi(SphinxDirective):
     """The ``autocppapi`` directive that lists C++ APIs within a namespace,
     as detected by doxylink.
@@ -85,7 +112,20 @@ class AutoCppApi(SphinxDirective):
             doxylink_role = self.env.config[
                 'documenteer_autocppapi_doxylink_role']
 
+        try:
+            key = 'documenteer_autocppapi_symbolmaps'
+            symbol_map: doxylink.SymbolMap \
+                = self.env.config[key][doxylink_role]
+        except KeyError:
+            symbol_map = load_symbolmap(doxylink_role, self.env.config)
+
         namespace_prefix = self.arguments[0]
+
+        class_entities = filter_symbolmap(
+            symbol_map, kinds=['class'], match=namespace_prefix)
+        print(class_entities)
+
+        return []
 
 
 def setup(app: "sphinx.application.Sphinx") -> Dict[str, Any]:
