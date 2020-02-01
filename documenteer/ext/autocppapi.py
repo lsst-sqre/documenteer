@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Sequence, Optional, Any
 import xml.etree.ElementTree as ET
 
-from docutils.nodes import Node
+from docutils import nodes
 from docutils.parsers.rst import directives
 from pkg_resources import get_distribution
 from sphinx.util.docutils import SphinxDirective
@@ -22,6 +22,8 @@ except ImportError:
         'pipelines extra:\n\n  pip install documenteer[pipelines]'
     )
     raise
+
+from documenteer.sphinxext.utils import parse_rst_content
 
 
 if TYPE_CHECKING:
@@ -103,7 +105,7 @@ class AutoCppApi(SphinxDirective):
         'doxylink-role': directives.unchanged,
     }
 
-    def run(self) -> List[Node]:
+    def run(self) -> List[nodes.Node]:
         """Execute the directive.
         """
         if 'doxylink-role' in self.options:
@@ -121,11 +123,55 @@ class AutoCppApi(SphinxDirective):
 
         namespace_prefix = self.arguments[0]
 
-        class_entities = filter_symbolmap(
-            symbol_map, kinds=['class'], match=namespace_prefix)
-        print(class_entities)
+        node_list: List[nodes.Node] = []
 
-        return []
+        api_kinds = [
+            ('class', 'Classes'),
+            ('struct', 'Structs'),
+            # ('function', 'Functions'),
+            # ('typedef', 'Typedefs'),
+            # ('enumerations', 'Enumerations'),
+            ('variable', 'Variables'),
+            ('define', 'Defines'),
+        ]
+        for kind, heading in api_kinds:
+            node_list.extend(
+                self._make_signature_section(
+                    kind, namespace_prefix, heading, symbol_map,
+                    doxylink_role))
+
+        return node_list
+
+    def _make_signature_section(
+        self,
+        kind: str,
+        prefix: str,
+        heading: str,
+        symbol_map: doxylink.SymbolMap,
+        doxylink_role: str
+    ) -> List[nodes.Node]:
+        names = filter_symbolmap(
+            symbol_map, kinds=[kind], match=prefix)
+
+        node_list: List[nodes.Node] = []
+        if names:
+            node_list.append(nodes.title(text=heading))
+        else:
+            return node_list
+
+        rst_text = ['\n']
+        for name in names:
+            escaped_name = name.replace('<', r'\<').replace('>', r'\>')
+            rst_text.append(f'- :{doxylink_role}:`{escaped_name}`')
+        node_list.extend(parse_rst_content('\n'.join(rst_text), self.state))
+
+        section = nodes.section()
+        section_id = nodes.make_id(f'{prefix}-{heading}')
+        section['ids'].append(section_id)
+        section['names'].append(section_id)
+        section.extend(node_list)
+
+        return [section]
 
 
 def setup(app: "sphinx.application.Sphinx") -> Dict[str, Any]:
