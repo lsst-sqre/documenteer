@@ -6,6 +6,7 @@ Sphinx extensions provided by Documenteer
    :maxdepth: 2
 
    lssttasks
+   autocppapi
    jira-reference
    docushare-reference
    remote-code-block
