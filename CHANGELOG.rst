@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.5.7 (2020-02-26)
+------------------
+
+- The `Click <https://click.palletsprojects.com/en/7.x/>`__ dependency is no longer pinned (previously it was pinned ``<=7``).
+
 0.5.6 (2020-01-16)
 ------------------
 
