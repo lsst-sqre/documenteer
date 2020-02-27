@@ -125,12 +125,12 @@ class AutoCppApi(SphinxDirective):
 
         node_list: List[nodes.Node] = []
 
+        # Map of doxylink.SymbolMap API types with headers.
+        # There are additional types (such as `function`, `typedef`, and
+        # `enumerations`), but these are generally scoped in classes already.
         api_kinds = [
             ('class', 'Classes'),
             ('struct', 'Structs'),
-            # ('function', 'Functions'),
-            # ('typedef', 'Typedefs'),
-            # ('enumerations', 'Enumerations'),
             ('variable', 'Variables'),
             ('define', 'Defines'),
         ]

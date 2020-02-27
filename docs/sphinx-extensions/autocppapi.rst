@@ -41,7 +41,6 @@ autocppapi directive
 
    - Classes
    - Structs
-   - Functions
    - Variables
    - Defines
 
