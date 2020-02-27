@@ -2,11 +2,11 @@
 a namespace.
 """
 
-__all__ = ['setup', 'AutoCppApi']
+__all__ = ['setup', 'AutoCppApi', 'filter_symbolmap']
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Sequence, Optional, Any
+from typing import TYPE_CHECKING, Dict, Set, List, Optional, Any
 import xml.etree.ElementTree as ET
 
 from docutils import nodes
@@ -68,9 +68,32 @@ def load_symbolmap(
 
 def filter_symbolmap(
     symbol_map: doxylink.SymbolMap,
-    kinds: Optional[Sequence[str]] = None,
+    kinds: Optional[Set[str]] = None,
     match: Optional[str] = None
 ) -> List[str]:
+    """Filter the entries in a symbol map to only those that match a certain
+    API type or name regular expression.
+
+    Parameters
+    ----------
+    symbol_map : ``doxylink.SymbolMap``
+        The Doxylink SymbolMap.
+    kinds : `set` of `str`, optional
+        The kinds of APIs to filter for. The class-like APIs are:
+
+        - ``class``
+        - ``struct``
+        - ``union``
+        - ``interface``
+    match : `str`
+        A string that can be compiled into a regular expression. This regular
+        expression matches APIs
+
+    Returns
+    -------
+    names : `list` of `str`
+        The names of APIs that match the criteria.
+    """
     names: List[str] = []
     pattern: Optional[Any]
     if match:
