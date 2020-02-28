@@ -98,7 +98,7 @@ class DoxygenConfiguration:
     """
 
     file_patterns: List[str] = field(
-        default_factory=lambda: ['*.h', '*.cc', '*.dox'],
+        default_factory=lambda: ['*.h', '*.dox'],
         metadata={
             'doxygen_tag': 'FILE_PATTERNS'
         }
