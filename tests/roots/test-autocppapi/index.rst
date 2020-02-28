@@ -2,7 +2,7 @@
 autocppapi test site
 ####################
 
-lsst::utils
-===========
+C++ API reference
+=================
 
 .. autocppapi:: lsst::utils

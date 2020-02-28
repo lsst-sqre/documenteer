@@ -148,33 +148,53 @@ class AutoCppApi(SphinxDirective):
 
         node_list: List[nodes.Node] = []
 
-        # Map of doxylink.SymbolMap API types with headers.
-        # There are additional types (such as `function`, `typedef`, and
-        # `enumerations`), but these are generally scoped in classes already.
-        api_kinds = [
-            ('class', 'Classes'),
-            ('struct', 'Structs'),
-            ('variable', 'Variables'),
-            ('define', 'Defines'),
-        ]
-        for kind, heading in api_kinds:
-            node_list.extend(
-                self._make_signature_section(
-                    kind, namespace_prefix, heading, symbol_map,
-                    doxylink_role))
+        node_list.extend(self._make_namespace_section(
+            namespace_prefix, namespace_prefix, symbol_map, doxylink_role)
+        )
 
         return node_list
 
-    def _make_signature_section(
+    def _make_namespace_section(
         self,
-        kind: str,
         prefix: str,
         heading: str,
         symbol_map: doxylink.SymbolMap,
-        doxylink_role: str
+        doxylink_role: str,
+        kinds: Optional[Set[str]] = None
     ) -> List[nodes.Node]:
-        names = filter_symbolmap(
-            symbol_map, kinds=[kind], match=prefix)
+        """Create nodes for a section that lists links to APIs under a single
+        C++ namespace (prefix).
+
+        Parameters
+        ----------
+        prefix : `str`
+            The API refix to match to symbols. E.g. ``lsst::afw::table``.
+        heading : `str`
+            The heading to use for the section. Normally this is the name
+            of the namespace, which might be the same as ``prefix``.
+        symbol_map : ``doxylink.SymbolMap``
+            The symbol map.
+        kinds : `set` of `str`, optional
+            The kinds of APIs to list. By default, this is the set:
+
+            - class
+            - struct
+            - union
+            - interface
+
+        Returns
+        -------
+        nodes : `list` of ``docutils.nodes.Node``
+            A list of nodes. The node list is a single item, which is a
+            "section" node that wraps all other nodes.
+        """
+        _kinds: Set[str]
+        if kinds is None:
+            # Default API kinds: these are all "class-like"
+            _kinds = {"class", "struct", "union", "interface"}
+        else:
+            _kinds = kinds
+        names = filter_symbolmap(symbol_map, kinds=_kinds, match=prefix)
 
         node_list: List[nodes.Node] = []
         if names:
@@ -189,7 +209,7 @@ class AutoCppApi(SphinxDirective):
         node_list.extend(parse_rst_content('\n'.join(rst_text), self.state))
 
         section = nodes.section()
-        section_id = nodes.make_id(f'{prefix}-{heading}')
+        section_id = nodes.make_id(f'cppapi-{prefix}')
         section['ids'].append(section_id)
         section['names'].append(section_id)
         section.extend(node_list)

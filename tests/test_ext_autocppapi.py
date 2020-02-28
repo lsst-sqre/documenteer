@@ -25,23 +25,13 @@ def test_example_page_rendering(app, status, warning):
         html_source = f.read()
     doc = lxml.html.document_fromstring(html_source)
 
-    section = doc.cssselect('#lsst-utils')[0]
+    section = doc.cssselect('#cppapi-lsst-utils')[0]
 
-    headers = [
-        'Classes¶',
-        'Structs¶',
-        'Variables¶'
-    ]
+    headline = section.cssselect('h3')[0]
+    assert headline.text_content() == 'lsst::utils¶'
 
-    for div in section.cssselect('div'):
-        header = div.cssselect('h3')[0]
-        assert header.text_content() in headers
-
-        ul = div.cssselect('ul')[0]
-
-        if header == 'Variables¶':
-            li0 = ul.cssselect('a')[0]
-            assert li0.attrib['href'] == (
-                'cpp-api/classlsst_1_1utils_1_1python_1_1_wrapper_'
-                'collection.html#abc61644ff7791a730da4ec8f6057365a'
-            )
+    ul = section.cssselect('ul')[0]
+    li0 = ul.cssselect('a')[0]
+    assert li0.attrib['href'] \
+        == './cpp-api/classlsst_1_1utils_1_1_backtrace.html'
+    assert li0.text_content() == 'lsst::utils::Backtrace'
