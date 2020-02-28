@@ -1,0 +1,9 @@
+/**
+\mainpage Vera C. Rubin Observatory LSST Science Pipelines C++ Reference
+
+This documentation subsite includes in-depth reference documentation for the LSST Science Pipelines's C++ APIs.
+
+Start with the <a href="hierarchy.html">class listing</a>.
+
+<a href="../index.html">For guides, tutorials and the Python API reference, see the main documentation site.</a>
+*/

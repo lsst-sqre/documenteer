@@ -1,8 +1,10 @@
 """Configuration and execution of Doxygen at the stack level.
 """
 
-__all__ = (
-    'DoxygenConfiguration', 'preprocess_package_doxygen_conf', 'run_doxygen')
+__all__ = [
+    'DoxygenConfiguration', 'preprocess_package_doxygen_conf',
+    'render_doxygen_mainpage', 'run_doxygen'
+]
 
 from copy import deepcopy
 import csv
@@ -96,7 +98,7 @@ class DoxygenConfiguration:
     """
 
     file_patterns: List[str] = field(
-        default_factory=lambda: ['*.h', '*.cc'],
+        default_factory=lambda: ['*.h', '*.cc', '*.dox'],
         metadata={
             'doxygen_tag': 'FILE_PATTERNS'
         }
@@ -596,6 +598,20 @@ def preprocess_package_doxygen_conf(
         if path.is_dir():
             conf.inputs.append(path)
             conf.strip_from_path.append(path)
+
+
+def render_doxygen_mainpage() -> str:
+    """Render the mainpage.dox page that provides content for the Doxygen
+    subsite's homepage.
+
+    Returns
+    -------
+    content : `str`
+        The content of ``mainpage.dox``.
+    """
+    template_path = Path(__file__).parent / 'data' / 'mainpage.dox'
+    template = template_path.read_text()
+    return template
 
 
 def run_doxygen(*, conf: DoxygenConfiguration, root_dir: Path) -> int:

@@ -12,7 +12,8 @@ from .pkgdiscovery import (
     discover_setup_packages, find_table_file, list_packages_in_eups_table,
     find_package_docs, NoPackageDocs, Package)
 from .doxygen import (
-    DoxygenConfiguration, preprocess_package_doxygen_conf, run_doxygen)
+    DoxygenConfiguration, preprocess_package_doxygen_conf,
+    render_doxygen_mainpage, run_doxygen)
 from ..sphinxrunner import run_sphinx
 
 
@@ -184,6 +185,13 @@ def build_stack_docs(
             # Append package's configurations to the root configuration
             doxygen_conf += package_doxygen_conf
 
+        # Add the mainpage.dox to the build
+        mainpage = render_doxygen_mainpage()
+        mainpage_path = doxygen_build_dir / 'mainpage.dox'
+        mainpage_path.write_text(mainpage)
+        doxygen_conf.inputs.append(mainpage_path)
+
+        # General configuration of outputs and paths
         doxygen_conf.xml_output = doxygen_xml_dir
         doxygen_conf.tagfile = doxygen_build_dir / 'doxygen.tag'
         doxygen_conf.generate_html = True
