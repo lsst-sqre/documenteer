@@ -1,8 +1,10 @@
 """Configuration and execution of Doxygen at the stack level.
 """
 
-__all__ = (
-    'DoxygenConfiguration', 'preprocess_package_doxygen_conf', 'run_doxygen')
+__all__ = [
+    'DoxygenConfiguration', 'preprocess_package_doxygen_conf',
+    'render_doxygen_mainpage', 'run_doxygen'
+]
 
 from copy import deepcopy
 import csv
@@ -96,7 +98,7 @@ class DoxygenConfiguration:
     """
 
     file_patterns: List[str] = field(
-        default_factory=lambda: ['*.h', '*.cc'],
+        default_factory=lambda: ['*.h', '*.dox'],
         metadata={
             'doxygen_tag': 'FILE_PATTERNS'
         }
@@ -125,6 +127,33 @@ class DoxygenConfiguration:
     or class names.
     """
 
+    project_name: str = field(
+        default='The LSST Science Pipelines',
+        metadata={
+            'doxygen_tag': 'PROJECT_NAME'
+        }
+    )
+    """Name of the Doxygen project (used in the HTML output).
+    """
+
+    project_brief: str = field(
+        default='C++ API Reference',
+        metadata={
+            'doxygen_tag': 'PROJECT_BRIEF'
+        }
+    )
+    """Brief description (subtile) of the project.
+    """
+
+    output_directory: Path = field(
+        default_factory=lambda: Path.cwd(),
+        metadata={
+            'doxygen_tag': 'OUTPUT_DIRECTORY'
+        }
+    )
+    """Directory where Doxygen output will be generated, by default.
+    """
+
     generate_html: bool = field(
         default=False,
         metadata={
@@ -143,6 +172,15 @@ class DoxygenConfiguration:
     """Whether or not to generate LaTeX output.
     """
 
+    tagfile: Path = field(
+        default_factory=lambda: Path('doxygen.tag'),
+        metadata={
+            'doxygen_tag': 'GENERATE_TAGFILE'
+        }
+    )
+    """Whether or not to generate LaTeX output.
+    """
+
     generate_xml: bool = field(
         default=True,
         metadata={
@@ -150,6 +188,33 @@ class DoxygenConfiguration:
         }
     )
     """Whether or not ot generate XML output.
+    """
+
+    html_output: Path = field(
+        default_factory=lambda: Path('html'),
+        metadata={
+            'doxygen_tag': 'HTML_OUTPUT'
+        }
+    )
+    """Directory where the HTML build will be put.
+    """
+
+    use_mathjax: bool = field(
+        default=True,
+        metadata={
+            'doxygen_tag': 'USE_MATHJAX'
+        }
+    )
+    """Enable MathJax to render math, rather than LaTeX.
+    """
+
+    mathjax_format: str = field(
+        default='SVG',
+        metadata={
+            'doxygen_tag': 'MATHJAX_FORMAT'
+        }
+    )
+    """Format of the MathJax output in the HTML build.
     """
 
     xml_output: Path = field(
@@ -188,6 +253,15 @@ class DoxygenConfiguration:
         }
     )
     """Doxygen keeps the full path of each file, rather than stripping it.
+    """
+
+    strip_from_path: List[Path] = field(
+        default_factory=list,
+        metadata={
+            'doxygen_tag': 'STRIP_FROM_PATH'
+        }
+    )
+    """Path prefixes to strip from path names.
     """
 
     enable_preprocessing: bool = field(
@@ -235,6 +309,8 @@ class DoxygenConfiguration:
             value = getattr(self, tag_field.name)
             if tag_field.type == bool:
                 self._render_bool(lines, tag_name, value)
+            elif tag_field.type == str:
+                self._render_str(lines, tag_name, value)
             elif tag_field.type == List[Path]:
                 self._render_path_list(lines, tag_name, value)
             elif tag_field.type == List[str]:
@@ -249,6 +325,16 @@ class DoxygenConfiguration:
             line = f'{tag_name} = YES'
         else:
             line = f'{tag_name} = NO'
+        lines.append(line)
+
+    def _render_str(
+            self, lines: List[str], tag_name: str, value: str) -> None:
+        if value == '':
+            return
+        elif ' ' in value:
+            line = f'{tag_name} = "{value}"'
+        else:
+            line = f'{tag_name} = {value}'
         lines.append(line)
 
     def _render_path(
@@ -307,7 +393,8 @@ class DoxygenConfiguration:
         for tag_field in fields(new_config):
             attrname = tag_field.name
             new_value = getattr(new_config, attrname)
-            if isinstance(new_value, Iterable):
+            if isinstance(new_value, Iterable) \
+                    and not isinstance(new_value, str):
                 # This algorithm lets us filter duplicates while preserving
                 # order. The trick with typing is that seen.add does not
                 # return a type, but mypy expects a boolean given the logical
@@ -476,9 +563,9 @@ def preprocess_package_doxygen_conf(
     """Preprocess a Doxygen configuration for an individual package that is
     based on a package's ``doxygen.conf.in`` file.
 
-    This function adds paths to the ``INPUT`` configuration tag, and plays an
-    equivalent role to sconsUtils to add configurations to the
-    ``doxygen.conf.in`` template for a package.
+    This function adds paths to the ``INPUT`` and ``STRIP_FROM_PATH``
+    configuration tags, and plays an equivalent role to sconsUtils to add
+    configurations to the ``doxygen.conf.in`` template for a package.
 
     Parameters
     ----------
@@ -501,11 +588,30 @@ def preprocess_package_doxygen_conf(
     The ``src`` directory isn't handled because Doxygen documentation comments
     are written exclusively in header files per the LSST DM standard.
     The ``examples`` directory is also deprecated in the Sphinx regime.
+
+    The function also addes the ``include`` directory of the package to the
+    ``STRIP_FROM_PATH`` tag so that we don't publish build system-specific
+    paths for header files.
     """
     dirnames = ['include']
     for path in map(lambda p: package.root_dir / p, dirnames):
         if path.is_dir():
             conf.inputs.append(path)
+            conf.strip_from_path.append(path)
+
+
+def render_doxygen_mainpage() -> str:
+    """Render the mainpage.dox page that provides content for the Doxygen
+    subsite's homepage.
+
+    Returns
+    -------
+    content : `str`
+        The content of ``mainpage.dox``.
+    """
+    template_path = Path(__file__).parent / 'data' / 'mainpage.dox'
+    template = template_path.read_text()
+    return template
 
 
 def run_doxygen(*, conf: DoxygenConfiguration, root_dir: Path) -> int:

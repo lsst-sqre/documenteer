@@ -72,6 +72,7 @@ __all__ = (
     'html_show_copyright',
     'html_file_suffix',
     'html_search_language',
+    'html_extra_path',
     # AUTOMODAPI
     'numpydoc_show_class_members',
     'autosummary_generate',
@@ -80,6 +81,8 @@ __all__ = (
     'autodoc_inherit_docstrings',
     'autoclass_content',
     'autodoc_default_flags',
+    # DOXYLINK
+    'doxylink',
     # GRAPHVIZ
     'graphviz_output_format',
     'graphviz_dot_args',
@@ -115,6 +118,7 @@ extensions = [
     'sphinxcontrib.jinja',
     'sphinx-prompt',
     'sphinxcontrib.autoprogram',
+    'sphinxcontrib.doxylink',
     'numpydoc',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
@@ -292,6 +296,8 @@ html_file_suffix = '.html'
 # Language to be used for generating the HTML full-text search index.
 html_search_language = 'en'
 
+html_extra_path = ['_doxygen/html']
+
 
 # ============================================================================
 # #AUTOMODAPI automodapi and autodoc configuration
@@ -327,6 +333,13 @@ autodoc_default_flags = [
     'show-inheritance',
     'special-members'
 ]
+
+# ============================================================================
+# #DOXYLINK Doxylink configuration
+# ============================================================================
+doxylink = {
+    'lsstcc': ('_doxygen/doxygen.tag', 'cpp-api')
+}
 
 # ============================================================================
 # #GRAPHVIZ graphviz configuration

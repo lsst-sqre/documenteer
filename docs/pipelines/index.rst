@@ -18,3 +18,4 @@ Documenteer also includes Sphinx extensions to help document domain-specific top
    stack-docs-cli
    package-docs-cli
    configuration
+   cpp-api-linking

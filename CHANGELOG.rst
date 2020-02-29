@@ -13,7 +13,7 @@ Change Log
 
   - ``pip install documenteer[technote]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and extensions used by all technote projects.
 
-  - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and exetnsions used by pipelines.lsst.io.
+  - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and extensions used by pipelines.lsst.io.
 
   Specific dependency upgrades:
 
@@ -22,6 +22,7 @@ Change Log
   - ``sphinx-automodapi`` is pinned at 0.12.
   - ``breathe`` is dropped.
   - ``sphinx-prompt`` is moved from a core dependency to an extra.
+  - ``sphinxcontrib.doxylink`` is a new extension for Pipelines projects to link the embedded Doxygen-generated C++ reference.
 
   Updates to development or test dependencies:
 
@@ -46,14 +47,19 @@ Change Log
     This change reduces the upload site of the pipelines.lsst.io site.
   - Updated the MathJax CDN URL to point to cdnjs.
 
-- The stack documentation build (``stack-docs build``) can now run a Doxygen build to generate an XML inventory of the Stack's C++ API.
-  This built-in Doxygen build considers all Stack packages with a ``dox/doxygen.conf.in`` file.
+- The stack documentation build (``stack-docs build``) can now run a Doxygen build to generate an HTML site and tag file of the C++ API.
+  The HTML site is copied into the ``cpp-api`` directory of the Sphinx site, during the Sphinx build.
+  This Doxygen build replaces, and is independent of, the Doxygen build tooling in sconsUtils_, and lsstDoxygen_.
+
+  ReStructuredText content can now link into embedded Doxygen-generate site using the `sphinxcontrib-doxylink <https://sphinxcontrib-doxylink.readthedocs.io/en/latest/>`_ extension with the new ``lsstcc`` role.
+  Authors can use a new command, ``stack-docs listcc`` to find available APIs for linking.
+
+  The built-in Doxygen build considers all Stack packages with a ``doc/doxygen.conf.in`` file.
   Documenteer creates a Doxygen configuration from the contents of each package's ``doxygen.conf.in`` file, along with built-in defaults appropriate for pipelines.lsst.io.
   For example, individual packages can add to the ``EXCLUDE`` tag.
   By default, each package's ``include`` directory is included in the Doxygen build.
-  This Doxygen build replaces, and is independent of, the Doxygen build tooling in sconsUtils_, and lsstDoxygen_.
 
-  :jirab:`DM-22698`
+  [:jira:`DM-22698`, :jira:`DM-23094`]
 
 - Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
   :jirab:`DM-22717`
