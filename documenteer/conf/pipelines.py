@@ -83,6 +83,7 @@ __all__ = (
     'autodoc_default_flags',
     # DOXYLINK
     'doxylink',
+    'documenteer_autocppapi_doxylink_role',
     # GRAPHVIZ
     'graphviz_output_format',
     'graphviz_dot_args',
@@ -123,7 +124,8 @@ extensions = [
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
     'documenteer.sphinxext',
-    'documenteer.sphinxext.lssttasks'
+    'documenteer.sphinxext.lssttasks',
+    'documenteer.ext.autocppapi',
 ]
 
 # ============================================================================
@@ -340,6 +342,8 @@ autodoc_default_flags = [
 doxylink = {
     'lsstcc': ('_doxygen/doxygen.tag', 'cpp-api')
 }
+
+documenteer_autocppapi_doxylink_role = 'lsstcc'
 
 # ============================================================================
 # #GRAPHVIZ graphviz configuration

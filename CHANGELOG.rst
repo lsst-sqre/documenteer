@@ -54,12 +54,15 @@ Change Log
   ReStructuredText content can now link into embedded Doxygen-generate site using the `sphinxcontrib-doxylink <https://sphinxcontrib-doxylink.readthedocs.io/en/latest/>`_ extension with the new ``lsstcc`` role.
   Authors can use a new command, ``stack-docs listcc`` to find available APIs for linking.
 
+  There is a new directive, ``autocppapi``, part of the ``documenteer.ext.autocppapi`` extension, that helps you list and link to C++ APIs in a namespace.
+  It's intended to be used equivalently to the ``automodapi`` extension.
+
   The built-in Doxygen build considers all Stack packages with a ``doc/doxygen.conf.in`` file.
   Documenteer creates a Doxygen configuration from the contents of each package's ``doxygen.conf.in`` file, along with built-in defaults appropriate for pipelines.lsst.io.
   For example, individual packages can add to the ``EXCLUDE`` tag.
   By default, each package's ``include`` directory is included in the Doxygen build.
 
-  [:jira:`DM-22698`, :jira:`DM-23094`]
+  [:jira:`DM-22698`, :jira:`DM-23094`, :jira:`DM-22461`]
 
 - Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
   :jirab:`DM-22717`

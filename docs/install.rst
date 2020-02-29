@@ -2,6 +2,8 @@
 Installing Documenteer
 ######################
 
+.. _pip-install:
+
 Installation with pip
 =====================
 
