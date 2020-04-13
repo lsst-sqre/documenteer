@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.5.8 (2020-04-13)
+------------------
+
+- Added the `sphinx-click <https://github.com/click-contrib/sphinx-click>`__ extension to the ``pipelines`` extra and enabled it for Pipelines-based documentation projects.
+
 0.5.7 (2020-02-26)
 ------------------
 

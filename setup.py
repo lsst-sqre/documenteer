@@ -56,6 +56,7 @@ extras_require = {
         'breathe==4.4.0',
         'sphinx-jinja==1.1.0',
         'sphinxcontrib-autoprogram>=0.1.5,<0.2.0',
+        'sphinx-click',
     ],
 
     # For documenteer development environments
