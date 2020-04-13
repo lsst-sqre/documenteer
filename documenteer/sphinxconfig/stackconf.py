@@ -37,6 +37,7 @@ def _insert_extensions(c):
         'sphinx_automodapi.automodapi',
         'sphinx_automodapi.smart_resolver',
         'breathe',
+        'sphinx_click.ext',
         'documenteer.sphinxext',
         'documenteer.sphinxext.lssttasks'
     ]
