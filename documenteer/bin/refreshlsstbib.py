@@ -63,7 +63,7 @@ def make_parser():
         '-d', '--dir',
         default='.',
         help="Directory to download bib files into. Default is the current "
-             "workig directory.")
+             "working directory.")
     parser.add_argument(
         '-v', '--verbose',
         dest='verbose',
