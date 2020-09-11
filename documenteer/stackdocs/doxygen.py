@@ -449,8 +449,8 @@ class DoxygenConfiguration:
 
         # Filter out comment lines
         conf_text = '\n'.join(
-            [l for l in conf_text.split('\n')
-             if not _COMMENT_PATTERN.match(l)]
+            [_ for _ in conf_text.split('\n')
+             if not _COMMENT_PATTERN.match(_)]
         )
 
         # Filter out blank lines
