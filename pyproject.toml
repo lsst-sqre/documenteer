@@ -36,3 +36,25 @@ use_parentheses = true
 known_first_party = "documenteer"
 known_third_party = ["docutils", "git", "lsst_dd_rtd_theme", "lsst_sphinx_bootstrap_theme", "lxml", "pkg_resources", "pybtex", "pytest", "requests", "setuptools", "sphinx", "yaml"]
 skip = ["docs/conf.py"]
+
+[tool.coverage.run]
+parallel = true
+branch = true
+source = ["documenteer"]
+
+[tool.coverage.paths]
+source = ["documenteer", ".tox/*/site-packages"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:"
+]

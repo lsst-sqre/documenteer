@@ -1,0 +1,85 @@
+# This workflow runs on a weekly basis and ensures that Documenteer is
+# compatible with the latest versions of its dependencies, and the "master"
+# branch of Sphinx itself.
+
+name: Weekly CI
+
+on:
+  schedule:
+    - cron: "0 4 * * MON"
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python:
+          - "3.8"
+        sphinx:
+          - "latest"
+          - "dev"
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # full depth for setuptools_scm
+
+      - name: Set up Python
+        uses: actions/setup-python@v2.1.2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install tox
+        run: pip install tox
+
+      - name: Run tests
+        run: tox -e py-test-sphinx${{ matrix.sphinx }}
+
+  typing:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        sphinx:
+          - "latest"
+          - "dev"
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # full depth for setuptools_scm
+
+      - name: Set up Python
+        uses: actions/setup-python@v2.1.2
+        with:
+          python-version: 3.8
+
+      - name: Install tox
+        run: pip install tox
+
+      - name: Run mypy
+        run: tox -e typing-sphinx${{ matrix.sphinx }}
+
+  lint:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # full depth for setuptools_scm
+
+      - name: Set up Python
+        uses: actions/setup-python@v2.1.2
+        with:
+          python-version: 3.8
+
+      - name: Install tox
+        run: |
+          pip install tox
+
+      - name: Run linters
+        run: tox -e lint,docs-lint
