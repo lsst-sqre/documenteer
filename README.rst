@@ -53,7 +53,7 @@ By using Documenteer, you can also ensure that Sphinx extensions required by the
 From the ``conf.py`` for technotes::
 
     from documenteer.conf.technote import *
- 
+
 From the ``conf.py`` for a stack package::
 
     from documenteer.conf.pipelinespkg import *

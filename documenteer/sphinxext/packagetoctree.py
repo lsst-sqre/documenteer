@@ -2,14 +2,14 @@
 Pipelines documentation.
 """
 
-__all__ = ('setup', 'ModuleTocTree', 'PackageTocTree')
+__all__ = ("setup", "ModuleTocTree", "PackageTocTree")
 
 import docutils
-from docutils.parsers.rst import Directive, directives
 import sphinx
+from docutils.parsers.rst import Directive, directives
+from pkg_resources import DistributionNotFound, get_distribution
 from sphinx.util.logging import getLogger
 from sphinx.util.nodes import set_source_info
-from pkg_resources import get_distribution, DistributionNotFound
 
 
 class ModuleTocTree(Directive):
@@ -33,7 +33,7 @@ class ModuleTocTree(Directive):
 
     has_content = False
 
-    option_spec = {'skip': directives.unchanged}
+    option_spec = {"skip": directives.unchanged}
 
     def run(self):
         """Main entrypoint method.
@@ -55,27 +55,30 @@ class ModuleTocTree(Directive):
         module_index_files = []
 
         # Collect paths with the form `modules/<module-name>/index`
-        for docname in _filter_index_pages(env.found_docs, 'modules'):
-            logger.debug('module-toctree found %s', docname)
+        for docname in _filter_index_pages(env.found_docs, "modules"):
+            logger.debug("module-toctree found %s", docname)
             if self._parse_module_name(docname) in skipped_modules:
-                logger.debug('module-toctree skipped %s', docname)
+                logger.debug("module-toctree skipped %s", docname)
                 continue
             module_index_files.append(docname)
         module_index_files.sort()
         entries = [(None, docname) for docname in module_index_files]
-        logger.debug('module-toctree found %d modules',
-                     len(module_index_files))
+        logger.debug(
+            "module-toctree found %d modules", len(module_index_files)
+        )
 
         # Add the toctree's node itself
         subnode = _build_toctree_node(
             parent=env.docname,
             entries=entries,
             includefiles=module_index_files,
-            caption=None)
+            caption=None,
+        )
         set_source_info(self, subnode)  # Sphinx TocTree does this.
 
-        wrappernode = docutils.nodes.compound(classes=['toctree-wrapper',
-                                                       'module-toctree'])
+        wrappernode = docutils.nodes.compound(
+            classes=["toctree-wrapper", "module-toctree"]
+        )
         wrappernode.append(subnode)
         self.add_name(wrappernode)
         new_nodes.append(wrappernode)
@@ -83,21 +86,20 @@ class ModuleTocTree(Directive):
         return new_nodes
 
     def _parse_skip_option(self):
-        """Parse the ``skip`` option of skipped module names.
-        """
+        """Parse the ``skip`` option of skipped module names."""
         try:
-            skip_text = self.options['skip']
+            skip_text = self.options["skip"]
         except KeyError:
             return []
 
-        modules = [module.strip() for module in skip_text.split(',')]
+        modules = [module.strip() for module in skip_text.split(",")]
         return modules
 
     def _parse_module_name(self, docname):
         """Parse the module name given a docname with the form
         ``modules/<module>/index``.
         """
-        return docname.split('/')[1]
+        return docname.split("/")[1]
 
 
 class PackageTocTree(Directive):
@@ -121,7 +123,7 @@ class PackageTocTree(Directive):
 
     has_content = False
 
-    option_spec = {'skip': directives.unchanged}
+    option_spec = {"skip": directives.unchanged}
 
     def run(self):
         """Main entrypoint method.
@@ -143,28 +145,31 @@ class PackageTocTree(Directive):
         package_index_files = []
 
         # Collect paths with the form `modules/<module-name>/index`
-        for docname in _filter_index_pages(env.found_docs, 'packages'):
-            logger.debug('package-toctree found %s', docname)
+        for docname in _filter_index_pages(env.found_docs, "packages"):
+            logger.debug("package-toctree found %s", docname)
             if self._parse_package_name(docname) in skipped_packages:
-                logger.debug('package-toctree skipped %s', docname)
+                logger.debug("package-toctree skipped %s", docname)
                 continue
             package_index_files.append(docname)
         package_index_files.sort()
         entries = [(None, docname) for docname in package_index_files]
-        logger.debug('package-toctree found %d packages',
-                     len(package_index_files))
+        logger.debug(
+            "package-toctree found %d packages", len(package_index_files)
+        )
 
         # Add the toctree's node itself
         subnode = _build_toctree_node(
             parent=env.docname,
             entries=entries,
             includefiles=package_index_files,
-            caption=None)
+            caption=None,
+        )
 
         set_source_info(self, subnode)  # Sphinx TocTree does this.
 
-        wrappernode = docutils.nodes.compound(classes=['toctree-wrapper',
-                                                       'package-toctree'])
+        wrappernode = docutils.nodes.compound(
+            classes=["toctree-wrapper", "package-toctree"]
+        )
         wrappernode.append(subnode)
         self.add_name(wrappernode)
         new_nodes.append(wrappernode)
@@ -172,21 +177,20 @@ class PackageTocTree(Directive):
         return new_nodes
 
     def _parse_skip_option(self):
-        """Parse the ``skip`` option of skipped package names.
-        """
+        """Parse the ``skip`` option of skipped package names."""
         try:
-            skip_text = self.options['skip']
+            skip_text = self.options["skip"]
         except KeyError:
             return []
 
-        packages = [package.strip() for package in skip_text.split(',')]
+        packages = [package.strip() for package in skip_text.split(",")]
         return packages
 
     def _parse_package_name(self, docname):
         """Parse the package name given a docname with the form
         ``packages/<package>/index``.
         """
-        return docname.split('/')[1]
+        return docname.split("/")[1]
 
 
 def _filter_index_pages(docnames, base_dir):
@@ -206,40 +210,40 @@ def _filter_index_pages(docnames, base_dir):
         Document name that meets the pattern.
     """
     for docname in docnames:
-        parts = docname.split('/')
-        if len(parts) == 3 and parts[0] == base_dir and parts[2] == 'index':
+        parts = docname.split("/")
+        if len(parts) == 3 and parts[0] == base_dir and parts[2] == "index":
             yield docname
 
 
-def _build_toctree_node(parent=None, entries=None, includefiles=None,
-                        caption=None):
-    """Factory for a toctree node.
-    """
+def _build_toctree_node(
+    parent=None, entries=None, includefiles=None, caption=None
+):
+    """Factory for a toctree node."""
     # Add the toctree's node itself
     subnode = sphinx.addnodes.toctree()
-    subnode['parent'] = parent
-    subnode['entries'] = entries
-    subnode['includefiles'] = includefiles
-    subnode['caption'] = caption
+    subnode["parent"] = parent
+    subnode["entries"] = entries
+    subnode["includefiles"] = includefiles
+    subnode["caption"] = caption
     # These values are needed for toctree node types. We don't need/want
     # these to be configurable for module-toctree.
-    subnode['maxdepth'] = 1
-    subnode['hidden'] = False
-    subnode['glob'] = None
-    subnode['hidden'] = False
-    subnode['includehidden'] = False
-    subnode['numbered'] = 0
-    subnode['titlesonly'] = False
+    subnode["maxdepth"] = 1
+    subnode["hidden"] = False
+    subnode["glob"] = None
+    subnode["hidden"] = False
+    subnode["includehidden"] = False
+    subnode["numbered"] = 0
+    subnode["titlesonly"] = False
     return subnode
 
 
 def setup(app):
-    app.add_directive('module-toctree', ModuleTocTree)
-    app.add_directive('package-toctree', PackageTocTree)
+    app.add_directive("module-toctree", ModuleTocTree)
+    app.add_directive("package-toctree", PackageTocTree)
 
     try:
-        __version__ = get_distribution('documenteer').version
+        __version__ = get_distribution("documenteer").version
     except DistributionNotFound:
         # package is not installed
-        __version__ = 'unknown'
-    return {'version': __version__}
+        __version__ = "unknown"
+    return {"version": __version__}

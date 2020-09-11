@@ -10,10 +10,7 @@ To use these roles, add the ``documenteer.sphinxext.jira`` extension to your :fi
 
 .. code-block:: python
 
-   extensions = [
-       ...
-       'documenteer.sphinxext.jira'
-   ]
+   extensions = ["documenteer.sphinxext.jira"]
 
 Roles
 =====

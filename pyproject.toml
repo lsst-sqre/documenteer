@@ -7,3 +7,32 @@ requires = [
 build-backend = 'setuptools.build_meta'
 
 [tool.setuptools_scm]
+
+[tool.black]
+line-length = 79
+target-version = ['py38']
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | dist
+  | node_modules
+)/
+'''
+# Use single-quoted strings so TOML treats the string like a Python r-string
+# Multi-line strings are implicitly treated by black as regular expressions
+
+[tool.isort]
+include_trailing_comma = true
+multi_line_output = 3
+ensure_newline_before_comments = true
+force_grid_wrap = 0
+use_parentheses = true
+known_first_party = "documenteer"
+known_third_party = ["docutils", "git", "lsst_dd_rtd_theme", "lsst_sphinx_bootstrap_theme", "lxml", "pkg_resources", "pybtex", "pytest", "requests", "setuptools", "sphinx", "yaml"]
+skip = ["docs/conf.py"]

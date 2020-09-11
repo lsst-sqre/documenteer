@@ -10,10 +10,7 @@ To use this directive, add the ``documenteer.sphinext.remotecodeblock`` extensio
 
 .. code-block:: python
 
-   extensions = [
-       ...
-       'documenteer.sphinxext.remotecodeblock'
-   ]
+   extensions = ["documenteer.sphinxext.remotecodeblock"]
 
 Directive
 =========

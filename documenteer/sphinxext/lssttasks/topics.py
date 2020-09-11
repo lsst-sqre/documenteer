@@ -2,23 +2,25 @@
 Pipelines documentation.
 """
 
-__all__ = ('ConfigurableTopicDirective', 'TaskTopicDirective',
-           'ConfigTopicDirective')
+__all__ = (
+    "ConfigurableTopicDirective",
+    "TaskTopicDirective",
+    "ConfigTopicDirective",
+)
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx.errors import SphinxError
-from sphinx.util.logging import getLogger
 from sphinx.util.docutils import switch_source_input
+from sphinx.util.logging import getLogger
 
-from .crossrefs import format_task_id, format_config_id
-from .taskutils import get_type, get_docstring, extract_docstring_summary
 from ..utils import parse_rst_content
+from .crossrefs import format_config_id, format_task_id
+from .taskutils import extract_docstring_summary, get_docstring, get_type
 
 
 class BaseTopicDirective(Directive):
-    """Base for topic target directives.
-    """
+    """Base for topic target directives."""
 
     _logger = getLogger(__name__)
 
@@ -30,13 +32,11 @@ class BaseTopicDirective(Directive):
         raise NotImplementedError
 
     def get_type(self, class_name):
-        """Get the topic type.
-        """
+        """Get the topic type."""
         raise NotImplementedError
 
     def get_target_id(self, class_name):
-        """Get the reference ID for this topic directive.
-        """
+        """Get the reference ID for this topic directive."""
         raise NotImplementedError
 
     def run(self):
@@ -53,29 +53,30 @@ class BaseTopicDirective(Directive):
             class_name = self.arguments[0]
         except IndexError:
             raise SphinxError(
-                '{0} directive requires a class name as an '
-                'argument'.format(self.directive_name)
+                "{0} directive requires a class name as an "
+                "argument".format(self.directive_name)
             )
-        self._logger.debug('%s using class %s',
-                           self.directive_name, class_name)
+        self._logger.debug(
+            "%s using class %s", self.directive_name, class_name
+        )
 
         summary_node = self._create_summary_node(class_name)
 
         # target_id = format_task_id(class_name)
         target_id = self.get_target_id(class_name)
-        target_node = nodes.target('', '', ids=[target_id])
+        target_node = nodes.target("", "", ids=[target_id])
 
         # Store these task/configurable topic nodes in the environment for
         # later cross referencing.
-        if not hasattr(env, 'lsst_task_topics'):
+        if not hasattr(env, "lsst_task_topics"):
             env.lsst_task_topics = {}
         env.lsst_task_topics[target_id] = {
-            'docname': env.docname,
-            'lineno': self.lineno,
-            'target': target_node,
-            'summary_node': summary_node,
-            'fully_qualified_name': class_name,
-            'type': self.get_type(class_name)
+            "docname": env.docname,
+            "lineno": self.lineno,
+            "target": target_node,
+            "summary_node": summary_node,
+            "fully_qualified_name": class_name,
+            "type": self.get_type(class_name),
         }
 
         return [target_node]
@@ -97,9 +98,9 @@ class BaseTopicDirective(Directive):
     def _get_docstring_summary(self, class_name):
         obj = get_type(class_name)
         summary_text = extract_docstring_summary(get_docstring(obj))
-        if summary_text == '':
-            summary_text = 'No description available.'
-        summary_text = summary_text.strip() + '\n'
+        if summary_text == "":
+            summary_text = "No description available."
+        summary_text = summary_text.strip() + "\n"
         return parse_rst_content(summary_text, self.state)
 
 
@@ -111,34 +112,34 @@ class ConfigurableTopicDirective(BaseTopicDirective):
     but don't have run methods.
     """
 
-    directive_name = 'lsst-configurable-topic'
+    directive_name = "lsst-configurable-topic"
     """Default name of this directive.
     """
 
     def get_type(self, class_name):
-        return 'Configurable'
+        return "Configurable"
 
     def get_target_id(self, class_name):
         return format_task_id(class_name)
 
 
 class TaskTopicDirective(BaseTopicDirective):
-    """``lsst-task-topic`` directive that labels a Task's topic page.
-    """
+    """``lsst-task-topic`` directive that labels a Task's topic page."""
 
-    directive_name = 'lsst-task-topic'
+    directive_name = "lsst-task-topic"
     """Default name of this directive.
     """
 
     def get_type(self, class_name):
         from lsst.pipe.base import CmdLineTask, PipelineTask
+
         obj = get_type(class_name)
         if issubclass(obj, PipelineTask):
-            return 'PipelineTask'
+            return "PipelineTask"
         elif issubclass(obj, CmdLineTask):
-            return 'CmdLineTask'
+            return "CmdLineTask"
         else:
-            return 'Task'
+            return "Task"
 
     def get_target_id(self, class_name):
         return format_task_id(class_name)
@@ -150,12 +151,12 @@ class ConfigTopicDirective(BaseTopicDirective):
     Configs are lsst.pex.config.config.Config subclasses.
     """
 
-    directive_name = 'lsst-config-topic'
+    directive_name = "lsst-config-topic"
     """Default name of this directive.
     """
 
     def get_type(self, class_name):
-        return 'Config'
+        return "Config"
 
     def get_target_id(self, class_name):
         return format_config_id(class_name)

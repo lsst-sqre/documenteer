@@ -10,10 +10,7 @@ To use these roles, add the ``documenteer.sphinext.lsstdocushare`` extension to 
 
 .. code-block:: python
 
-   extensions = [
-       ...
-       'documenteer.sphinxext.lsstdocushare'
-   ]
+   extensions = ["documenteer.sphinxext.lsstdocushare"]
 
 Summary
 =======

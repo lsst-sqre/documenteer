@@ -1,16 +1,22 @@
 """Utilities for working with LSST Task classes and their configurations.
 """
 
-__all__ = ('get_task_config_class', 'get_task_config_fields',
-           'get_subtask_fields', 'typestring', 'get_type',
-           'get_docstring', 'extract_docstring_summary')
+__all__ = (
+    "get_task_config_class",
+    "get_task_config_fields",
+    "get_subtask_fields",
+    "typestring",
+    "get_type",
+    "get_docstring",
+    "extract_docstring_summary",
+)
 
-from importlib import import_module
 import inspect
+from importlib import import_module
 
 from sphinx.errors import SphinxError
-from sphinx.util.inspect import getdoc
 from sphinx.util.docstrings import prepare_docstring
+from sphinx.util.inspect import getdoc
 from sphinx.util.logging import getLogger
 
 
@@ -45,11 +51,11 @@ def get_type(type_name):
     object
         The object.
     """
-    parts = type_name.split('.')
+    parts = type_name.split(".")
     if len(parts) < 2:
         raise SphinxError(
-            'Type must be fully-qualified, '
-            'of the form ``module.MyClass``. Got: {}'.format(type_name)
+            "Type must be fully-qualified, "
+            "of the form ``module.MyClass``. Got: {}".format(type_name)
         )
     module_name = ".".join(parts[0:-1])
     name = parts[-1]
@@ -160,7 +166,7 @@ def typestring(obj):
     'docutils.nodes.paragraph'
     """
     obj_type = type(obj)
-    return '.'.join((obj_type.__module__, obj_type.__name__))
+    return ".".join((obj_type.__module__, obj_type.__name__))
 
 
 def get_docstring(obj):
@@ -187,7 +193,7 @@ def get_docstring(obj):
     if docstring is None:
         logger = getLogger(__name__)
         logger.warning("Object %s doesn't have a docstring.", obj)
-        docstring = 'Undocumented'
+        docstring = "Undocumented"
     # ignore is simply the number of initial lines to ignore when determining
     # the docstring's baseline indent level. We really want "1" here.
     return prepare_docstring(docstring, ignore=1)
@@ -208,8 +214,8 @@ def extract_docstring_summary(docstring):
     """
     summary_lines = []
     for line in docstring:
-        if line == '':
+        if line == "":
             break
         else:
             summary_lines.append(line)
-    return ' '.join(summary_lines)
+    return " ".join(summary_lines)

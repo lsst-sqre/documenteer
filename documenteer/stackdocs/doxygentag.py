@@ -1,24 +1,23 @@
 """Utilities for working with Doxygen tag files.
 """
 
-__all__ = ['get_tag_entity_names']
+__all__ = ["get_tag_entity_names"]
 
-from pathlib import Path
 import xml.etree.ElementTree as ET
-from typing import List, Sequence, Union, Optional
+from pathlib import Path
+from typing import List, Optional, Sequence, Union
 
 try:
     from sphinxcontrib.doxylink import doxylink
 except ImportError:
     print(
-        'sphinxcontrib.doxylink is missing. Install documenteer with the '
-        'pipelines extra:\n\n  pip install documenteer[pipelines]'
+        "sphinxcontrib.doxylink is missing. Install documenteer with the "
+        "pipelines extra:\n\n  pip install documenteer[pipelines]"
     )
 
 
 def get_tag_entity_names(
-    tag_path: Union[str, Path],
-    kinds: Optional[Sequence[str]] = None
+    tag_path: Union[str, Path], kinds: Optional[Sequence[str]] = None
 ) -> List[str]:
     """Get the list of API names in a Doxygen tag file.
 

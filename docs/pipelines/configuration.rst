@@ -27,7 +27,7 @@ To use these configurations, the content of the Sphinx :file:`conf.py` file shou
       from documenteer.conf.pipelines import *
 
       project = "example"
-      html_theme_options['logotext'] = project
+      html_theme_options["logotext"] = project
       html_title = project
       html_short_title = project
 
@@ -52,7 +52,7 @@ project's name:
 
 
    project = "example"
-   html_theme_options['logotext'] = project
+   html_theme_options["logotext"] = project
    html_title = project
    html_short_title = project
 

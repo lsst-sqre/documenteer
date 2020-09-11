@@ -8,7 +8,6 @@ import logging
 
 from docutils import nodes, utils
 
-
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
@@ -29,7 +28,7 @@ def _comma_separator(i, length):
     if length == 1:
         return None
     elif i != length - 1:
-        return ', '
+        return ", "
     else:
         return None
 
@@ -41,17 +40,25 @@ def _oxford_comma_separator(i, length):
     if length == 1:
         return None
     elif length < 3 and i == 0:
-        return ' and '
+        return " and "
     elif i < length - 2:
-        return ', '
+        return ", "
     elif i == length - 2:
-        return ', and '
+        return ", and "
     else:
         return None
 
 
-def jira_role(name, rawtext, text, lineno, inliner,
-              options=None, content=None, oxford_comma=True):
+def jira_role(
+    name,
+    rawtext,
+    text,
+    lineno,
+    inliner,
+    options=None,
+    content=None,
+    oxford_comma=True,
+):
     """Sphinx role for referencing a JIRA ticket.
 
     Examples::
@@ -64,7 +71,7 @@ def jira_role(name, rawtext, text, lineno, inliner,
     content = content or []
     config = inliner.document.settings.env.app.config
 
-    ticket_ids = [each.strip() for each in utils.unescape(text).split(',')]
+    ticket_ids = [each.strip() for each in utils.unescape(text).split(",")]
     n_tickets = len(ticket_ids)
 
     if oxford_comma:
@@ -78,14 +85,22 @@ def jira_role(name, rawtext, text, lineno, inliner,
         node_list.append(node)
         sep_text = sep_factory(i, n_tickets)
         if sep_text is not None:
-            sep = nodes.raw(text=sep_text, format='html')
+            sep = nodes.raw(text=sep_text, format="html")
             node_list.append(sep)
     return node_list, []
 
 
-def jira_bracket_role(name, rawtext, text, lineno, inliner,
-                      options=None, content=None,
-                      open_symbol='[', close_symbol=']'):
+def jira_bracket_role(
+    name,
+    rawtext,
+    text,
+    lineno,
+    inliner,
+    options=None,
+    content=None,
+    open_symbol="[",
+    close_symbol="]",
+):
     """Sphinx role for referencing a JIRA ticket with ticket numbers
     enclosed in braces. Useful for changelogs.
 
@@ -95,15 +110,24 @@ def jira_bracket_role(name, rawtext, text, lineno, inliner,
         :jirab:`DM-6181,DM-6181` -> [DM-6180, DM-6181]
         :jirab:`DM-6181,DM-6181,DM-6182` -> [DM-6180, DM-6181, DM-6182]
     """
-    node_list, _ = jira_role(name, rawtext, text, lineno, inliner,
-                             options=options, content=None, oxford_comma=False)
-    node_list.insert(0, nodes.raw(text=open_symbol, format='html'))
-    node_list.append(nodes.raw(text=close_symbol, format='html'))
+    node_list, _ = jira_role(
+        name,
+        rawtext,
+        text,
+        lineno,
+        inliner,
+        options=options,
+        content=None,
+        oxford_comma=False,
+    )
+    node_list.insert(0, nodes.raw(text=open_symbol, format="html"))
+    node_list.append(nodes.raw(text=close_symbol, format="html"))
     return node_list, []
 
 
-def jira_parens_role(name, rawtext, text, lineno, inliner,
-                     options=None, content=None):
+def jira_parens_role(
+    name, rawtext, text, lineno, inliner, options=None, content=None
+):
     """Sphinx role for referencing a JIRA ticket with ticket numbers
     enclosed in parentheses. Useful for changelogs.
 
@@ -113,15 +137,25 @@ def jira_parens_role(name, rawtext, text, lineno, inliner,
         :jirap:`DM-6181,DM-6181` -> (DM-6180, DM-6181)
         :jirap:`DM-6181,DM-6181,DM-6182` -> (DM-6180, DM-6181, DM-6182)
     """
-    return jira_bracket_role(name, rawtext, text, lineno, inliner,
-                             options=None, content=None,
-                             open_symbol='(', close_symbol=')')
+    return jira_bracket_role(
+        name,
+        rawtext,
+        text,
+        lineno,
+        inliner,
+        options=None,
+        content=None,
+        open_symbol="(",
+        close_symbol=")",
+    )
 
 
 def setup(app):
-    app.add_config_value('jira_uri_template',
-                         default='https://jira.lsstcorp.org/browse/{ticket}',
-                         rebuild='html')
-    app.add_role('jira', jira_role)
-    app.add_role('jirab', jira_bracket_role)
-    app.add_role('jirap', jira_parens_role)
+    app.add_config_value(
+        "jira_uri_template",
+        default="https://jira.lsstcorp.org/browse/{ticket}",
+        rebuild="html",
+    )
+    app.add_role("jira", jira_role)
+    app.add_role("jirab", jira_bracket_role)
+    app.add_role("jirap", jira_parens_role)

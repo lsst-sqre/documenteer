@@ -12,10 +12,7 @@ To use this Sphinx extension, add ``documenteer.sphinxext.bibtex`` to your :file
 
 .. code-block:: python
 
-   extensions = [
-       ...
-       'documenteer.sphinxext.bibtex'
-   ]
+   extensions = ["documenteer.sphinxext.bibtex"]
 
 Usage
 =====

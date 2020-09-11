@@ -1,21 +1,26 @@
 """Directives that list and create toctrees of task framework topics.
 """
 
-__all__ = ('TaskListDirective', 'CmdLineTaskListDirective',
-           'PipelineTaskListDirective', 'ConfigurableListDirective',
-           'ConfigListDirective', 'task_topic_list', 'process_task_topic_list')
+__all__ = (
+    "TaskListDirective",
+    "CmdLineTaskListDirective",
+    "PipelineTaskListDirective",
+    "ConfigurableListDirective",
+    "ConfigListDirective",
+    "task_topic_list",
+    "process_task_topic_list",
+)
 
 import posixpath
 
+import sphinx.addnodes
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
-import sphinx.addnodes
 from sphinx.util.logging import getLogger
 
 
 class BaseTopicListDirective(Directive):
-    """Base class for directives that lists task topics.
-    """
+    """Base class for directives that lists task topics."""
 
     _logger = getLogger(__name__)
 
@@ -23,8 +28,8 @@ class BaseTopicListDirective(Directive):
     optional_arguments = 0
     has_content = False
     option_spec = {
-        'root': directives.unchanged,
-        'toctree': directives.unchanged
+        "root": directives.unchanged,
+        "toctree": directives.unchanged,
     }
 
     @property
@@ -58,15 +63,15 @@ class BaseTopicListDirective(Directive):
 
         nodes = []
 
-        if 'toctree' in self.options:
+        if "toctree" in self.options:
             # Insert a hidden toctree
             toctree_node = self._build_toctree()
             nodes.append(toctree_node)
 
         # Placeholder node rendered in `process_task_topic_list`
         list_node = task_topic_list()
-        list_node['types'] = self.types
-        list_node['root_namespace'] = self.options['root']
+        list_node["types"] = self.types
+        list_node["root_namespace"] = self.options["root"]
         nodes.append(list_node)
 
         return nodes
@@ -77,10 +82,13 @@ class BaseTopicListDirective(Directive):
         option.
         """
         dirname = posixpath.dirname(self._env.docname)
-        tree_prefix = self.options['toctree'].strip()
+        tree_prefix = self.options["toctree"].strip()
         root = posixpath.normpath(posixpath.join(dirname, tree_prefix))
-        docnames = [docname for docname in self._env.found_docs
-                    if docname.startswith(root)]
+        docnames = [
+            docname
+            for docname in self._env.found_docs
+            if docname.startswith(root)
+        ]
 
         # Sort docnames alphabetically based on **class** name.
         # The standard we assume is that task doc pages are named after
@@ -88,18 +96,22 @@ class BaseTopicListDirective(Directive):
         # NOTE: this ordering only applies to the toctree; the visual ordering
         # is set by `process_task_topic_list`.
         # NOTE: docnames are **always** POSIX-like paths
-        class_names = [docname.split('/')[-1].split('.')[-1]
-                       for docname in docnames]
-        docnames = [docname for docname, _ in
-                    sorted(zip(docnames, class_names),
-                           key=lambda pair: pair[1])]
+        class_names = [
+            docname.split("/")[-1].split(".")[-1] for docname in docnames
+        ]
+        docnames = [
+            docname
+            for docname, _ in sorted(
+                zip(docnames, class_names), key=lambda pair: pair[1]
+            )
+        ]
 
         tocnode = sphinx.addnodes.toctree()
-        tocnode['includefiles'] = docnames
-        tocnode['entries'] = [(None, docname) for docname in docnames]
-        tocnode['maxdepth'] = -1
-        tocnode['glob'] = None
-        tocnode['hidden'] = True
+        tocnode["includefiles"] = docnames
+        tocnode["entries"] = [(None, docname) for docname in docnames]
+        tocnode["maxdepth"] = -1
+        tocnode["glob"] = None
+        tocnode["hidden"] = True
 
         return tocnode
 
@@ -111,13 +123,13 @@ class TaskListDirective(BaseTopicListDirective):
     ``lsst.pipe.base.PipelineTask``).
     """
 
-    directive_name = 'lsst-tasks'
+    directive_name = "lsst-tasks"
     """Default name of this directive.
     """
 
     @property
     def types(self):
-        return set(('Task',))
+        return set(("Task",))
 
 
 class CmdLineTaskListDirective(BaseTopicListDirective):
@@ -125,13 +137,13 @@ class CmdLineTaskListDirective(BaseTopicListDirective):
     tasks (``lsst.pipe.base.CmdLineTask``).
     """
 
-    directive_name = 'lsst-cmdlinetasks'
+    directive_name = "lsst-cmdlinetasks"
     """Default name of this directive.
     """
 
     @property
     def types(self):
-        return set(('CmdLineTask',))
+        return set(("CmdLineTask",))
 
 
 class PipelineTaskListDirective(BaseTopicListDirective):
@@ -139,31 +151,31 @@ class PipelineTaskListDirective(BaseTopicListDirective):
     tasks (``lsst.pipe.base.PipelineTask``).
     """
 
-    directive_name = 'lsst-pipelinetasks'
+    directive_name = "lsst-pipelinetasks"
     """Default name of this directive.
     """
 
     @property
     def types(self):
-        return set(('PipelineTask',))
+        return set(("PipelineTask",))
 
 
 class ConfigurableListDirective(BaseTopicListDirective):
 
-    directive_name = 'lsst-configurables'
+    directive_name = "lsst-configurables"
 
     @property
     def types(self):
-        return set(('Configurable',))
+        return set(("Configurable",))
 
 
 class ConfigListDirective(TaskListDirective):
 
-    directive_name = 'lsst-configs'
+    directive_name = "lsst-configs"
 
     @property
     def types(self):
-        return set(('Config',))
+        return set(("Config",))
 
 
 class task_topic_list(nodes.comment):
@@ -182,7 +194,7 @@ def process_task_topic_list(app, doctree, fromdocname):
     ``lsst_task_topcs`` environment attribute is fully set.
     """
     logger = getLogger(__name__)
-    logger.debug('Started process_task_list')
+    logger.debug("Started process_task_list")
 
     env = app.builder.env
 
@@ -198,32 +210,40 @@ def process_task_topic_list(app, doctree, fromdocname):
             node.replace_self(nodes.paragraph(text=message))
             continue
 
-        root = node['root_namespace']
+        root = node["root_namespace"]
 
         # Sort tasks by the topic's class name.
         # NOTE: if the presentation of the link is changed to the fully
         # qualified name, with full Python namespace, then the topic_names
         # should be changed to match that.
-        topic_keys = [k for k, topic in topics.items()
-                      if topic['type'] in node['types']
-                      if topic['fully_qualified_name'].startswith(root)]
-        topic_names = [topics[k]['fully_qualified_name'].split('.')[-1]
-                       for k in topic_keys]
         topic_keys = [
-            k for k, _ in
-            sorted(zip(topic_keys, topic_names), key=lambda pair: pair[1])]
+            k
+            for k, topic in topics.items()
+            if topic["type"] in node["types"]
+            if topic["fully_qualified_name"].startswith(root)
+        ]
+        topic_names = [
+            topics[k]["fully_qualified_name"].split(".")[-1]
+            for k in topic_keys
+        ]
+        topic_keys = [
+            k
+            for k, _ in sorted(
+                zip(topic_keys, topic_names), key=lambda pair: pair[1]
+            )
+        ]
 
         if len(topic_keys) == 0:
             # Fallback if no topics are found
-            p = nodes.paragraph(text='No topics.')
+            p = nodes.paragraph(text="No topics.")
             node.replace_self(p)
             continue
 
         dl = nodes.definition_list()
         for key in topic_keys:
             topic = topics[key]
-            class_name = topic['fully_qualified_name'].split('.')[-1]
-            summary_text = topic['summary_node'][0].astext()
+            class_name = topic["fully_qualified_name"].split(".")[-1]
+            summary_text = topic["summary_node"][0].astext()
 
             # Each topic in the listing is a definition list item. The term is
             # the linked class name and the description is the summary
@@ -232,10 +252,11 @@ def process_task_topic_list(app, doctree, fromdocname):
             dl_item = nodes.definition_list_item()
 
             # Can insert an actual reference since the doctree is resolved.
-            ref_node = nodes.reference('', '')
-            ref_node['refdocname'] = topic['docname']
-            ref_node['refuri'] = app.builder.get_relative_uri(
-                fromdocname, topic['docname'])
+            ref_node = nodes.reference("", "")
+            ref_node["refdocname"] = topic["docname"]
+            ref_node["refuri"] = app.builder.get_relative_uri(
+                fromdocname, topic["docname"]
+            )
             # NOTE: Not appending an anchor to the URI because task topics
             # are designed to occupy an entire page.
             link_label = nodes.Text(class_name, class_name)

@@ -14,11 +14,7 @@ To use this directive, add the ``documenteer.ext.autocppapi`` extension to your 
 
 .. code-block:: python
 
-   extensions = [
-       ...,
-       'sphinxcontrib.doxylink',
-       'documenteer.ext.autocppapi'
-   ]
+   extensions = [..., "sphinxcontrib.doxylink", "documenteer.ext.autocppapi"]
 
 .. important::
 
@@ -69,10 +65,8 @@ Configurations
 
     .. code-block:: python
 
-       doxylink = {
-           'lsstcc': ('_doxygen/doxygen.tag', 'cpp-api')
-       }
+       doxylink = {"lsstcc": ("_doxygen/doxygen.tag", "cpp-api")}
 
-       documenteer_autocppapi_doxylink_role = 'lsstcc'
+       documenteer_autocppapi_doxylink_role = "lsstcc"
 
     To override this configuration on a per-\ ``autocppapi`` directive basis, you can use the directive's ``:doxylink-role:`` option instead.

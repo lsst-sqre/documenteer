@@ -1,7 +1,7 @@
 """Utilities for detecting the root directory of Sphinx documentation.
 """
 
-__all__ = ('discover_package_doc_dir', 'discover_conf_py_directory')
+__all__ = ("discover_package_doc_dir", "discover_conf_py_directory")
 
 import pathlib
 
@@ -36,7 +36,7 @@ def discover_package_doc_dir(initial_dir):
 
     # Search for a doc/ directory in cwd (this covers the case of running
     # the CLI from the root of a repository).
-    test_dir = initial_dir / 'doc'
+    test_dir = initial_dir / "doc"
     if test_dir.exists() and test_dir.is_dir():
         if _has_conf_py(test_dir):
             return str(test_dir)
@@ -82,7 +82,7 @@ def discover_conf_py_directory(initial_dir):
 
 
 def _has_conf_py(root_dir):
-    if (root_dir / 'conf.py').exists():
+    if (root_dir / "conf.py").exists():
         return True
     else:
         return False
@@ -103,7 +103,7 @@ def _search_parents(initial_dir):
         Raised if a ``conf.py`` file is not found in the initial directory
         or any parents.
     """
-    root_paths = ('.', '/')
+    root_paths = (".", "/")
     parent = pathlib.Path(initial_dir)
     while True:
         if _has_conf_py(parent):

@@ -39,7 +39,7 @@ Change Log
   - Individual Stack packages now import ``documenteer.conf.pipelinespkg`` in their ``conf.py`` files.
 
   The previous configuration sub-package, ``documenteer.sphinxconf`` is deprecated.
-  :jirab:`DM-20866`
+  [`DM-20866 <https://jira.lsstcorp.org/browse/DM-20866>`_]
 
   Overall, the configurations are compatible with these exceptions:
 
@@ -62,10 +62,10 @@ Change Log
   For example, individual packages can add to the ``EXCLUDE`` tag.
   By default, each package's ``include`` directory is included in the Doxygen build.
 
-  [:jira:`DM-22698`, :jira:`DM-23094`, :jira:`DM-22461`]
+  [`DM-22698 <https://jira.lsstcorp.org/browse/DM-22698>`_, `DM-23094 <https://jira.lsstcorp.org/browse/DM-23094>`_, `DM-22461 <https://jira.lsstcorp.org/browse/DM-22461>`_]
 
 - Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
-  :jirab:`DM-22717`
+  [`DM-22717 <https://jira.lsstcorp.org/browse/DM-22717>`_]
 
 - Improved packaging:
 
@@ -73,7 +73,7 @@ Change Log
   - Removed the deprecated pytest-runner plugin.
   - Moved most of the packaging configuration to ``setup.cfg``.
 
-  :jirab:`DM-22957`
+  [`DM-22957 <https://jira.lsstcorp.org/browse/DM-22957>`_]
 
 - Documentation improvements:
 
@@ -89,12 +89,13 @@ Change Log
 
 - Technote configuration now uses ``yaml.safe_load`` instead of ``yaml.load``.
   See the `pyyaml docs for details <https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation>`__.
-  :jirab:`DM-22537`
+  [`DM-22537 <https://jira.lsstcorp.org/browse/DM-22537>`_]
 
 0.5.4 (2019-11-03)
 ------------------
 
-- This new version of the technote sphinx theme should fix the edition link in the sidebar for non-main editions. :jirab:`DM-20839`
+- This new version of the technote sphinx theme should fix the edition link in the sidebar for non-main editions.
+  [`DM-20839 <https://jira.lsstcorp.org/browse/DM-20839>`_]
 
 0.5.3 (2019-08-07)
 ------------------
@@ -102,7 +103,7 @@ Change Log
 - Enabled the ``html_use_index`` and ``html_domain_indices`` configurations for Stack documentation projects to enable automatic index generation.
   The ``genindex`` contains links to all command-line options and Python objects (Sphinx's domains).
   This also opens us up to a more general content index by way of the `index directive <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#index-generating-markup>`_.
-  :jira:`DM-20850`
+  [`DM-20850 <https://jira.lsstcorp.org/browse/DM-20850>`_]
 
 - Fixed compatibility with docutils 0.15.
   Now Sphinx will control which version of docutils is used, which should now be 0.15.
@@ -114,7 +115,7 @@ Change Log
 
 - Add `sphinxcontrib.autoprogram <https://sphinxcontrib-autoprogram.readthedocs.io/en/stable/>`_ to enable automated reference documentation of argparse-based command-line scripts.
   This extension is available with the ``documenteer[pipelines]`` installation extra and enabled by default for LSST Science Pipelines projects.
-  :jira:`DM-20767`
+  [`DM-20767 <https://jira.lsstcorp.org/browse/>`_]
 
 - Update the official list of tested and supported Python versions to Python 3.6 and 3.7.
 
@@ -130,7 +131,7 @@ Change Log
 - The stack documentation build now requires that packages be explicitly required by the main documentation project's EUPS table file.
   Before, a package only needed a ``doc/manifest.yaml`` file and to be currently set up in the EUPS environment to be linked into the documentation build.
   This would lead to packages being included in a documentation build despite not being a part of that stack product.
-  :jirab:`DM-17765`
+  [`DM-17765 <https://jira.lsstcorp.org/browse/DM-17765>`_]
 
 - This release adds the `sphinx-jinja`_ extension for ``documenteer[pipelines]`` installations.
   This extension makes it possible to dynamically create content with Jinja templating.
@@ -150,7 +151,7 @@ Change Log
   - ``pipelines_demo_ref``
 
   These variables are accessible from the ``jinja`` directive's context.
-  :jirab:`DM-17065`
+  [`DM-17065 <https://jira.lsstcorp.org/browse/DM-17065>`_]
 
 - This release also added some new substitutions to the ``rst_epilog`` of stack-based projects:
 
@@ -164,7 +165,7 @@ Change Log
 
 - The project's name is also used as the ``logotext`` at the top of the page for stack-based projects.
   Previously the ``logotext`` would always be "LSST Science Pipelines."
-  :jirab:`DM-17263`
+  [`DM-17263 <https://jira.lsstcorp.org/browse/DM-17263>`_]
 
 - Added the following projects to the intersphinx inventory of stack-based projects:
 
@@ -180,13 +181,13 @@ Change Log
 ------------------
 
 - Updated scikit-learn's intersphinx inventory URL (now available as HTTPS) in the ``documenteer.sphinxconfig.stackconf``.
-- Fixed the ``lsst-task-config-subtasks`` directive so that it can introspect items in an ``lsst.pex.config`` ``Registry`` that are wrapped by a ``ConfigurableWrapper``. :jira:`DM-17661`.
+- Fixed the ``lsst-task-config-subtasks`` directive so that it can introspect items in an ``lsst.pex.config`` ``Registry`` that are wrapped by a ``ConfigurableWrapper``. [`DM-17661 <https://jira.lsstcorp.org/browse/DM-17661>`_]
 
 0.4.3 (2018-11-30)
 ------------------
 
 - Pin `sphinxcontrib-bibtex <https://sphinxcontrib-bibtex.readthedocs.io>`__ to version 0.4.0 since later versions are incompatible with Sphinx <1.8.0.
-  `DM-16651 <https://jira.lsstcorp.org/browse/DM-16651>`__.
+  [`DM-16651 <https://jira.lsstcorp.org/browse/DM-16651>`__]
 
 0.4.2 (2018-11-01)
 ------------------
@@ -224,7 +225,7 @@ Change Log
   This configuration is critical:
 
   1. It is actually responsible for ensuring that inherited members of classes appear in our docs.
-  2. Without this, classes that have a ``__slots__`` attribute (typically through inheritance of a ``collections.abc`` class) won't have *any* of their members documented. See :jira:`DM-16102` for discussion.
+  2. Without this, classes that have a ``__slots__`` attribute (typically through inheritance of a ``collections.abc`` class) won't have *any* of their members documented. See `DM-16102 <https://jira.lsstcorp.org/browse/DM-16102>`_ for discussion.
 
 - ``todo`` directives are now hidden when using ``build_pipelines_lsst_io_configs``.
   They are still shown, by default, for standalone package documentation builds, which are primarily developer-facing.
@@ -344,7 +345,7 @@ Change Log
 - Add a new ``build-stack-docs`` command line executable.
   This executable links stack package documentation directories into a root documentation project and runs a Sphinx build.
   This is how we will build the https://pipelines.lsst.io documentation site.
-  See `DMTN-030 <https://dmtn-030.lsst.io/#documentation-as-code>`_ for design details.
+  See `DMTN-030 <https://dmtn-030.lsst.io/#documentation-as-code>`__ for design details.
 - **New system for installing project-specific dependencies.**
   We're using setuptools's ``extras_require`` feature to install different dependencies for technote and stack documentation projects.
   To install documenteer for a technote project, the new command is ``pip install documenteer[technote]``.
