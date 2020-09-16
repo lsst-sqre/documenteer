@@ -26,7 +26,7 @@ Change Log
 
   Updates to development or test dependencies:
 
-  - pytest is pinned to 4.5.0 (to match the pytest used by the ``lsst_distrib`` stack).
+  - pytest is no longer pinned.
   - sphinx-click is pinned to 2.3.1.
 
 - Python 3.6 is no longer officially supported.
@@ -64,16 +64,20 @@ Change Log
 
   [`DM-22698 <https://jira.lsstcorp.org/browse/DM-22698>`_, `DM-23094 <https://jira.lsstcorp.org/browse/DM-23094>`_, `DM-22461 <https://jira.lsstcorp.org/browse/DM-22461>`_]
 
-- Added static type checking using `pytest-mypy <https://github.com/dbader/pytest-mypy>`__.
-  [`DM-22717 <https://jira.lsstcorp.org/browse/DM-22717>`_]
+- Added static type checking using `mypy <https://mypy.readthedocs.io/en/stable/>`__.
+  [`DM-22717 <https://jira.lsstcorp.org/browse/DM-22717>`_, `DM-26288 <https://jira.lsstcorp.org/browse/DM-26288>`_]
 
-- Improved packaging:
+- Improved packaging, testing, and development environment:
 
   - PEP 518-ify the build process by adding a ``pyproject.toml`` file.
   - Removed the deprecated pytest-runner plugin.
   - Moved most of the packaging configuration to ``setup.cfg``.
+  - Adopted black and isort for code formatting.
+  - Migrated to ``tox`` for running tests.
+  - Migrated to ``pre-commit`` for running linters and code formatters.
+  - Migrated to GitHub Actions from Travis CI.
 
-  [`DM-22957 <https://jira.lsstcorp.org/browse/DM-22957>`_]
+  [`DM-22957 <https://jira.lsstcorp.org/browse/DM-22957>`_, `DM-26288 <https://jira.lsstcorp.org/browse/DM-26288>`_]
 
 - Documentation improvements:
 
