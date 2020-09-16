@@ -5,12 +5,11 @@ Release procedure
 This page gives an overview of how Documenteer releases are made.
 This information is only useful for maintainers.
 
-Documenteer's releases are largely automated through Travis CI (see the `.travis.yml`_ file for details).
+Documenteer's releases are largely automated through GitHub Actions (see the ``.github/workflows/ci.yaml`` file for details).
 When a semantic version tag is pushed to GitHub, `Documenteer is released to PyPI`_ with that version.
 Similarly, documentation is built and pushed for each version (see https://documenteer.lsst.io/v).
 
 .. _`Documenteer is released to PyPI`: https://pypi.org/project/documenteer/
-.. _`.travis.yml`: https://github.com/lsst-sqre/documenteer/blob/master/.travis.yml
 
 .. _regular-release:
 
