@@ -1,41 +1,44 @@
 """Implements the ``stack-docs`` CLI for stack documentation builds.
 """
 
-__all__ = ('main',)
+__all__ = ("main",)
 
 import logging
 import os
+import re
 import shutil
 import sys
-import re
-from typing import Sequence, Optional, Any
+from typing import Any, Optional, Sequence
 
 import click
 
 from .build import build_stack_docs
-from .rootdiscovery import discover_conf_py_directory
 from .doxygentag import get_tag_entity_names
-
+from .rootdiscovery import discover_conf_py_directory
 
 # Add -h as a help shortcut option
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
-    '-d', '--dir', 'root_project_dir',
-    type=click.Path(exists=True, file_okay=False, dir_okay=True,
-                    resolve_path=True),
-    default='.',
+    "-d",
+    "--dir",
+    "root_project_dir",
+    type=click.Path(
+        exists=True, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    default=".",
     help="Root Sphinx project directory. You don't need to set this argument "
-         "explicitly as long as the current working directory is the "
-         "main documentation repo (``pipelines_lsst_io`` for example) or a "
-         "subdirectory of it."
+    "explicitly as long as the current working directory is the "
+    "main documentation repo (``pipelines_lsst_io`` for example) or a "
+    "subdirectory of it.",
 )
 @click.option(
-    '-v', '--verbose',
+    "-v",
+    "--verbose",
     is_flag=True,
-    help='Enable verbose output (debug-level logging).'
+    help="Enable verbose output (debug-level logging).",
 )
 @click.version_option()
 @click.pass_context
@@ -67,8 +70,7 @@ def main(ctx, root_project_dir, verbose):
 
     # Subcommands should use the click.pass_obj decorator to get this
     # ctx.obj object as the first argument.
-    ctx.obj = {'root_project_dir': root_project_dir,
-               'verbose': verbose}
+    ctx.obj = {"root_project_dir": root_project_dir, "verbose": verbose}
 
     # Set up application logging. This ensures that only documenteer's
     # logger is activated. If necessary, we can add other app's loggers too.
@@ -76,17 +78,16 @@ def main(ctx, root_project_dir, verbose):
         log_level = logging.DEBUG
     else:
         log_level = logging.INFO
-    logger = logging.getLogger('documenteer')
+    logger = logging.getLogger("documenteer")
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(log_level)
 
 
 @main.command()
-@click.argument('topic', default=None, required=False, nargs=1)
+@click.argument("topic", default=None, required=False, nargs=1)
 @click.pass_context
 def help(ctx, topic, **kw):
-    """Show help for any command.
-    """
+    """Show help for any command."""
     # The help command implementation is taken from
     # https://www.burgundywall.com/post/having-click-help-subcommand
     if topic is None:
@@ -97,58 +98,69 @@ def help(ctx, topic, **kw):
 
 @main.command()
 @click.option(
-    '-s', '--skip', multiple=True,
-    help='A module (e.g. ``lsst.afw.geom`` or package (``afw``) name to '
-         'exclude from the documentation. Provide multiple -s options to skip '
-         'multiple names.'
+    "-s",
+    "--skip",
+    multiple=True,
+    help="A module (e.g. ``lsst.afw.geom`` or package (``afw``) name to "
+    "exclude from the documentation. Provide multiple -s options to skip "
+    "multiple names.",
 )
 @click.option(
-    '--enable-doxygen-conf/--disable-doxygen-conf',
-    help='Toggle creating a Doxygen configuration.',
-    default=True
+    "--enable-doxygen-conf/--disable-doxygen-conf",
+    help="Toggle creating a Doxygen configuration.",
+    default=True,
 )
 @click.option(
-    '--enable-doxygen/--disable-doxygen',
-    help='Toggle running a Doxygen build.',
-    default=True
+    "--enable-doxygen/--disable-doxygen",
+    help="Toggle running a Doxygen build.",
+    default=True,
 )
 @click.option(
-    '--enable-symlinks/--disable-symlinks',
-    help=('Toggle symlinking package documentation directories (disable for '
-          'debugging only).'),
-    default=True
-)
-@click.option(
-    '--enable-sphinx/--disable-sphinx',
-    help='Toggle running a Sphinx build.',
-    default=True
-)
-@click.option(
-    '--use-doxygen-conf-in/--use-doxygen-conf',
+    "--enable-symlinks/--disable-symlinks",
     help=(
-        'Use doxygen.conf.in files in packages rather than the '
-        'sconsUtils-generated doxygen.conf files.'
+        "Toggle symlinking package documentation directories (disable for "
+        "debugging only)."
     ),
     default=True,
 )
 @click.option(
-    '--dox',
+    "--enable-sphinx/--disable-sphinx",
+    help="Toggle running a Sphinx build.",
+    default=True,
+)
+@click.option(
+    "--use-doxygen-conf-in/--use-doxygen-conf",
+    help=(
+        "Use doxygen.conf.in files in packages rather than the "
+        "sconsUtils-generated doxygen.conf files."
+    ),
+    default=True,
+)
+@click.option(
+    "--dox",
     multiple=True,
     help=(
-        'Run Doxygen on only the packages explicitly listed, rather than '
-        'automatically discovering set up packages.'
+        "Run Doxygen on only the packages explicitly listed, rather than "
+        "automatically discovering set up packages."
     ),
 )
 @click.option(
-    '--skip-dox',
+    "--skip-dox",
     multiple=True,
-    help=(
-        'Skip running Doxygen on these packages.'
-    ),
+    help=("Skip running Doxygen on these packages."),
 )
 @click.pass_context
-def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
-          enable_sphinx, use_doxygen_conf_in, dox, skip_dox):
+def build(
+    ctx,
+    skip,
+    enable_doxygen_conf,
+    enable_doxygen,
+    enable_symlinks,
+    enable_sphinx,
+    use_doxygen_conf_in,
+    dox,
+    skip_dox,
+):
     """Build documentation as HTML.
 
     This command performs these steps:
@@ -172,7 +184,7 @@ def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
     APIs.
     """
     return_code = build_stack_docs(
-        ctx.obj['root_project_dir'],
+        ctx.obj["root_project_dir"],
         skipped_names=skip,
         prefer_doxygen_conf_in=use_doxygen_conf_in,
         enable_doxygen_conf=enable_doxygen_conf,
@@ -180,7 +192,7 @@ def build(ctx, skip, enable_doxygen_conf, enable_doxygen, enable_symlinks,
         enable_package_links=enable_symlinks,
         enable_sphinx=enable_sphinx,
         select_doxygen_packages=dox,
-        skip_doxygen_packages=skip_dox
+        skip_doxygen_packages=skip_dox,
     )
     if return_code > 0:
         sys.exit(return_code)
@@ -205,47 +217,60 @@ def clean(ctx):
     """
     logger = logging.getLogger(__name__)
 
-    dirnames = ['py-api', '_build', 'modules', 'packages', '_doxygen']
-    dirnames = [os.path.join(ctx.obj['root_project_dir'], dirname)
-                for dirname in dirnames]
+    dirnames = ["py-api", "_build", "modules", "packages", "_doxygen"]
+    dirnames = [
+        os.path.join(ctx.obj["root_project_dir"], dirname)
+        for dirname in dirnames
+    ]
     for dirname in dirnames:
         if os.path.isdir(dirname):
             shutil.rmtree(dirname)
-            logger.debug('Cleaned up %r', dirname)
+            logger.debug("Cleaned up %r", dirname)
         else:
-            logger.debug('Did not clean up %r (missing)', dirname)
+            logger.debug("Did not clean up %r (missing)", dirname)
 
 
 @main.command()
 @click.option(
-    '-t', '--type', 'api_types',
+    "-t",
+    "--type",
+    "api_types",
     multiple=True,
-    type=click.Choice(['namespace', 'struct', 'class', 'file', 'define',
-                       'group', 'variable', 'typedef', 'enumeration',
-                       'function']),
+    type=click.Choice(
+        [
+            "namespace",
+            "struct",
+            "class",
+            "file",
+            "define",
+            "group",
+            "variable",
+            "typedef",
+            "enumeration",
+            "function",
+        ]
+    ),
     help=(
-        'Type of documentation to list. Omit to list all API types. Provide '
+        "Type of documentation to list. Omit to list all API types. Provide "
         'multiple arguments to list several API types. "class" includes both '
-        'classes and their methods.'
-    )
+        "classes and their methods."
+    ),
 )
 @click.option(
-    '-p', '--pattern',
+    "-p",
+    "--pattern",
     type=str,
-    help=(
-        'Regular expression pattern to filter API names.'
-    )
+    help=("Regular expression pattern to filter API names."),
 )
 @click.option(
-    '--escape/--no-escape',
+    "--escape/--no-escape",
     default=True,
-    help=(
-        'Escape the name so it can be used in reStructuredText (default).'
-    )
+    help=("Escape the name so it can be used in reStructuredText (default)."),
 )
 @click.pass_context
-def listcc(ctx: Any, api_types: Sequence[str], pattern: Optional[str],
-           escape: bool) -> None:
+def listcc(
+    ctx: Any, api_types: Sequence[str], pattern: Optional[str], escape: bool
+) -> None:
     """List C++ API names available in the Doxygen tag file for cross-linking.
 
     To make a cross-link from a reStructuredText file or Python docstring, use
@@ -258,20 +283,31 @@ def listcc(ctx: Any, api_types: Sequence[str], pattern: Optional[str],
         stack-docs listcc -t class -t function -p lsst::afw::table
     """
     tag_path = os.path.join(
-        ctx.obj['root_project_dir'], '_doxygen', 'doxygen.tag')
+        ctx.obj["root_project_dir"], "_doxygen", "doxygen.tag"
+    )
 
     if pattern:
         p = re.compile(pattern)
 
     if not api_types:
-        api_types = ['namespace', 'struct', 'class', 'file', 'define',
-                     'group', 'variable', 'typedef', 'enumeration', 'function']
+        api_types = [
+            "namespace",
+            "struct",
+            "class",
+            "file",
+            "define",
+            "group",
+            "variable",
+            "typedef",
+            "enumeration",
+            "function",
+        ]
     entities = get_tag_entity_names(tag_path=tag_path, kinds=api_types)
     for name in entities:
         if pattern:
             if not p.search(name):
                 continue
         if escape:
-            print(name.replace('<', r'\<').replace('>', r'\>'))
+            print(name.replace("<", r"\<").replace(">", r"\>"))
         else:
             print(name)

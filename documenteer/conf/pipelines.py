@@ -35,67 +35,67 @@ For additional documentation, see:
 
 __all__ = (
     # EXT
-    'extensions',
+    "extensions",
     # SPHINX
-    'project',
-    'today',
-    'copyright',
-    'source_suffix',
-    'source_encoding',
-    'master_doc',
-    'numfig',
-    'numfig_format',
-    'default_role',
-    'exclude_patterns',
+    "project",
+    "today",
+    "copyright",
+    "source_suffix",
+    "source_encoding",
+    "master_doc",
+    "numfig",
+    "numfig_format",
+    "default_role",
+    "exclude_patterns",
     # INTER
-    'intersphinx_mapping',
-    'intersphinx_timeout',
-    'intersphinx_cache_limit',
+    "intersphinx_mapping",
+    "intersphinx_timeout",
+    "intersphinx_cache_limit",
     # HTML
-    'templates_path',
-    'html_theme',
-    'html_theme_path',
-    'html_theme_options',
-    'html_title',
-    'html_short_title',
-    'html_logo',
-    'html_favicon',
-    'html_static_path',
-    'html_last_updated_fmt',
-    'html_use_smartypants',
-    'html_domain_indices',
-    'html_use_index',
-    'html_split_index',
-    'html_show_sourcelink',
-    'html_copy_source',
-    'html_show_sphinx',
-    'html_show_copyright',
-    'html_file_suffix',
-    'html_search_language',
-    'html_extra_path',
+    "templates_path",
+    "html_theme",
+    "html_theme_path",
+    "html_theme_options",
+    "html_title",
+    "html_short_title",
+    "html_logo",
+    "html_favicon",
+    "html_static_path",
+    "html_last_updated_fmt",
+    "html_use_smartypants",
+    "html_domain_indices",
+    "html_use_index",
+    "html_split_index",
+    "html_show_sourcelink",
+    "html_copy_source",
+    "html_show_sphinx",
+    "html_show_copyright",
+    "html_file_suffix",
+    "html_search_language",
+    "html_extra_path",
     # AUTOMODAPI
-    'numpydoc_show_class_members',
-    'autosummary_generate',
-    'automodapi_toctreedirnm',
-    'automodsumm_inherited_members',
-    'autodoc_inherit_docstrings',
-    'autoclass_content',
-    'autodoc_default_flags',
+    "numpydoc_show_class_members",
+    "autosummary_generate",
+    "automodapi_toctreedirnm",
+    "automodsumm_inherited_members",
+    "autodoc_inherit_docstrings",
+    "autoclass_content",
+    "autodoc_default_flags",
     # DOXYLINK
-    'doxylink',
-    'documenteer_autocppapi_doxylink_role',
+    "doxylink",
+    "documenteer_autocppapi_doxylink_role",
     # GRAPHVIZ
-    'graphviz_output_format',
-    'graphviz_dot_args',
+    "graphviz_output_format",
+    "graphviz_dot_args",
     # TODO
-    'todo_include_todos',
+    "todo_include_todos",
     # EUPS
-    'eups_tag',
-    'git_ref',
+    "eups_tag",
+    "git_ref",
     # JINJA
-    'jinja_contexts',
+    "jinja_contexts",
     # EPILOG
-    'rst_epilog'
+    "rst_epilog",
 )
 
 import datetime
@@ -104,102 +104,103 @@ import warnings
 
 import lsst_sphinx_bootstrap_theme
 
-
 # ============================================================================
 # #EXT Sphinx extensions
 # ============================================================================
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.ifconfig',
-    'sphinxcontrib.jinja',
-    'sphinx-prompt',
-    'sphinxcontrib.autoprogram',
-    'sphinxcontrib.doxylink',
-    'numpydoc',
-    'sphinx_automodapi.automodapi',
-    'sphinx_automodapi.smart_resolver',
-    'documenteer.sphinxext',
-    'documenteer.sphinxext.lssttasks',
-    'documenteer.ext.autocppapi',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.ifconfig",
+    "sphinxcontrib.jinja",
+    "sphinx-prompt",
+    "sphinxcontrib.autoprogram",
+    "sphinxcontrib.doxylink",
+    "numpydoc",
+    "sphinx_automodapi.automodapi",
+    "sphinx_automodapi.smart_resolver",
+    "documenteer.sphinxext",
+    "documenteer.sphinxext.lssttasks",
+    "documenteer.ext.autocppapi",
 ]
 
 # ============================================================================
 # #SPHINX Core Sphinx configurations
 # ============================================================================
-project = 'LSST Science Pipelines'
+project = "LSST Science Pipelines"
 
 _date = datetime.datetime.now()
 
-today = _date.strftime('%Y-%m-%d')
+today = _date.strftime("%Y-%m-%d")
 
 # Use this copyright for now. Ultimately we want to gather COPYRIGHT files
 # and build an integrated copyright that way.
-copyright = f'2015-{_date.year} LSST contributors'
+copyright = f"2015-{_date.year} LSST contributors"
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
-source_suffix = '.rst'
+source_suffix = ".rst"
 
 # The encoding of source files.
-source_encoding = 'utf-8'
+source_encoding = "utf-8"
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # Configure figure numbering
 numfig = True
 numfig_format = {
-    'figure': 'Figure %s',
-    'table': 'Table %s',
-    'code-block': 'Listing %s'
+    "figure": "Figure %s",
+    "table": "Table %s",
+    "code-block": "Listing %s",
 }
 
 # The reST default role (used for this markup: `text`)
-default_role = 'obj'
+default_role = "obj"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = [
-    'README.rst',
+    "README.rst",
     # Build products
-    '_build',
+    "_build",
     # Doxygen build products
-    '_doxygen',
+    "_doxygen",
     # Source for release notes (contents are included in built pages)
-    'releases/note-source/*.rst',
-    'releases/tickets-source/*.rst',
+    "releases/note-source/*.rst",
+    "releases/tickets-source/*.rst",
     # EUPS configuration directory
-    'ups',
+    "ups",
     # Recommended directory for pip installing doc eng Python packages
-    '.pyvenv',
+    ".pyvenv",
     # GitHub templates
-    '.github',
+    ".github",
     # This 'home' directory is created by the docubase image for the
     # sqre/infra/documenteer ci.lsst.codes Jenkins job. Ideally this
     # shouldn't be in the directory at all, but we certainly need to
     # ignore it while its here.
-    'home',
+    "home",
 ]
 
 # ============================================================================
 # #INTER Intersphinx configuration
 # ============================================================================
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
-    'matplotlib': ('https://matplotlib.org/', None),
-    'sklearn': ('https://scikit-learn.org/stable/', None),
-    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
-    'astropy': ('http://docs.astropy.org/en/v3.0.x/', None),
-    'astro_metadata_translator': (
-        'https://astro-metadata-translator.lsst.io', None),
-    'firefly_client': ('https://firefly-client.lsst.io', None)
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
+    "matplotlib": ("https://matplotlib.org/", None),
+    "sklearn": ("https://scikit-learn.org/stable/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "astropy": ("http://docs.astropy.org/en/v3.0.x/", None),
+    "astro_metadata_translator": (
+        "https://astro-metadata-translator.lsst.io",
+        None,
+    ),
+    "firefly_client": ("https://firefly-client.lsst.io", None),
 }
 intersphinx_timeout = 10.0  # seconds
 intersphinx_cache_limit = 5  # days
@@ -211,17 +212,16 @@ intersphinx_cache_limit = 5  # days
 
 # Use the lsst-sphinx-bootstrap-theme
 templates_path = [
-    '_templates',
-    lsst_sphinx_bootstrap_theme.get_html_templates_path()]
-html_theme = 'lsst_sphinx_bootstrap_theme'
+    "_templates",
+    lsst_sphinx_bootstrap_theme.get_html_templates_path(),
+]
+html_theme = "lsst_sphinx_bootstrap_theme"
 html_theme_path = [lsst_sphinx_bootstrap_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {
-    'logotext': project
-}
+html_theme_options = {"logotext": project}
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -244,8 +244,8 @@ html_favicon = None
 # here, relative to this directory. They are copied after the builtin
 # static files, so a file named "default.css" will overwrite the builtin
 # "default.css".
-if os.path.isdir('_static'):
-    html_static_path = ['_static']
+if os.path.isdir("_static"):
+    html_static_path = ["_static"]
 else:
     # If a project does not have a _static/ directory, don't list it
     # so that there isn't a warning.
@@ -258,7 +258,7 @@ else:
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
-html_last_updated_fmt = '%b %d, %Y'
+html_last_updated_fmt = "%b %d, %Y"
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
@@ -293,12 +293,12 @@ html_show_copyright = True
 # html_use_opensearch = ''
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
-html_file_suffix = '.html'
+html_file_suffix = ".html"
 
 # Language to be used for generating the HTML full-text search index.
-html_search_language = 'en'
+html_search_language = "en"
 
-html_extra_path = ['_doxygen/html']
+html_extra_path = ["_doxygen/html"]
 
 
 # ============================================================================
@@ -310,7 +310,7 @@ numpydoc_show_class_members = False
 
 autosummary_generate = True
 
-automodapi_toctreedirnm = 'py-api'
+automodapi_toctreedirnm = "py-api"
 automodsumm_inherited_members = True
 
 # Docstrings for classes and methods are inherited from parents.
@@ -331,19 +331,14 @@ autoclass_content = "class"
 # to have an effect (even for special members where the docstrings are
 # directly written in the class, not inherited.
 # autodoc_default_flags = ['inherited-members']
-autodoc_default_flags = [
-    'show-inheritance',
-    'special-members'
-]
+autodoc_default_flags = ["show-inheritance", "special-members"]
 
 # ============================================================================
 # #DOXYLINK Doxylink configuration
 # ============================================================================
-doxylink = {
-    'lsstcc': ('_doxygen/doxygen.tag', 'cpp-api')
-}
+doxylink = {"lsstcc": ("_doxygen/doxygen.tag", "cpp-api")}
 
-documenteer_autocppapi_doxylink_role = 'lsstcc'
+documenteer_autocppapi_doxylink_role = "lsstcc"
 
 # ============================================================================
 # #GRAPHVIZ graphviz configuration
@@ -353,12 +348,12 @@ documenteer_autocppapi_doxylink_role = 'lsstcc'
 graphviz_output_format = "svg"
 
 graphviz_dot_args = [
-    '-Nfontsize=10',
-    '-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif',
-    '-Efontsize=10',
-    '-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif',
-    '-Gfontsize=10',
-    '-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif'
+    "-Nfontsize=10",
+    "-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Efontsize=10",
+    "-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Gfontsize=10",
+    "-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
 ]
 
 # ============================================================================
@@ -366,6 +361,7 @@ graphviz_dot_args = [
 # ============================================================================
 try:
     import matplotlib.sphinxext.plot_directive
+
     extensions += [matplotlib.sphinxext.plot_directive.__name__]
 except (ImportError, AttributeError):
     # AttributeError is checked here in case matplotlib is installed but
@@ -373,7 +369,8 @@ except (ImportError, AttributeError):
     # generator, even if we're not building the docs.
     warnings.warn(
         "matplotlib's plot_directive could not be imported. "
-        "Inline plots will not be included in the output.")
+        "Inline plots will not be included in the output."
+    )
 
 # ============================================================================
 # #TODO todo extension configuration
@@ -387,34 +384,34 @@ todo_include_todos = False
 # This info will get exposed through the Jinja configuration and the rst prolog
 # ============================================================================
 # Attempt to get the EUPS tag from the build environment
-eups_tag = os.getenv('EUPS_TAG', 'd_latest')
+eups_tag = os.getenv("EUPS_TAG", "d_latest")
 
 # Try to guess the Git ref that corresponds to this tag
-if eups_tag in ('d_latest', 'w_latest', 'current'):
-    git_ref = 'master'
-elif eups_tag.startswith('d_'):
+if eups_tag in ("d_latest", "w_latest", "current"):
+    git_ref = "master"
+elif eups_tag.startswith("d_"):
     # Daily EUPS tags are not tagged on git
-    git_ref = 'master'
-elif eups_tag.startswith('v'):
+    git_ref = "master"
+elif eups_tag.startswith("v"):
     # Major version or release candidate tag
-    git_ref = eups_tag.lstrip('v').replace('_', '.')
-elif eups_tag.startswith('w_'):
+    git_ref = eups_tag.lstrip("v").replace("_", ".")
+elif eups_tag.startswith("w_"):
     # Regular weekly tag
-    git_ref = eups_tag.replace('_', '.')
+    git_ref = eups_tag.replace("_", ".")
 else:
     # Ideally shouldn't get to this point
-    git_ref = 'master'
+    git_ref = "master"
 
 # ============================================================================
 # #JINJA jinja extension configuration
 # ============================================================================
 jinja_contexts = {
-    'default': {
-        'release_eups_tag': eups_tag,
-        'release_git_ref': git_ref,
-        'pipelines_demo_ref': git_ref,
-        'scipipe_conda_ref': git_ref,
-        'newinstall_ref': git_ref,
+    "default": {
+        "release_eups_tag": eups_tag,
+        "release_git_ref": git_ref,
+        "pipelines_demo_ref": git_ref,
+        "scipipe_conda_ref": git_ref,
+        "newinstall_ref": git_ref,
     }
 }
 

@@ -13,8 +13,8 @@ def test_process_bib_files(tmpdir):
     dirname = tmpdir.dirname
     error_count = process_bib_files(dirname)
     assert error_count == 0
-    assert os.path.exists(os.path.join(dirname, 'books.bib'))
-    assert os.path.exists(os.path.join(dirname, 'lsst-dm.bib'))
-    assert os.path.exists(os.path.join(dirname, 'lsst.bib'))
-    assert os.path.exists(os.path.join(dirname, 'refs.bib'))
-    assert os.path.exists(os.path.join(dirname, 'refs_ads.bib'))
+    assert os.path.exists(os.path.join(dirname, "books.bib"))
+    assert os.path.exists(os.path.join(dirname, "lsst-dm.bib"))
+    assert os.path.exists(os.path.join(dirname, "lsst.bib"))
+    assert os.path.exists(os.path.join(dirname, "refs.bib"))
+    assert os.path.exists(os.path.join(dirname, "refs_ads.bib"))

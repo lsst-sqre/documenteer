@@ -2,7 +2,7 @@
 in the LSST Stack.
 """
 
-__all__ = ('main',)
+__all__ = ("main",)
 
 import logging
 import os
@@ -14,27 +14,30 @@ import click
 from ..sphinxrunner import run_sphinx
 from .rootdiscovery import discover_package_doc_dir
 
-
 # Add -h as a help shortcut option
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
-    '-d', '--dir', 'root_dir',
-    type=click.Path(exists=True, file_okay=False, dir_okay=True,
-                    resolve_path=True),
-    default='.',
+    "-d",
+    "--dir",
+    "root_dir",
+    type=click.Path(
+        exists=True, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    default=".",
     help="Root Sphinx doc/ directory. You don't need to set this argument "
-         "explicitly as long as the current working directory is any of:\n\n"
-         "- the root of the package\n"
-         "- the doc/ directory\n"
-         "- a subdirectory of doc/\n"
+    "explicitly as long as the current working directory is any of:\n\n"
+    "- the root of the package\n"
+    "- the doc/ directory\n"
+    "- a subdirectory of doc/\n",
 )
 @click.option(
-    '-v', '--verbose',
+    "-v",
+    "--verbose",
     is_flag=True,
-    help='Enable verbose output (debug-level logging).'
+    help="Enable verbose output (debug-level logging).",
 )
 @click.version_option()
 @click.pass_context
@@ -64,8 +67,7 @@ def main(ctx, root_dir, verbose):
 
     # Subcommands should use the click.pass_obj decorator to get this
     # ctx.obj object as the first argument.
-    ctx.obj = {'root_dir': root_dir,
-               'verbose': verbose}
+    ctx.obj = {"root_dir": root_dir, "verbose": verbose}
 
     # Set up application logging. This ensures that only documenteer's
     # logger is activated. If necessary, we can add other app's loggers too.
@@ -73,17 +75,16 @@ def main(ctx, root_dir, verbose):
         log_level = logging.DEBUG
     else:
         log_level = logging.INFO
-    logger = logging.getLogger('documenteer')
+    logger = logging.getLogger("documenteer")
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(log_level)
 
 
 @main.command()
-@click.argument('topic', default=None, required=False, nargs=1)
+@click.argument("topic", default=None, required=False, nargs=1)
 @click.pass_context
 def help(ctx, topic, **kw):
-    """Show help for any command.
-    """
+    """Show help for any command."""
     # The help command implementation is taken from
     # https://www.burgundywall.com/post/having-click-help-subcommand
     if topic is None:
@@ -100,7 +101,7 @@ def build(ctx):
     The build HTML site is located in the ``doc/_build/html`` directory
     of the package.
     """
-    return_code = run_sphinx(ctx.obj['root_dir'])
+    return_code = run_sphinx(ctx.obj["root_dir"])
     if return_code > 0:
         sys.exit(return_code)
 
@@ -121,12 +122,13 @@ def clean(ctx):
     """
     logger = logging.getLogger(__name__)
 
-    dirnames = ['py-api', '_build']
-    dirnames = [os.path.join(ctx.obj['root_dir'], dirname)
-                for dirname in dirnames]
+    dirnames = ["py-api", "_build"]
+    dirnames = [
+        os.path.join(ctx.obj["root_dir"], dirname) for dirname in dirnames
+    ]
     for dirname in dirnames:
         if os.path.isdir(dirname):
             shutil.rmtree(dirname)
-            logger.debug('Cleaned up %r', dirname)
+            logger.debug("Cleaned up %r", dirname)
         else:
-            logger.debug('Did not clean up %r (missing)', dirname)
+            logger.debug("Did not clean up %r (missing)", dirname)

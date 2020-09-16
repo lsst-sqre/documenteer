@@ -5,20 +5,21 @@ for licensing information.
 """
 
 
-from tempfile import mkdtemp
 from shutil import rmtree
-try:
-    from unittest.mock import Mock
-except ImportError:
-    from mock import Mock
+from tempfile import mkdtemp
 
 import pytest
 from sphinx.application import Sphinx
 
 import documenteer.sphinxext.jira as jira
 
+try:
+    from unittest.mock import Mock
+except ImportError:
+    from mock import Mock
 
-URI = 'https://jira.lsstcorp.org/browse/{ticket}'
+
+URI = "https://jira.lsstcorp.org/browse/{ticket}"
 
 
 @pytest.fixture()
@@ -34,11 +35,11 @@ def app(request):
         confdir=None,
         outdir=outdir,
         doctreedir=doctree,
-        buildername='html',
+        buildername="html",
     )
     jira.setup(app)
     # Stitch together as the sphinx app init() usually does w/ real conf files
-    app.config._raw_config = {'jira_uri_template': URI}
+    app.config._raw_config = {"jira_uri_template": URI}
     try:
         app.config.init_values()
     except TypeError:
@@ -61,94 +62,98 @@ def inliner(app):
 
 def test_jira_single(inliner):
     result = jira.jira_role(
-        name=None,
-        rawtext='',
-        text='DM-1234',
-        lineno=None,
-        inliner=inliner
+        name=None, rawtext="", text="DM-1234", lineno=None, inliner=inliner
     )
     link = result[0][0]
-    assert link.astext() == 'DM-1234'
-    assert link.attributes['refuri'] == URI.format(ticket='DM-1234')
+    assert link.astext() == "DM-1234"
+    assert link.attributes["refuri"] == URI.format(ticket="DM-1234")
 
 
 def test_jira_two(inliner):
     result = jira.jira_role(
         name=None,
-        rawtext='',
-        text='DM-1234,DM-5678',
+        rawtext="",
+        text="DM-1234,DM-5678",
         inliner=inliner,
         lineno=None,
     )
     link1 = result[0][0]
-    assert link1.astext() == 'DM-1234'
-    assert link1.attributes['refuri'] == URI.format(ticket='DM-1234')
+    assert link1.astext() == "DM-1234"
+    assert link1.attributes["refuri"] == URI.format(ticket="DM-1234")
 
     sep = result[0][1]
-    assert sep.astext() == ' and '
+    assert sep.astext() == " and "
 
     link2 = result[0][2]
-    assert link2.astext() == 'DM-5678'
-    assert link2.attributes['refuri'] == URI.format(ticket='DM-5678')
+    assert link2.astext() == "DM-5678"
+    assert link2.attributes["refuri"] == URI.format(ticket="DM-5678")
 
 
 @pytest.mark.parametrize(
     "test_input,expected",
-    [('DM-ABCD,DM-EFGH,DM-IJKL',
-      'DM-ABCD, DM-EFGH, and DM-IJKL'),
-     ('DM-ABCD,DM-EFGH,DM-IJKL,DM-MNOP',
-      'DM-ABCD, DM-EFGH, DM-IJKL, and DM-MNOP')])
+    [
+        ("DM-ABCD,DM-EFGH,DM-IJKL", "DM-ABCD, DM-EFGH, and DM-IJKL"),
+        (
+            "DM-ABCD,DM-EFGH,DM-IJKL,DM-MNOP",
+            "DM-ABCD, DM-EFGH, DM-IJKL, and DM-MNOP",
+        ),
+    ],
+)
 def test_jira_text(inliner, test_input, expected):
     result = jira.jira_role(
         name=None,
-        rawtext='',
+        rawtext="",
         text=test_input,
         inliner=inliner,
         lineno=None,
     )
-    text = ''.join([r.astext() for r in result[0]])
+    text = "".join([r.astext() for r in result[0]])
     assert expected == text
 
 
 @pytest.mark.parametrize(
     "test_input,expected",
-    [('DM-ABCD',
-      '[DM-ABCD]'),
-     ('DM-ABCD,DM-EFGH',
-      '[DM-ABCD, DM-EFGH]'),
-     ('DM-ABCD,DM-EFGH,DM-IJKL',
-      '[DM-ABCD, DM-EFGH, DM-IJKL]'),
-     ('DM-ABCD,DM-EFGH,DM-IJKL,DM-MNOP',
-      '[DM-ABCD, DM-EFGH, DM-IJKL, DM-MNOP]')])
+    [
+        ("DM-ABCD", "[DM-ABCD]"),
+        ("DM-ABCD,DM-EFGH", "[DM-ABCD, DM-EFGH]"),
+        ("DM-ABCD,DM-EFGH,DM-IJKL", "[DM-ABCD, DM-EFGH, DM-IJKL]"),
+        (
+            "DM-ABCD,DM-EFGH,DM-IJKL,DM-MNOP",
+            "[DM-ABCD, DM-EFGH, DM-IJKL, DM-MNOP]",
+        ),
+    ],
+)
 def test_jira_bracket_text(inliner, test_input, expected):
     result = jira.jira_bracket_role(
         name=None,
-        rawtext='',
+        rawtext="",
         text=test_input,
         inliner=inliner,
         lineno=None,
     )
-    text = ''.join([r.astext() for r in result[0]])
+    text = "".join([r.astext() for r in result[0]])
     assert expected == text
 
 
 @pytest.mark.parametrize(
     "test_input,expected",
-    [('DM-ABCD',
-      '(DM-ABCD)'),
-     ('DM-ABCD,DM-EFGH',
-      '(DM-ABCD, DM-EFGH)'),
-     ('DM-ABCD,DM-EFGH,DM-IJKL',
-      '(DM-ABCD, DM-EFGH, DM-IJKL)'),
-     ('DM-ABCD,DM-EFGH,DM-IJKL,DM-MNOP',
-      '(DM-ABCD, DM-EFGH, DM-IJKL, DM-MNOP)')])
+    [
+        ("DM-ABCD", "(DM-ABCD)"),
+        ("DM-ABCD,DM-EFGH", "(DM-ABCD, DM-EFGH)"),
+        ("DM-ABCD,DM-EFGH,DM-IJKL", "(DM-ABCD, DM-EFGH, DM-IJKL)"),
+        (
+            "DM-ABCD,DM-EFGH,DM-IJKL,DM-MNOP",
+            "(DM-ABCD, DM-EFGH, DM-IJKL, DM-MNOP)",
+        ),
+    ],
+)
 def test_jira_parens_text(inliner, test_input, expected):
     result = jira.jira_parens_role(
         name=None,
-        rawtext='',
+        rawtext="",
         text=test_input,
         inliner=inliner,
         lineno=None,
     )
-    text = ''.join([r.astext() for r in result[0]])
+    text = "".join([r.astext() for r in result[0]])
     assert expected == text

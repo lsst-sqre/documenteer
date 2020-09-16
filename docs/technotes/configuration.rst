@@ -41,10 +41,7 @@ For example, to add the Python standard library so that built-in Python APIs can
 
    from documenteer.conf.technote import *
 
-   intersphinx_mapping['python'] = (
-       'https://docs.python.org/3',
-       None
-   )
+   intersphinx_mapping["python"] = ("https://docs.python.org/3", None)
 
 To additionally add the LSST Science Pipelines:
 
@@ -52,10 +49,7 @@ To additionally add the LSST Science Pipelines:
 
    from documenteer.conf.technote import *
 
-   intersphinx_mapping['python'] = (
-       'https://pipelines.lsst.io',
-       None
-   )
+   intersphinx_mapping["python"] = ("https://pipelines.lsst.io", None)
 
 Adding a Sphinx extension
 -------------------------
@@ -67,9 +61,7 @@ To add a new extension, append to the ``extensions`` list:
 
    from documenteer.conf.technote import *
 
-   extensions.extend([
-       'sphinx-click'
-   ])
+   extensions.extend(["sphinx-click"])
 
 Remember that if an additional package needs to be installed, add that dependency to the technote's :file:`requirements.txt` file.
 

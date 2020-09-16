@@ -7,7 +7,7 @@ https://github.com/astropy/astropy-helpers/blob/master/astropy_helpers/sphinx/co
 see licenses/astropy-helpers.txt
 """
 
-__all__ = ('build_package_configs', 'build_pipelines_lsst_io_configs')
+__all__ = ("build_package_configs", "build_pipelines_lsst_io_configs")
 
 import datetime
 import os
@@ -20,25 +20,24 @@ from .utils import read_git_commit_timestamp
 
 
 def _insert_extensions(c):
-    """Insert the ``extensions`` variable into the configuration state.
-    """
-    c['extensions'] = [
-        'sphinx.ext.autodoc',
-        'sphinx.ext.doctest',
-        'sphinx.ext.intersphinx',
-        'sphinx.ext.todo',
-        'sphinx.ext.coverage',
-        'sphinx.ext.mathjax',
-        'sphinx.ext.ifconfig',
-        'sphinxcontrib.jinja',
-        'sphinx-prompt',
-        'sphinxcontrib.autoprogram',
-        'numpydoc',
-        'sphinx_automodapi.automodapi',
-        'sphinx_automodapi.smart_resolver',
-        'breathe',
-        'documenteer.sphinxext',
-        'documenteer.sphinxext.lssttasks'
+    """Insert the ``extensions`` variable into the configuration state."""
+    c["extensions"] = [
+        "sphinx.ext.autodoc",
+        "sphinx.ext.doctest",
+        "sphinx.ext.intersphinx",
+        "sphinx.ext.todo",
+        "sphinx.ext.coverage",
+        "sphinx.ext.mathjax",
+        "sphinx.ext.ifconfig",
+        "sphinxcontrib.jinja",
+        "sphinx-prompt",
+        "sphinxcontrib.autoprogram",
+        "numpydoc",
+        "sphinx_automodapi.automodapi",
+        "sphinx_automodapi.smart_resolver",
+        "breathe",
+        "documenteer.sphinxext",
+        "documenteer.sphinxext.lssttasks",
     ]
     return c
 
@@ -47,70 +46,72 @@ def _insert_intersphinx_mapping(c):
     """Insert the ``intersphinx_mapping``, ``intersphinx_timeout`` and
     ``intersphinx_cache_limit`` variableis into the configuration state.
     """
-    c['intersphinx_mapping'] = {
-        'python': ('https://docs.python.org/3/', None),
+    c["intersphinx_mapping"] = {
+        "python": ("https://docs.python.org/3/", None),
         # FIXME add local object cache
         # 'pythonloc': ('http://docs.python.org/',
         #               os.path.abspath(
         #                   os.path.join(os.path.dirname(__file__),
         #                                'local/python3_local_links.inv'))),
-        'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-        'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
-        'matplotlib': ('https://matplotlib.org/', None),
-        'sklearn': ('https://scikit-learn.org/stable/', None),
-        'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
-        'astropy': ('http://docs.astropy.org/en/v3.0.x/', None),
-        'astro_metadata_translator': (
-            'https://astro-metadata-translator.lsst.io', None),
-        'firefly_client': ('https://firefly-client.lsst.io', None)
+        "numpy": ("https://docs.scipy.org/doc/numpy/", None),
+        "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
+        "matplotlib": ("https://matplotlib.org/", None),
+        "sklearn": ("https://scikit-learn.org/stable/", None),
+        "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+        "astropy": ("http://docs.astropy.org/en/v3.0.x/", None),
+        "astro_metadata_translator": (
+            "https://astro-metadata-translator.lsst.io",
+            None,
+        ),
+        "firefly_client": ("https://firefly-client.lsst.io", None),
     }
-    c['intersphinx_timeout'] = 10.0  # seconds
-    c['intersphinx_cache_limit'] = 5  # days
+    c["intersphinx_timeout"] = 10.0  # seconds
+    c["intersphinx_cache_limit"] = 5  # days
     return c
 
 
 def _insert_html_configs(c, *, project_name, short_project_name):
-    """Insert HTML theme configurations.
-    """
+    """Insert HTML theme configurations."""
     # Use the lsst-sphinx-bootstrap-theme
-    c['templates_path'] = [
-        '_templates',
-        lsst_sphinx_bootstrap_theme.get_html_templates_path()]
-    c['html_theme'] = 'lsst_sphinx_bootstrap_theme'
-    c['html_theme_path'] = [lsst_sphinx_bootstrap_theme.get_html_theme_path()]
+    c["templates_path"] = [
+        "_templates",
+        lsst_sphinx_bootstrap_theme.get_html_templates_path(),
+    ]
+    c["html_theme"] = "lsst_sphinx_bootstrap_theme"
+    c["html_theme_path"] = [lsst_sphinx_bootstrap_theme.get_html_theme_path()]
 
     # Theme options are theme-specific and customize the look and feel of a
     # theme further.  For a list of options available for each theme, see the
     # documentation.
-    c['html_theme_options'] = {'logotext': short_project_name}
+    c["html_theme_options"] = {"logotext": short_project_name}
 
     # The name for this set of Sphinx documents.  If None, it defaults to
     # "<project> v<release> documentation".
-    c['html_title'] = project_name
+    c["html_title"] = project_name
 
     # A shorter title for the navigation bar.  Default is the same as
     # html_title.
-    c['html_short_title'] = short_project_name
+    c["html_short_title"] = short_project_name
 
     # The name of an image file (relative to this directory) to place at the
     # top of the sidebar.
-    c['html_logo'] = None
+    c["html_logo"] = None
 
     # The name of an image file (within the static path) to use as favicon of
     # the docs.  This file should be a Windows icon file (.ico) being 16x16 or
     # 32x32 pixels large.
-    c['html_favicon'] = None
+    c["html_favicon"] = None
 
     # Add any paths that contain custom static files (such as style sheets)
     # here, relative to this directory. They are copied after the builtin
     # static files, so a file named "default.css" will overwrite the builtin
     # "default.css".
-    if os.path.isdir('_static'):
-        c['html_static_path'] = ['_static']
+    if os.path.isdir("_static"):
+        c["html_static_path"] = ["_static"]
     else:
         # If a project does not have a _static/ directory, don't list it
         # so that there isn't a warning.
-        c['html_static_path'] = []
+        c["html_static_path"] = []
 
     # Add any extra paths that contain custom files (such as robots.txt or
     # .htaccess) here, relative to this directory. These files are copied
@@ -119,31 +120,31 @@ def _insert_html_configs(c, *, project_name, short_project_name):
 
     # If not '', a 'Last updated on:' timestamp is inserted at every page
     # bottom, using the given strftime format.
-    c['html_last_updated_fmt'] = '%b %d, %Y'
+    c["html_last_updated_fmt"] = "%b %d, %Y"
 
     # If true, SmartyPants will be used to convert quotes and dashes to
     # typographically correct entities.
-    c['html_use_smartypants'] = True
+    c["html_use_smartypants"] = True
 
     # If false, no module index is generated.
-    c['html_domain_indices'] = True
+    c["html_domain_indices"] = True
 
     # If false, no index is generated.
-    c['html_use_index'] = True
+    c["html_use_index"] = True
 
     # If true, the index is split into individual pages for each letter.
-    c['html_split_index'] = False
+    c["html_split_index"] = False
 
     # If true, links to the reST sources are added to the pages.
-    c['html_show_sourcelink'] = True
+    c["html_show_sourcelink"] = True
 
     # If true, "Created using Sphinx" is shown in the HTML footer. Default is
     # True.
-    c['html_show_sphinx'] = True
+    c["html_show_sphinx"] = True
 
     # If true, "(C) Copyright ..." is shown in the HTML footer. Default is
     # True.
-    c['html_show_copyright'] = True
+    c["html_show_copyright"] = True
 
     # If true, an OpenSearch description file will be output, and all pages
     # will contain a <link> tag referring to it.  The value of this option must
@@ -151,10 +152,10 @@ def _insert_html_configs(c, *, project_name, short_project_name):
     # html_use_opensearch = ''
 
     # This is the file name suffix for HTML files (e.g. ".xhtml").
-    c['html_file_suffix'] = '.html'
+    c["html_file_suffix"] = ".html"
 
     # Language to be used for generating the HTML full-text search index.
-    c['html_search_language'] = 'en'
+    c["html_search_language"] = "en"
 
     # A dictionary with options for the search language support, empty by
     # default.  Now only 'ja' uses this config value
@@ -169,32 +170,35 @@ def _insert_html_configs(c, *, project_name, short_project_name):
 
 
 def _insert_common_sphinx_configs(c, *, project_name):
-    """Add common core Sphinx configurations to the state.
-    """
-    c['project'] = project_name
+    """Add common core Sphinx configurations to the state."""
+    c["project"] = project_name
 
     # The suffix(es) of source filenames.
     # You can specify multiple suffix as a list of string:
-    c['source_suffix'] = '.rst'
+    c["source_suffix"] = ".rst"
 
     # The encoding of source files.
-    c['source_encoding'] = 'utf-8-sig'
+    c["source_encoding"] = "utf-8-sig"
 
     # The master toctree document.
-    c['master_doc'] = 'index'
+    c["master_doc"] = "index"
 
     # Configure figure numbering
-    c['numfig'] = True
-    c['numfig_format'] = {'figure': 'Figure %s',
-                          'table': 'Table %s',
-                          'code-block': 'Listing %s'}
+    c["numfig"] = True
+    c["numfig_format"] = {
+        "figure": "Figure %s",
+        "table": "Table %s",
+        "code-block": "Listing %s",
+    }
 
     # The reST default role (used for this markup: `text`)
-    c['default_role'] = 'obj'
+    c["default_role"] = "obj"
 
     # This is added to the end of RST files - a good place to put substitutions
     # to be used globally.
-    c['rst_epilog'] = """
+    c[
+        "rst_epilog"
+    ] = """
 .. _Astropy: http://astropy.org
     """
 
@@ -204,17 +208,18 @@ def _insert_common_sphinx_configs(c, *, project_name):
     # those warning. This can be removed once the patch gets released in
     # upstream Sphinx (https://github.com/sphinx-doc/sphinx/pull/1843).
     # Suppress the warnings requires Sphinx v1.4.2
-    c['suppress_warnings'] = ['app.add_directive', ]
+    c["suppress_warnings"] = [
+        "app.add_directive",
+    ]
 
     return c
 
 
 def _insert_breathe_configs(c, *, project_name, doxygen_xml_dirname):
-    """Add breathe extension configurations to the state.
-    """
+    """Add breathe extension configurations to the state."""
     if doxygen_xml_dirname is not None:
-        c['breathe_projects'] = {project_name: doxygen_xml_dirname}
-        c['breathe_default_project'] = project_name
+        c["breathe_projects"] = {project_name: doxygen_xml_dirname}
+        c["breathe_default_project"] = project_name
     return c
 
 
@@ -224,20 +229,20 @@ def _insert_automodapi_configs(c):
     """
     # Don't show summaries of the members in each class along with the
     # class' docstring
-    c['numpydoc_show_class_members'] = False
+    c["numpydoc_show_class_members"] = False
 
-    c['autosummary_generate'] = True
+    c["autosummary_generate"] = True
 
-    c['automodapi_toctreedirnm'] = 'py-api'
-    c['automodsumm_inherited_members'] = True
+    c["automodapi_toctreedirnm"] = "py-api"
+    c["automodsumm_inherited_members"] = True
 
     # Docstrings for classes and methods are inherited from parents.
-    c['autodoc_inherit_docstrings'] = True
+    c["autodoc_inherit_docstrings"] = True
 
     # Class documentation should only contain the class docstring and
     # ignore the __init__ docstring, account to LSST coding standards.
     # c['autoclass_content'] = "both"
-    c['autoclass_content'] = "class"
+    c["autoclass_content"] = "class"
 
     # Default flags for automodapi directives. Special members are dunder
     # methods.
@@ -249,28 +254,28 @@ def _insert_automodapi_configs(c):
     # to have an effect (even for special members where the docstrings are
     # directly written in the class, not inherited.
     # c['autodoc_default_flags'] = ['inherited-members']
-    c['autodoc_default_flags'] = ['show-inheritance',
-                                  'special-members']
+    c["autodoc_default_flags"] = ["show-inheritance", "special-members"]
 
     return c
 
 
 def _insert_matplotlib_configs(c):
-    """Add configurations related to matplotlib's plot directive to the state.
-    """
-    if 'extensions' not in c:
-        c['extensions'] = []
+    """Add configs related to matplotlib's plot directive to the state."""
+    if "extensions" not in c:
+        c["extensions"] = []
 
     try:
         import matplotlib.sphinxext.plot_directive
-        c['extensions'] += [matplotlib.sphinxext.plot_directive.__name__]
+
+        c["extensions"] += [matplotlib.sphinxext.plot_directive.__name__]
     except (ImportError, AttributeError):
         # AttributeError is checked here in case matplotlib is installed but
         # Sphinx isn't.  Note that this module is imported by the config file
         # generator, even if we're not building the docs.
         warnings.warn(
             "matplotlib's plot_directive could not be imported. "
-            "Inline plots will not be included in the output.")
+            "Inline plots will not be included in the output."
+        )
 
     return c
 
@@ -282,15 +287,15 @@ def _insert_graphviz_configs(c):
     diagrams for Python.
     """
     # Render inheritance diagrams in SVG
-    c['graphviz_output_format'] = "svg"
+    c["graphviz_output_format"] = "svg"
 
-    c['graphviz_dot_args'] = [
-        '-Nfontsize=10',
-        '-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif',
-        '-Efontsize=10',
-        '-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif',
-        '-Gfontsize=10',
-        '-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif'
+    c["graphviz_dot_args"] = [
+        "-Nfontsize=10",
+        "-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+        "-Efontsize=10",
+        "-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+        "-Gfontsize=10",
+        "-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
     ]
 
     return c
@@ -324,13 +329,13 @@ def _insert_single_package_eups_version(c, eups_version):
     ``pipelines_demo_ref``
         Always ``master``.
     """
-    c['release_eups_tag'] = 'current'
-    c['release_git_ref'] = 'master'
-    c['version'] = eups_version
-    c['release'] = eups_version
-    c['scipipe_conda_ref'] = 'master'
-    c['pipelines_demo_ref'] = 'master'
-    c['newinstall_ref'] = 'master'
+    c["release_eups_tag"] = "current"
+    c["release_git_ref"] = "master"
+    c["version"] = eups_version
+    c["release"] = eups_version
+    c["scipipe_conda_ref"] = "master"
+    c["pipelines_demo_ref"] = "master"
+    c["newinstall_ref"] = "master"
     return c
 
 
@@ -355,34 +360,34 @@ def _insert_eups_version(c):
         Git ref for the https://github.com/lsst/lsst_dm_stack_demo repo.
     """
     # Attempt to get the eups tag from the build environment
-    eups_tag = os.getenv('EUPS_TAG')
+    eups_tag = os.getenv("EUPS_TAG")
     if eups_tag is None:
-        eups_tag = 'd_latest'
+        eups_tag = "d_latest"
 
     # Try to guess the git ref that corresponds to this tag
-    if eups_tag in ('d_latest', 'w_latest', 'current'):
-        git_ref = 'master'
-    elif eups_tag.startswith('d_'):
+    if eups_tag in ("d_latest", "w_latest", "current"):
+        git_ref = "master"
+    elif eups_tag.startswith("d_"):
         # Daily EUPS tags are not tagged on git
-        git_ref = 'master'
-    elif eups_tag.startswith('v'):
+        git_ref = "master"
+    elif eups_tag.startswith("v"):
         # Major version or release candidate tag
-        git_ref = eups_tag.lstrip('v').replace('_', '.')
-    elif eups_tag.startswith('w_'):
+        git_ref = eups_tag.lstrip("v").replace("_", ".")
+    elif eups_tag.startswith("w_"):
         # Regular weekly tag
-        git_ref = eups_tag.replace('_', '.')
+        git_ref = eups_tag.replace("_", ".")
     else:
         # Ideally shouldn't get to this point
-        git_ref = 'master'
+        git_ref = "master"
 
     # Now set variables for the Jinja context
-    c['release_eups_tag'] = eups_tag
-    c['release_git_ref'] = git_ref
-    c['version'] = eups_tag
-    c['release'] = eups_tag
-    c['scipipe_conda_ref'] = git_ref
-    c['pipelines_demo_ref'] = git_ref
-    c['newinstall_ref'] = git_ref
+    c["release_eups_tag"] = eups_tag
+    c["release_git_ref"] = git_ref
+    c["version"] = eups_tag
+    c["release"] = eups_tag
+    c["scipipe_conda_ref"] = git_ref
+    c["pipelines_demo_ref"] = git_ref
+    c["newinstall_ref"] = git_ref
 
     return c
 
@@ -394,11 +399,15 @@ def _insert_rst_epilog(c):
     use other configuration variables.
     """
     # Substitutions available on every page
-    c['rst_epilog'] = """
+    c[
+        "rst_epilog"
+    ] = """
 .. |eups-tag| replace:: {eups_tag}
 .. |eups-tag-mono| replace:: ``{eups_tag}``
 .. |eups-tag-bold| replace:: **{eups_tag}**
-    """.format(eups_tag=c['release_eups_tag'])
+    """.format(
+        eups_tag=c["release_eups_tag"]
+    )
 
     return c
 
@@ -409,15 +418,14 @@ def _insert_jinja_configuration(c):
     The "default" Jinja context includes all variables in the conf.py
     configuration namespace.
     """
-    c['jinja_contexts'] = {'default': c}
+    c["jinja_contexts"] = {"default": c}
 
     return c
 
 
-def build_package_configs(project_name,
-                          version=None,
-                          copyright=None,
-                          doxygen_xml_dirname=None):
+def build_package_configs(
+    project_name, version=None, copyright=None, doxygen_xml_dirname=None
+):
     """Builds a `dict` of Sphinx configurations useful for the ``doc/conf.py``
     files of individual LSST Stack packages.
 
@@ -435,8 +443,7 @@ def build_package_configs(project_name,
 
     .. code:: python
 
-       copyright = '2016 Association of Universities for '
-                   'Research in Astronomy, Inc.'
+       copyright = "2016 Association of Universities for Research in Astronomy"
 
     Parameters
     ----------
@@ -464,15 +471,12 @@ def build_package_configs(project_name,
     """
     c = {}
 
-    c = _insert_common_sphinx_configs(
-        c,
-        project_name=project_name)
+    c = _insert_common_sphinx_configs(c, project_name=project_name)
 
     # HTML theme
     c = _insert_html_configs(
-        c,
-        project_name=project_name,
-        short_project_name=project_name)
+        c, project_name=project_name, short_project_name=project_name
+    )
 
     # Sphinx extension modules
     c = _insert_extensions(c)
@@ -482,9 +486,8 @@ def build_package_configs(project_name,
 
     # Breathe extension configuration
     c = _insert_breathe_configs(
-        c,
-        project_name=project_name,
-        doxygen_xml_dirname=doxygen_xml_dirname)
+        c, project_name=project_name, doxygen_xml_dirname=doxygen_xml_dirname
+    )
 
     # Automodapi and numpydoc configurations
     c = _insert_automodapi_configs(c)
@@ -504,23 +507,22 @@ def build_package_configs(project_name,
         date = datetime.datetime.now()
 
     if copyright is not None:
-        c['copyright'] = copyright
+        c["copyright"] = copyright
     else:
-        c['copyright'] = '{:s} LSST contributors'.format(
-            date.strftime('%Y'))
+        c["copyright"] = "{:s} LSST contributors".format(date.strftime("%Y"))
 
-    c['today'] = date.strftime('%Y-%m-%d')
+    c["today"] = date.strftime("%Y-%m-%d")
 
     # List of patterns, relative to source directory, that match files and
     # directories to ignore when looking for source files.
-    c['exclude_patterns'] = [
-        '_build',
-        'README.rst',
+    c["exclude_patterns"] = [
+        "_build",
+        "README.rst",
     ]
 
     # Show rendered todo directives in package docs since they're developer
     # facing.
-    c['todo_include_todos'] = True
+    c["todo_include_todos"] = True
 
     # Insert rst_epilog configuration
     c = _insert_rst_epilog(c)
@@ -573,15 +575,12 @@ def build_pipelines_lsst_io_configs(*, project_name, copyright=None):
 
     c = {}
 
-    c = _insert_common_sphinx_configs(
-        c,
-        project_name=project_name)
+    c = _insert_common_sphinx_configs(c, project_name=project_name)
 
     # HTML theme
     c = _insert_html_configs(
-        c,
-        project_name=project_name,
-        short_project_name=project_name)
+        c, project_name=project_name, short_project_name=project_name
+    )
 
     # Sphinx extension modules
     c = _insert_extensions(c)
@@ -607,36 +606,35 @@ def build_pipelines_lsst_io_configs(*, project_name, copyright=None):
     # Always use "now" as the date for the main site's docs because we can't
     # look at the Git history of each stack package.
     date = datetime.datetime.now()
-    c['today'] = date.strftime('%Y-%m-%d')
+    c["today"] = date.strftime("%Y-%m-%d")
 
     # Use this copyright for now. Ultimately we want to gather COPYRIGHT files
     # and build an integrated copyright that way.
-    c['copyright'] = '2015-{year} LSST contributors'.format(
-        year=date.year)
+    c["copyright"] = "2015-{year} LSST contributors".format(year=date.year)
 
     # Hide todo directives in the "published" documentation on the main site.
-    c['todo_include_todos'] = False
+    c["todo_include_todos"] = False
 
     # List of patterns, relative to source directory, that match files and
     # directories to ignore when looking for source files.
-    c['exclude_patterns'] = [
-        'README.rst',
+    c["exclude_patterns"] = [
+        "README.rst",
         # Build products
-        '_build',
+        "_build",
         # Source for release notes (contents are included in built pages)
-        'releases/note-source/*.rst',
-        'releases/tickets-source/*.rst',
+        "releases/note-source/*.rst",
+        "releases/tickets-source/*.rst",
         # EUPS configuration directory
-        'ups',
+        "ups",
         # Recommended directory for pip installing doc eng Python packages
-        '.pyvenv',
+        ".pyvenv",
         # GitHub templates
-        '.github',
+        ".github",
         # This 'home' directory is created by the docubase image for the
         # sqre/infra/documenteer ci.lsst.codes Jenkins job. Ideally this
         # shouldn't be in the directory at all, but we certainly need to
         # ignore it while its here.
-        'home',
+        "home",
     ]
 
     # Insert rst_epilog configuration

@@ -1,13 +1,13 @@
 """Run Sphinx directly through its Python API.
 """
 
-__all__ = ('run_sphinx',)
+__all__ = ("run_sphinx",)
 
-import os
 import logging
+import os
 import sys
 from pathlib import Path
-from typing import Union, Dict, List
+from typing import Dict, List, Union
 
 from sphinx.application import Sphinx
 from sphinx.cmd.build import handle_exception
@@ -47,9 +47,9 @@ def run_sphinx(root_dir: Union[str, Path]) -> int:
     root_dir = os.path.abspath(root_dir)
     srcdir = root_dir  # root directory of Sphinx content
     confdir = root_dir  # directory where conf.py is located
-    outdir = os.path.join(root_dir, '_build', 'html')
-    doctreedir = os.path.join(root_dir, '_build', 'doctree')
-    builder = 'html'
+    outdir = os.path.join(root_dir, "_build", "html")
+    doctreedir = os.path.join(root_dir, "_build", "doctree")
+    builder = "html"
     confoverrides: Dict = {}
     status = sys.stdout  # set to None for 'quiet' mode
     warning = sys.stderr
@@ -62,24 +62,35 @@ def run_sphinx(root_dir: Union[str, Path]) -> int:
     force_all = True
     filenames: List = []
 
-    logger.debug('Sphinx config: srcdir={0}'.format(srcdir))
-    logger.debug('Sphinx config: confdir={0}'.format(confdir))
-    logger.debug('Sphinx config: outdir={0}'.format(outdir))
-    logger.debug('Sphinx config: doctreedir={0}'.format(doctreedir))
-    logger.debug('Sphinx config: builder={0}'.format(builder))
-    logger.debug('Sphinx config: freshenv={0:b}'.format(freshenv))
-    logger.debug('Sphinx config: warningiserror={0:b}'.format(warningiserror))
-    logger.debug('Sphinx config: verbosity={0:d}'.format(verbosity))
-    logger.debug('Sphinx config: jobs={0:d}'.format(jobs))
-    logger.debug('Sphinx config: force_all={0:b}'.format(force_all))
+    logger.debug("Sphinx config: srcdir={0}".format(srcdir))
+    logger.debug("Sphinx config: confdir={0}".format(confdir))
+    logger.debug("Sphinx config: outdir={0}".format(outdir))
+    logger.debug("Sphinx config: doctreedir={0}".format(doctreedir))
+    logger.debug("Sphinx config: builder={0}".format(builder))
+    logger.debug("Sphinx config: freshenv={0:b}".format(freshenv))
+    logger.debug("Sphinx config: warningiserror={0:b}".format(warningiserror))
+    logger.debug("Sphinx config: verbosity={0:d}".format(verbosity))
+    logger.debug("Sphinx config: jobs={0:d}".format(jobs))
+    logger.debug("Sphinx config: force_all={0:b}".format(force_all))
 
     app = None
     try:
         with patch_docutils(), docutils_namespace():
             app = Sphinx(
-                srcdir, confdir, outdir, doctreedir, builder,
-                confoverrides, status, warning, freshenv,
-                warningiserror, tags, verbosity, jobs)
+                srcdir,
+                confdir,
+                outdir,
+                doctreedir,
+                builder,
+                confoverrides,
+                status,
+                warning,
+                freshenv,
+                warningiserror,
+                tags,
+                verbosity,
+                jobs,
+            )
             app.build(force_all, filenames)
             return app.statuscode
     except (Exception, KeyboardInterrupt) as exc:

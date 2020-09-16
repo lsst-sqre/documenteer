@@ -9,10 +9,10 @@ Scope of contributions
 
 Documenteer is an open source package, meaning that you can contribute to Documenteer itself, or fork Documenteer for your own purposes.
 
-Since Documenteer is intended for internal use by LSST, community contributions can only be accepted if they align with LSST's aims.
+Since Documenteer is intended for internal use by Rubin Observatory, community contributions can only be accepted if they align with the Rubin Observatory's aims.
 For that reason, it's a good idea to propose changes with a new `GitHub issue`_ before investing time in making a pull request.
 
-Documenteer is developed by the LSST SQuaRE team.
+Documenteer is developed by the SQuaRE team.
 The lead developer and maintainer is `Jonathan Sick`_.
 
 .. _GitHub issue: https://github.com/lsst-sqre/documenteer/issues/new
@@ -29,27 +29,77 @@ To develop Documenteer, create a virtual environment with your method of choice 
 
    git clone https://github.com/lsst-sqre/documenteer.git
    cd documenteer
-   pip install -e ".[dev,pipelines,technote]"
+   make init
 
-The ``dev`` extra includes test and documentation dependencies.
-You also need to install the ``pipelines`` and ``technote`` extras to ensure that all tests will run.
+.. _dev-pre-commit:
+
+Code formatting and linting with pre-commit
+===========================================
+
+Documenteer uses `pre-commit`_ to automatically and consistently format and lint the codebase on each commit.
+By running ``make init``, pre-commit is already installed in your environment.
+
+If pre-commit "fails" because the black_ or isort_ code formatters changed the source, simply ``git add`` the changes and try the commit again.
+
+To learn more about the pre-commit configuration, see the ``.pre-commit-config.yaml`` file in the repository.
+
+.. _dev-tox:
+
+Running tests via tox
+=====================
+
+The best way to run tests is through tox, which is pre-installed through the ``make init`` command:
+
+.. code-block:: sh
+
+   tox
+
+There are multiple test environments, the default environments include:
+
+.. list-table:: Default tox environments
+   :widths: 40 60
+   :header-rows: 1
+
+   * - Enviroment
+     - Description
+   * - ``py37-test-sphinxlatest``
+     - Run tests in Python 3.7 with latest release of Sphinx
+   * - ``py38-test-sphinxlatest``
+     - Run tests in Python 3.8 with latest release of Sphinx
+   * - ``typing-sphinxlatest``
+     - Run mypy (type annotations checker) against latest release of Sphinx
+   * - ``lint``
+     - Run linters, such as flake8 and Sphinx linkcheck.
+   * - ``coverage-report``
+     - Aggregates unit test coverage reports from individual "test" runs and displays a report.
+
+It is also possible to run individual tox environments, for example:
+
+.. code-block:: sh
+
+   tox -e typing-sphinxlatest
+
+Additional tox environments are available for testing against different versions of Sphinx.
+For example, to test against Sphinx 2.3.x, run:
+
+.. code-block:: sh
+
+   tox -e py37-test-sphinx23
+
+To learn more about the available tox environments, review the :file:`tox.ini` file in the code repository.
 
 .. _dev-run-tests:
 
-Running tests
-=============
+Running tests through pytest
+============================
 
-Run pytest_ from the root of the source repository:
+Although tox is the recommended method for running tests, it is still possible to run tests directly through pytest_:
 
 .. code-block:: sh
 
    pytest
 
-Pytest also runs code style linting (through pytest-flake8), coverage analysis (through pytest-coverage), and static type checking (through pytest-mypy).
-
-The pytest command *must* succeed for a pull request to be accepted.
-
-.. _pytest: https://pytest.org
+This is particularly useful for running a single test module (provide the test module's path as an argument to the ``pytest`` command).
 
 .. _dev-build-docs:
 
@@ -62,20 +112,15 @@ Documentation is built with Sphinx_:
 
 .. code-block:: sh
 
-   cd docs
-   make html
+   tox -e docs
 
-To clear the built output:
-
-.. code-block:: sh
-
-   make clean
+The HTML output is located in the :file:`docs/_build/html` directory.
 
 To check links:
 
 .. code-block:: sh
 
-   make linkcheck
+   tox -e docs-lint
 
 .. _dev-change-log:
 
@@ -118,8 +163,8 @@ Style guide
 Code
 ----
 
-- Follow :pep:`8` for code style.
-  Flake8 should detect any issues for you.
+- Code formatting is performed automatically through `black`_ and `isort`_.
+  Generally this means that the code base automatically conforms to :pep:`8` and will pass the flake8 linter.
 
 - Write tests for Pytest_.
 
@@ -142,3 +187,7 @@ Documentation
 .. _`Google Developer Style Guide`: https://developers.google.com/style/
 .. _`LSST DM Docstring Style Guide`: https://developer.lsst.io/python/style.html
 .. _`LSST DM ReStructuredTextStyle Guide`: https://developer.lsst.io/restructuredtext/style.html
+.. _black: https://black.readthedocs.io/en/stable/
+.. _isort: https://pycqa.github.io/isort/
+.. _pytest: https://pytest.org
+.. _pre-commit: https://pre-commit.com

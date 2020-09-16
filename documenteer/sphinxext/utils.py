@@ -1,8 +1,12 @@
 """Utilities for making Sphinx extensions.
 """
 
-__all__ = ('parse_rst_content', 'make_python_xref_nodes',
-           'make_python_xref_nodes_for_type', 'make_section')
+__all__ = (
+    "parse_rst_content",
+    "make_python_xref_nodes",
+    "make_python_xref_nodes_for_type",
+    "make_section",
+)
 
 import re
 
@@ -33,7 +37,7 @@ def parse_rst_content(content, state):
 
     viewlist = ViewList()
     for i, line in enumerate(content.splitlines()):
-        viewlist.append(line, source='', offset=i)
+        viewlist.append(line, source="", offset=i)
 
     with switch_source_input(state, viewlist):
         state.nested_parse(viewlist, 0, container_node)
@@ -68,16 +72,16 @@ def make_python_xref_nodes(py_typestr, state, hide_namespace=False):
 
     .. code-block:: python
 
-       make_python_xref_nodes('numpy.sin', self.state)
+       make_python_xref_nodes("numpy.sin", self.state)
 
     See also
     --------
     `make_python_xref_nodes_for_type`
     """
     if hide_namespace:
-        template = ':py:obj:`~{}`\n'
+        template = ":py:obj:`~{}`\n"
     else:
-        template = ':py:obj:`{}`\n'
+        template = ":py:obj:`{}`\n"
     xref_text = template.format(py_typestr)
 
     return parse_rst_content(xref_text, state)
@@ -116,14 +120,13 @@ def make_python_xref_nodes_for_type(py_type, state, hide_namespace=False):
     --------
     `make_python_xref_nodes`
     """
-    if py_type.__module__ == 'builtins':
+    if py_type.__module__ == "builtins":
         typestr = py_type.__name__
     else:
-        typestr = '.'.join((py_type.__module__,
-                            py_type.__name__))
-    return make_python_xref_nodes(typestr,
-                                  state,
-                                  hide_namespace=hide_namespace)
+        typestr = ".".join((py_type.__module__, py_type.__name__))
+    return make_python_xref_nodes(
+        typestr, state, hide_namespace=hide_namespace
+    )
 
 
 def make_section(section_id=None, contents=None):
@@ -143,14 +146,14 @@ def make_section(section_id=None, contents=None):
         Docutils section node.
     """
     section = nodes.section()
-    section['ids'].append(nodes.make_id(section_id))
-    section['names'].append(section_id)
+    section["ids"].append(nodes.make_id(section_id))
+    section["names"].append(section_id)
     if contents is not None:
         section.extend(contents)
     return section
 
 
-ROLE_DISPLAY_PATTERN = re.compile(r'(?P<display>.+)<(?P<reference>.+)>')
+ROLE_DISPLAY_PATTERN = re.compile(r"(?P<display>.+)<(?P<reference>.+)>")
 
 
 def split_role_content(role_rawsource):
@@ -188,25 +191,21 @@ def split_role_content(role_rawsource):
     >>> split_role_role('~lsst.afw.table.Table')
     {'last_component': True, 'display': None, 'ref': 'lsst.afw.table.Table'}
     """
-    parts = {
-        'last_component': False,
-        'display': None,
-        'ref': None
-    }
+    parts = {"last_component": False, "display": None, "ref": None}
 
-    if role_rawsource.startswith('~'):
+    if role_rawsource.startswith("~"):
         # Only the last part of a namespace should be shown.
-        parts['last_component'] = True
+        parts["last_component"] = True
         # Strip that marker off
-        role_rawsource = role_rawsource.lstrip('~')
+        role_rawsource = role_rawsource.lstrip("~")
 
     match = ROLE_DISPLAY_PATTERN.match(role_rawsource)
     if match:
-        parts['display'] = match.group('display').strip()
-        parts['ref'] = match.group('reference').strip()
+        parts["display"] = match.group("display").strip()
+        parts["ref"] = match.group("reference").strip()
     else:
         # No suggested display
-        parts['display'] = None
-        parts['ref'] = role_rawsource.strip()
+        parts["display"] = None
+        parts["ref"] = role_rawsource.strip()
 
     return parts

@@ -1,12 +1,12 @@
 """Utilities used internally be Documenteer.
 """
 
-__all__ = ('working_directory')
+__all__ = "working_directory"
 
 import contextlib
 import os
 from pathlib import Path
-from typing import Union, Generator
+from typing import Generator, Union
 
 
 @contextlib.contextmanager

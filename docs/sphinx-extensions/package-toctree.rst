@@ -10,10 +10,7 @@ To use this Sphinx extension, add ``documenteer.sphinxext.packagetoctree`` to yo
 
 .. code-block:: python
 
-   extensions = [
-       ...
-       'documenteer.sphinxext.packagetoctree
-   ]
+   extensions = ["documenteer.sphinxext.packagetoctree"]
 
 To learn more about the build process for stack documentation projects, see :doc:`/pipelines/build-overview`.
 

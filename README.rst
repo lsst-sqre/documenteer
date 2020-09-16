@@ -13,8 +13,8 @@
 .. image:: https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square
    :alt: For Python 3.7+
    :target: https://pypi.python.org/pypi/documenteer
-.. image:: https://travis-ci.com/lsst-sqre/documenteer.svg
-   :target: https://travis-ci.com/lsst-sqre/documenteer
+.. image:: https://github.com/lsst-sqre/documenteer/workflows/CI/badge.svg
+   :target: https://github.com/lsst-sqre/documenteer/actions?query=workflow%3ACI
    :alt: CI Service
 
 ###########
@@ -53,7 +53,7 @@ By using Documenteer, you can also ensure that Sphinx extensions required by the
 From the ``conf.py`` for technotes::
 
     from documenteer.conf.technote import *
- 
+
 From the ``conf.py`` for a stack package::
 
     from documenteer.conf.pipelinespkg import *

@@ -1,17 +1,18 @@
 """Tests for documenteer.sphinext.mockcoderefs."""
 
 
-from tempfile import mkdtemp
 from shutil import rmtree
-try:
-    from unittest.mock import Mock
-except ImportError:
-    from mock import Mock
+from tempfile import mkdtemp
 
 import pytest
 from sphinx.application import Sphinx
 
 import documenteer.sphinxext.mockcoderefs as mockcoderefs
+
+try:
+    from unittest.mock import Mock
+except ImportError:
+    from mock import Mock
 
 
 @pytest.fixture()
@@ -27,7 +28,7 @@ def app(request):
         confdir=None,
         outdir=outdir,
         doctreedir=doctree,
-        buildername='html',
+        buildername="html",
     )
     mockcoderefs.setup(app)
     # Stitch together as the sphinx app init() usually does w/ real conf files
@@ -52,10 +53,13 @@ def inliner(app):
 
 
 @pytest.mark.parametrize(
-    'test_input,expected',
-    [(('lmod', 'lsst.afw'), 'lsst.afw'),
-     (('lmod', '~lsst.afw'), 'afw'),
-     (('lmod', '~lsst'), 'lsst')])
+    "test_input,expected",
+    [
+        (("lmod", "lsst.afw"), "lsst.afw"),
+        (("lmod", "~lsst.afw"), "afw"),
+        (("lmod", "~lsst"), "lsst"),
+    ],
+)
 def test_mock_code_ref_role(inliner, test_input, expected):
     role_name, role_content = test_input
     result = mockcoderefs.mock_code_ref_role(
@@ -63,5 +67,6 @@ def test_mock_code_ref_role(inliner, test_input, expected):
         rawtext=role_content,
         text=role_content,
         inliner=inliner,
-        lineno=None)
+        lineno=None,
+    )
     assert result[0][0].astext() == expected

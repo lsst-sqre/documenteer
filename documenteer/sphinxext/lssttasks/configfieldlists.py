@@ -3,25 +3,36 @@ config objects.
 """
 
 __all__ = (
-    'ConfigFieldListingDirective', 'SubtaskListingDirective',
-    'StandaloneConfigFieldsDirective',
+    "ConfigFieldListingDirective",
+    "SubtaskListingDirective",
+    "StandaloneConfigFieldsDirective",
 )
 
 import functools
-from typing import Dict, Callable, Any
+from typing import Any, Callable, Dict
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
-from sphinx.util.logging import getLogger
 from sphinx.errors import SphinxError
+from sphinx.util.logging import getLogger
 
-from ..utils import (parse_rst_content, make_python_xref_nodes_for_type,
-                     make_section)
-from .taskutils import (typestring, get_type, get_task_config_class,
-                        get_task_config_fields, get_subtask_fields)
-from .crossrefs import (pending_task_xref, pending_config_xref,
-                        format_configfield_id)
-
+from ..utils import (
+    make_python_xref_nodes_for_type,
+    make_section,
+    parse_rst_content,
+)
+from .crossrefs import (
+    format_configfield_id,
+    pending_config_xref,
+    pending_task_xref,
+)
+from .taskutils import (
+    get_subtask_fields,
+    get_task_config_class,
+    get_task_config_fields,
+    get_type,
+    typestring,
+)
 
 # FIXME import typing of the lsst.pex.config.Field and
 # docutils.statemachine.State parameters.
@@ -40,7 +51,7 @@ class ConfigFieldListingDirective(Directive):
     directive instead.
     """
 
-    directive_name = 'lsst-task-config-fields'
+    directive_name = "lsst-task-config-fields"
     """Default name of this directive.
     """
 
@@ -64,9 +75,10 @@ class ConfigFieldListingDirective(Directive):
             task_class_name = self.arguments[0]
         except IndexError:
             raise SphinxError(
-                '{} directive requires a Task class '
-                'name as an argument'.format(self.directive_name))
-        logger.debug('%s using Task class %s', task_class_name)
+                "{} directive requires a Task class "
+                "name as an argument".format(self.directive_name)
+            )
+        logger.debug("%s using Task class %s", task_class_name)
 
         task_config_class = get_task_config_class(task_class_name)
         config_fields = get_task_config_fields(task_config_class)
@@ -79,25 +91,30 @@ class ConfigFieldListingDirective(Directive):
                 continue
 
             field_id = format_configfield_id(
-                '.'.join((task_config_class.__module__,
-                          task_config_class.__name__)),
-                field_name)
+                ".".join(
+                    (task_config_class.__module__, task_config_class.__name__)
+                ),
+                field_name,
+            )
 
             try:
                 format_field_nodes = get_field_formatter(field)
             except ValueError:
-                logger.debug('Skipping unknown config field type, '
-                             '{0!r}'.format(field))
+                logger.debug(
+                    "Skipping unknown config field type, "
+                    "{0!r}".format(field)
+                )
                 continue
 
             all_nodes.append(
-                format_field_nodes(field_name, field, field_id, self.state,
-                                   self.lineno)
+                format_field_nodes(
+                    field_name, field, field_id, self.state, self.lineno
+                )
             )
 
         # Fallback if no configuration items are present
         if len(all_nodes) == 0:
-            message = 'No configuration fields.'
+            message = "No configuration fields."
             return [nodes.paragraph(text=message)]
 
         return all_nodes
@@ -121,7 +138,7 @@ class SubtaskListingDirective(Directive):
        .. lsst-task-config-subtasks:: lsst.pipe.tasks.processCcd.ProcessCcdTask
     """
 
-    directive_name = 'lsst-task-config-subtasks'
+    directive_name = "lsst-task-config-subtasks"
     """Default name of this directive.
     """
 
@@ -143,10 +160,12 @@ class SubtaskListingDirective(Directive):
             task_class_name = self.arguments[0]
         except IndexError:
             raise SphinxError(
-                '{} directive requires a Task class name as an '
-                'argument'.format(self.directive_name))
-        logger.debug('%s using Task class %s', self.directive_name,
-                     task_class_name)
+                "{} directive requires a Task class name as an "
+                "argument".format(self.directive_name)
+            )
+        logger.debug(
+            "%s using Task class %s", self.directive_name, task_class_name
+        )
 
         task_config_class = get_task_config_class(task_class_name)
         subtask_fields = get_subtask_fields(task_config_class)
@@ -154,24 +173,29 @@ class SubtaskListingDirective(Directive):
         all_nodes = []
         for field_name, field in subtask_fields.items():
             field_id = format_configfield_id(
-                '.'.join((task_config_class.__module__,
-                          task_config_class.__name__)),
-                field_name)
+                ".".join(
+                    (task_config_class.__module__, task_config_class.__name__)
+                ),
+                field_name,
+            )
             try:
                 format_field_nodes = get_field_formatter(field)
             except ValueError:
-                logger.debug('Skipping unknown config field type, '
-                             '{0!r}'.format(field))
+                logger.debug(
+                    "Skipping unknown config field type, "
+                    "{0!r}".format(field)
+                )
                 continue
 
             all_nodes.append(
-                format_field_nodes(field_name, field, field_id, self.state,
-                                   self.lineno)
+                format_field_nodes(
+                    field_name, field, field_id, self.state, self.lineno
+                )
             )
 
         # Fallback if no configuration items are present
         if len(all_nodes) == 0:
-            message = 'No subtasks.'
+            message = "No subtasks."
             return [nodes.paragraph(text=message)]
 
         return all_nodes
@@ -183,7 +207,7 @@ class StandaloneConfigFieldsDirective(Directive):
     class.
     """
 
-    directive_name = 'lsst-config-fields'
+    directive_name = "lsst-config-fields"
     """Default name of this directive.
     """
 
@@ -205,10 +229,12 @@ class StandaloneConfigFieldsDirective(Directive):
             config_class_name = self.arguments[0]
         except IndexError:
             raise SphinxError(
-                '{} directive requires a Config class '
-                'name as an argument'.format(self.directive_name))
-        logger.debug('%s using Config class %s', self.directive_name,
-                     config_class_name)
+                "{} directive requires a Config class "
+                "name as an argument".format(self.directive_name)
+            )
+        logger.debug(
+            "%s using Config class %s", self.directive_name, config_class_name
+        )
 
         config_class = get_type(config_class_name)
 
@@ -218,25 +244,28 @@ class StandaloneConfigFieldsDirective(Directive):
 
         for field_name, field in config_fields.items():
             field_id = format_configfield_id(
-                '.'.join((config_class.__module__,
-                          config_class.__name__)),
-                field_name)
+                ".".join((config_class.__module__, config_class.__name__)),
+                field_name,
+            )
 
             try:
                 format_field_nodes = get_field_formatter(field)
             except ValueError:
-                logger.debug('Skipping unknown config field type, '
-                             '{0!r}'.format(field))
+                logger.debug(
+                    "Skipping unknown config field type, "
+                    "{0!r}".format(field)
+                )
                 continue
 
             all_nodes.append(
-                format_field_nodes(field_name, field, field_id, self.state,
-                                   self.lineno)
+                format_field_nodes(
+                    field_name, field, field_id, self.state, self.lineno
+                )
             )
 
         # Fallback if no configuration items are present
         if len(all_nodes) == 0:
-            message = 'No configuration fields.'
+            message = "No configuration fields."
             return [nodes.paragraph(text=message)]
 
         return all_nodes
@@ -278,7 +307,7 @@ def get_field_formatter(field):
     try:
         return FIELD_FORMATTERS[typestring(field)]
     except KeyError:
-        raise ValueError('Unknown field type {0!r}'.format(field))
+        raise ValueError("Unknown field type {0!r}".format(field))
 
 
 def register_formatter(field_typestr):
@@ -290,8 +319,8 @@ def register_formatter(field_typestr):
     - Does type checking on the field argument passed to a formatter.
     - Assembles a section node from the nodes returned by the formatter.
     """
-    def decorator_register(formatter):
 
+    def decorator_register(formatter):
         @functools.wraps(formatter)
         def wrapped_formatter(*args, **kwargs):
             field_name = args[0]
@@ -301,28 +330,32 @@ def register_formatter(field_typestr):
             # Before running the formatter, do type checking
             field_type = get_type(field_typestr)
             if not isinstance(field, field_type):
-                message = ('Field {0} ({1!r}) is not an '
-                           '{2} type. It is an {3}.')
+                message = (
+                    "Field {0} ({1!r}) is not an " "{2} type. It is an {3}."
+                )
                 raise ValueError(
-                    message.format(field_name, field, field_typestr,
-                                   typestring(field)))
+                    message.format(
+                        field_name, field, field_typestr, typestring(field)
+                    )
+                )
 
             # Run the formatter itself
             nodes = formatter(*args, **kwargs)
 
             # Package nodes from the formatter into a section
             section = make_section(
-                section_id=field_id + '-section',
-                contents=nodes)
+                section_id=field_id + "-section", contents=nodes
+            )
             return section
 
         FIELD_FORMATTERS[field_typestr] = wrapped_formatter
 
         return wrapped_formatter
+
     return decorator_register
 
 
-@register_formatter('lsst.pex.config.config.Field')
+@register_formatter("lsst.pex.config.config.Field")
 def format_field_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a Field config field.
 
@@ -352,16 +385,14 @@ def format_field_nodes(field_name, field, field_id, state, lineno):
     field_type_item_content = nodes.definition()
     field_type_item_content_p = nodes.paragraph()
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        field.dtype,
-        state,
-        hide_namespace=False)[0].children[0]
-    field_type_item_content_p += nodes.Text(' ', ' ')
+        field.dtype, state, hide_namespace=False
+    )[0].children[0]
+    field_type_item_content_p += nodes.Text(" ", " ")
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        type(field),
-        state,
-        hide_namespace=True)[0].children[0]
+        type(field), state, hide_namespace=True
+    )[0].children[0]
     if field.optional:
-        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+        field_type_item_content_p += nodes.Text(" (optional)", " (optional)")
     field_type_item_content += field_type_item_content_p
     field_type_item += field_type_item_content
 
@@ -379,7 +410,7 @@ def format_field_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.configurableField.ConfigurableField')
+@register_formatter("lsst.pex.config.configurableField.ConfigurableField")
 def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigurableField config field.
 
@@ -408,7 +439,7 @@ def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     default_item.append(nodes.term(text="Default"))
     default_item_content = nodes.definition()
     para = nodes.paragraph()
-    name = '.'.join((field.target.__module__, field.target.__name__))
+    name = ".".join((field.target.__module__, field.target.__name__))
     para += pending_task_xref(rawsource=name)
     default_item_content += para
     default_item += default_item_content
@@ -427,7 +458,7 @@ def format_configurablefield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.listField.ListField')
+@register_formatter("lsst.pex.config.listField.ListField")
 def format_listfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ListField config field.
 
@@ -453,18 +484,17 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     """
     # ListField's store their item types in the itemtype attribute
     itemtype_node = nodes.definition_list_item()
-    itemtype_node += nodes.term(text='Item type')
+    itemtype_node += nodes.term(text="Item type")
     itemtype_def = nodes.definition()
     itemtype_def += make_python_xref_nodes_for_type(
-        field.itemtype,
-        state,
-        hide_namespace=False)
+        field.itemtype, state, hide_namespace=False
+    )
     itemtype_node += itemtype_def
 
     minlength_node = None
     if field.minLength:
         minlength_node = nodes.definition_list_item()
-        minlength_node += nodes.term(text='Minimum length')
+        minlength_node += nodes.term(text="Minimum length")
         minlength_def = nodes.definition()
         minlength_def += nodes.paragraph(text=str(field.minLength))
         minlength_node += minlength_def
@@ -472,7 +502,7 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     maxlength_node = None
     if field.maxLength:
         maxlength_node = nodes.definition_list_item()
-        maxlength_node += nodes.term(text='Maximum length')
+        maxlength_node += nodes.term(text="Maximum length")
         maxlength_def = nodes.definition()
         maxlength_def += nodes.paragraph(text=str(field.maxLength))
         maxlength_node += maxlength_def
@@ -480,7 +510,7 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     length_node = None
     if field.length:
         length_node = nodes.definition_list_item()
-        length_node += nodes.term(text='Required length')
+        length_node += nodes.term(text="Required length")
         length_def = nodes.definition()
         length_def += nodes.paragraph(text=str(field.length))
         length_node += length_def
@@ -491,16 +521,14 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     field_type_item_content = nodes.definition()
     field_type_item_content_p = nodes.paragraph()
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        field.itemtype,
-        state,
-        hide_namespace=False)[0].children[0]
-    field_type_item_content_p += nodes.Text(' ', ' ')
+        field.itemtype, state, hide_namespace=False
+    )[0].children[0]
+    field_type_item_content_p += nodes.Text(" ", " ")
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        type(field),
-        state,
-        hide_namespace=True)[0].children[0]
+        type(field), state, hide_namespace=True
+    )[0].children[0]
     if field.optional:
-        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+        field_type_item_content_p += nodes.Text(" (optional)", " (optional)")
     field_type_item_content += field_type_item_content_p
     field_type_item += field_type_item_content
 
@@ -532,7 +560,7 @@ def format_listfield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.choiceField.ChoiceField')
+@register_formatter("lsst.pex.config.choiceField.ChoiceField")
 def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ChoiceField config field.
 
@@ -569,7 +597,7 @@ def format_choicefield_nodes(field_name, field, field_id, state, lineno):
         choice_dl.append(item)
 
     choices_node = nodes.definition_list_item()
-    choices_node.append(nodes.term(text='Choices'))
+    choices_node.append(nodes.term(text="Choices"))
     choices_definition = nodes.definition()
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
@@ -580,16 +608,14 @@ def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     field_type_item_content = nodes.definition()
     field_type_item_content_p = nodes.paragraph()
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        field.dtype,
-        state,
-        hide_namespace=False)[0].children[0]
-    field_type_item_content_p += nodes.Text(' ', ' ')
+        field.dtype, state, hide_namespace=False
+    )[0].children[0]
+    field_type_item_content_p += nodes.Text(" ", " ")
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        type(field),
-        state,
-        hide_namespace=True)[0].children[0]
+        type(field), state, hide_namespace=True
+    )[0].children[0]
     if field.optional:
-        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+        field_type_item_content_p += nodes.Text(" (optional)", " (optional)")
     field_type_item_content += field_type_item_content_p
     field_type_item += field_type_item_content
 
@@ -608,7 +634,7 @@ def format_choicefield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.rangeField.RangeField')
+@register_formatter("lsst.pex.config.rangeField.RangeField")
 def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a RangeField config field.
 
@@ -638,22 +664,20 @@ def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     field_type_item_content = nodes.definition()
     field_type_item_content_p = nodes.paragraph()
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        field.dtype,
-        state,
-        hide_namespace=False)[0].children[0]
-    field_type_item_content_p += nodes.Text(' ', ' ')
+        field.dtype, state, hide_namespace=False
+    )[0].children[0]
+    field_type_item_content_p += nodes.Text(" ", " ")
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        type(field),
-        state,
-        hide_namespace=True)[0].children[0]
+        type(field), state, hide_namespace=True
+    )[0].children[0]
     if field.optional:
-        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+        field_type_item_content_p += nodes.Text(" (optional)", " (optional)")
     field_type_item_content += field_type_item_content_p
     field_type_item += field_type_item_content
 
     # Format definition list item for the range
     range_node = nodes.definition_list_item()
-    range_node += nodes.term(text='Range')
+    range_node += nodes.term(text="Range")
     range_node_def = nodes.definition()
     range_node_def += nodes.paragraph(text=field.rangeString)
     range_node += range_node_def
@@ -673,7 +697,7 @@ def format_rangefield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.dictField.DictField')
+@register_formatter("lsst.pex.config.dictField.DictField")
 def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a DictField config field.
 
@@ -699,12 +723,11 @@ def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     """
     # Custom value type field for definition list
     valuetype_item = nodes.definition_list_item()
-    valuetype_item = nodes.term(text='Value type')
+    valuetype_item = nodes.term(text="Value type")
     valuetype_def = nodes.definition()
     valuetype_def += make_python_xref_nodes_for_type(
-        field.itemtype,
-        state,
-        hide_namespace=False)
+        field.itemtype, state, hide_namespace=False
+    )
     valuetype_item += valuetype_def
 
     # Definition list for key-value metadata
@@ -723,7 +746,7 @@ def format_dictfield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.configField.ConfigField')
+@register_formatter("lsst.pex.config.configField.ConfigField")
 def format_configfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigField config field.
 
@@ -749,10 +772,10 @@ def format_configfield_nodes(field_name, field, field_id, state, lineno):
     """
     # Default data type node
     dtype_node = nodes.definition_list_item()
-    dtype_node = nodes.term(text='Data type')
+    dtype_node = nodes.term(text="Data type")
     dtype_def = nodes.definition()
     dtype_def_para = nodes.paragraph()
-    name = '.'.join((field.dtype.__module__, field.dtype.__name__))
+    name = ".".join((field.dtype.__module__, field.dtype.__name__))
     dtype_def_para += pending_config_xref(rawsource=name)
     dtype_def += dtype_def_para
     dtype_node += dtype_def
@@ -771,7 +794,7 @@ def format_configfield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.configChoiceField.ConfigChoiceField')
+@register_formatter("lsst.pex.config.configChoiceField.ConfigChoiceField")
 def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigChoiceField config field.
 
@@ -804,14 +827,14 @@ def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
         item += item_term
         item_definition = nodes.definition()
         def_para = nodes.paragraph()
-        name = '.'.join((choice_class.__module__, choice_class.__name__))
+        name = ".".join((choice_class.__module__, choice_class.__name__))
         def_para += pending_config_xref(rawsource=name)
         item_definition += def_para
         item += item_definition
         choice_dl.append(item)
 
     choices_node = nodes.definition_list_item()
-    choices_node.append(nodes.term(text='Choices'))
+    choices_node.append(nodes.term(text="Choices"))
     choices_definition = nodes.definition()
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
@@ -827,11 +850,10 @@ def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
         multi_text = "Single-selection "
     field_type_item_content_p += nodes.Text(multi_text, multi_text)
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        type(field),
-        state,
-        hide_namespace=True)[0].children[0]
+        type(field), state, hide_namespace=True
+    )[0].children[0]
     if field.optional:
-        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+        field_type_item_content_p += nodes.Text(" (optional)", " (optional)")
     field_type_item_content += field_type_item_content_p
     field_type_item += field_type_item_content
 
@@ -849,7 +871,7 @@ def format_configchoicefield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.configDictField.ConfigDictField')
+@register_formatter("lsst.pex.config.configDictField.ConfigDictField")
 def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a ConfigDictField config field.
 
@@ -878,7 +900,7 @@ def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     value_item += nodes.term(text="Value type")
     value_item_def = nodes.definition()
     value_item_def_para = nodes.paragraph()
-    name = '.'.join((field.itemtype.__module__, field.itemtype.__name__))
+    name = ".".join((field.itemtype.__module__, field.itemtype.__name__))
     value_item_def_para += pending_config_xref(rawsource=name)
     value_item_def += value_item_def_para
     value_item += value_item_def
@@ -898,7 +920,7 @@ def format_configdictfield_nodes(field_name, field, field_id, state, lineno):
     return [title, dl, desc_node]
 
 
-@register_formatter('lsst.pex.config.registry.RegistryField')
+@register_formatter("lsst.pex.config.registry.RegistryField")
 def format_registryfield_nodes(field_name, field, field_id, state, lineno):
     """Create a section node that documents a RegistryField config field.
 
@@ -933,15 +955,24 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
         # than it should be. Most registry items seem to fall in the first
         # category. Some are ConfigurableWrapper types that expose the
         # underlying task class through the _target attribute.
-        if hasattr(choice_class, '__module__') \
-                and hasattr(choice_class, '__name__'):
-            name = '.'.join((choice_class.__module__, choice_class.__name__))
+        if hasattr(choice_class, "__module__") and hasattr(
+            choice_class, "__name__"
+        ):
+            name = ".".join((choice_class.__module__, choice_class.__name__))
         elif isinstance(choice_class, ConfigurableWrapper):
-            name = '.'.join((choice_class._target.__class__.__module__,
-                             choice_class._target.__class__.__name__))
+            name = ".".join(
+                (
+                    choice_class._target.__class__.__module__,
+                    choice_class._target.__class__.__name__,
+                )
+            )
         else:
-            name = '.'.join((choice_class.__class__.__module__,
-                             choice_class.__class__.__name__))
+            name = ".".join(
+                (
+                    choice_class.__class__.__module__,
+                    choice_class.__class__.__name__,
+                )
+            )
 
         item = nodes.definition_list_item()
         item_term = nodes.term()
@@ -955,7 +986,7 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
         choice_dl.append(item)
 
     choices_node = nodes.definition_list_item()
-    choices_node.append(nodes.term(text='Choices'))
+    choices_node.append(nodes.term(text="Choices"))
     choices_definition = nodes.definition()
     choices_definition.append(choice_dl)
     choices_node.append(choices_definition)
@@ -971,11 +1002,10 @@ def format_registryfield_nodes(field_name, field, field_id, state, lineno):
         multi_text = "Single-selection "
     field_type_item_content_p += nodes.Text(multi_text, multi_text)
     field_type_item_content_p += make_python_xref_nodes_for_type(
-        type(field),
-        state,
-        hide_namespace=True)[0].children[0]
+        type(field), state, hide_namespace=True
+    )[0].children[0]
     if field.optional:
-        field_type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+        field_type_item_content_p += nodes.Text(" (optional)", " (optional)")
     field_type_item_content += field_type_item_content_p
     field_type_item += field_type_item_content
 
@@ -1013,11 +1043,10 @@ def create_field_type_item_node(field, state):
     type_item_content = nodes.definition()
     type_item_content_p = nodes.paragraph()
     type_item_content_p += make_python_xref_nodes_for_type(
-        type(field),
-        state,
-        hide_namespace=True)[0].children
+        type(field), state, hide_namespace=True
+    )[0].children
     if field.optional:
-        type_item_content_p += nodes.Text(' (optional)', ' (optional)')
+        type_item_content_p += nodes.Text(" (optional)", " (optional)")
     type_item_content += type_item_content_p
     type_item += type_item_content
     return type_item
@@ -1043,9 +1072,7 @@ def create_default_item_node(field, state):
     default_item = nodes.definition_list_item()
     default_item.append(nodes.term(text="Default"))
     default_item_content = nodes.definition()
-    default_item_content.append(
-        nodes.literal(text=repr(field.default))
-    )
+    default_item_content.append(nodes.literal(text=repr(field.default)))
     default_item.append(default_item_content)
     return default_item
 
@@ -1067,12 +1094,11 @@ def create_keytype_item_node(field, state):
         Definition list item that describes the key type for the field.
     """
     keytype_node = nodes.definition_list_item()
-    keytype_node = nodes.term(text='Key type')
+    keytype_node = nodes.term(text="Key type")
     keytype_def = nodes.definition()
     keytype_def += make_python_xref_nodes_for_type(
-        field.keytype,
-        state,
-        hide_namespace=False)
+        field.keytype, state, hide_namespace=False
+    )
     keytype_node += keytype_def
     return keytype_node
 
@@ -1138,16 +1164,16 @@ def create_configfield_ref_target_node(target_id, env, lineno):
     --------
     `documenteer.sphinxext.lssttasks.crossrefs.process_pending_configfield_xref_nodes`
     """
-    target_node = nodes.target('', '', ids=[target_id])
+    target_node = nodes.target("", "", ids=[target_id])
 
     # Store these task/configurable topic nodes in the environment for later
     # cross referencing.
-    if not hasattr(env, 'lsst_configfields'):
+    if not hasattr(env, "lsst_configfields"):
         env.lsst_configfields = {}
     env.lsst_configfields[target_id] = {
-        'docname': env.docname,
-        'lineno': lineno,
-        'target': target_node,
+        "docname": env.docname,
+        "lineno": lineno,
+        "target": target_node,
     }
 
     return target_node

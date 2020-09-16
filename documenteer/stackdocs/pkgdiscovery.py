@@ -2,21 +2,27 @@
 and their documentation.
 """
 
-__all__ = ('discover_setup_packages', 'find_table_file',
-           'list_packages_in_eups_table', 'Package', 'NoPackageDocs',
-           'find_package_docs')
+__all__ = (
+    "discover_setup_packages",
+    "find_table_file",
+    "list_packages_in_eups_table",
+    "Package",
+    "NoPackageDocs",
+    "find_package_docs",
+)
 
-from dataclasses import dataclass, field
 import logging
-from pathlib import Path
 import re
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import yaml
 
 
 def discover_setup_packages(
-        scope: Optional[List[str]] = None) -> Dict[str, Dict[str, str]]:
+    scope: Optional[List[str]] = None,
+) -> Dict[str, Dict[str, str]]:
     """Summarize packages currently set up by EUPS, listing their
     set up directories and EUPS version names.
 
@@ -54,22 +60,18 @@ def discover_setup_packages(
     for package in products:
         name = package.name
         if scope is not None and name not in scope:
-            logger.debug('Ignoring %s since it is not in scope.', name)
+            logger.debug("Ignoring %s since it is not in scope.", name)
             continue
-        info = {
-            'dir': package.dir,
-            'version': package.version
-        }
+        info = {"dir": package.dir, "version": package.version}
         packages[name] = info
         logger.debug(
-            'Found setup package: %s %s %s',
-            name, info['version'], info['dir'])
+            "Found setup package: %s %s %s", name, info["version"], info["dir"]
+        )
 
     return packages
 
 
-def find_table_file(
-        root_project_dir: Union[str, Path]) -> Path:
+def find_table_file(root_project_dir: Union[str, Path]) -> Path:
     """Find the EUPS table file for a project.
 
     Parameters
@@ -85,14 +87,15 @@ def find_table_file(
         Path to the EUPS table file.
     """
     root_project_dir = Path(root_project_dir)
-    ups_dir_path = root_project_dir / 'ups'
+    ups_dir_path = root_project_dir / "ups"
     table_path = None
     for p in ups_dir_path.iterdir():
-        if p.suffix == '.table' and p.is_file():
+        if p.suffix == ".table" and p.is_file():
             table_path = p
     if table_path is None:
         raise RuntimeError(
-            f'Could not find the EUPS table file for {root_project_dir}')
+            f"Could not find the EUPS table file for {root_project_dir}"
+        )
     return table_path
 
 
@@ -111,16 +114,15 @@ def list_packages_in_eups_table(table_text: str) -> List[str]:
     """
     logger = logging.getLogger(__name__)
     # This pattern matches required product names in EUPS table files.
-    pattern = re.compile(r'setupRequired\((?P<name>\w+)\)')
-    listed_packages = [m.group('name') for m in pattern.finditer(table_text)]
-    logger.debug('Packages listed in the table file: %r', listed_packages)
+    pattern = re.compile(r"setupRequired\((?P<name>\w+)\)")
+    listed_packages = [m.group("name") for m in pattern.finditer(table_text)]
+    logger.debug("Packages listed in the table file: %r", listed_packages)
     return listed_packages
 
 
 @dataclass
 class Package:
-    """Metadata about a stack package's documentation content.
-    """
+    """Metadata about a stack package's documentation content."""
 
     root_dir: Path
     """Root directory path of the package.
@@ -169,8 +171,8 @@ class Package:
 
 
 def find_package_docs(
-        package_dir: Union[str, Path],
-        skipped_names: Optional[List[str]] = None) -> Package:
+    package_dir: Union[str, Path], skipped_names: Optional[List[str]] = None
+) -> Package:
     """Find documentation directories in a package using ``manifest.yaml``
     and heuristics.
 
@@ -237,69 +239,65 @@ def find_package_docs(
 
     package_dir = Path(package_dir)
 
-    package = Package(
-        root_dir=package_dir,
-        doc_dir=package_dir / 'doc')
+    package = Package(root_dir=package_dir, doc_dir=package_dir / "doc")
 
-    modules_yaml_path = package.doc_dir / 'manifest.yaml'
+    modules_yaml_path = package.doc_dir / "manifest.yaml"
     if not modules_yaml_path.is_file():
-        raise NoPackageDocs(
-            r'Manifest YAML not found: {modules_yaml_path}')
+        raise NoPackageDocs(r"Manifest YAML not found: {modules_yaml_path}")
 
     with open(modules_yaml_path) as f:
         manifest_data = yaml.safe_load(f)
 
-    if 'modules' in manifest_data:
-        for module_name in manifest_data['modules']:
+    if "modules" in manifest_data:
+        for module_name in manifest_data["modules"]:
             if module_name in skipped_names:
-                logger.debug('Skipping module %s', module_name)
+                logger.debug("Skipping module %s", module_name)
                 continue
             module_dir = package.doc_dir / module_name
 
             if not module_dir.is_dir():
-                logger.warning(
-                    'module doc dir not found: %s',
-                    module_dir)
+                logger.warning("module doc dir not found: %s", module_dir)
                 continue
 
             package.module_dirs[module_name] = module_dir
-            logger.debug('Found module doc dir %s', module_dir)
+            logger.debug("Found module doc dir %s", module_dir)
 
-    if 'package' in manifest_data:
-        package_name = manifest_data['package']
+    if "package" in manifest_data:
+        package_name = manifest_data["package"]
         if package_name in skipped_names:
-            logger.debug('Skipping package %s', package_name)
+            logger.debug("Skipping package %s", package_name)
 
         full_package_dir = package.doc_dir / package_name
 
         if full_package_dir.is_dir():
             package.package_dirs[package_name] = full_package_dir
-            logger.debug('Found package doc dir %s', full_package_dir)
+            logger.debug("Found package doc dir %s", full_package_dir)
         else:
-            logger.warning('package doc dir not found: %s', full_package_dir)
+            logger.warning("package doc dir not found: %s", full_package_dir)
 
-    if 'statics' in manifest_data:
-        for static_dirname in manifest_data['statics']:
+    if "statics" in manifest_data:
+        for static_dirname in manifest_data["statics"]:
             full_static_dir = package.doc_dir / static_dirname
 
             if not full_static_dir.is_dir():
                 logger.warning(
-                    '_static doc dir not found: %s', full_static_dir)
+                    "_static doc dir not found: %s", full_static_dir
+                )
                 continue
 
             # Make a relative path to `_static` that's used as the
             # link source in the root docproject's _static/ directory
             relative_static_dir = str(
-                full_static_dir.relative_to(package.doc_dir / '_static')
+                full_static_dir.relative_to(package.doc_dir / "_static")
             )
             package.static_doc_dirs[relative_static_dir] = full_static_dir
-            logger.debug('Found _static doc dir: %s', full_static_dir)
+            logger.debug("Found _static doc dir: %s", full_static_dir)
 
-    doxygen_conf_path = package.doc_dir / 'doxygen.conf'
+    doxygen_conf_path = package.doc_dir / "doxygen.conf"
     if doxygen_conf_path.is_file():
         package.doxygen_conf_path = doxygen_conf_path
 
-    doxygen_conf_in_path = package.doc_dir / 'doxygen.conf.in'
+    doxygen_conf_in_path = package.doc_dir / "doxygen.conf.in"
     if doxygen_conf_in_path.is_file():
         package.doxygen_conf_in_path = doxygen_conf_in_path
 
@@ -307,5 +305,4 @@ def find_package_docs(
 
 
 class NoPackageDocs(Exception):
-    """Exception raised when documentation is not found for an EUPS package.
-    """
+    """Exception raised when documentation is not found for an EUPS package."""

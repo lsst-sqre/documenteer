@@ -14,6 +14,6 @@ Documenteer provides centralized configuration and tooling for technotes.
 .. seealso::
 
    To learn more about technotes:
-   
+
    - LSST DM Developer Guide: `Technotes for stand-alone technical documentation <https://developer.lsst.io/project-docs/technotes.html>`_
    - `SQR-000: The LSST DM Technical Note Publishing Platform <https://sqr-000.lsst.io>`_

@@ -10,10 +10,7 @@ To use this Sphinx extension, add ``documenteer.sphinxext.lssttasks`` to your :f
 
 .. code-block:: python
 
-   extensions = [
-       ...
-       'documenteer.sphinxext.lssttasks'
-   ]
+   extensions = ["documenteer.sphinxext.lssttasks"]
 
 The ``documenteer.conf.pipelines`` and ``documenteer.conf.pipelinespkg`` configurations automatically add these extensions to LSST Science Pipelines package documentation projects.
 

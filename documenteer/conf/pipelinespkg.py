@@ -6,9 +6,7 @@ For usage, see:
     https://documenteer.lsst.io/pipelines/configuration.html#pipelinespkg-conf
 """
 
-# Derive configuration from the full-stack documentation build
 from .pipelines import *  # noqa: F401 F403
-
 
 # ============================================================================
 # todo extension configuration
