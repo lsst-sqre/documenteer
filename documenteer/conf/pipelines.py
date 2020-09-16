@@ -22,8 +22,6 @@ For additional documentation, see:
 #     automodapi and autodoc configuration
 # #GRAPHVIZ
 #     graphviz configuration
-# #MATPLOTLIB
-#     matplotlib extension configuration
 # #TODO
 #     todo extension configuration
 # #EUPS
@@ -100,7 +98,6 @@ __all__ = (
 
 import datetime
 import os
-import warnings
 
 import lsst_sphinx_bootstrap_theme
 
@@ -355,22 +352,6 @@ graphviz_dot_args = [
     "-Gfontsize=10",
     "-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
 ]
-
-# ============================================================================
-# #MATPLOTLIB matplotlib extension configuration
-# ============================================================================
-try:
-    import matplotlib.sphinxext.plot_directive
-
-    extensions += [matplotlib.sphinxext.plot_directive.__name__]
-except (ImportError, AttributeError):
-    # AttributeError is checked here in case matplotlib is installed but
-    # Sphinx isn't.  Note that this module is imported by the config file
-    # generator, even if we're not building the docs.
-    warnings.warn(
-        "matplotlib's plot_directive could not be imported. "
-        "Inline plots will not be included in the output."
-    )
 
 # ============================================================================
 # #TODO todo extension configuration
