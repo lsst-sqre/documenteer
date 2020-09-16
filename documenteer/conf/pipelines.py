@@ -122,6 +122,7 @@ extensions = [
     "documenteer.sphinxext",
     "documenteer.sphinxext.lssttasks",
     "documenteer.ext.autocppapi",
+    "sphinx_click",
 ]
 
 # ============================================================================
