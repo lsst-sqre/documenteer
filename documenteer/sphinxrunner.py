@@ -1,28 +1,31 @@
-"""Run Sphinx directly through its Python API.
-"""
+"""Run Sphinx directly through its Python API."""
 
-__all__ = ("run_sphinx",)
+from __future__ import annotations
 
-import logging
 import os
-import sys
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import List, Union
 
-from sphinx.application import Sphinx
-from sphinx.cmd.build import handle_exception
-from sphinx.util.docutils import docutils_namespace, patch_docutils
+from sphinx.cmd.build import build_main
+
+__all__ = ["run_sphinx"]
 
 
-def run_sphinx(root_dir: Union[str, Path]) -> int:
+def run_sphinx(
+    root_dir: Union[str, Path],
+    job_count: int = 1,
+    warnings_as_errors: bool = False,
+) -> int:
     """Run the Sphinx build process.
 
     Parameters
     ----------
     root_dir
         Root directory of the Sphinx project and content source. This directory
-        conatains both the root ``index.rst`` file and the ``conf.py``
+        contains both the root ``index.rst`` file and the ``conf.py``
         configuration file.
+    job_count
+        Number of cores to run the Sphinx build with (``-j`` flag)
 
     Returns
     -------
@@ -37,76 +40,17 @@ def run_sphinx(root_dir: Union[str, Path]) -> int:
     building stack documentation, but flexibility can be added later as
     needs are identified.
     """
-    logger = logging.getLogger(__name__)
+    src_dir = str(os.path.abspath(root_dir))
 
-    # This replicates what Sphinx's internal command line hander does in
-    # https://github.com/sphinx-doc/sphinx/blob/master/sphinx/cmd/build.py
-    # build_main()
+    argv: List[str] = [f"-j {job_count}", "-b", "html"]
+    if warnings_as_errors:
+        argv.append("-W")
+    argv.extend([src_dir, "_build/html"])
 
-    # configuration
-    root_dir = os.path.abspath(root_dir)
-    srcdir = root_dir  # root directory of Sphinx content
-    confdir = root_dir  # directory where conf.py is located
-    outdir = os.path.join(root_dir, "_build", "html")
-    doctreedir = os.path.join(root_dir, "_build", "doctree")
-    builder = "html"
-    confoverrides: Dict = {}
-    status = sys.stdout  # set to None for 'quiet' mode
-    warning = sys.stderr
-    error = sys.stderr
-    freshenv = False  # attempt to re-use existing build artificats
-    warningiserror = False
-    tags: List = []
-    verbosity = 0
-    jobs = 1  # number of processes
-    force_all = True
-    filenames: List = []
-
-    logger.debug("Sphinx config: srcdir={0}".format(srcdir))
-    logger.debug("Sphinx config: confdir={0}".format(confdir))
-    logger.debug("Sphinx config: outdir={0}".format(outdir))
-    logger.debug("Sphinx config: doctreedir={0}".format(doctreedir))
-    logger.debug("Sphinx config: builder={0}".format(builder))
-    logger.debug("Sphinx config: freshenv={0:b}".format(freshenv))
-    logger.debug("Sphinx config: warningiserror={0:b}".format(warningiserror))
-    logger.debug("Sphinx config: verbosity={0:d}".format(verbosity))
-    logger.debug("Sphinx config: jobs={0:d}".format(jobs))
-    logger.debug("Sphinx config: force_all={0:b}".format(force_all))
-
-    app = None
+    start_dir = os.path.abspath(".")
     try:
-        with patch_docutils(), docutils_namespace():
-            app = Sphinx(
-                srcdir,
-                confdir,
-                outdir,
-                doctreedir,
-                builder,
-                confoverrides,
-                status,
-                warning,
-                freshenv,
-                warningiserror,
-                tags,
-                verbosity,
-                jobs,
-            )
-            app.build(force_all, filenames)
-            return app.statuscode
-    except (Exception, KeyboardInterrupt) as exc:
-        args = MockSphinxNamespace(verbosity=verbosity, traceback=True)
-        if app is not None:
-            handle_exception(app, args, exc, error)
-        return 1
-
-
-class MockSphinxNamespace:
-    """Mock Namespace object to mock the Sphinx command line arguments.
-
-    This class is needed for sphinx.cmd.build.handle_exception.
-    """
-
-    def __init__(self, verbosity=0, traceback=True):
-        self.verbosity = verbosity
-        self.traceback = traceback
-        self.pdb = False
+        os.chdir(src_dir)
+        status = build_main(argv=argv)
+    finally:
+        os.chdir(start_dir)
+    return status

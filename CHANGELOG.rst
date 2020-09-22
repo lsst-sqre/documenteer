@@ -13,16 +13,9 @@ Change Log
 
   - ``pip install documenteer[technote]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and extensions used by all technote projects.
 
-  - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and extensions used by pipelines.lsst.io.
-
-  Specific dependency upgrades:
-
-  - The ``click`` version now floats.
-  - ``numpydoc`` is pinned at 0.8.0.
-  - ``sphinx-automodapi`` is pinned at 0.12.
-  - ``breathe`` is dropped.
-  - ``sphinx-prompt`` is moved from a core dependency to an extra.
-  - ``sphinxcontrib.doxylink`` is a new extension for Pipelines projects to link the embedded Doxygen-generated C++ reference.
+  - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the Sphinx theme and extensions used by pipelines.lsst.io.
+    These extensions no longer have pinned versions.
+    However, because of an automodapi 0.13 compatibility issue with Sphinx, the Sphinx version for ``[pipelines]`` is pinned ``<3.0``.
 
   Updates to development or test dependencies:
 
@@ -63,6 +56,9 @@ Change Log
   By default, each package's ``include`` directory is included in the Doxygen build.
 
   [`DM-22698 <https://jira.lsstcorp.org/browse/DM-22698>`_, `DM-23094 <https://jira.lsstcorp.org/browse/DM-23094>`_, `DM-22461 <https://jira.lsstcorp.org/browse/DM-22461>`_]
+
+- Improved Sphinx runner (``documenteer.sphinxrunner``).
+  [`DM-26768 <https://jira.lsstcorp.org/browse/DM-26768>`__]
 
 - Added static type checking using `mypy <https://mypy.readthedocs.io/en/stable/>`__.
   [`DM-22717 <https://jira.lsstcorp.org/browse/DM-22717>`_, `DM-26288 <https://jira.lsstcorp.org/browse/DM-26288>`_]

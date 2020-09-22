@@ -52,7 +52,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install tox
 
-      - name: Run mypy
+      - name: Run tox
         run: tox -e py-test-sphinx${{ matrix.sphinx-version }}
 
   typing:
@@ -80,7 +80,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install tox
 
-      - name: Run tests
+      - name: Run mypy
         run: tox -e typing-sphinx${{ matrix.sphinx-version }}
 
   docs:
