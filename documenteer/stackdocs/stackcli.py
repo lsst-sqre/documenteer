@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import sys
+from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import click
@@ -137,6 +138,18 @@ def help(ctx, topic, **kw):
     default=True,
 )
 @click.option(
+    "--doxygen-conf",
+    "doxygen_conf_defaults_path",
+    type=click.Path(exists=True, dir_okay=False, resolve_path=True),
+    default=None,
+    help=(
+        "Path to a Doxygen configuration file that provides defaults. This "
+        "file is referenced by the finalized Doxygen configuration with the "
+        "@INCLUDE_PATH tag. Defaults to a doxygen configuration built into "
+        "Documenteer."
+    ),
+)
+@click.option(
     "--dox",
     multiple=True,
     help=(
@@ -158,6 +171,7 @@ def build(
     enable_symlinks,
     enable_sphinx,
     use_doxygen_conf_in,
+    doxygen_conf_defaults_path,
     dox,
     skip_dox,
 ):
@@ -183,10 +197,16 @@ def build(
     To peek inside the build process, see the ``documenteer.stackdocs.build``
     APIs.
     """
+    if doxygen_conf_defaults_path is not None:
+        _doxygen_conf_defaults_path = Path(doxygen_conf_defaults_path)
+    else:
+        _doxygen_conf_defaults_path = None
+
     return_code = build_stack_docs(
         ctx.obj["root_project_dir"],
         skipped_names=skip,
         prefer_doxygen_conf_in=use_doxygen_conf_in,
+        doxygen_conf_defaults_path=_doxygen_conf_defaults_path,
         enable_doxygen_conf=enable_doxygen_conf,
         enable_doxygen=enable_doxygen,
         enable_package_links=enable_symlinks,

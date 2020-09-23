@@ -5,6 +5,7 @@ from pathlib import Path
 
 from documenteer.stackdocs.doxygen import (
     DoxygenConfiguration,
+    get_doxygen_default_conf_path,
     preprocess_package_doxygen_conf,
 )
 from documenteer.stackdocs.pkgdiscovery import find_package_docs
@@ -15,7 +16,7 @@ def test_default_doxygenconfiguration():
     doxygenconf = DoxygenConfiguration()
     rendered = doxygenconf.render()
 
-    assert "GENERATE_XML = YES" in rendered
+    assert "GENERATE_HTML = YES" in rendered
 
 
 def test_bool_tag():
@@ -123,7 +124,7 @@ def test_parse_doxygen_conf():
 
     assert conf.generate_xml is True
 
-    assert conf.exclude_patterns == ["*/afw/src/*/*.cc"]
+    assert "*/afw/src/*/*.cc" in conf.exclude_patterns
 
 
 def test_preprocess_package_doxygen_conf():
@@ -139,3 +140,18 @@ def test_preprocess_package_doxygen_conf():
     expected_include_dir = package.root_dir / "include"
 
     assert expected_include_dir in conf.inputs
+
+
+def test_get_doxygen_default_conf_path() -> None:
+    """Test get_doxygen_default_conf_path."""
+    p = get_doxygen_default_conf_path()
+    assert p.exists()
+    assert p.is_file()
+
+
+def test_include_path() -> None:
+    """Test the ``@INCLUDE_PATH`` configuration tag on rendering."""
+    config = DoxygenConfiguration(include_path=get_doxygen_default_conf_path())
+    conf = config.render()
+
+    assert "@INCLUDE_PATH" in conf

@@ -5,6 +5,7 @@ __all__ = [
     "DoxygenConfiguration",
     "preprocess_package_doxygen_conf",
     "render_doxygen_mainpage",
+    "get_doxygen_default_conf_path",
     "run_doxygen",
 ]
 
@@ -18,7 +19,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, List, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 from documenteer.utils import working_directory
 
@@ -71,6 +72,9 @@ class DoxygenConfiguration:
     See http://www.doxygen.nl/manual/config.html for more details about
     Doxygen configurations.
     """
+
+    include_path: Optional[Path] = None
+    """Reference another Doxygen configuration file."""
 
     inputs: List[Path] = field(
         default_factory=list, metadata={"doxygen_tag": "INPUT"}
@@ -134,7 +138,7 @@ class DoxygenConfiguration:
     """
 
     generate_html: bool = field(
-        default=False, metadata={"doxygen_tag": "GENERATE_HTML"}
+        default=True, metadata={"doxygen_tag": "GENERATE_HTML"}
     )
     """Whether or not to generate HTML output.
     """
@@ -238,7 +242,14 @@ class DoxygenConfiguration:
             Text content of a doxygen configuration file.
         """
         lines: List[str] = []
+
+        # Handle @INCLUDE_PATH has a special case (it uses the @ prefix)
+        if self.include_path:
+            self._render_path(lines, "@INCLUDE_PATH", self.include_path)
+
         for tag_field in fields(self):
+            if "doxygen_tag" not in tag_field.metadata:
+                continue
             tag_name = tag_field.metadata["doxygen_tag"]
             value = getattr(self, tag_field.name)
             if tag_field.type == bool:
@@ -249,7 +260,7 @@ class DoxygenConfiguration:
                 self._render_path_list(lines, tag_name, value)
             elif tag_field.type == List[str]:
                 self._render_str_list(lines, tag_name, value)
-            elif tag_field.type == Path:
+            elif tag_field.type == Path or tag_field.type == Optional[Path]:
                 self._render_path(lines, tag_name, value)
         return "\n".join(lines) + "\n"
 
@@ -272,10 +283,11 @@ class DoxygenConfiguration:
         lines.append(line)
 
     def _render_path(
-        self, lines: List[str], tag_name: str, value: Path
+        self, lines: List[str], tag_name: str, value: Optional[Path]
     ) -> None:
-        line = f"{tag_name} = {value.resolve()}"
-        lines.append(line)
+        if value:
+            line = f"{tag_name} = {value.resolve()}"
+            lines.append(line)
 
     def _render_path_list(
         self, lines: List[str], tag_name: str, value: List[Path]
@@ -543,6 +555,19 @@ def preprocess_package_doxygen_conf(
         if path.is_dir():
             conf.inputs.append(path)
             conf.strip_from_path.append(path)
+
+
+def get_doxygen_default_conf_path() -> Path:
+    """Get the path to the doxygen configuration file included with
+    Documenteer.
+
+    Returns
+    -------
+    defaults_path : `pathlib.Path`
+        Path the the ``doxygen.defaults.conf`` file included with Documenteer
+        as a basis for Science Pipelines Doxygen configuration.
+    """
+    return Path(__file__).parent / "data" / "doxygen.defaults.conf"
 
 
 def render_doxygen_mainpage() -> str:
