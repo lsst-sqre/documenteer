@@ -261,6 +261,54 @@ class DoxygenConfiguration:
         default=False, metadata={"doxygen_tag": "SKIP_FUNCTION_MACROS"}
     )
 
+    quiet: bool = field(default=True, metadata={"doxygen_tag": "QUIET"})
+    """Turn off messages generated to standard output by Doxygen.
+    """
+
+    warnings: bool = field(default=True, metadata={"doxygen_tag": "WARNINGS"})
+    """Enable warnings printed to standard error."""
+
+    warn_if_undocumented: bool = field(
+        default=True, metadata={"doxygen_tag": "WARN_IF_UNDOCUMENTED"}
+    )
+    """Warn about undocumented members.
+
+    If EXTRACT_ALL is set to YES then this flag will automatically be disabled.
+    """
+
+    warn_if_doc_error: bool = field(
+        default=True, metadata={"doxygen_tag": "WARN_IF_DOC_ERROR"}
+    )
+    """Warn about potential errors in the documentation."""
+
+    warn_no_paramdoc: bool = field(
+        default=False, metadata={"doxygen_tag": "WARN_NO_PARAMDOC"}
+    )
+    """Warn about functions that are documented but don't have documentation
+    for their parameters or return value.
+
+    If set to NO, doxygen will only warn about wrong or incomplete
+    parameter documentation, but not about the absence of documentation.
+    """
+
+    warn_as_error: bool = field(
+        default=False, metadata={"doxygen_tag": "WARN_AS_ERROR"}
+    )
+    """Treat warnings are errors."""
+
+    warn_format: str = field(
+        default="$file:$line: $text", metadata={"doxygen_tag": "WARN_FORMAT"}
+    )
+    """Format for warning and error messages."""
+
+    warn_logfile: Optional[Path] = field(
+        default=None, metadata={"doxygen_tag": "WARN_LOGFILE"}
+    )
+    """Print errors and warnings to a log file.
+
+    If left blank the output is written to standard error (stderr).
+    """
+
     def __str__(self) -> str:
         return self.render()
 
@@ -287,6 +335,8 @@ class DoxygenConfiguration:
                 self._render_bool(lines, tag_name, value)
             elif tag_field.type == str:
                 self._render_str(lines, tag_name, value)
+            elif tag_field.type == int:
+                self._render_int(lines, tag_name, value)
             elif tag_field.type == List[Path]:
                 self._render_path_list(lines, tag_name, value)
             elif tag_field.type == List[str]:
@@ -302,6 +352,10 @@ class DoxygenConfiguration:
             line = f"{tag_name} = YES"
         else:
             line = f"{tag_name} = NO"
+        lines.append(line)
+
+    def _render_int(self, lines: List[str], tag_name: str, value: int) -> None:
+        line = f"{tag_name} = {value}"
         lines.append(line)
 
     def _render_str(self, lines: List[str], tag_name: str, value: str) -> None:
