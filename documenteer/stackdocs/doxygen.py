@@ -206,6 +206,12 @@ class DoxygenConfiguration:
     """Format of the MathJax output in the HTML build.
     """
 
+    mathjax_relpath: str = field(
+        default="https://cdn.jsdelivr.net/npm/mathjax@2",
+        metadata={"doxygen_tag": "MATHJAX_RELPATH"},
+    )
+    """Relative path or URL to the MathJax bundle."""
+
     xml_output: Path = field(
         default_factory=lambda: Path("xml"),
         metadata={"doxygen_tag": "XML_OUTPUT"},
