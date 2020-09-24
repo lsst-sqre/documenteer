@@ -5,6 +5,7 @@ from pathlib import Path
 
 from documenteer.stackdocs.doxygen import (
     DoxygenConfiguration,
+    get_cpp_reference_tagfile_path,
     get_doxygen_default_conf_path,
     preprocess_package_doxygen_conf,
 )
@@ -145,6 +146,13 @@ def test_preprocess_package_doxygen_conf():
 def test_get_doxygen_default_conf_path() -> None:
     """Test get_doxygen_default_conf_path."""
     p = get_doxygen_default_conf_path()
+    assert p.exists()
+    assert p.is_file()
+
+
+def test_get_cpp_reference_tagfile_path() -> None:
+    """Test get_cpp_reference_tagfile_path."""
+    p = get_cpp_reference_tagfile_path()
     assert p.exists()
     assert p.is_file()
 

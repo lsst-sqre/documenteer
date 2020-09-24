@@ -6,6 +6,7 @@ __all__ = [
     "preprocess_package_doxygen_conf",
     "render_doxygen_mainpage",
     "get_doxygen_default_conf_path",
+    "get_cpp_reference_tagfile_path",
     "run_doxygen",
 ]
 
@@ -158,6 +159,26 @@ class DoxygenConfiguration:
         metadata={"doxygen_tag": "GENERATE_TAGFILE"},
     )
     """Whether or not to generate LaTeX output.
+    """
+
+    tagfiles: List[str] = field(
+        default_factory=lambda: [
+            f"{get_cpp_reference_tagfile_path().resolve()}"
+            "=http://en.cppreference.com/w/"
+        ],
+        metadata={"doxygen_tag": "TAGFILES"},
+    )
+    """The TAGFILES tag can be used to specify one or more tag files.
+
+    For each tag file the location of the external documentation should be
+    added. The format of a tag file without this location is as follows:
+    TAGFILES = file1 file2 ... Adding location for the tag files is done as
+    follows: TAGFILES = file1=loc1 "file2 = loc2" ... where loc1 and loc2 can
+    be relative or absolute paths or URLs. See the section "Linking to external
+    documentation" for more information about the use of tag files. Note: Each
+    tag file must have a unique name (where the name does NOT include the
+    path). If a tag file is not located in the directory in which doxygen is
+    run, you must also specify the path to the tagfile here.
     """
 
     generate_xml: bool = field(
@@ -572,6 +593,19 @@ def get_doxygen_default_conf_path() -> Path:
         as a basis for Science Pipelines Doxygen configuration.
     """
     return Path(__file__).parent / "data" / "doxygen.defaults.conf"
+
+
+def get_cpp_reference_tagfile_path() -> Path:
+    """Get the path to the Doxygen tag file for cppreference.com that's
+    included with Documenteer.
+
+    Returns
+    -------
+    path : `pathlib.Path`
+        Path the the ``cppreference-doxygen-web.tag.xml`` file included with
+        Documenteer.
+    """
+    return Path(__file__).parent / "data" / "cppreference-doxygen-web.tag.xml"
 
 
 def render_doxygen_mainpage() -> str:
