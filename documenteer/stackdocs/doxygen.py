@@ -104,10 +104,14 @@ class DoxygenConfiguration:
     """
 
     exclude_patterns: List[str] = field(
-        default_factory=list, metadata={"doxygen_tag": "EXCLUDE_PATTERNS"}
+        default_factory=lambda: ["*/.git", "*/.sconf_temp", "*/python/*.cc"],
+        metadata={"doxygen_tag": "EXCLUDE_PATTERNS"},
     )
     """Absolute file paths that match these patterns are excluded from the
     Doxygen build.
+
+    Pybind11 wrappers are excluded because Doxygen doesn't handle them
+    correctly.
     """
 
     exclude_symbols: List[str] = field(
