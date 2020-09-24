@@ -201,7 +201,7 @@ class DoxygenConfiguration:
     """
 
     mathjax_format: str = field(
-        default="SVG", metadata={"doxygen_tag": "MATHJAX_FORMAT"}
+        default="HTML-CSS", metadata={"doxygen_tag": "MATHJAX_FORMAT"}
     )
     """Format of the MathJax output in the HTML build.
     """
