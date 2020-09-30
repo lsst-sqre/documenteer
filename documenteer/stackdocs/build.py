@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Union
 from ..sphinxrunner import run_sphinx
 from .doxygen import (
     DoxygenConfiguration,
+    get_doxygen_default_conf_path,
     preprocess_package_doxygen_conf,
     render_doxygen_mainpage,
     run_doxygen,
@@ -29,6 +30,7 @@ def build_stack_docs(
     root_project_dir: Union[Path, str],
     skipped_names: Optional[List[str]] = None,
     skippedNames: Optional[List[str]] = None,
+    doxygen_conf_defaults_path: Optional[Path] = None,
     prefer_doxygen_conf_in: bool = True,
     enable_doxygen_conf: bool = True,
     enable_doxygen: bool = True,
@@ -48,6 +50,10 @@ def build_stack_docs(
         Optional list of packages to skip while creating symlinks.
     skippedNames
         Old name for the ``skipped_names`` parameter.
+    doxygen_conf_defaults_path : `pathlib.Path`
+        Path to a Doxygen configuration file that will be referenced from
+        the primary Doxygen configuration using the ``@INCLUDE_PATH`` tag. By
+        default the Doxygen defaults built into Documenteer are used.
     prefer_doxygen_conf_in
         Prefer using doxygen.conf.in files as the basis for package's Doxygen
         configuration. This mode is useful when building stack documentation
@@ -211,6 +217,11 @@ def build_stack_docs(
         doxygen_conf.generate_html = True
         doxygen_conf.output_directory = doxygen_build_dir
         doxygen_conf.html_output = doxygen_build_dir / "html" / "cpp-api"
+        if doxygen_conf_defaults_path is not None:
+            doxygen_conf.include_paths.append(doxygen_conf_defaults_path)
+        else:
+            doxygen_conf.include_paths.append(get_doxygen_default_conf_path())
+
         # Pre-create the html/cpp-api directory since Doxygen can't; we want
         # this directory structure to let Sphinx copy the entirety of cpp-api
         # to the output directory.

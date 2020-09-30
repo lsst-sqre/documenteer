@@ -5,6 +5,8 @@ __all__ = [
     "DoxygenConfiguration",
     "preprocess_package_doxygen_conf",
     "render_doxygen_mainpage",
+    "get_doxygen_default_conf_path",
+    "get_cpp_reference_tagfile_path",
     "run_doxygen",
 ]
 
@@ -18,7 +20,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, List, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 from documenteer.utils import working_directory
 
@@ -72,11 +74,23 @@ class DoxygenConfiguration:
     Doxygen configurations.
     """
 
+    include_paths: List[Path] = field(default_factory=list)
+    """Paths to other Doxygen configuration files.
+
+    This attribute is rendered as both the ``@INCLUDE_PATH`` and ``INCLUDE``
+    doxygen configurations.
+    """
+
     inputs: List[Path] = field(
         default_factory=list, metadata={"doxygen_tag": "INPUT"}
     )
     """Individual paths to be input into the doxygen build.
     """
+
+    image_paths: List[Path] = field(
+        default_factory=list, metadata={"doxygen_tag": "IMAGE_PATH"}
+    )
+    """Paths that contain images."""
 
     excludes: List[Path] = field(
         default_factory=list, metadata={"doxygen_tag": "EXCLUDE"}
@@ -92,7 +106,7 @@ class DoxygenConfiguration:
     """
 
     file_patterns: List[str] = field(
-        default_factory=lambda: ["*.h", "*.dox"],
+        default_factory=lambda: [".cc", "*.h", "*.dox"],
         metadata={"doxygen_tag": "FILE_PATTERNS"},
     )
     """File extensions to include from the directories described by
@@ -100,10 +114,14 @@ class DoxygenConfiguration:
     """
 
     exclude_patterns: List[str] = field(
-        default_factory=list, metadata={"doxygen_tag": "EXCLUDE_PATTERNS"}
+        default_factory=lambda: ["*/.git", "*/.sconf_temp", "*/python/*.cc"],
+        metadata={"doxygen_tag": "EXCLUDE_PATTERNS"},
     )
     """Absolute file paths that match these patterns are excluded from the
     Doxygen build.
+
+    Pybind11 wrappers are excluded because Doxygen doesn't handle them
+    correctly.
     """
 
     exclude_symbols: List[str] = field(
@@ -134,7 +152,7 @@ class DoxygenConfiguration:
     """
 
     generate_html: bool = field(
-        default=False, metadata={"doxygen_tag": "GENERATE_HTML"}
+        default=True, metadata={"doxygen_tag": "GENERATE_HTML"}
     )
     """Whether or not to generate HTML output.
     """
@@ -150,6 +168,26 @@ class DoxygenConfiguration:
         metadata={"doxygen_tag": "GENERATE_TAGFILE"},
     )
     """Whether or not to generate LaTeX output.
+    """
+
+    tagfiles: List[str] = field(
+        default_factory=lambda: [
+            f"{get_cpp_reference_tagfile_path().resolve()}"
+            "=http://en.cppreference.com/w/"
+        ],
+        metadata={"doxygen_tag": "TAGFILES"},
+    )
+    """The TAGFILES tag can be used to specify one or more tag files.
+
+    For each tag file the location of the external documentation should be
+    added. The format of a tag file without this location is as follows:
+    TAGFILES = file1 file2 ... Adding location for the tag files is done as
+    follows: TAGFILES = file1=loc1 "file2 = loc2" ... where loc1 and loc2 can
+    be relative or absolute paths or URLs. See the section "Linking to external
+    documentation" for more information about the use of tag files. Note: Each
+    tag file must have a unique name (where the name does NOT include the
+    path). If a tag file is not located in the directory in which doxygen is
+    run, you must also specify the path to the tagfile here.
     """
 
     generate_xml: bool = field(
@@ -172,10 +210,16 @@ class DoxygenConfiguration:
     """
 
     mathjax_format: str = field(
-        default="SVG", metadata={"doxygen_tag": "MATHJAX_FORMAT"}
+        default="HTML-CSS", metadata={"doxygen_tag": "MATHJAX_FORMAT"}
     )
     """Format of the MathJax output in the HTML build.
     """
+
+    mathjax_relpath: str = field(
+        default="https://cdn.jsdelivr.net/npm/mathjax@2",
+        metadata={"doxygen_tag": "MATHJAX_RELPATH"},
+    )
+    """Relative path or URL to the MathJax bundle."""
 
     xml_output: Path = field(
         default_factory=lambda: Path("xml"),
@@ -210,21 +254,53 @@ class DoxygenConfiguration:
     """Path prefixes to strip from path names.
     """
 
-    enable_preprocessing: bool = field(
-        default=True, metadata={"doxygen_tag": "ENABLE_PREPROCESSING"}
-    )
+    quiet: bool = field(default=True, metadata={"doxygen_tag": "QUIET"})
+    """Turn off messages generated to standard output by Doxygen.
+    """
 
-    macro_expansion: bool = field(
-        default=True, metadata={"doxygen_tag": "MACRO_EXPANSION"}
-    )
+    warnings: bool = field(default=True, metadata={"doxygen_tag": "WARNINGS"})
+    """Enable warnings printed to standard error."""
 
-    expand_only_predef: bool = field(
-        default=False, metadata={"doxygen_tag": "EXPAND_ONLY_PREDEF"}
+    warn_if_undocumented: bool = field(
+        default=True, metadata={"doxygen_tag": "WARN_IF_UNDOCUMENTED"}
     )
+    """Warn about undocumented members.
 
-    skip_function_macros: bool = field(
-        default=False, metadata={"doxygen_tag": "SKIP_FUNCTION_MACROS"}
+    If EXTRACT_ALL is set to YES then this flag will automatically be disabled.
+    """
+
+    warn_if_doc_error: bool = field(
+        default=True, metadata={"doxygen_tag": "WARN_IF_DOC_ERROR"}
     )
+    """Warn about potential errors in the documentation."""
+
+    warn_no_paramdoc: bool = field(
+        default=False, metadata={"doxygen_tag": "WARN_NO_PARAMDOC"}
+    )
+    """Warn about functions that are documented but don't have documentation
+    for their parameters or return value.
+
+    If set to NO, doxygen will only warn about wrong or incomplete
+    parameter documentation, but not about the absence of documentation.
+    """
+
+    warn_as_error: bool = field(
+        default=False, metadata={"doxygen_tag": "WARN_AS_ERROR"}
+    )
+    """Treat warnings are errors."""
+
+    warn_format: str = field(
+        default="$file:$line: $text", metadata={"doxygen_tag": "WARN_FORMAT"}
+    )
+    """Format for warning and error messages."""
+
+    warn_logfile: Optional[Path] = field(
+        default=None, metadata={"doxygen_tag": "WARN_LOGFILE"}
+    )
+    """Print errors and warnings to a log file.
+
+    If left blank the output is written to standard error (stderr).
+    """
 
     def __str__(self) -> str:
         return self.render()
@@ -238,20 +314,54 @@ class DoxygenConfiguration:
             Text content of a doxygen configuration file.
         """
         lines: List[str] = []
+
+        # Handle @INCLUDE_PATH and @INCLUDE as a special case
+        self._render_include(lines)
+
         for tag_field in fields(self):
+            if "doxygen_tag" not in tag_field.metadata:
+                continue
             tag_name = tag_field.metadata["doxygen_tag"]
             value = getattr(self, tag_field.name)
             if tag_field.type == bool:
                 self._render_bool(lines, tag_name, value)
             elif tag_field.type == str:
                 self._render_str(lines, tag_name, value)
+            elif tag_field.type == int:
+                self._render_int(lines, tag_name, value)
             elif tag_field.type == List[Path]:
                 self._render_path_list(lines, tag_name, value)
             elif tag_field.type == List[str]:
                 self._render_str_list(lines, tag_name, value)
-            elif tag_field.type == Path:
+            elif tag_field.type == Path or tag_field.type == Optional[Path]:
                 self._render_path(lines, tag_name, value)
         return "\n".join(lines) + "\n"
+
+    def _render_include(self, lines: List[str]) -> None:
+        if self.include_paths:
+            # All directory components
+            include_dirs = list(
+                set(
+                    [
+                        str(p.parent.resolve())
+                        for p in self.include_paths
+                        if (p.is_file() and p.exists())
+                    ]
+                )
+            )
+            # All name components
+            include_names = list(
+                set(
+                    [
+                        str(p.name)
+                        for p in self.include_paths
+                        if (p.is_file() and p.exists())
+                    ]
+                )
+            )
+
+            lines.append(f"@INCLUDE_PATH = {' '.join(include_dirs)}")
+            lines.append(f"@INCLUDE = {' '.join(include_names)}")
 
     def _render_bool(
         self, lines: List[str], tag_name: str, value: bool
@@ -260,6 +370,10 @@ class DoxygenConfiguration:
             line = f"{tag_name} = YES"
         else:
             line = f"{tag_name} = NO"
+        lines.append(line)
+
+    def _render_int(self, lines: List[str], tag_name: str, value: int) -> None:
+        line = f"{tag_name} = {value}"
         lines.append(line)
 
     def _render_str(self, lines: List[str], tag_name: str, value: str) -> None:
@@ -272,10 +386,11 @@ class DoxygenConfiguration:
         lines.append(line)
 
     def _render_path(
-        self, lines: List[str], tag_name: str, value: Path
+        self, lines: List[str], tag_name: str, value: Optional[Path]
     ) -> None:
-        line = f"{tag_name} = {value.resolve()}"
-        lines.append(line)
+        if value:
+            line = f"{tag_name} = {value.resolve()}"
+            lines.append(line)
 
     def _render_path_list(
         self, lines: List[str], tag_name: str, value: List[Path]
@@ -382,6 +497,7 @@ class DoxygenConfiguration:
         - EXCLUDE
         - EXCLUDE_PATTERNS
         - EXCLUDE_SYMBOLS
+        - IMAGE_PATH
 
         These are the only tags that individual packages should need to
         configure with respect to a stack-wide Doxygen build.
@@ -425,6 +541,11 @@ class DoxygenConfiguration:
                     values, root_dir
                 )
                 doxygen_conf.excludes.extend(paths)
+            elif name == "IMAGE_PATH":
+                paths = DoxygenConfiguration._convert_to_paths(
+                    values, root_dir
+                )
+                doxygen_conf.image_paths.extend(paths)
             elif name == "EXCLUDE_PATTERNS":
                 doxygen_conf.exclude_patterns.extend(values)
             elif name == "EXCLUDE_SYMBOLS":
@@ -538,11 +659,37 @@ def preprocess_package_doxygen_conf(
     ``STRIP_FROM_PATH`` tag so that we don't publish build system-specific
     paths for header files.
     """
-    dirnames = ["include"]
+    dirnames = ["include", "src"]
     for path in map(lambda p: package.root_dir / p, dirnames):
         if path.is_dir():
             conf.inputs.append(path)
             conf.strip_from_path.append(path)
+
+
+def get_doxygen_default_conf_path() -> Path:
+    """Get the path to the doxygen configuration file included with
+    Documenteer.
+
+    Returns
+    -------
+    defaults_path : `pathlib.Path`
+        Path the the ``doxygen.defaults.conf`` file included with Documenteer
+        as a basis for Science Pipelines Doxygen configuration.
+    """
+    return Path(__file__).parent / "data" / "doxygen.defaults.conf"
+
+
+def get_cpp_reference_tagfile_path() -> Path:
+    """Get the path to the Doxygen tag file for cppreference.com that's
+    included with Documenteer.
+
+    Returns
+    -------
+    path : `pathlib.Path`
+        Path the the ``cppreference-doxygen-web.tag.xml`` file included with
+        Documenteer.
+    """
+    return Path(__file__).parent / "data" / "cppreference-doxygen-web.tag.xml"
 
 
 def render_doxygen_mainpage() -> str:
