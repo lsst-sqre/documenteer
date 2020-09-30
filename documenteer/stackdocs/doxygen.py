@@ -101,7 +101,7 @@ class DoxygenConfiguration:
     """
 
     file_patterns: List[str] = field(
-        default_factory=lambda: ["*.h", "*.dox"],
+        default_factory=lambda: [".cc", "*.h", "*.dox"],
         metadata={"doxygen_tag": "FILE_PATTERNS"},
     )
     """File extensions to include from the directories described by
@@ -664,7 +664,7 @@ def preprocess_package_doxygen_conf(
     ``STRIP_FROM_PATH`` tag so that we don't publish build system-specific
     paths for header files.
     """
-    dirnames = ["include"]
+    dirnames = ["include", "src"]
     for path in map(lambda p: package.root_dir / p, dirnames):
         if path.is_dir():
             conf.inputs.append(path)
