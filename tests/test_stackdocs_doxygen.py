@@ -159,7 +159,10 @@ def test_get_cpp_reference_tagfile_path() -> None:
 
 def test_include_path() -> None:
     """Test the ``@INCLUDE_PATH`` configuration tag on rendering."""
-    config = DoxygenConfiguration(include_path=get_doxygen_default_conf_path())
+    config = DoxygenConfiguration(
+        include_paths=[get_doxygen_default_conf_path()]
+    )
     conf = config.render()
 
     assert "@INCLUDE_PATH" in conf
+    assert "@INCLUDE = doxygen.defaults.conf" in conf

@@ -74,8 +74,12 @@ class DoxygenConfiguration:
     Doxygen configurations.
     """
 
-    include_path: Optional[Path] = None
-    """Reference another Doxygen configuration file."""
+    include_paths: List[Path] = field(default_factory=list)
+    """Paths to other Doxygen configuration files.
+
+    This attribute is rendered as both the ``@INCLUDE_PATH`` and ``INCLUDE``
+    doxygen configurations.
+    """
 
     inputs: List[Path] = field(
         default_factory=list, metadata={"doxygen_tag": "INPUT"}
@@ -322,9 +326,8 @@ class DoxygenConfiguration:
         """
         lines: List[str] = []
 
-        # Handle @INCLUDE_PATH has a special case (it uses the @ prefix)
-        if self.include_path:
-            self._render_path(lines, "@INCLUDE_PATH", self.include_path)
+        # Handle @INCLUDE_PATH and @INCLUDE as a special case
+        self._render_include(lines)
 
         for tag_field in fields(self):
             if "doxygen_tag" not in tag_field.metadata:
@@ -344,6 +347,32 @@ class DoxygenConfiguration:
             elif tag_field.type == Path or tag_field.type == Optional[Path]:
                 self._render_path(lines, tag_name, value)
         return "\n".join(lines) + "\n"
+
+    def _render_include(self, lines: List[str]) -> None:
+        if self.include_paths:
+            # All directory components
+            include_dirs = list(
+                set(
+                    [
+                        str(p.parent.resolve())
+                        for p in self.include_paths
+                        if (p.is_file() and p.exists())
+                    ]
+                )
+            )
+            # All name components
+            include_names = list(
+                set(
+                    [
+                        str(p.name)
+                        for p in self.include_paths
+                        if (p.is_file() and p.exists())
+                    ]
+                )
+            )
+
+            lines.append(f"@INCLUDE_PATH = {' '.join(include_dirs)}")
+            lines.append(f"@INCLUDE = {' '.join(include_names)}")
 
     def _render_bool(
         self, lines: List[str], tag_name: str, value: bool

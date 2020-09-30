@@ -218,9 +218,9 @@ def build_stack_docs(
         doxygen_conf.output_directory = doxygen_build_dir
         doxygen_conf.html_output = doxygen_build_dir / "html" / "cpp-api"
         if doxygen_conf_defaults_path is not None:
-            doxygen_conf.include_path = doxygen_conf_defaults_path
+            doxygen_conf.include_paths.append(doxygen_conf_defaults_path)
         else:
-            doxygen_conf.include_path = get_doxygen_default_conf_path()
+            doxygen_conf.include_paths.append(get_doxygen_default_conf_path())
 
         # Pre-create the html/cpp-api directory since Doxygen can't; we want
         # this directory structure to let Sphinx copy the entirety of cpp-api
