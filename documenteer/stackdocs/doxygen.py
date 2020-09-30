@@ -87,6 +87,11 @@ class DoxygenConfiguration:
     """Individual paths to be input into the doxygen build.
     """
 
+    image_paths: List[Path] = field(
+        default_factory=list, metadata={"doxygen_tag": "IMAGE_PATH"}
+    )
+    """Paths that contain images."""
+
     excludes: List[Path] = field(
         default_factory=list, metadata={"doxygen_tag": "EXCLUDE"}
     )
@@ -508,6 +513,7 @@ class DoxygenConfiguration:
         - EXCLUDE
         - EXCLUDE_PATTERNS
         - EXCLUDE_SYMBOLS
+        - IMAGE_PATH
 
         These are the only tags that individual packages should need to
         configure with respect to a stack-wide Doxygen build.
@@ -551,6 +557,11 @@ class DoxygenConfiguration:
                     values, root_dir
                 )
                 doxygen_conf.excludes.extend(paths)
+            elif name == "IMAGE_PATH":
+                paths = DoxygenConfiguration._convert_to_paths(
+                    values, root_dir
+                )
+                doxygen_conf.image_paths.extend(paths)
             elif name == "EXCLUDE_PATTERNS":
                 doxygen_conf.exclude_patterns.extend(values)
             elif name == "EXCLUDE_SYMBOLS":
