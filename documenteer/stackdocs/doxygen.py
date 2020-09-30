@@ -254,22 +254,6 @@ class DoxygenConfiguration:
     """Path prefixes to strip from path names.
     """
 
-    enable_preprocessing: bool = field(
-        default=True, metadata={"doxygen_tag": "ENABLE_PREPROCESSING"}
-    )
-
-    macro_expansion: bool = field(
-        default=True, metadata={"doxygen_tag": "MACRO_EXPANSION"}
-    )
-
-    expand_only_predef: bool = field(
-        default=False, metadata={"doxygen_tag": "EXPAND_ONLY_PREDEF"}
-    )
-
-    skip_function_macros: bool = field(
-        default=False, metadata={"doxygen_tag": "SKIP_FUNCTION_MACROS"}
-    )
-
     quiet: bool = field(default=True, metadata={"doxygen_tag": "QUIET"})
     """Turn off messages generated to standard output by Doxygen.
     """
