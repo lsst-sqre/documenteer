@@ -51,7 +51,7 @@ Any package containing a Doxygen configuration stub file, even if empty, is pres
 
 Second, Documenteer constructs a Doxygen configuration.
 By default, the :file:`include` directory of each relevant package is included in the ``INPUT`` Doxygen configuration tag.
-Individual packages can also add other paths to the ``INPUT`` tag, remove paths (``EXCLUDE`` or ``EXCLUDE_PATTERNS`` tags),  or exclude symbols (``EXCLUDE_SYMBOLS`` tag).
+Individual packages can also add other paths to the ``INPUT`` and ``IMAGE_PATH`` tags, remove paths (``EXCLUDE`` or ``EXCLUDE_PATTERNS`` tags),  or exclude symbols (``EXCLUDE_SYMBOLS`` tag).
 
 Finally, Documenteer uses this combined Doxygen configuration to run the :command:`doxygen` command to generate an HTML site and tag file that exclusively documents the C++ API reference.
 Sphinx copies the Doxygen site into the :file:`cpp-api` directory during its build so that the Doxygen-generated API reference effectively becomes an sub-site of the Sphinx-rendered site.
