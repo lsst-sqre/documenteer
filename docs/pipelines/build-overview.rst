@@ -123,7 +123,7 @@ Other LSST sites:
 .. _`pipe_base`: https://github.com/lsst/pipe_base
 .. _`pipe_supertask`: https://github.com/lsst/pipe_supertask
 .. _`pex_config`: https://github.com/lsst/pex_config
-.. _`package-docs`: https://documenteer.lsst.io/v/DM-14852/pipelines/package-docs-cli.html
+.. _`package-docs`: https://documenteer.lsst.io/pipelines/package-docs-cli.html
 .. _`sconsUtils`: https://github.com/lsst/sconsUtils
 .. _`lsstDoxygen`: https://github.com/lsst/lsstDoxygen
 .. _SCons: https://scons.org

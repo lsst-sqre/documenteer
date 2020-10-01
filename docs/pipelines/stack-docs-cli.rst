@@ -8,7 +8,7 @@ To preview the documentation for a single package during development, use the :d
 
 .. seealso::
 
-   `Building the pipelines.lsst.io site locally <https://developer.lsst.io/v/DM-14852/stack/building-pipelines-lsst-io-locally.html>`__ (DM Developer Guide)
+   `Building the pipelines.lsst.io site locally <https://developer.lsst.io/stack/building-pipelines-lsst-io-locally.html>`__ (DM Developer Guide)
 
 .. click:: documenteer.stackdocs.stackcli:main
   :prog: stack-docs
