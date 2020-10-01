@@ -1,29 +1,25 @@
 Change Log
 ==========
 
-0.6.0 (unreleased)
+0.6.0 (2020-10-01)
 ------------------
 
 - Documenteer now works with Sphinx 2.0+.
 
 - Documenteer's dependencies now cleanly map to each use case:
 
-  - ``pip install documenteer`` installs _only the dependencies required to use Documenteer's own Sphinx extensions.
+  - ``pip install documenteer`` installs _only_ the dependencies required to use Documenteer's own Sphinx extensions.
     The dependencies are not strictly pinned (aside from Sphinx >= 2.0).
 
   - ``pip install documenteer[technote]`` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and extensions used by all technote projects.
 
   - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the Sphinx theme and extensions used by pipelines.lsst.io.
     These extensions no longer have pinned versions.
-    However, because of an automodapi 0.13 compatibility issue with Sphinx, the Sphinx version for ``[pipelines]`` is pinned ``<3.0``.
 
-  Updates to development or test dependencies:
-
-  - pytest is no longer pinned.
-  - sphinx-click is pinned to 2.3.1.
+  Development and test dependencies are no longer pinned.
 
 - Python 3.6 is no longer officially supported.
-  Documenteer is tested with Python 3.7.
+  Documenteer is tested with Python 3.7 and 3.8.
 
 - New Sphinx configuration facilities should prevent recursion issues by more cleanly populating the Python attributes in the configuration module:
 

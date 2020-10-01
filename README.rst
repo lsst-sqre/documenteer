@@ -21,14 +21,14 @@
 Documenteer
 ###########
 
-Documenteer provides tools, extensions, and configurations for LSST Data Management's Sphinx documentation projects, include technotes_ and stacks (such as the `LSST Science Pipelines`_).
+Documenteer provides tools, extensions, and configurations for Rubin Observatory's Sphinx documentation projects, include technotes_ and stacks (such as the `LSST Science Pipelines`_).
 
 .. _technotes: https://developer.lsst.io/project-docs/technotes.html
 .. _LSST Science Pipelines: https://pipelines.lsst.io
 
 For more information about Documenteer, see the documentation at https://documenteer.lsst.io.
 
-Browse the `lsst-doc-engineering <https://github.com/topics/lsst-doc-engineering>`_ GitHub topic for more LSST documentation engineering projects.
+Browse the `lsst-doc-engineering <https://github.com/topics/lsst-doc-engineering>`_ GitHub topic for more Rubin Observatory documentation engineering projects.
 
 Quick installation:
 ===================

@@ -8,7 +8,7 @@ For full https://pipelines.lsst.io site builds, use the :doc:`stack-docs <stack-
 
 .. seealso::
 
-   `Building single-package documentation locally <https://developer.lsst.io/v/DM-14852/stack/building-single-package-docs.html>`__ (DM Developer Guide)
+   `Building single-package documentation locally <https://developer.lsst.io/stack/building-single-package-docs.html>`__ (DM Developer Guide)
 
 .. click:: documenteer.stackdocs.packagecli:main
   :prog: package-docs
