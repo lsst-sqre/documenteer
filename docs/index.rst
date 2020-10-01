@@ -2,7 +2,7 @@
 Documenteer
 ###########
 
-**Sphinx extensions, configurations, and tooling for LSST Data Management documentation projects.**
+**Sphinx extensions, configurations, and tooling for Rubin Observatory documentation projects.**
 
 Documenteer is developed on GitHub at https://github.com/lsst-sqre/documenteer.
 
@@ -19,7 +19,7 @@ Sphinx extensions
 =================
 
 Documenteer provides several Sphinx extensions.
-These extensions are designed for LSST documentation projects, but are may be generally useful:
+These extensions are designed for Rubin Observatory documentation projects, but are may be generally useful:
 
 .. toctree::
    :maxdepth: 2
@@ -39,7 +39,7 @@ A guide to using Documenteer for LSST Science Pipelines documentation:
 Technote projects
 =================
 
-A guide to writing reStructuredText-formatted LSST technical notes (technotes) using Sphinx and Documenteer:
+A guide to writing reStructuredText-formatted Rubin Observatory technical notes (technotes) using Sphinx and Documenteer:
 
 .. toctree::
    :maxdepth: 2
