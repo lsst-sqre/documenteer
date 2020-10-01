@@ -15,7 +15,6 @@ Change Log
 
   - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the Sphinx theme and extensions used by pipelines.lsst.io.
     These extensions no longer have pinned versions.
-    However, because of an automodapi 0.13 compatibility issue with Sphinx, the Sphinx version for ``[pipelines]`` is pinned ``<3.0``.
 
   Updates to development or test dependencies:
 
