@@ -16,10 +16,7 @@ Change Log
   - ``pip install documenteer[pipelines]`` installs the core dependencies required by Documenteer, as well as the Sphinx theme and extensions used by pipelines.lsst.io.
     These extensions no longer have pinned versions.
 
-  Updates to development or test dependencies:
-
-  - pytest is no longer pinned.
-  - sphinx-click is pinned to 2.3.1.
+  Development and test dependencies are no longer pinned.
 
 - Python 3.6 is no longer officially supported.
   Documenteer is tested with Python 3.7.
