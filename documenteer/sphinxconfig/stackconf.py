@@ -35,7 +35,6 @@ def _insert_extensions(c):
         "numpydoc",
         "sphinx_automodapi.automodapi",
         "sphinx_automodapi.smart_resolver",
-        "breathe",
         "documenteer.sphinxext",
         "documenteer.sphinxext.lssttasks",
     ]
