@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+0.6.1 (2020-10-06)
+------------------
+
+Fixes:
+
+- Removed the ``breathe`` extension from the deprecated ``documenteer.sphinxconf`` Sphinx configuration for Pipelines documentation.
+  This is because documenteer no longer includes ``breathe`` in its dependencies.
+  Though this is backwards incompatible, ``breathe`` was never used in production documentation.
+
 0.6.0 (2020-10-01)
 ------------------
 
