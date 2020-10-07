@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+0.6.2 (unreleased)
+------------------
+
+Fixes:
+
+- The ``build-stack-docs`` CLI (replaced by ``stack-docs build``) now defaults to not generating a Doxygen configuration, or running Doxygen.
+  This is consistent with the original behavior of ``build-stack-docs``, which did not perform a Doxygen build.
+
 0.6.1 (2020-10-06)
 ------------------
 

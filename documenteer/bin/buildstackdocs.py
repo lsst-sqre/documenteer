@@ -35,7 +35,9 @@ def run_build_cli():
 
     logger.info("build-stack-docs version {0}".format(__version__))
 
-    return_code = build_stack_docs(args.root_project_dir)
+    return_code = build_stack_docs(
+        args.root_project_dir, enable_doxygen_conf=False, enable_doxygen=False
+    )
     if return_code == 0:
         logger.info("build-stack-docs succeeded")
         sys.exit(0)
