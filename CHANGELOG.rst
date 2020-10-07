@@ -11,6 +11,8 @@ Fixes:
 
 - The ``lsstcc`` role (through doxylink) is now only configured if the doxygen tag file is present.
 
+- The Doxygen subsite is only added to ``html_extras_path`` if the ``_doxygen/html`` directory is present.
+
 0.6.1 (2020-10-06)
 ------------------
 
