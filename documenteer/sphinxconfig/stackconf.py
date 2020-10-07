@@ -12,7 +12,6 @@ __all__ = ("build_package_configs", "build_pipelines_lsst_io_configs")
 import datetime
 import os
 import sys
-import warnings
 
 import lsst_sphinx_bootstrap_theme
 
@@ -258,27 +257,6 @@ def _insert_automodapi_configs(c):
     return c
 
 
-def _insert_matplotlib_configs(c):
-    """Add configs related to matplotlib's plot directive to the state."""
-    if "extensions" not in c:
-        c["extensions"] = []
-
-    try:
-        import matplotlib.sphinxext.plot_directive
-
-        c["extensions"] += [matplotlib.sphinxext.plot_directive.__name__]
-    except (ImportError, AttributeError):
-        # AttributeError is checked here in case matplotlib is installed but
-        # Sphinx isn't.  Note that this module is imported by the config file
-        # generator, even if we're not building the docs.
-        warnings.warn(
-            "matplotlib's plot_directive could not be imported. "
-            "Inline plots will not be included in the output."
-        )
-
-    return c
-
-
 def _insert_graphviz_configs(c):
     """Insert configurations for graphviz to the state.
 
@@ -491,9 +469,6 @@ def build_package_configs(
     # Automodapi and numpydoc configurations
     c = _insert_automodapi_configs(c)
 
-    # Matplotlib configurations
-    c = _insert_matplotlib_configs(c)
-
     # Graphviz configurations
     c = _insert_graphviz_configs(c)
 
@@ -592,9 +567,6 @@ def build_pipelines_lsst_io_configs(*, project_name, copyright=None):
 
     # Automodapi and numpydoc configurations
     c = _insert_automodapi_configs(c)
-
-    # Matplotlib configurations
-    c = _insert_matplotlib_configs(c)
 
     # Graphviz configurations
     c = _insert_graphviz_configs(c)

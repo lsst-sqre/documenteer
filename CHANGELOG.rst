@@ -13,6 +13,8 @@ Fixes:
 
 - The Doxygen subsite is only added to ``html_extras_path`` if the ``_doxygen/html`` directory is present.
 
+- Remove the matplotlib plot extension from the legacy ``documenteer.sphinxconf`` configuration because the extension appears to be incompatible with Sphinx 3.x.
+
 0.6.1 (2020-10-06)
 ------------------
 
