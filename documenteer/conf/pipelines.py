@@ -334,7 +334,15 @@ autodoc_default_flags = ["show-inheritance", "special-members"]
 # ============================================================================
 # #DOXYLINK Doxylink configuration
 # ============================================================================
-doxylink = {"lsstcc": ("_doxygen/doxygen.tag", "cpp-api")}
+if os.path.exists("_doxygen/doxygen.tag"):
+    doxylink = {"lsstcc": ("_doxygen/doxygen.tag", "cpp-api")}
+else:
+    # if the Doxygen build is disabled the tag file will not exist.
+    doxylink = {}
+    try:
+        extensions.remove("documenteer.ext.autocppapi")
+    except ValueError:
+        pass
 
 documenteer_autocppapi_doxylink_role = "lsstcc"
 
