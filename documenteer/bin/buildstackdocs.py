@@ -5,6 +5,7 @@ __all__ = ("run_build_cli",)
 
 import argparse
 import logging
+import os
 import sys
 
 from pkg_resources import DistributionNotFound, get_distribution
@@ -63,6 +64,7 @@ def parse_args():
         "-d",
         "--dir",
         dest="root_project_dir",
+        default=os.getcwd(),
         help="Root Sphinx project directory",
     )
     parser.add_argument(
