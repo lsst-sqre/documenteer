@@ -7,7 +7,7 @@ __all__ = ["setup", "AutoCppApi", "filter_symbolmap"]
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 from docutils import nodes
 from docutils.parsers.rst import directives
@@ -39,9 +39,27 @@ def cache_doxylink_symbolmap(
     the environment.
 
     This is connected to the ``config-inited`` event.
+
+    Notes
+    -----
+    This function caches the ``doxylink.SymbolMap`` instance into the
+    environment under two levels of keys:
+
+    1. ``"documenteer_autocppapi_symbolmaps"``
+    2. The value of the ``"documenteer_autocppapi_doxylink_role"``
+       configuration variable.
+
+    If the doxygen tag file cannot be found by `load_symbolmap`, the value
+    persisted to the environment is `None` rather than a symbol map.
     """
     doxylink_role: str = config["documenteer_autocppapi_doxylink_role"]
-    symbol_map = load_symbolmap(doxylink_role, config)
+    try:
+        symbol_map: Union[doxylink.SymbolMap, None] = load_symbolmap(
+            doxylink_role, config
+        )
+    except SymbolMapLoadError:
+        symbol_map = None
+
     key = "documenteer_autocppapi_symbolmaps"
     if key in config:
         if isinstance(config[key], dict):
@@ -53,16 +71,33 @@ def cache_doxylink_symbolmap(
 def load_symbolmap(
     doxylink_role: str, config: "sphinx.config.Config"
 ) -> doxylink.SymbolMap:
-    """Load the doxylink SymbolMap given Sphinx configuration."""
+    """Load the doxylink SymbolMap given Sphinx configuration.
+
+    Raises
+    ------
+    SymbolMapLoadError
+        Raised if the symbol map for ``doxylink_role`` cannot be loaded either
+        because the file does not exist or the doxylink configuration does not
+        exist.
+    """
     if doxylink_role in config["doxylink"]:
         if isinstance(config["doxylink"], dict):
             if isinstance(config["doxylink"][doxylink_role], tuple):
                 tag_path = Path(config["doxylink"][doxylink_role][0])
+                if not tag_path.exists():
+                    raise SymbolMapLoadError(
+                        "Could not load tag file for Doxylink "
+                        f"{doxylink_role} role."
+                    )
                 doc = ET.parse(str(tag_path))
                 return doxylink.SymbolMap(doc)
-    raise RuntimeError(
-        f"Could not load tag file for Doxylink {doxylink_role} role"
+    raise SymbolMapLoadError(
+        f"Could not load tag file for Doxylink {doxylink_role} role."
     )
+
+
+class SymbolMapLoadError(RuntimeError):
+    """Exception related to loading a Doxylink SymbolMap."""
 
 
 def filter_symbolmap(
@@ -138,7 +173,7 @@ class AutoCppApi(SphinxDirective):
 
         try:
             key = "documenteer_autocppapi_symbolmaps"
-            symbol_map: doxylink.SymbolMap = self.env.config[key][
+            symbol_map: Union[doxylink.SymbolMap, None] = self.env.config[key][
                 doxylink_role
             ]
         except KeyError:
@@ -148,16 +183,27 @@ class AutoCppApi(SphinxDirective):
 
         node_list: List[nodes.Node] = []
 
-        node_list.extend(
-            self._make_namespace_section(
-                namespace_prefix, namespace_prefix, symbol_map, doxylink_role
+        if symbol_map is not None:
+            node_list.extend(
+                self._make_namespace_section(
+                    prefix=namespace_prefix,
+                    heading=namespace_prefix,
+                    symbol_map=symbol_map,
+                    doxylink_role=doxylink_role,
+                )
             )
-        )
+        else:
+            node_list.extend(
+                self._make_fallback_section(
+                    prefix=namespace_prefix, heading=namespace_prefix
+                )
+            )
 
         return node_list
 
     def _make_namespace_section(
         self,
+        *,
         prefix: str,
         heading: str,
         symbol_map: doxylink.SymbolMap,
@@ -216,6 +262,30 @@ class AutoCppApi(SphinxDirective):
         section["names"].append(section_id)
         section.extend(node_list)
 
+        return [section]
+
+    def _make_fallback_section(
+        self, *, prefix: str, heading: str
+    ) -> List[nodes.Node]:
+        """Create a section node in the case that a symbol map could not be
+        loaded;
+        """
+        node_list: List[nodes.Node] = []
+
+        node_list.append(nodes.title(text=heading))
+
+        node_list.append(
+            nodes.paragraph(
+                text="This section is empty because the Doxygen tag file is "
+                "not available."
+            )
+        )
+
+        section = nodes.section()
+        section_id = nodes.make_id(f"cppapi-{prefix}")
+        section["ids"].append(section_id)
+        section["names"].append(section_id)
+        section.extend(node_list)
         return [section]
 
 

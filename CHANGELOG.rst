@@ -9,7 +9,8 @@ Fixes:
 - The ``build-stack-docs`` CLI (replaced by ``stack-docs build``) now defaults to not generating a Doxygen configuration, or running Doxygen.
   This is consistent with the original behavior of ``build-stack-docs``, which did not perform a Doxygen build.
 
-- The ``lsstcc`` role (through doxylink) is now only configured if the doxygen tag file is present.
+- The ``autocppapi`` directive now works even if the corresponding Doxylink symbol map is unavailable.
+  This feature is useful for any circumstance when a Doxygen subsite that is normally present is unavailable, such as for a single-package documentation build.
 
 - The Doxygen subsite is only added to ``html_extras_path`` if the ``_doxygen/html`` directory is present.
 
