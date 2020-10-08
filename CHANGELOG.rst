@@ -1,6 +1,21 @@
 Change Log
 ==========
 
+0.6.2 (2020-10-08)
+------------------
+
+Fixes:
+
+- The ``build-stack-docs`` CLI (replaced by ``stack-docs build``) now defaults to not generating a Doxygen configuration, or running Doxygen.
+  This is consistent with the original behavior of ``build-stack-docs``, which did not perform a Doxygen build.
+
+- The ``autocppapi`` directive now works even if the corresponding Doxylink symbol map is unavailable.
+  This feature is useful for any circumstance when a Doxygen subsite that is normally present is unavailable, such as for a single-package documentation build.
+
+- The Doxygen subsite is only added to ``html_extras_path`` if the ``_doxygen/html`` directory is present.
+
+- Remove the matplotlib plot extension from the legacy ``documenteer.sphinxconf`` configuration because the extension appears to be incompatible with Sphinx 3.x.
+
 0.6.1 (2020-10-06)
 ------------------
 

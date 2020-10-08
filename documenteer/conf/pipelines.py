@@ -252,7 +252,9 @@ else:
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
-# html_extra_path = []
+html_extra_path = []
+if os.path.exists("_doxygen/html"):
+    html_extra_path.append("_doxygen/html")
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
@@ -296,7 +298,7 @@ html_file_suffix = ".html"
 # Language to be used for generating the HTML full-text search index.
 html_search_language = "en"
 
-html_extra_path = ["_doxygen/html"]
+html_extra_path = [""]
 
 
 # ============================================================================

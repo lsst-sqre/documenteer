@@ -5,6 +5,7 @@ __all__ = ("run_build_cli",)
 
 import argparse
 import logging
+import os
 import sys
 
 from pkg_resources import DistributionNotFound, get_distribution
@@ -35,7 +36,9 @@ def run_build_cli():
 
     logger.info("build-stack-docs version {0}".format(__version__))
 
-    return_code = build_stack_docs(args.root_project_dir)
+    return_code = build_stack_docs(
+        args.root_project_dir, enable_doxygen_conf=False, enable_doxygen=False
+    )
     if return_code == 0:
         logger.info("build-stack-docs succeeded")
         sys.exit(0)
@@ -61,6 +64,7 @@ def parse_args():
         "-d",
         "--dir",
         dest="root_project_dir",
+        default=os.getcwd(),
         help="Root Sphinx project directory",
     )
     parser.add_argument(
