@@ -70,6 +70,9 @@ __all__ = (
     "intersphinx_mapping",
     "intersphinx_timeout",
     "intersphinx_cache_limit",
+    # BIBTEX
+    "bibtex_bibfiles",
+    "bibtex_default_style",
 )
 
 import datetime
@@ -300,3 +303,14 @@ mathjax_path = (
 intersphinx_mapping: Dict[str, Tuple[Union[str, None]]] = {}
 intersphinx_timeout = 10.0  # seconds
 intersphinx_cache_limit = 5  # days
+
+# ============================================================================
+# #BIBTEX sphinxcontrib-bibtex configuration
+# ============================================================================
+bibtex_bibfiles = []
+if Path("local.bib").exists():
+    bibtex_bibfiles.append("local.bib")
+for path in Path("lsstbib").glob("*.bib"):
+    bibtex_bibfiles.append(str(path))
+
+bibtex_default_style = "lsst_aa"

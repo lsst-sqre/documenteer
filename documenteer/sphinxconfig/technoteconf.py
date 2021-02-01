@@ -4,6 +4,7 @@
 __all__ = ("configure_technote",)
 
 import datetime
+import glob
 import os
 
 import lsst_dd_rtd_theme
@@ -175,6 +176,17 @@ def _build_confs(metadata):
     c["intersphinx_mapping"] = {}
     # Add Python 3 intersphinx inventory in projects via
     # c['intersphinx_mapping']['python'] = ('https://docs.python.org/3', None)
+
+    # -- sphinxcontrib-bibtex ------------------------------------------------
+    # -- See https://sphinxcontrib-bibtex.readthedocs.io/
+
+    c["bibtex_bibfiles"] = []
+    if os.path.exists("local.bib"):
+        c["bibtex_bibfiles"].append("local.bib")
+    for path in glob.glob("lsstbib/*.bib"):
+        c["bibtex_bibfiles"].append(path)
+
+    c["bibtex_default_style"] = "lsst_aa"
 
     # -- Options for HTML output ----------------------------------------------
 
