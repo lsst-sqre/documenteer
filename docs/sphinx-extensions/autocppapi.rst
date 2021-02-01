@@ -8,7 +8,7 @@ Documenteer provides an :dir:`autocppapi` directive that serves a similar role a
 The :dir:`autocppapi` works with Doxylink_ to link to APIs in a Doxygen site.
 
 .. _automodapi: https://sphinx-automodapi.readthedocs.io/en/latest/
-.. _Doxylink: http://sphinxcontrib-doxylink.readthedocs.io/en/stable/
+.. _Doxylink: https://sphinxcontrib-doxylink.readthedocs.io/en/stable/
 
 To use this directive, add the ``documenteer.ext.autocppapi`` extension to your :file:`conf.py` file:
 

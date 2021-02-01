@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+0.6.3 (2020-02-01)
+------------------
+
+Fixes:
+
+- Documenteer works with the latest version of `sphinxcontrib-bibtex`_.
+  Both the new (``documenteer.conf.technote``) and old (``documenteer.sphinxconfig.technoteconf``) versions of the technote configuration use the new ``bibtex_bibfiles`` configuration variable.
+  Version 2.0.0 or later of `sphinxcontrib-bibtex`_ is now required because of that package's API.
+
 0.6.2 (2020-10-08)
 ------------------
 
@@ -448,3 +457,4 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 .. _sconsUtils: https://github.com/lsst/sconsUtils
 .. _lsstDoxygen: https://github.com/lsst/lsstDoxygen
 .. _base: https://github.com/lsst/base
+.. _sphinxcontrib-bibtex: https://sphinxcontrib-bibtex.readthedocs.io/

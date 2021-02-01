@@ -66,7 +66,7 @@ The Sphinx configuration for the pipelines.lsst.io project includes a special :r
 Listing linkable C++ APIs (stack-docs listcc)
 =============================================
 
-Documenteer includes the `stack-docs listcc <stack-docs-cli.html#stack-docs-listcc>`_ command that helps you find C++ APIs that are linkable with the :role:`lsstcc` role.
+Documenteer includes the :doc:`stack-docs listcc <stack-docs-cli>` command that helps you find C++ APIs that are linkable with the :role:`lsstcc` role.
 The APIs are automatically escaped so that you can copy-and-paste them into the :role:`lsstcc` role in a reStructuredText document.
 
 From the pipelines_lsst_io_ project repository, run the command to see the signatures of all available APIs:
