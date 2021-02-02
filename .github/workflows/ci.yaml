@@ -22,7 +22,7 @@ jobs:
           pip install tox
 
       - name: Run linters
-        run: tox -e lint,docs-lint
+        run: tox -e lint,docs-lint,packaging
 
   test:
     runs-on: ubuntu-latest

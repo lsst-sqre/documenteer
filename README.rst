@@ -84,5 +84,5 @@ Sphinx extensions
 - Roles for linking to LSST documents and Jira tickets
 - The ``remote-code-block`` directive
 - The ``module-toctree`` and ``package-toctree`` directives for the LSST Science Pipelines documentation
-- `Extensions for documenting LSST Science Pipelines tasks <https://documenteer.lsst.io/sphinxext/lssttasks.html>`_
-- Support for LSST BibTeX files with `sphinxcontrib-bibtex <http://sphinxcontrib-bibtex.readthedocs.io>`_
+- `Extensions for documenting LSST Science Pipelines tasks <https://documenteer.lsst.io/sphinxext/lssttasks.html>`__
+- Support for LSST BibTeX files with sphinxcontrib-bibtex.
