@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+0.6.4 (2020-02-02)
+------------------
+
+Fixes:
+
+- Fixed a syntax issue with the package's long description, and added a linting rule to prevent this issue in the future.
+
 0.6.3 (2020-02-01)
 ------------------
 
@@ -215,7 +222,7 @@ Fixes:
 0.4.3 (2018-11-30)
 ------------------
 
-- Pin `sphinxcontrib-bibtex <https://sphinxcontrib-bibtex.readthedocs.io>`__ to version 0.4.0 since later versions are incompatible with Sphinx <1.8.0.
+- Pin `sphinxcontrib-bibtex`_ to version 0.4.0 since later versions are incompatible with Sphinx <1.8.0.
   [`DM-16651 <https://jira.lsstcorp.org/browse/DM-16651>`__]
 
 0.4.2 (2018-11-01)
@@ -442,7 +449,7 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 0.1.2 (2016-05-14)
 ------------------
 
-- Include `sphinxcontrib.bibtex <https://github.com/mcmtroffaes/sphinxcontrib-bibtex>`_ to Sphinx extensions available in technote projects. DM-6033.
+- Include `sphinxcontrib-bibtex`_ to Sphinx extensions available in technote projects. DM-6033.
 
 0.1.0 (2015-11-23)
 ------------------
