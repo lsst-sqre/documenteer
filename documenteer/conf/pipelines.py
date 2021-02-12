@@ -188,12 +188,12 @@ exclude_patterns = [
 # ============================================================================
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
     "matplotlib": ("https://matplotlib.org/", None),
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
-    "astropy": ("http://docs.astropy.org/en/v3.0.x/", None),
+    "astropy": ("https://docs.astropy.org/en/stable/", None),
     "astro_metadata_translator": (
         "https://astro-metadata-translator.lsst.io",
         None,

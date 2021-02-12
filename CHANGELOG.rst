@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+0.6.5 (2020-02-12)
+------------------
+
+Fixes:
+
+- Updated intersphinx links for Numpy and Astropy in the Pipelines configuration (``documenteer.conf.pipelines`` and ``documenteer.conf.pipelinespkg``).
+
 0.6.4 (2020-02-02)
 ------------------
 
