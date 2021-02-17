@@ -98,6 +98,7 @@ __all__ = (
 
 import datetime
 import os
+from pathlib import Path
 
 import lsst_sphinx_bootstrap_theme
 
@@ -336,7 +337,11 @@ autodoc_default_flags = ["show-inheritance", "special-members"]
 # ============================================================================
 # #DOXYLINK Doxylink configuration
 # ============================================================================
-doxylink = {"lsstcc": ("_doxygen/doxygen.tag", "cpp-api")}
+tag_path = Path(".").joinpath("_doxygen", "doxygen.tag")
+if tag_path.exists():
+    doxylink = {"lsstcc": (str(tag_path), "cpp-api")}
+else:
+    doxylink = {}
 
 documenteer_autocppapi_doxylink_role = "lsstcc"
 
