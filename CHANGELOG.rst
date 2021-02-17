@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+0.6.6 (2020-02-17)
+------------------
+
+Fixes:
+
+- Updated the ``documenteer.conf.pipelines`` (and ``documenteer.conf.pipelinespkg``) configuration modules so that they no longer configure ``doxylink`` if the Doxygen tag file is not present.
+  This change is useful for single-package documentation builds of pure-Python packages.
+
 0.6.5 (2020-02-12)
 ------------------
 
