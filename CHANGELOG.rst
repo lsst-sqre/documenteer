@@ -13,7 +13,7 @@ Fixes:
   This release includes a new extension, ``documenteer.ext.autodocreset``, that resets the attr getter for ``type`` to the one built into autodoc.
   This extension is used by default in ``documenteer.config.pipelines`` and ``documenteer.config.pipelinespkg``.
 
-0.6.6 (2020-02-17)
+0.6.6 (2021-02-17)
 ------------------
 
 Fixes:
@@ -21,21 +21,21 @@ Fixes:
 - Updated the ``documenteer.conf.pipelines`` (and ``documenteer.conf.pipelinespkg``) configuration modules so that they no longer configure ``doxylink`` if the Doxygen tag file is not present.
   This change is useful for single-package documentation builds of pure-Python packages.
 
-0.6.5 (2020-02-12)
+0.6.5 (2021-02-12)
 ------------------
 
 Fixes:
 
 - Updated intersphinx links for Numpy and Astropy in the Pipelines configuration (``documenteer.conf.pipelines`` and ``documenteer.conf.pipelinespkg``).
 
-0.6.4 (2020-02-02)
+0.6.4 (2021-02-02)
 ------------------
 
 Fixes:
 
 - Fixed a syntax issue with the package's long description, and added a linting rule to prevent this issue in the future.
 
-0.6.3 (2020-02-01)
+0.6.3 (2021-02-01)
 ------------------
 
 Fixes:
