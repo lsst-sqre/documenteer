@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+Fixes:
+
+- The ``html_extras_path`` is no longer accidentally reset to ``[""]`` in ``documenteer.conf.pipelines``.
+
 0.6.6 (2020-02-17)
 ------------------
 

@@ -299,9 +299,6 @@ html_file_suffix = ".html"
 # Language to be used for generating the HTML full-text search index.
 html_search_language = "en"
 
-html_extra_path = [""]
-
-
 # ============================================================================
 # #AUTOMODAPI automodapi and autodoc configuration
 # ============================================================================
