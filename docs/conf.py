@@ -44,7 +44,7 @@ master_doc = "index"
 # General information about the project.
 project = "Documenteer"
 copyright = (
-    "2015-2020 "
+    "2015-2021 "
     "Association of Universities for Research in Astronomy, Inc. (AURA)"
 )
 author = "LSST Data Management"
