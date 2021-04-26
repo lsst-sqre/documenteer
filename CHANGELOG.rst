@@ -8,6 +8,11 @@ Fixes:
 
 - The ``html_extras_path`` is no longer accidentally reset to ``[""]`` in ``documenteer.conf.pipelines``.
 
+- sphinx-automodapi introduces an autodoc enhancement that replace's autodoc's attr getter for ``type`` with a custom function.
+  However, we're finding that this enhancement is incompatible with Pybind11 static properties that are part of the LSST Science Pipelines API.
+  This release includes a new extension, ``documenteer.ext.autodocreset``, that resets the attr getter for ``type`` to the one built into autodoc.
+  This extension is used by default in ``documenteer.config.pipelines`` and ``documenteer.config.pipelinespkg``.
+
 0.6.6 (2020-02-17)
 ------------------
 

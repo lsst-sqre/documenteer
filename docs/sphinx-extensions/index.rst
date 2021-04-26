@@ -12,3 +12,4 @@ Sphinx extensions provided by Documenteer
    remote-code-block
    package-toctree
    lsst-pybtex-style
+   autodocreset
