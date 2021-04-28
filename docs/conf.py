@@ -158,3 +158,10 @@ html_show_sourcelink = False
 
 # -- Options for the API reference ----------------------------------------
 numpydoc_show_class_members = False
+
+# -- ReStructuredText epilog for common links/substitutions ---------------
+rst_epilog = """
+
+.. _conda-forge: https://conda-forge.org
+.. _conda: https://conda.io/en/latest/index.html
+"""
