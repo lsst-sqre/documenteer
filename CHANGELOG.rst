@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+Fixes:
+
+- Document conda-forge based installations.
+
 0.6.7 (2021-04-26)
 ------------------
 

@@ -4,33 +4,38 @@ Installing Documenteer for pipelines.lsst.io
 
 The "pipelines" version of Documenteer provides additional dependencies needed to build the `pipelines.lsst.io <https://pipelines.lsst.io>`_ documentation site for the LSST Science Pipelines.
 
-At the moment, the recommended procedure for installing Documenteer for stack work is to pip-install it into the set up Conda environment, using the version corresponding to the ``master`` branch of the pipelines_lsst_io_ repository.
+Documenteer is already included in the Conda environment created by a typical LSST Science Pipelines installation, and no additional installation is needed.
+This page provides additional installation instructions for atypical cases.
 
-.. _pipelines_lsst_io: https://github.com/lsst/pipelines_lsst_io
-
-Prerequisites
-=============
-
-Before starting this tutorial, you’ll need a working stack.
-For more information, see the `LSST Science Pipelines installation guide`_.
-
-The stack environment must be set up in the shell that you are installing Documenteer with.
-
-.. _`LSST Science Pipelines installation guide`: https://pipelines.lsst.io/install/newinstall.html
+For both pip and conda, the installation needs to be done within the same Python/Conda environment that the Science Pipelines already installed in.
+You can do that by running the Science Pipelines stack's :command:`setup` command _before_ installing Documenteer.
 
 Pip installation of Documenteer
 ===============================
 
-Install Documenteer based on the requirements of the pipelines_lsst_io_ repository:
+Install Documenteer with the ``pipelines`` extra:
 
 .. code-block:: sh
 
-   curl -O https://raw.githubusercontent.com/lsst/pipelines_lsst_io/master/requirements.txt
-   pip install -r requirements.txt
+   pip install documenteer[pipelines]
 
-.. tip::
+Besides ``documenteer``, you will also need to install graphviz to render API inheritance diagrams.
 
-   Do this step *after* having set up the stack with the :command:`setup` command.
+Conda installation
+==================
+
+First, enable the conda-forge channel:
+
+.. code-block:: sh
+
+   conda config --add channels conda-forge
+   conda config --set channel_priority strict
+
+Then install the `lsst-documenteer-pipelines <https://github.com/conda-forge/lsst-documenteer-feedstock>`_ metapackage.
+
+.. code-block:: sh
+
+   conda install lsst-documenteer-pipelines
 
 Next steps
 ==========
