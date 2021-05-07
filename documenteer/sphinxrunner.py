@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 from sphinx.cmd.build import build_main
 
@@ -42,10 +42,16 @@ def run_sphinx(
     """
     src_dir = str(os.path.abspath(root_dir))
 
-    argv: List[str] = [f"-j {job_count}", "-b", "html"]
+    argv = [
+        f"-j {job_count}",
+        "-b",
+        "html",
+        "-d",
+        os.path.join("_build", ".doctrees"),
+    ]
     if warnings_as_errors:
         argv.append("-W")
-    argv.extend([src_dir, "_build/html"])
+    argv.extend([src_dir, os.path.join("_build", "html")])
 
     start_dir = os.path.abspath(".")
     try:
