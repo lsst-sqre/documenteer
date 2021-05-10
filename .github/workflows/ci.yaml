@@ -35,8 +35,9 @@ jobs:
           - 3.8
           - 3.9
         sphinx-version:
-          - "23"
-          - "latest"
+          - "2"
+          - "3"
+          - "4"
 
     steps:
       - uses: actions/checkout@v2
@@ -63,8 +64,9 @@ jobs:
     strategy:
       matrix:
         sphinx-version:
-          - "23"
-          - "latest"
+          - "2"
+          - "3"
+          - "4"
 
     steps:
       - uses: actions/checkout@v2

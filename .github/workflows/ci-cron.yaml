@@ -18,7 +18,7 @@ jobs:
         python:
           - "3.9"
         sphinx:
-          - "latest"
+          - "4"
           - "dev"
 
     steps:
@@ -44,7 +44,7 @@ jobs:
     strategy:
       matrix:
         sphinx:
-          - "latest"
+          - "4"
           - "dev"
 
     steps:
