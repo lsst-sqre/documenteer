@@ -183,6 +183,14 @@ exclude_patterns = [
     # shouldn't be in the directory at all, but we certainly need to
     # ignore it while its here.
     "home",
+    # The configuration files
+    "conf.py",
+    "manifest.yaml",
+    "doxygen.conf",
+    "doxygen.conf.in",
+    # Doxygen build products from scons (in stack package builds)
+    "html",
+    "xml",
 ]
 
 # ============================================================================
