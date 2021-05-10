@@ -3,7 +3,6 @@
 
 __all__ = ("TaskApiDirective",)
 
-
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx.addnodes import (
@@ -16,7 +15,8 @@ from sphinx.addnodes import (
 )
 from sphinx.domains.python import PyXRefRole, _pseudo_parse_arglist
 from sphinx.errors import SphinxError
-from sphinx.util.inspect import Signature
+from sphinx.util.inspect import signature as make_signature
+from sphinx.util.inspect import stringify_signature
 from sphinx.util.logging import getLogger
 
 from .taskutils import extract_docstring_summary, get_docstring, get_type
@@ -97,7 +97,7 @@ class TaskApiDirective(Directive):
         fullname = ".".join((modulename, classname))
 
         # The signature term
-        signature = Signature(task_class, bound_method=False)
+        signature = make_signature(task_class, bound_method=False)
         desc_sig_node = self._format_signature(
             signature, modulename, classname, fullname, "py:class"
         )
@@ -122,7 +122,7 @@ class TaskApiDirective(Directive):
         fullname = ".".join((modulename, classname, methodname))
 
         # The signature term
-        signature = Signature(task_method, bound_method=True)
+        signature = make_signature(task_method, bound_method=True)
         desc_sig_node = self._format_signature(
             signature, modulename, classname, fullname, "py:meth"
         )
@@ -146,7 +146,13 @@ class TaskApiDirective(Directive):
     ):
         xref = PyXRefRole()
 
-        arglist = signature.format_args().lstrip("(").rstrip(")")
+        arglist = (
+            stringify_signature(
+                signature, show_annotation=False, show_return_annotation=False
+            )
+            .lstrip("(")
+            .rstrip(")")
+        )
 
         desc_sig_node = desc_signature()
         desc_sig_node["module"] = modulename

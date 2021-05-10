@@ -196,7 +196,7 @@ def get_docstring(obj):
         docstring = "Undocumented"
     # ignore is simply the number of initial lines to ignore when determining
     # the docstring's baseline indent level. We really want "1" here.
-    return prepare_docstring(docstring, ignore=1)
+    return prepare_docstring(docstring)
 
 
 def extract_docstring_summary(docstring):

@@ -16,9 +16,9 @@ jobs:
     strategy:
       matrix:
         python:
-          - "3.8"
+          - "3.9"
         sphinx:
-          - "latest"
+          - "4"
           - "dev"
 
     steps:
@@ -44,7 +44,7 @@ jobs:
     strategy:
       matrix:
         sphinx:
-          - "latest"
+          - "4"
           - "dev"
 
     steps:
@@ -55,7 +55,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Install tox
         run: pip install tox
@@ -75,7 +75,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Install tox
         run: |
