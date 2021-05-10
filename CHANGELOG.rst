@@ -1,12 +1,19 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.6.8 (2021-05-10)
+------------------
 
 Fixes:
 
 - Document conda-forge based installations.
+- Stack documentation builds no longer include meta or build-related files in the HTML site output, such as:
+
+  - ``conf.py``
+  - ``.doctrees``
+  - ``doxygen.conf``
+  - ``manifest.yaml``
+  - Build products from sconsUtils-based Doxygen builds, including ``html`` and ``xml``.
 
 0.6.7 (2021-04-26)
 ------------------
