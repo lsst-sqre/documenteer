@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+0.6.9 (2021-05-10)
+------------------
+
+Fixes:
+
+- Add support for Sphinx 4.x by switching from ``sphinx.util.inspect.Signature`` to ``sphinx.util.inspect.signature`` for Sphinx versions 2.4 and later.
+  A minimum Sphinx version 2.4 is now required.
+- Updated testing matrix to test against the latest patch versions of Sphinx 2.x, 3.x, and 4.x.
+
 0.6.8 (2021-05-10)
 ------------------
 
