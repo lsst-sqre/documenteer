@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.5.9 (2021-11-08)
+------------------
+
+- Update technote theme to lsst-dd-rtd-theme 0.2.4 to resolve a list formatting issue.
+
 0.5.8 (2020-04-13)
 ------------------
 

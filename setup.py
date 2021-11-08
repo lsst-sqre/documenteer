@@ -31,6 +31,7 @@ long_description = read('README.rst')
 # Core dependencies
 install_requires = [
     'Sphinx>=1.7.0,<1.8.0',
+    'docutils<0.18',
     'PyYAML',
     'sphinx-prompt',
     'GitPython',
@@ -42,7 +43,7 @@ install_requires = [
 extras_require = {
     # For technical note Sphinx projects
     'technote': [
-        'lsst-dd-rtd-theme==0.2.2',
+        'lsst-dd-rtd-theme==0.2.4',
         # 0.4.1 is incompatible with Sphinx <1.8.0. Unpin once we upgrade
         # Sphinx.
         'sphinxcontrib-bibtex==0.4.0'
@@ -61,15 +62,15 @@ extras_require = {
 
     # For documenteer development environments
     'dev': [
-        'wheel>=0.29.0',
-        'twine>=1.8.1',
-        'pytest==4.2.0',
-        'pytest-cov==2.6.1',
-        'pytest-flake8==1.0.4',
-        'pytest-mock==1.4.0',
+        'wheel',
+        'twine',
+        'pytest',
+        'pytest-cov',
+        'pytest-flake8',
+        'pytest-mock',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
-        'sphinx-click>=1.2.0,<1.3.0',
+        'sphinx-click',
     ],
 }
 # Add project dependencies to the dev dependencies
