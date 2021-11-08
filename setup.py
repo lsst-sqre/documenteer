@@ -61,15 +61,15 @@ extras_require = {
 
     # For documenteer development environments
     'dev': [
-        'wheel>=0.29.0',
-        'twine>=1.8.1',
-        'pytest==4.2.0',
-        'pytest-cov==2.6.1',
-        'pytest-flake8==1.0.4',
-        'pytest-mock==1.4.0',
+        'wheel',
+        'twine',
+        'pytest',
+        'pytest-cov',
+        'pytest-flake8',
+        'pytest-mock',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
-        'sphinx-click>=1.2.0,<1.3.0',
+        'sphinx-click',
     ],
 }
 # Add project dependencies to the dev dependencies
