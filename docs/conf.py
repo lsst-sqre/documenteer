@@ -107,8 +107,11 @@ nitpick_ignore = [
 
 linkcheck_retries = 2
 
-# Since Jira is currently down at this time
-linkcheck_ignore = [r"^https://jira.lsstcorp.org/browse/"]
+# Since Tucson-based IT infrastructure is frequently down
+linkcheck_ignore = [
+    r"^https://jira.lsstcorp.org/browse/",
+    r"^https://ls.st/",
+]
 
 linkcheck_timeout = 15
 
