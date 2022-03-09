@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+0.6.10 (2022-03-09)
+-------------------
+
+Fixes:
+
+- Support sphinx-jinja 2.0.0 by using the ``sphinx_jinja`` extension name in ``documenteer.conf.pipelines`` and ``documenteer.conf.pipelinespkg``.
+  Installations that use sphinx-jinja < 2 will continue to use ``sphinxcontrib.jinja`` since the ``sphinx-jinja`` version is dynamically detected.
+
 0.6.9 (2021-05-10)
 ------------------
 
