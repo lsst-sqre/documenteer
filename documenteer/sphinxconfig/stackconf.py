@@ -15,11 +15,22 @@ import sys
 
 import lsst_sphinx_bootstrap_theme
 
+from documenteer.packagemetadata import Semver, get_package_version_semver
+
 from .utils import read_git_commit_timestamp
 
 
 def _insert_extensions(c):
     """Insert the ``extensions`` variable into the configuration state."""
+    # The extension name for sphinx-jinja changed with version 2.0.0
+    _sphinx_jinja_ext_name = "sphinx_jinja"
+    try:
+        if get_package_version_semver("sphinx-jinja") < Semver.parse("2.0.0"):
+            # Use older sphinx jinja name for sphinx-jinja < 2.0.0
+            _sphinx_jinja_ext_name = "sphinxcontrib.jinja"
+    except Exception as e:
+        print(f"Error getting sphinx-jinja version: {str(e)}")
+
     c["extensions"] = [
         "sphinx.ext.autodoc",
         "sphinx.ext.doctest",
@@ -28,7 +39,7 @@ def _insert_extensions(c):
         "sphinx.ext.coverage",
         "sphinx.ext.mathjax",
         "sphinx.ext.ifconfig",
-        "sphinxcontrib.jinja",
+        _sphinx_jinja_ext_name,
         "sphinx-prompt",
         "sphinxcontrib.autoprogram",
         "numpydoc",
