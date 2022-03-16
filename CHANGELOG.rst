@@ -1,6 +1,18 @@
 Change Log
 ==========
 
+Unreleased
+----------
+
+Fixes:
+
+- Fix type checking by adding stub packages.
+
+Changes:
+
+- Use ``importlib.metadata`` for getting the package version, rather than ``pkg_resources``.
+- Move to a ``src/`` based package layout for consistency.
+
 0.6.10 (2022-03-09)
 -------------------
 
