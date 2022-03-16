@@ -63,7 +63,7 @@ def cache_doxylink_symbolmap(
     key = "documenteer_autocppapi_symbolmaps"
     if key in config:
         if isinstance(config[key], dict):
-            config[key][doxylink_role] = symbol_map  # type: ignore
+            config[key][doxylink_role] = symbol_map
     else:
         config[key] = {doxylink_role: symbol_map}
 
