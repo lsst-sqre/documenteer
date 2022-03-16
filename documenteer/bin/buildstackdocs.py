@@ -1,22 +1,14 @@
-"""build-stack-docs command-line application.
-"""
+"""build-stack-docs command-line application."""
 
-__all__ = ("run_build_cli",)
+__all__ = ["run_build_cli"]
 
 import argparse
 import logging
 import os
 import sys
 
-from pkg_resources import DistributionNotFound, get_distribution
-
 from ..stackdocs.build import build_stack_docs
-
-try:
-    __version__ = get_distribution("documenteer").version
-except DistributionNotFound:
-    # package is not installed
-    __version__ = "unknown"
+from ..version import __version__
 
 
 def run_build_cli():

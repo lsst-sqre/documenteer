@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 from docutils import nodes
 from docutils.parsers.rst import directives
-from pkg_resources import get_distribution
 from sphinx.util.docutils import SphinxDirective
 
-from documenteer.sphinxext.utils import parse_rst_content
+from ..sphinxext.utils import parse_rst_content
+from ..version import __version__
 
 try:
     from sphinxcontrib.doxylink import doxylink
@@ -301,7 +301,7 @@ def setup(app: "sphinx.application.Sphinx") -> Dict[str, Any]:
     app.add_directive("autocppapi", AutoCppApi)
 
     return {
-        "version": get_distribution("documenteer").version,
+        "version": __version__,
         "parallel_read_safe": True,
         "parallel_write_safe": True,
     }

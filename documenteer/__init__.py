@@ -1,9 +1,7 @@
-__all__ = ("__version__",)
+"""Rubin Observatory / LSST Sphinx documentation tools, extensions, and
+configurations.
+"""
 
-from pkg_resources import DistributionNotFound, get_distribution
+__all__ = ["__version__", "version_info"]
 
-try:
-    __version__ = get_distribution("documenteer").version
-except DistributionNotFound:
-    # package is not installed
-    __version__ = "unknown"
+from .version import __version__, version_info
