@@ -30,7 +30,7 @@ def run():
         req_logger = logging.getLogger("requests")
         req_logger.setLevel(logging.WARNING)
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("documenteer")
 
     logger.info("refresh-lsst-bib version {}".format(__version__))
 

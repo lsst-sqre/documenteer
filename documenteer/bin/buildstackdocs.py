@@ -24,7 +24,7 @@ def run_build_cli():
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("documenteer")
 
     logger.info("build-stack-docs version {0}".format(__version__))
 
