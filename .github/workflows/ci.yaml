@@ -1,6 +1,19 @@
 name: CI
 
-"on": [push, pull_request]
+"on":
+  push:
+    branches-ignore:
+      # These should always correspond to pull requests, so ignore them for
+      # the push trigger and let them be triggered by the pull_request
+      # trigger, avoiding running the workflow twice.  This is a minor
+      # optimization so there's no need to ensure this is comprehensive.
+      - "dependabot/**"
+      - "renovate/**"
+      - "tickets/**"
+      - "u/**"
+    tags:
+      - "*"
+  pull_request: {}
 
 jobs:
   lint:
@@ -109,7 +122,9 @@ jobs:
         run: tox -e docs
 
       - name: Upload documentation
-        if: ${{ github.event_name == 'push' }}
+        if: >
+          startsWith(github.ref, 'refs/tags/')
+          || startsWith(github.head_ref, 'tickets/')
         env:
           LTD_PASSWORD: ${{ secrets.LTD_PASSWORD }}
           LTD_USERNAME: ${{ secrets.LTD_USERNAME }}
