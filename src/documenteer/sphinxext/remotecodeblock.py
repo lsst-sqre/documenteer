@@ -2,16 +2,16 @@
 supports getting content over https.
 """
 
-__all__ = ("setup",)
+__all__ = ["setup"]
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
-from pkg_resources import DistributionNotFound, get_distribution
 from sphinx.directives.code import LiteralIncludeReader, container_wrapper
 from sphinx.util import logging, parselinenos
 from sphinx.util.nodes import set_source_info
 
 from ..requestsutils import requests_retry_session
+from ..version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -145,11 +145,6 @@ class RemoteCodeBlockReader(LiteralIncludeReader):
 def setup(app):
     app.add_directive("remote-code-block", RemoteCodeBlock)
 
-    try:
-        __version__ = get_distribution("documenteer").version
-    except DistributionNotFound:
-        # package is not installed
-        __version__ = "unknown"
     return {
         "version": __version__,
         "parallel_read_safe": True,

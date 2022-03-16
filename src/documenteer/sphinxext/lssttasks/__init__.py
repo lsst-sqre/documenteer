@@ -1,9 +1,9 @@
 """Sphinx extensions for documenting LSST Science Pipelines Tasks.
 """
 
-__all__ = ("setup",)
+__all__ = ["setup"]
 
-from pkg_resources import DistributionNotFound, get_distribution
+from documenteer.version import __version__
 
 from .configfieldlists import (
     ConfigFieldListingDirective,
@@ -81,9 +81,4 @@ def setup(app):
     app.add_role("lsst-config", config_ref_role)
     app.add_role("lsst-config-field", configfield_ref_role)
 
-    try:
-        __version__ = get_distribution("documenteer").version
-    except DistributionNotFound:
-        # package is not installed
-        __version__ = "unknown"
     return {"version": __version__}

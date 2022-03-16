@@ -1,6 +1,19 @@
 name: CI
 
-"on": [push, pull_request]
+"on":
+  push:
+    branches-ignore:
+      # These should always correspond to pull requests, so ignore them for
+      # the push trigger and let them be triggered by the pull_request
+      # trigger, avoiding running the workflow twice.  This is a minor
+      # optimization so there's no need to ensure this is comprehensive.
+      - "dependabot/**"
+      - "renovate/**"
+      - "tickets/**"
+      - "u/**"
+    tags:
+      - "*"
+  pull_request: {}
 
 jobs:
   lint:
@@ -31,9 +44,10 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.7
-          - 3.8
-          - 3.9
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
         sphinx-version:
           - "2"
           - "3"
@@ -76,7 +90,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: 3.9
+          python-version: "3.10"
 
       - name: Python install
         run: |
@@ -95,10 +109,13 @@ jobs:
         with:
           fetch-depth: 0 # full history for setuptools_scm
 
+      - name: Install Graphviz
+        run: sudo apt-get install graphviz
+
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: 3.9
+          python-version: "3.10"
 
       - name: Python install
         run: |
@@ -109,7 +126,9 @@ jobs:
         run: tox -e docs
 
       - name: Upload documentation
-        if: ${{ github.event_name == 'push' }}
+        if: >
+          startsWith(github.ref, 'refs/tags/')
+          || startsWith(github.head_ref, 'tickets/')
         env:
           LTD_PASSWORD: ${{ secrets.LTD_PASSWORD }}
           LTD_USERNAME: ${{ secrets.LTD_USERNAME }}
@@ -130,7 +149,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: 3.9
+          python-version: "3.10"
 
       - name: Python install
         run: |
@@ -138,13 +157,10 @@ jobs:
           pip install --upgrade setuptools wheel
 
       - name: Build
-        env:
-          TWINE_USERNAME: "__token__"
-          TWINE_PASSWORD: ${{ secrets.PYPI_SQRE_ADMIN }}
         run: python setup.py sdist bdist_wheel
 
       - name: Upload
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_SQRE_ADMIN }}

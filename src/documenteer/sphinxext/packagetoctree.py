@@ -2,14 +2,15 @@
 Pipelines documentation.
 """
 
-__all__ = ("setup", "ModuleTocTree", "PackageTocTree")
+__all__ = ["setup", "ModuleTocTree", "PackageTocTree"]
 
 import docutils
 import sphinx
 from docutils.parsers.rst import Directive, directives
-from pkg_resources import DistributionNotFound, get_distribution
 from sphinx.util.logging import getLogger
 from sphinx.util.nodes import set_source_info
+
+from ..version import __version__
 
 
 class ModuleTocTree(Directive):
@@ -241,9 +242,4 @@ def setup(app):
     app.add_directive("module-toctree", ModuleTocTree)
     app.add_directive("package-toctree", PackageTocTree)
 
-    try:
-        __version__ = get_distribution("documenteer").version
-    except DistributionNotFound:
-        # package is not installed
-        __version__ = "unknown"
     return {"version": __version__}

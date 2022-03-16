@@ -1,5 +1,4 @@
-"""Command line executable to refresh lsst bib files.
-"""
+"""Command line executable to refresh lsst bib files."""
 
 __all__ = ["run", "make_parser"]
 
@@ -10,13 +9,8 @@ import sys
 import urllib
 
 import requests
-from pkg_resources import DistributionNotFound, get_distribution
 
-try:
-    __version__ = get_distribution("documenteer").version
-except DistributionNotFound:
-    # package is not installed
-    __version__ = "unknown"
+from ..version import __version__
 
 
 def run():
@@ -36,7 +30,7 @@ def run():
         req_logger = logging.getLogger("requests")
         req_logger.setLevel(logging.WARNING)
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("documenteer")
 
     logger.info("refresh-lsst-bib version {}".format(__version__))
 

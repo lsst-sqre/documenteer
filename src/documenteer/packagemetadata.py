@@ -54,6 +54,10 @@ class Semver:
     def parse(cls, version_string: str) -> Semver:
         version_string = version_string.lstrip("v")
         match = SEMVER_PATTERN.match(version_string)
+        if not match:
+            raise ValueError(
+                "Version {version_string} is not a semantic version"
+            )
         semver = cls(
             major=int(match.group("major")),
             minor=int(match.group("minor")),
