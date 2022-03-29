@@ -36,7 +36,8 @@ install_requires = [
     'sphinx-prompt',
     'GitPython',
     'requests',
-    'click'
+    'click',
+    'Jinja2<3.1'
 ]
 
 # Project-specific dependencies
