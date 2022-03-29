@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.5.10 (2022-03-29)
+-------------------
+
+- Pin Jinja2 < 3.1 for compatibility with Sphinx < 2.
+- Migrate this 0.5.x release branch to use GitHub Actions for CI, from Travis C.
+
 0.5.9 (2021-11-08)
 ------------------
 
