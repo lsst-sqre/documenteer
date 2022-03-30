@@ -23,9 +23,6 @@ jobs:
       - name: Set Python version for linting
         run: echo '::set-output name=PYTHON_VERSION::3.10'
         id: python-version
-        # Not using matrix strategy here so the required linting check doesn't
-        # drift with python version, but is also centrally defined for
-        # the tox cache.
 
       - uses: actions/checkout@v3
         with:
@@ -43,8 +40,6 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .tox
-          # setup.cfg, pyproject.toml, and .pre-commit-config.yaml have
-          # versioning info that would impact the tox environment.
           key: tox-lint-${{ steps.python-version.outputs.PYTHON_VERSION }}-${{ hashFiles('pre-commit-config.yaml', 'pyproject.toml', 'setup.cfg') }}
 
       - name: Python install
@@ -93,8 +88,6 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .tox
-          # setup.cfg, pyproject.toml, and .pre-commit-config.yaml have
-          # versioning info that would impact the tox environment.
           key: tox-${{ strategy.matrix.python-version }}-${{ strategy.matrix.sphinx-version }}-${{ hashFiles('pyproject.toml', 'setup.cfg') }}
 
       - name: Run tox
@@ -108,9 +101,7 @@ jobs:
       - name: Set Python version for linting
         run: echo '::set-output name=PYTHON_VERSION::3.10'
         id: python-version
-        # Not using matrix strategy here so the required docs check doesn't
-        # drift with python version, but is also centrally defined for
-        # the tox cache.
+
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # full history for setuptools_scm
@@ -135,8 +126,6 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .tox
-          # setup.cfg, pyproject.toml, and .pre-commit-config.yaml have
-          # versioning info that would impact the tox environment.
           key: tox-docs-${{ steps.python-version.outputs.PYTHON_VERSION }}-${{ hashFiles('pyproject.toml', 'setup.cfg') }}
 
       - name: Build docs
