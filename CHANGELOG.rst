@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-Unreleased
-----------
+0.6.11 (2022-05-12)
+-------------------
 
 Fixes:
 
@@ -10,8 +10,19 @@ Fixes:
 
 Changes:
 
+- Add new roles for linking to technical notes:
+
+  - sitcomtn
+  - rtn
+  - pstn
+
+- Link to technical notes, which are hosted on lsst.io, now linking directly to lsst.io rather than going through ls.st. This includes the sqr, dmtn, etc. roles and all the new roles mentioned above.
 - Use ``importlib.metadata`` for getting the package version, rather than ``pkg_resources``.
 - Move to a ``src/`` based package layout for consistency.
+
+Issues:
+
+- Temporarily disable testing the Doxygen-related Sphinx extensions.
 
 0.6.10 (2022-03-09)
 -------------------
