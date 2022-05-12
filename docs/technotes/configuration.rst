@@ -74,4 +74,4 @@ Remember that if an additional package needs to be installed, add that dependenc
 Configuration source reference
 ==============================
 
-.. literalinclude:: ../../documenteer/conf/technote.py
+.. literalinclude:: ../../src/documenteer/conf/technote.py
