@@ -56,6 +56,24 @@ def inliner(app):
 @pytest.mark.parametrize(
     "test_input,expected",
     [
+        (("sqr", "123"), ("SQR-123", "https://sqr-123.lsst.io/")),
+        (("dmtn", "123"), ("DMTN-123", "https://dmtn-123.lsst.io/")),
+    ],
+)
+def test_lsstio_link(inliner, test_input, expected):
+    """Test link names and URL for technotes on lsst.io."""
+    name, content = test_input
+    result = lsstdocushare.lsstio_doc_shortlink_role(
+        name=name, rawtext=content, text=content, inliner=inliner, lineno=None
+    )
+    expected_text, expected_uri = expected
+    assert result[0][0].astext() == expected_text
+    assert result[0][0].attributes["refuri"] == expected_uri
+
+
+@pytest.mark.parametrize(
+    "test_input,expected",
+    [
         (("ldm", "151"), ("LDM-151", "https://ls.st/ldm-151")),
         (("lse", "123"), ("LSE-123", "https://ls.st/lse-123")),
         (("lpm", "123"), ("LPM-123", "https://ls.st/lpm-123")),
@@ -65,8 +83,6 @@ def inliner(app):
         (("lcr", "123"), ("LCR-123", "https://ls.st/lcr-123")),
         (("lcn", "123"), ("LCN-123", "https://ls.st/lcn-123")),
         (("dmtr", "123"), ("DMTR-123", "https://ls.st/dmtr-123")),
-        (("sqr", "123"), ("SQR-123", "https://ls.st/sqr-123")),
-        (("dmtn", "123"), ("DMTN-123", "https://ls.st/dmtn-123")),
     ],
 )
 def test_shortlink(inliner, test_input, expected):

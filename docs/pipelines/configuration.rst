@@ -74,13 +74,13 @@ Configuration source reference
 documenteer.conf.pipelines source
 ---------------------------------
 
-.. literalinclude:: ../../documenteer/conf/pipelines.py
+.. literalinclude:: ../../src/documenteer/conf/pipelines.py
 
 .. _pipelinespkg-conf-source:
 
 documenteer.conf.pipelinespkg source
 ------------------------------------
 
-.. literalinclude:: ../../documenteer/conf/pipelinespkg.py
+.. literalinclude:: ../../src/documenteer/conf/pipelinespkg.py
 
 .. _pipelines.lsst.io: https://pipelines.lsst.io
