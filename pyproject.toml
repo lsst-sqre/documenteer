@@ -34,7 +34,6 @@ ensure_newline_before_comments = true
 force_grid_wrap = 0
 use_parentheses = true
 known_first_party = "documenteer"
-known_third_party = ["docutils", "git", "lsst_dd_rtd_theme", "lsst_sphinx_bootstrap_theme", "lxml", "pkg_resources", "pybtex", "pytest", "requests", "setuptools", "sphinx", "yaml"]
 skip = ["docs/conf.py"]
 
 [tool.coverage.run]
