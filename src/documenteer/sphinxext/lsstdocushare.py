@@ -133,3 +133,11 @@ def setup(app: Sphinx) -> None:
     app.add_role("dmtn", lsstio_doc_shortlink_role)
     # LSST Simulations Technical Note
     app.add_role("smtn", lsstio_doc_shortlink_role)
+    # SITCOMTN Technical Note
+    app.add_role("sitcomtn", lsstio_doc_shortlink_role)
+    # PST Technical Note
+    app.add_role("pstn", lsstio_doc_shortlink_role)
+    # Rubin Technical Note
+    app.add_role("rtn", lsstio_doc_shortlink_role)
+    # IT Technical Note
+    app.add_role("ittn", lsstio_doc_shortlink_role)
