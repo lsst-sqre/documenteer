@@ -1,11 +1,26 @@
-"""LSST DocuShare/ls.st reference roles."""
+"""LSST LSST the Docs and DocuShare/ls.st reference roles."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from docutils import nodes
 
+if TYPE_CHECKING:
+    from docutils.nodes import Node, system_message
+    from docutils.parsers.rst.states import Inliner
+    from sphinx.application import Sphinx
+
 
 def lsst_doc_shortlink_role(
-    name, rawtext, text, lineno, inliner, options=None, content=None
-):
+    name: str,
+    rawtext: str,
+    text: str,
+    lineno: int,
+    inliner: Inliner,
+    options: Optional[Dict] = None,
+    content: Optional[List[str]] = None,
+) -> Tuple[List[Node], List[system_message]]:
     """Link to LSST documents given their handle using LSST's ls.st link
     shortener.
 
@@ -24,8 +39,14 @@ def lsst_doc_shortlink_role(
 
 
 def lsst_doc_shortlink_titlecase_display_role(
-    name, rawtext, text, lineno, inliner, options=None, content=None
-):
+    name: str,
+    rawtext: str,
+    text: str,
+    lineno: int,
+    inliner: Inliner,
+    options: Optional[Dict] = None,
+    content: Optional[List[str]] = None,
+) -> Tuple[List[Node], List[system_message]]:
     """Link to LSST documents given their handle using LSST's ls.st link
     shortener with the document handle displayed in title case.
 
@@ -46,7 +67,7 @@ def lsst_doc_shortlink_titlecase_display_role(
     return [node], []
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     # LSST Data Management
     app.add_role("ldm", lsst_doc_shortlink_role)
     # LSST Systems Engineering
