@@ -12,6 +12,32 @@ if TYPE_CHECKING:
     from sphinx.application import Sphinx
 
 
+def lsstio_doc_shortlink_role(
+    name: str,
+    rawtext: str,
+    text: str,
+    lineno: int,
+    inliner: Inliner,
+    options: Optional[Dict] = None,
+    content: Optional[List[str]] = None,
+) -> Tuple[List[Node], List[system_message]]:
+    """Link to LSST documents given their handle that are hosted on
+    lsst.io (Rubin's deployment of LSST the Docs).
+
+    Example::
+
+        :sqr:`001`
+    """
+    options = options or {}
+    content = content or []
+    node = nodes.reference(
+        text="{0}-{1}".format(name.upper(), text),
+        refuri="https://{0}-{1}.lsst.io/".format(name.lower(), text),
+        **options,
+    )
+    return [node], []
+
+
 def lsst_doc_shortlink_role(
     name: str,
     rawtext: str,
@@ -98,9 +124,12 @@ def setup(app: Sphinx) -> None:
     app.add_role("minutes", lsst_doc_shortlink_titlecase_display_role)
     # DocuShare collection
     app.add_role("collection", lsst_doc_shortlink_titlecase_display_role)
+
+    # Technical notes are hosted canonically on www.lsst.io
+
     # LSST SQuaRE Technical Note
-    app.add_role("sqr", lsst_doc_shortlink_role)
+    app.add_role("sqr", lsstio_doc_shortlink_role)
     # LSST Data Management Technical Note
-    app.add_role("dmtn", lsst_doc_shortlink_role)
+    app.add_role("dmtn", lsstio_doc_shortlink_role)
     # LSST Simulations Technical Note
-    app.add_role("smtn", lsst_doc_shortlink_role)
+    app.add_role("smtn", lsstio_doc_shortlink_role)
