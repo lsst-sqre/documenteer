@@ -30,7 +30,7 @@ long_description = read('README.rst')
 
 # Core dependencies
 install_requires = [
-    'Sphinx>=1.7.0,<1.8.0',
+    'Sphinx<2',
     'docutils<0.18',
     'PyYAML',
     'sphinx-prompt',
@@ -53,7 +53,7 @@ extras_require = {
     # For the pipelines.lsst.io documentation project
     'pipelines': [
         'lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0',
-        'numpydoc>=0.8.0,<0.9.0',
+        'numpydoc<1.3.0',
         'sphinx-automodapi>=0.7,<0.8',
         'breathe==4.4.0',
         'sphinx-jinja==1.1.0',
