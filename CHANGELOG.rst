@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+0.5.11 (2022-05-25)
+-------------------
+
+- Pin numpydoc < 1.3 to allow use of numpydoc 1.2 that is compatible with Python 3.10.
+
+- Pin sphinx < 2, to allow Sphinx 1.8 that is needed by numpydoc 1.2
+
 0.5.10 (2022-03-29)
 -------------------
 
