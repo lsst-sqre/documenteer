@@ -141,3 +141,5 @@ def setup(app: Sphinx) -> None:
     app.add_role("rtn", lsstio_doc_shortlink_role)
     # IT Technical Note
     app.add_role("ittn", lsstio_doc_shortlink_role)
+    # T&S Technical Note
+    app.add_role("tstn", lsstio_doc_shortlink_role)

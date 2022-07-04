@@ -64,6 +64,8 @@ Summary
      - Link to a SMTN technical note
    * - :role:`sqr`
      - Link to a SQR technical note
+   * - :role:`tstn`
+     - Link to a Telescope & Site technical note
    * - :role:`report`
      - Link to a DocuShare "Report" handle
 
@@ -253,3 +255,13 @@ Links to technical notes on lsst.io
       :sqr:`000`
 
    Output: :sqr:`000`
+
+.. role:: tstn
+
+   Link to a TSTN document:
+
+   .. code-block:: rst
+
+      :tstn:`001`
+
+   Output: :tstn:`001`
