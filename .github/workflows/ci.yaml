@@ -135,6 +135,7 @@ jobs:
         if: >
           startsWith(github.ref, 'refs/tags/')
           || startsWith(github.head_ref, 'tickets/')
+          || github.head_ref == 'main'
         env:
           LTD_PASSWORD: ${{ secrets.LTD_PASSWORD }}
           LTD_USERNAME: ${{ secrets.LTD_USERNAME }}
