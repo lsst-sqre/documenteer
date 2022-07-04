@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.6.12 (2022-07-04)
+-------------------
+
+- Add a ``tstn`` role for linking to Telescope and Site technical notes.
+
 0.6.11 (2022-05-12)
 -------------------
 
