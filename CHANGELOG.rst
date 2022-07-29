@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.6.13 (2022-07-29)
+-------------------
+
+- Fixed the "Edit on GitHub" URL string construction in ``documenteer.conf.technote``.
+
 0.6.12 (2022-07-04)
 -------------------
 

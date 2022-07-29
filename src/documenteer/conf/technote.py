@@ -138,7 +138,7 @@ else:
 if _github_url is not None:
     if not _github_url.endswith("/"):
         _github_url = _github_url + "/"
-    _edit_url = "{_github_url}blob/{_git_branch}/index.rst"
+    _edit_url = f"{_github_url}blob/{_git_branch}/index.rst"
 else:
     _github_url = None
     _edit_url = None
