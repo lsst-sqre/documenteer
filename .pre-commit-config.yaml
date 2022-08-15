@@ -33,6 +33,6 @@ repos:
         args: [-l, '79', -t, py38]
 
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 4.0.1
+    rev: 5.0.4
     hooks:
       - id: flake8
