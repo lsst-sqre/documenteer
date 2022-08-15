@@ -225,8 +225,9 @@ def config_ref_role(
 
 
 def process_pending_config_xref_nodes(app, doctree, fromdocname):
-    """Process the ``pending_config_xref`` nodes during the ``doctree-resolved``
-    event to insert links to the locations of ``lsst-config-topic`` directives.
+    """Process the ``pending_config_xref`` nodes during the
+    ``doctree-resolved`` event to insert links to the locations of
+    ``lsst-config-topic`` directives.
 
     See also
     --------
