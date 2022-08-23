@@ -1,8 +1,100 @@
+[project]
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+name = "documenteer"
+description = "Rubin Observatory / LSST Sphinx documentation tools, extensions, and configurations."
+license = {file = "LICENSE"}
+readme = "README.md"
+keywords = [
+    "rubin",
+    "lsst",
+]
+# https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Intended Audience :: Developers",
+    "Topic :: Documentation",
+    "Topic :: Documentation :: Sphinx",
+    "Framework :: Sphinx :: Extension",
+    "Environment :: Console",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
+]
+requires-python = ">=3.7"
+dynamic = ["version"]
+dependencies = [
+    "Sphinx>=2.4.0",
+    "PyYAML",
+    "GitPython",
+    "requests",
+    "click",
+    "sphinxcontrib-bibtex>=2.0.0",  # for pybtex plugin; bibtex_bibfiles config is required.
+    "importlib_metadata; python_version < \"3.8\""
+]
+
+[project.optional-dependencies]
+dev = [
+    "twine",
+    # Documenteer's testing and deployment deps
+    "coverage[toml]",
+    "pytest",
+    "pytest-mock",
+    # Test depedendencies for analyzing HTML output
+    "lxml",
+    "cssselect",
+    # Extensions for documenteer's own docs
+    "lsst-sphinx-bootstrap-theme",
+    "numpydoc",
+    "sphinx-autodoc-typehints",
+    "sphinx-automodapi",
+    "sphinx-click",
+    "sphinxcontrib-autoprogram",
+    "sphinx-prompt",
+    # Type stubs
+    "types-setuptools",
+    "types-requests",
+    "types-PyYAML",
+    "types-docutils",
+    "types-mock",
+]
+technote = [
+    # Theme and extensions for technotes
+    "lsst-dd-rtd-theme>=0.2.3,<0.3.0",
+    "sphinx-prompt",
+]
+pipelines = [
+    # Theme and extensions for pipelines.lsst.io
+    "lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0",
+    "numpydoc",
+    "sphinx-automodapi",
+    "sphinx-jinja",
+    "sphinxcontrib-autoprogram",
+    "sphinx-prompt",
+    "sphinxcontrib-doxylink",
+    "sphinx-click",
+]
+
+[project.urls]
+Homepage = "https://documenteer.lsst.io"
+Source = "https://github.com/lsst-sqre/documenteer"
+
+[project.scripts]
+stack-docs = "documenteer.stackdocs.stackcli:main"
+package-docs = "documenteer.stackdocs.packagecli:main"
+build-stack-docs = "documenteer.bin.buildstackdocs:run_build_cli"
+refresh-lsst-bib = "documenteer.bin.refreshlsstbib:run"
+
 [build-system]
 requires = [
-    "setuptools>=42",
+    "setuptools>=61",
     "wheel",
-    "setuptools_scm[toml]>=3.4"
+    "setuptools_scm[toml]>=6.2"
 ]
 build-backend = 'setuptools.build_meta'
 
@@ -42,7 +134,7 @@ branch = true
 source = ["documenteer"]
 
 [tool.coverage.paths]
-source = ["documenteer", ".tox/*/site-packages"]
+source = ["src", ".tox/*/site-packages"]
 
 [tool.coverage.report]
 show_missing = true
@@ -55,5 +147,26 @@ exclude_lines = [
     "raise NotImplementedError",
     "if 0:",
     "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:"
+    "if TYPE_CHECKING:",
 ]
+
+[tool.pytest]
+norecursedirs = "node_modules"
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+python_files = [
+    "tests/*.py",
+    "tests/*/*.py"
+]
+
+[tool.mypy]
+# provisional config; disallow_untyped_defs once fully typed
+disallow_untyped_defs = false
+disallow_incomplete_defs = true
+ignore_missing_imports = true
+show_error_codes = true
+strict_equality = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_ignores = true
