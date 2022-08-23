@@ -1,85 +1,62 @@
-# This workflow runs on a weekly basis and ensures that Documenteer is
-# compatible with the latest versions of its dependencies, and the "master"
-# branch of Sphinx itself.
+# This is a separate run of the Python test suite that doesn't cache the tox
+# environment and runs from a schedule.  The purpose is to test compatibility
+# with the latest versions of dependencies.
 
-name: Weekly CI
+name: Periodic CI
 
-on:
+"on":
   schedule:
-    - cron: "0 4 * * MON"
+    - cron: "0 12 * * 1"
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        python:
+        python-version:
+          - "3.8"
+          - "3.9"
           - "3.10"
-        sphinx:
+        sphinx-version:
           - "4"
+          - "5"
           - "dev"
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Run tests in tox
+        uses: lsst-sqre/run-tox@v1
         with:
-          fetch-depth: 0 # full depth for setuptools_scm
+          python-version: ${{ matrix.python-python }}
+          tox-envs: "lint,typing-sphinx${{ matrix.sphinx-version }},py-test-sphinx${{ matrix.sphinx-version }}"
+          use-cache: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Install tox
-        run: pip install tox
-
-      - name: Run tests
-        run: tox -e py-test-sphinx${{ matrix.sphinx }}
-
-  typing:
-
+  docs:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        sphinx:
-          - "4"
-          - "dev"
-
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # full depth for setuptools_scm
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Build docs in tox
+        uses: lsst-sqre/run-tox@v1
         with:
           python-version: "3.10"
+          tox-envs: "docs,docs-lint"
+          use-cache: false
 
-      - name: Install tox
-        run: pip install tox
-
-      - name: Run mypy
-        run: tox -e typing-sphinx${{ matrix.sphinx }}
-
-  lint:
-
+  pypi:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # full depth for setuptools_scm
+          fetch-depth: 0 # full history for setuptools_scm
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Build and publish
+        uses: lsst-sqre/build-and-publish-to-pypi@v1
         with:
+          pypi-token: ""
           python-version: "3.10"
-
-      - name: Install tox
-        run: |
-          pip install tox
-
-      - name: Run linters
-        run: tox -e lint,docs-lint
+          upload: false
