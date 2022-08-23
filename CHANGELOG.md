@@ -1,5 +1,12 @@
 # Change Log
 
+## Unreleased
+
+- Documenteer now uses `pyproject.toml` for its packaging.
+- The GitHub Actions workflows now use SQuaRE composite workflows for many steps.
+- The README and change log are now written in Markdown.
+- Sphinx version 5 is now included in the test matrix.
+
 ## 0.6.13 (2022-07-29)
 
 - Fixed the "Edit on GitHub" URL string construction in `documenteer.conf.technote`.
