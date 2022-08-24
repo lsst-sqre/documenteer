@@ -131,11 +131,19 @@ class TaskTopicDirective(BaseTopicDirective):
     """
 
     def get_type(self, class_name):
-        from lsst.pipe.base import CmdLineTask, PipelineTask
+        try:
+            from lsst.pipe.base import CmdLineTask
+        except ImportError:
+            CmdLineTask = None
+        try:
+            from lsst.pipe.base import PipelineTask
+        except ImportError:
+            PipelineTask = None
+
         obj = get_type(class_name)
-        if issubclass(obj, PipelineTask):
+        if PipelineTask is not None and issubclass(obj, PipelineTask):
             return 'PipelineTask'
-        elif issubclass(obj, CmdLineTask):
+        elif CmdLineTask is not None and issubclass(obj, CmdLineTask):
             return 'CmdLineTask'
         else:
             return 'Task'

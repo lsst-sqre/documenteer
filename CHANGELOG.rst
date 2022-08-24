@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.5.12 (2022-08-24)
+-------------------
+
+- The ``lsst-task-topic`` directive handles new versions of LSST Science Pipelines' ``lsst.pipe.base`` where ``CmdLineTask`` is not available.
+
 0.5.11 (2022-05-25)
 -------------------
 

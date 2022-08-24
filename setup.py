@@ -66,8 +66,6 @@ extras_require = {
         'wheel',
         'twine',
         'pytest',
-        'pytest-cov',
-        'pytest-flake8',
         'pytest-mock',
         # Extensions for documenteer's own docs. Perhaps add this to main
         # installation for other projects?
