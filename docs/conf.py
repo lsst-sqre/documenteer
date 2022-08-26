@@ -101,6 +101,8 @@ html_theme = "pydata_sphinx_theme"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
+    "header_links_before_dropdown": 5,
+    "external_links": [{"name": "Rubin docs", "url": "https://www.lsst.io"}],
     "icon_links": [
         {
             "name": "GitHub",
@@ -108,7 +110,7 @@ html_theme_options = {
             "icon": "fab fa-github-square",
             "type": "fontawesome",
         }
-    ]
+    ],
 }
 
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
