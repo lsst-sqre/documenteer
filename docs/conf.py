@@ -102,6 +102,11 @@ html_theme = "pydata_sphinx_theme"
 # documentation.
 html_theme_options = {"logotext": project}
 
+# in pydata-sphinx-theme 0.10.0 it'll be possible to use
+# :html_theme.sidebar_secondary.remove: metadata to remove the sidebar
+# for a specific page instead
+html_sidebars = {"index": []}
+
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
 html_title = "Documenteer"
