@@ -100,7 +100,16 @@ html_theme = "pydata_sphinx_theme"
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {}
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/lsst-sqre/documenteer",
+            "icon": "fab fa-github-square",
+            "type": "fontawesome",
+        }
+    ]
+}
 
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
 # :html_theme.sidebar_secondary.remove: metadata to remove the sidebar
