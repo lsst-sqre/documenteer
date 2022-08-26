@@ -49,7 +49,7 @@ dev = [
     "lxml",
     "cssselect",
     # Extensions for documenteer's own docs
-    "pydata-sphinx-theme",
+    "pydata-sphinx-theme>=0.10.0rc2",
     "numpydoc",
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
