@@ -153,7 +153,6 @@ exclude_lines = [
 norecursedirs = "node_modules"
 
 [tool.pytest.ini_options]
-asyncio_mode = "strict"
 python_files = [
     "tests/*.py",
     "tests/*/*.py"
