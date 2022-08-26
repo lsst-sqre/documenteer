@@ -49,7 +49,7 @@ dev = [
     "lxml",
     "cssselect",
     # Extensions for documenteer's own docs
-    "lsst-sphinx-bootstrap-theme",
+    "pydata-sphinx-theme",
     "numpydoc",
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
