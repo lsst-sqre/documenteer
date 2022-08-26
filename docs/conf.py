@@ -105,7 +105,7 @@ html_theme_options = {"logotext": project}
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
 # :html_theme.sidebar_secondary.remove: metadata to remove the sidebar
 # for a specific page instead
-html_sidebars = {"index": []}
+html_sidebars = {"index": [], "changelog": []}
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -123,6 +123,10 @@ html_static_path: List[str] = []
 html_show_sourcelink = False
 
 # Options for the API reference ==============================================
+
+# Automodapi
+# https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
+automodapi_toctreedirnm = "dev/api"
 
 # sphinx_autodoc_typehints
 always_document_param_types = True
