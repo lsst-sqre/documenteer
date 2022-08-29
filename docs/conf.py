@@ -3,7 +3,7 @@ import sys
 from typing import List
 
 from documenteer import __version__
-from documenteer.conf.utils import get_asset_path
+from documenteer.conf.utils import get_asset_path, get_template_dir
 
 # General configuration ======================================================
 
@@ -82,6 +82,10 @@ nitpick_ignore = [
     ("py:class", "pybtex.style.formatting.plain.Style"),
 ]
 
+# A list of paths that contain extra templates (or templates that overwrite
+# builtin/theme-specific templates).
+templates_path = [get_template_dir("pydata")]
+
 # Options for linkcheck builder ==============================================
 
 linkcheck_retries = 2
@@ -147,7 +151,10 @@ html_static_path: List[str] = [
     get_asset_path("rubin-titlebar-imagotype-light.svg"),
     get_asset_path("rubin-favicon-transparent-32px.png"),
     get_asset_path("rubin-favicon.svg"),
+    get_asset_path("rubin-pydata-theme.css"),
 ]
+
+html_css_files = ["rubin-pydata-theme.css"]
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

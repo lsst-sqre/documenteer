@@ -1,0 +1,10 @@
+/*
+ * Rubin theming for the [PyData Sphinx Theme](https://pydata-sphinx-theme.readthedocs.io/en/latest/user_guide/styling.html#)
+ * using design tokens from the [Rubin Style Dictionary](https://style-dictionary.lsst.io).
+ */
+
+:root {
+  --pst-font-family-base: 'Source Sans Pro', var(--pst-font-family-base-system);
+  --pst-font-family-heading: 'Source Sans Pro',
+    var(--pst-font-family-base-system);
+}

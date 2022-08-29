@@ -6,7 +6,7 @@ from pathlib import Path
 
 from sphinx.errors import ConfigError
 
-__all__ = ["get_asset_path"]
+__all__ = ["get_asset_path", "get_template_dir"]
 
 
 def get_asset_path(name: str) -> str:
@@ -42,3 +42,36 @@ def get_asset_path(name: str) -> str:
             "Documenteer package."
         )
     return str(asset_path)
+
+
+def get_template_dir(root: str) -> str:
+    """Get the absolute path for a Documenteer template directory, for use
+    with Sphinx's ``templates_path``.
+
+    Parameters
+    ----------
+    root : `str`
+        A root directory for the templates. For example, ``pydata`` is the root
+        for templates that override the pydata theme.
+
+    Returns
+    -------
+    absolute_path : `str`
+        An absolute path to the templates directory, for use with the
+        ``templates_path`` Sphinx configuration.
+
+    Examples
+    --------
+    .. code-block:: py
+
+       templates_path = [get_template_dir("pydata")]
+    """
+    dirname = Path(__file__).parent.joinpath("../templates", root)
+    dirname.resolve()
+    if not dirname.is_dir():
+        raise ConfigError(
+            f"Documenteer template directory root {root!r} does not exist.\n"
+            f"Tried to resolve to {dirname} inside the installed "
+            "Documenteer package."
+        )
+    return str(dirname)
