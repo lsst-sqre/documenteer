@@ -117,6 +117,14 @@ html_theme_options = {
         "image_dark": "rubin-titlebar-imagotype-dark.svg",
         "text": "Documenteer",
     },
+    "favicons": [
+        {
+            "rel": "icon",
+            "sizes": "32x32",
+            "href": "rubin-favicon-transparent-32px.png",
+        },
+        {"rel": "icon", "href": "rubin-favicon.svg"},
+    ],
 }
 
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
@@ -137,6 +145,8 @@ html_short_title = project
 html_static_path: List[str] = [
     get_asset_path("rubin-titlebar-imagotype-dark.svg"),
     get_asset_path("rubin-titlebar-imagotype-light.svg"),
+    get_asset_path("rubin-favicon-transparent-32px.png"),
+    get_asset_path("rubin-favicon.svg"),
 ]
 
 # If true, links to the reST sources are added to the pages.
