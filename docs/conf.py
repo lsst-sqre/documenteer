@@ -3,6 +3,7 @@ import sys
 from typing import List
 
 from documenteer import __version__
+from documenteer.conf.utils import get_asset_path
 
 # General configuration ======================================================
 
@@ -111,6 +112,11 @@ html_theme_options = {
             "type": "fontawesome",
         }
     ],
+    "logo": {
+        "image_light": "rubin-titlebar-imagotype-light.svg",
+        "image_dark": "rubin-titlebar-imagotype-dark.svg",
+        "text": "Documenteer",
+    },
 }
 
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
@@ -128,7 +134,10 @@ html_short_title = project
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path: List[str] = []
+html_static_path: List[str] = [
+    get_asset_path("rubin-titlebar-imagotype-dark.svg"),
+    get_asset_path("rubin-titlebar-imagotype-light.svg"),
+]
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False
