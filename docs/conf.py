@@ -17,6 +17,7 @@ author = "Rubin Observatory"
 
 extensions = [
     "myst_parser",
+    "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
