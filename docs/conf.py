@@ -162,7 +162,7 @@ html_show_sourcelink = False
 
 # Automodapi
 # https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
-automodapi_toctreedirnm = "dev/api"
+automodapi_toctreedirnm = "dev/api/contents"
 
 # sphinx_autodoc_typehints
 always_document_param_types = True

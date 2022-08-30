@@ -13,4 +13,4 @@ Development
    :caption: Reference
    :maxdepth: 2
 
-   api
+   api/index
