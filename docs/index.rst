@@ -8,63 +8,66 @@ Documenteer
 
 Documenteer is developed on GitHub at https://github.com/lsst-sqre/documenteer.
 
-.. _pip-install:
+Installation
+============
 
-Installation with pip
-=====================
+.. tab-set::
 
-You can install Documenteer from PyPI with pip:
+   .. tab-item:: pip
 
-.. code-block:: sh
+      The core package provides Documenteer's :doc:`Sphinx extensions </sphinx-extensions/index>`:
 
-   pip install documenteer
+      .. code-block:: sh
 
-For different applications, install Documenteer with specific "extras" to bring in the necessary dependencies.
+         pip install documenteer
 
-.. _install-technotes:
+      To use Documenteer's configurations for :doc:`specific Rubin documentation use cases </project-guides/index>`, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
 
-For technote projects:
+      .. _install-technotes:
 
-.. code-block:: sh
+      For technote projects:
 
-   pip install "documenteer[technote]"
+      .. code-block:: sh
 
-For LSST Stack projects (such as https://pipelines.lsst.io and EUPS packages):
+         pip install "documenteer[technote]"
 
-.. code-block:: sh
+      For LSST Stack projects (such as https://pipelines.lsst.io and EUPS packages):
 
-   pip install "documenteer[pipelines]"
+      .. code-block:: sh
 
-See :doc:`/pipelines/install` for more information.
+         pip install "documenteer[pipelines]"
 
-Installation with Conda
-=======================
+      See :doc:`/pipelines/install` for more information.
 
-Documenteer is available from `conda-forge`_ for Conda_ users.
-First, enable the conda-forge channel:
+   .. tab-item:: conda
 
-.. code-block:: sh
+      Documenteer is available from `conda-forge`_ for Conda_ users.
+      First, enable the conda-forge channel:
 
-   conda config --add channels conda-forge
-   conda config --set channel_priority strict
+      .. code-block:: sh
 
-To install only the core documenteer package:
+         conda config --add channels conda-forge
+         conda config --set channel_priority strict
 
-.. code-block:: sh
+      The core package provides Documenteer's :doc:`Sphinx extensions </sphinx-extensions/index>`:
 
-   conda install documenteer
+      .. code-block:: sh
 
-To install documenteer for technote projects:
+         conda install documenteer
 
-.. code-block:: sh
+      To use Documenteer's configurations for :doc:`specific Rubin documentation use cases </project-guides/index>`, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
 
-   conda-install lsst-documenteer-technote
+      To install Documenteer for technote projects:
 
-To install documenteer for LSST Stack projects (such as https://pipelines.lsst.io and EUPS packages):
+      .. code-block:: sh
 
-.. code-block:: sh
+         conda-install lsst-documenteer-technote
 
-   conda-install lsst-documenteer-pipelines
+      To install Documenteer for LSST Stack projects (such as https://pipelines.lsst.io and EUPS packages):
+
+      .. code-block:: sh
+
+         conda-install lsst-documenteer-pipelines
 
 Project guides
 ==============
