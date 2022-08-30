@@ -2,11 +2,6 @@
 Python API reference
 ####################
 
-.. contents:: Modules
-   :local:
-   :depth: 1
-   :backlinks: none
-
 .. automodapi:: documenteer.sphinxconfig.stackconf
    :no-inheritance-diagram:
 
