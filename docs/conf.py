@@ -59,9 +59,6 @@ language = "en"
 # directories to ignore when looking for source files.
 exclude_patterns = ["_build", "README.rst"]
 
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
-
 # The reST default role cross-links Python (used for this markup: `text`)
 default_role = "py:obj"
 
@@ -129,6 +126,8 @@ html_theme_options = {
         },
         {"rel": "icon", "href": "rubin-favicon.svg"},
     ],
+    "pygment_light_style": "xcode",
+    "pygment_dark_style": "github-dark",
 }
 
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
