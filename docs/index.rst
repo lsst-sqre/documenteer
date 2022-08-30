@@ -66,6 +66,17 @@ To install documenteer for LSST Stack projects (such as https://pipelines.lsst.i
 
    conda-install lsst-documenteer-pipelines
 
+Project guides
+==============
+
+Documenteer provides centralized Sphinx configuration and support for Rubin Observatory documentation projects.
+This section describes how to use Documenteer for specific types of projects, from single-page technical notes to user guides, to LSST Science Pipelines package documentation.
+
+.. toctree::
+   :maxdepth: 3
+
+   project-guides/index
+
 Sphinx extensions
 =================
 
@@ -76,26 +87,6 @@ These extensions are designed for Rubin Observatory documentation projects, but 
    :maxdepth: 2
 
    sphinx-extensions/index
-
-Pipelines projects
-==================
-
-A guide to using Documenteer for LSST Science Pipelines documentation:
-
-.. toctree::
-   :maxdepth: 2
-
-   pipelines/index
-
-Technote projects
-=================
-
-A guide to writing reStructuredText-formatted Rubin Observatory technical notes (technotes) using Sphinx and Documenteer:
-
-.. toctree::
-   :maxdepth: 2
-
-   technotes/index
 
 Developer guide
 ===============
