@@ -49,22 +49,24 @@ dev = [
     "lxml",
     "cssselect",
     # Extensions for documenteer's own docs
-    "sphinx_design",
-    "pydata-sphinx-theme>=0.10.0rc2",
-    "numpydoc",
-    "sphinx-autodoc-typehints",
-    "sphinx-automodapi",
     "sphinx-click",
     "sphinxcontrib-autoprogram",
-    "sphinx-prompt",
-    "myst-parser",
-    "markdown-it-py[linkify]",
     # Type stubs
     "types-setuptools",
     "types-requests",
     "types-PyYAML",
     "types-docutils",
     "types-mock",
+]
+guide = [
+    # Theme and extensions for Rubin user guide projects
+    "sphinx_design",
+    "pydata-sphinx-theme>=0.10.0rc2",
+    "sphinx-autodoc-typehints",
+    "sphinx-automodapi",
+    "sphinx-prompt",
+    "myst-parser",
+    "markdown-it-py[linkify]",
 ]
 technote = [
     # Theme and extensions for technotes
