@@ -1,4 +1,5 @@
-from documenteer import __version__
+from importlib.metadata import version as get_version
+
 from documenteer.conf.guide import *
 
 # General information about the project.
@@ -11,7 +12,7 @@ copyright = (
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-version = __version__
+version = get_version("documenteer")
 release = version
 
 # Intersphinx

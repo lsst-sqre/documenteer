@@ -7,5 +7,6 @@ This section describes how to use Documenteer for specific types of projects.
 
 .. toctree::
 
+   guides/index
    /technotes/index
    /pipelines/index

@@ -8,6 +8,8 @@ Documenteer
 
 Documenteer is developed on GitHub at https://github.com/lsst-sqre/documenteer.
 
+.. _installation:
+
 Installation
 ============
 
@@ -22,6 +24,12 @@ Installation
          pip install documenteer
 
       To use Documenteer's configurations for :doc:`specific Rubin documentation use cases </project-guides/index>`, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
+
+      For :doc:`Rubin user guide projects </project-guides/guides/index>`:
+
+      .. code-block:: sh
+
+         pip install "documenteer[guide]"
 
       .. _install-technotes:
 
