@@ -1,0 +1,86 @@
+/*
+ * Rubin theming for the [PyData Sphinx Theme](https://pydata-sphinx-theme.readthedocs.io/en/latest/user_guide/styling.html#)
+ * using design tokens from the [Rubin Style Dictionary](https://style-dictionary.lsst.io).
+ */
+
+/*
+ * Rubin Style Dictionary 0.3 light tokens.
+ */
+:root {
+  --rsd-color-blue-500: #1c81a4;
+  --rsd-color-gray-100: #dce0e3;
+  --rsd-color-gray-500: #6a6e6e;
+  --rsd-color-gray-800: #1f2121;
+  --rsd-color-gray-900: #000000; /* Pure black. */
+  --rsd-color-gray-000: #ffffff; /* Pure white. */
+  --rsd-color-green-500: #3cae3f;
+  --rsd-color-imagotype-light: #00babc; /* Light teal in imagotype (graphic element). */
+  --rsd-color-imagotype-dark: #058b8c; /* Dark teal in imagotype (for Observatory wordmark). */
+  --rsd-color-imagotype-black: #313333; /* Dark gray in imagotype. */
+  --rsd-color-imagotype-white: #f5f5f5; /* Imagotype white for dark backgrounds. */
+  --rsd-color-orange-500: #ed4c4c;
+  --rsd-color-primary-100: #f5f5f5;
+  --rsd-color-primary-200: #d9f7f6;
+  --rsd-color-primary-300: #b1f2ef;
+  --rsd-color-primary-400: #00babc;
+  --rsd-color-primary-500: #009fa1;
+  --rsd-color-primary-600: #058b8c;
+  --rsd-color-primary-700: #0c4a47;
+  --rsd-color-primary-800: #313333;
+  --rsd-color-purple-500: #583671;
+  --rsd-color-red-500: #ed4c4c;
+  --rsd-color-yellow-500: #ffe266;
+  --rsd-component-footer-background-color: #f5f5f5;
+  --rsd-component-header-background-color: #1f2121; /* Header background color. */
+  --rsd-component-header-nav-text-color: #ffffff;
+  --rsd-component-header-nav-text-hover-color: #00babc;
+  --rsd-component-header-nav-menulist-text-color: #1f2121;
+  --rsd-component-header-nav-menulist-background-color: #ffffff;
+  --rsd-component-header-nav-menulist-selected-background-color: #058b8c;
+  --rsd-component-page-background-color: #ffffff; /* Page background color */
+  --rsd-component-service-card-background-color: #ffffff;
+  --rsd-component-service-card-text-color: #1f2121;
+  --rsd-component-text-color: #1f2121; /* Body text color */
+  --rsd-component-text-reverse-color: #dce0e3; /* Body text color in reversed (light on dark) contexts. */
+  --rsd-component-text-link-color: #146685;
+  --rsd-component-text-link-hover-color: #1c81a4;
+  --rsd-component-text-link-reverse-color: #1c81a4; /* Link color in reversed (light on dark) contexts. */
+  --rsd-component-text-headline-color: #058b8c;
+}
+
+/*
+ * Rubin Style Dictionary 0.3 dark theme tokens.
+ */
+html[data-theme='dark'] {
+  --rsd-component-footer-background-color: #0c4a47;
+  --rsd-component-header-nav-menulist-text-color: #ffffff;
+  --rsd-component-header-nav-menulist-background-color: #058b8c;
+  --rsd-component-header-nav-menulist-selected-background-color: #0c4a47;
+  --rsd-component-page-background-color: #1f2121; /* Page background color in dark theme */
+  --rsd-component-service-card-background-color: #1f2121;
+  --rsd-component-service-card-text-color: #dce0e3;
+  --rsd-component-text-color: #dce0e3; /* Body text color in dark theme */
+  --rsd-component-text-link-color: #1c81a4;
+  --rsd-component-text-link-hover-color: #146685;
+  --rsd-component-text-headline-color: #058b8c;
+}
+
+:root {
+  --pst-font-family-base: 'Source Sans Pro', var(--pst-font-family-base-system);
+  --pst-font-family-heading: 'Source Sans Pro',
+    var(--pst-font-family-base-system);
+}
+
+html[data-theme='light'] {
+  /* Colours */
+  --pst-color-text-base: var(--rsd-component-text-color);
+  --pst-color-primary: var(--rsd-color-primary-600);
+  --pst-color-link: var(--rsd-component-text-link-color);
+  --pst-color-link-hover: var(--rsd-component-text-link-hover-color);
+}
+
+html[data-theme='dark'] {
+  /* Colours */
+  --pst-color-text-base: var(--rsd-component-text-color);
+  --pst-color-primary: var(--rsd-color-primary-500);
+}

@@ -1,6 +1,6 @@
-################################################
-Documenteer for LSST technical notes (technotes)
-################################################
+#################
+Technote projects
+#################
 
 LSST technical notes (or *technotes*) are often written in reStructuredText, especially within LSST Data Management.
 Documenteer provides centralized configuration and tooling for technotes.

@@ -49,21 +49,24 @@ dev = [
     "lxml",
     "cssselect",
     # Extensions for documenteer's own docs
-    "lsst-sphinx-bootstrap-theme",
-    "numpydoc",
-    "sphinx-autodoc-typehints",
-    "sphinx-automodapi",
     "sphinx-click",
     "sphinxcontrib-autoprogram",
-    "sphinx-prompt",
-    "myst-parser",
-    "markdown-it-py[linkify]",
     # Type stubs
     "types-setuptools",
     "types-requests",
     "types-PyYAML",
     "types-docutils",
     "types-mock",
+]
+guide = [
+    # Theme and extensions for Rubin user guide projects
+    "sphinx_design",
+    "pydata-sphinx-theme>=0.10.0rc2",
+    "sphinx-autodoc-typehints",
+    "sphinx-automodapi",
+    "sphinx-prompt",
+    "myst-parser",
+    "markdown-it-py[linkify]",
 ]
 technote = [
     # Theme and extensions for technotes
@@ -153,7 +156,6 @@ exclude_lines = [
 norecursedirs = "node_modules"
 
 [tool.pytest.ini_options]
-asyncio_mode = "strict"
 python_files = [
     "tests/*.py",
     "tests/*/*.py"

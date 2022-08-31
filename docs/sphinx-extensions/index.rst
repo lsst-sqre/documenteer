@@ -1,6 +1,6 @@
-#########################################
-Sphinx extensions provided by Documenteer
-#########################################
+#################
+Sphinx extensions
+#################
 
 .. toctree::
    :maxdepth: 2

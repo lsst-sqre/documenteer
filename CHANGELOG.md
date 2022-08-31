@@ -1,11 +1,17 @@
 # Change Log
 
-## Unreleased
+## 0.7.0 (Unreleased)
 
-- Documenteer now uses `pyproject.toml` for its packaging.
-- The GitHub Actions workflows now use SQuaRE composite workflows for many steps.
-- The README and change log are now written in Markdown.
-- Sphinx version 5 is now included in the test matrix.
+- Documenteer provides a new Sphinx configuration profile for general Rubin user guide projects, `documenteer.conf.guide`.
+  This configuration profile features the new [pydata-sphinx-theme](https://pydata-sphinx-theme.readthedocs.io/en/stable/), with customizations based on design tokens from the [Rubin Style Dictionary](https://style-dictionary.lsst.io).
+  Install `documenteer[guide]` with `pip` to get the dependencies needed for this Sphinx configuration.
+
+- Packaging updates:
+
+  - Documenteer now uses `pyproject.toml` for its packaging.
+  - The GitHub Actions workflows now use SQuaRE composite workflows for many steps.
+  - The README and change log are now written in Markdown.
+  - Sphinx version 5 is now included in the test matrix.
 
 ## 0.6.13 (2022-07-29)
 

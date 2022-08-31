@@ -18,7 +18,7 @@ To use Documenteer's configuration in a Sphinx technote project, create a :file:
 
 This configuration uses content from the :file:`metadata.yaml` file, also in the technote project, to set information such as the title and authors.
 
-.. technote-custom-conf:
+.. _technote-custom-conf:
 
 Extending your technote's configuration
 =======================================
