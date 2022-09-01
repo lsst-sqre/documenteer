@@ -8,7 +8,7 @@ EXAMPLE = """
 
 [project]
 title = "Documenteer"
-canonical_url = "https://documenteer.lsst.io"
+base_url = "https://documenteer.lsst.io"
 
 [project.python]
 package = "documenteer"
@@ -18,4 +18,4 @@ package = "documenteer"
 def test_load() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
     assert config.project == "Documenteer"
-    assert config.canonical_url == "https://documenteer.lsst.io"
+    assert config.base_url == "https://documenteer.lsst.io"

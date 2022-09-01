@@ -60,6 +60,7 @@ __all__ = [
     "html_sidebars",
     "html_title",
     "html_short_title",
+    "html_baseurl",
     "html_static_path",
     "html_css_files",
     "html_show_sourcelink",
@@ -217,6 +218,10 @@ html_title = project
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = project
+
+# The base URL of the root of the HTML documentation. This is used to set
+# the canonical URL link relation
+html_baseurl = _conf.base_url
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

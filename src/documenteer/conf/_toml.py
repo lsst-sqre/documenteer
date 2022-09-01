@@ -31,8 +31,8 @@ class ProjectModel(BaseModel):
         )
     )
 
-    canonical_url: Optional[HttpUrl] = Field(
-        description="Canonical root URL for this site."
+    base_url: Optional[HttpUrl] = Field(
+        description="Canonical URL of the site's root page."
     )
 
 
@@ -66,8 +66,11 @@ class DocumenteerConfig:
         return self.conf.project.title
 
     @property
-    def canonical_url(self) -> Optional[str]:
-        """Canonical root URL for the site, if set."""
-        if self.conf.project.canonical_url is not None:
-            return str(self.conf.project.canonical_url)
-        return None
+    def base_url(self) -> str:
+        """Base root URL for the site.
+
+        Default is ``""`` if not set.
+        """
+        if self.conf.project.base_url is not None:
+            return str(self.conf.project.base_url)
+        return ""
