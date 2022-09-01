@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sphinx.errors import ConfigError
 
-from documenteer.conf import get_asset_path
+from documenteer.conf import get_asset_path, get_template_dir
 
 
 def test_get_asset_path() -> None:
@@ -15,3 +15,12 @@ def test_get_asset_path() -> None:
     # This asset doesn't exist
     with pytest.raises(ConfigError):
         get_asset_path("_missing.svg")
+
+
+def test_get_template_dir() -> None:
+    result = get_template_dir("pydata")
+    assert result.endswith("pydata")
+
+    # This template dir doesn't exist
+    with pytest.raises(ConfigError):
+        get_asset_path("not-a-theme")
