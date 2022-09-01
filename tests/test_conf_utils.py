@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sphinx.errors import ConfigError
 
-from documenteer.conf.utils import get_asset_path
+from documenteer.conf import get_asset_path
 
 
 def test_get_asset_path() -> None:

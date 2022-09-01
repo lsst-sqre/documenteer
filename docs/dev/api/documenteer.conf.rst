@@ -2,4 +2,4 @@
 documenteer.conf
 ################
 
-.. automodapi:: documenteer.conf.utils
+.. automodapi:: documenteer.conf

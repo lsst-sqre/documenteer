@@ -8,7 +8,7 @@ containing::
 
 from typing import Any, Dict, List, Tuple, Union
 
-from documenteer.conf.utils import get_asset_path, get_template_dir
+from documenteer.conf import get_asset_path, get_template_dir
 
 # This configuration is broken down into these sections:
 #
