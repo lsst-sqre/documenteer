@@ -35,6 +35,11 @@ class ProjectModel(BaseModel):
         description="Canonical URL of the site's root page."
     )
 
+    copyright: str = Field(
+        "",
+        description="Copyright statement, without a 'copyright' prefix word.",
+    )
+
 
 class ConfigRoot(BaseModel):
     """The root model for a documenteer.toml configuration file."""
@@ -74,3 +79,11 @@ class DocumenteerConfig:
         if self.conf.project.base_url is not None:
             return str(self.conf.project.base_url)
         return ""
+
+    @property
+    def copyright(self) -> str:
+        """The copyright statement.
+
+        Default is ``""`` if not set.
+        """
+        return self.conf.project.copyright

@@ -9,6 +9,7 @@ EXAMPLE = """
 [project]
 title = "Documenteer"
 base_url = "https://documenteer.lsst.io"
+copyright = "2022 AURA"
 
 [project.python]
 package = "documenteer"
@@ -19,3 +20,4 @@ def test_load() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
     assert config.project == "Documenteer"
     assert config.base_url == "https://documenteer.lsst.io"
+    assert config.copyright == "2022 AURA"

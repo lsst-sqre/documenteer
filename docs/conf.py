@@ -2,12 +2,6 @@ from importlib.metadata import version as get_version
 
 from documenteer.conf.guide import *
 
-# General information about the project.
-copyright = (
-    "2015-2022 "
-    "Association of Universities for Research in Astronomy, Inc. (AURA)"
-)
-
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.

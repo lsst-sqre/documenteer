@@ -1,6 +1,7 @@
 [project]
 title = "Documenteer"
 base_url = "https://documenteer.lsst.io"
+copyright = "2015-2022 Association of Universities for Research in Astronomy, Inc. (AURA)"
 
 [project.python]
 package = "documenteer"

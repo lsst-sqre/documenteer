@@ -39,6 +39,7 @@ __all__ = [
     # SPHINX
     "project",
     "author",
+    "copyright",
     "source_suffix",
     "root_doc",
     "language",
@@ -118,6 +119,8 @@ extensions = [
 project = _conf.project
 
 author = "Rubin Observatory"
+
+copyright = _conf.copyright
 
 source_suffix = {
     ".rst": "restructuredtext",
