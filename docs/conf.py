@@ -3,7 +3,6 @@ from importlib.metadata import version as get_version
 from documenteer.conf.guide import *
 
 # General information about the project.
-project = "Documenteer"
 copyright = (
     "2015-2022 "
     "Association of Universities for Research in Astronomy, Inc. (AURA)"
@@ -38,14 +37,6 @@ nitpick_ignore = [
 html_theme_options["icon_links"][0][
     "url"
 ] = "https://github.com/lsst-sqre/documenteer"
-html_theme_options["logo"]["text"] = project
-
-# The name for this set of Sphinx documents.  If None, it defaults to
-# "<project> v<release> documentation".
-html_title = project
-
-# A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = project
 
 # Automodapi
 # https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html

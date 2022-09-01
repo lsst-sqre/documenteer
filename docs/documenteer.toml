@@ -1,0 +1,6 @@
+[project]
+title = "Documenteer"
+canonical_url = "https://documenteer.lsst.io"
+
+[project.python]
+package = "documenteer"

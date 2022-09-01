@@ -13,7 +13,10 @@ if sys.version_info < (3, 11):
 else:
     import tomllib
 
+from pathlib import Path
+
 from pydantic import BaseModel, Field, HttpUrl
+from sphinx.errors import ConfigError
 
 __all__ = ["ProjectModel", "ConfigRoot", "DocumenteerConfig"]
 
@@ -44,6 +47,13 @@ class DocumenteerConfig:
     """Configuration from a documenteer.toml file."""
 
     conf: ConfigRoot
+
+    @classmethod
+    def find_and_load(cls) -> DocumenteerConfig:
+        path = Path("documenteer.toml")
+        if not path.is_file:
+            raise ConfigError("Cannot find the documenteer.toml file.")
+        return cls.load(path.read_text())
 
     @classmethod
     def load(cls, toml_content: str) -> DocumenteerConfig:

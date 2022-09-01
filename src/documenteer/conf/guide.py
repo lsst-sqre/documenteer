@@ -8,7 +8,11 @@ containing::
 
 from typing import Any, Dict, List, Tuple, Union
 
-from documenteer.conf import get_asset_path, get_template_dir
+from documenteer.conf import (
+    DocumenteerConfig,
+    get_asset_path,
+    get_template_dir,
+)
 
 # This configuration is broken down into these sections:
 #
@@ -33,6 +37,7 @@ __all__ = [
     # EXT
     "extensions",
     # SPHINX
+    "project",
     "author",
     "source_suffix",
     "root_doc",
@@ -53,6 +58,8 @@ __all__ = [
     "html_theme",
     "html_theme_options",
     "html_sidebars",
+    "html_title",
+    "html_short_title",
     "html_static_path",
     "html_css_files",
     "html_show_sourcelink",
@@ -77,6 +84,8 @@ __all__ = [
     # MYST
     "myst_enable_extensions",
 ]
+
+_conf = DocumenteerConfig.find_and_load()
 
 
 # ============================================================================
@@ -104,6 +113,8 @@ extensions = [
 # ============================================================================
 # #SPHINX Core Sphinx configurations
 # ============================================================================
+
+project = _conf.project
 
 author = "Rubin Observatory"
 
@@ -181,7 +192,7 @@ html_theme_options = {
     "logo": {
         "image_light": "rubin-titlebar-imagotype-light.svg",
         "image_dark": "rubin-titlebar-imagotype-dark.svg",
-        # "text": "Documenteer",
+        "text": project,
     },
     "favicons": [
         {
@@ -202,10 +213,10 @@ html_sidebars: Dict[str, List[Any]] = {"index": [], "changelog": []}
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-# html_title = project
+html_title = project
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = project
+html_short_title = project
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
