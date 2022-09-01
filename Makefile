@@ -14,4 +14,4 @@ init:
 clean:
 	rm -rf .tox
 	rm -rf docs/_build
-	rm -rf docs/dev/api/content/*.rst
+	rm -rf docs/dev/api/contents/*.rst
