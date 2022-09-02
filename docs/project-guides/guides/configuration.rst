@@ -34,109 +34,45 @@ Create a basic conf.py Sphinx configuration file
 ================================================
 
 At the root of your project's documentation, usually the ``docs`` directory for a software project or the root of a documentation-only repository, the :file:`conf.py` file configures Sphinx.
-To use Documenteer's configuration pre-sets, import the |documenteer.conf.guide| module into it, and then override the details specifically related to your project:
+To use Documenteer's configuration pre-sets, import the |documenteer.conf.guide| module into it:
 
 .. code-block:: python
    :caption: conf.py
 
    from documenteer.conf.guide import *
 
-   # General information about the project.
-   project = "Example"
-   copyright = (
-       "2015-2022 "
-       "Association of Universities for Research in Astronomy, Inc. (AURA)"
-   )
+Create a basic documenteer.toml configuration file
+==================================================
 
-   # The version info for the project you're documenting, acts as replacement for
-   # |version| and |release|, also used in various other places throughout the
-   # built documents.
-   version = "1.0.0"
-   release = version
+In the same directory as the :file:`conf.py` file, create a file called :file:`documenteer.toml`:
 
-   # HTML theme option overrides
-   html_theme_options["icon_links"][0]["url"] = "https://github.com/lsst/example"
-   html_theme_options["logo"]["text"] = project
+.. code-block:: toml
+   :caption: documenteer.toml
 
-   # The name for this set of Sphinx documents.  If None, it defaults to
-   # "<project> v<release> documentation".
-   html_title = project
+   [project]
+   title = "Example"
+   copyright = "2015-2022 Association of Universities for Research in Astronomy, Inc. (AURA)"
+   base_url = "https://example.lsst.io"
+   github_url = "https://github.com/lsst/example"
 
-   # A shorter title for the navigation bar.  Default is the same as html_title.
-   html_short_title = project
+The information from :file:`documenteer.toml` is used by the |documenteer.conf.guide| preset to configure values in :file:`conf.py` for Sphinx.
 
-Extending the Sphinx extension
-==============================
+See :doc:`toml-reference` for more information.
 
-The basic configuration, shown above, sets up Sphinx to work well for most types of Rubin documentation projects.
-You will likely need to extend that configuration, though.
-This sections describes a few common scenarios.
+.. tip::
 
-In general, structure your customizations so that they add to the configuration presets from |documenteer.conf.guide|.
-If the configuration variable is a list or a dictionary, try to append to that list or dictionary rather than reassigning the whole variable.
+   If your project is a Python package that uses :file:`pyproject.toml`, you can skip some of this metadata.
+   See :doc:`pyproject-configuration`.
 
-Setting the version from your Python package
---------------------------------------------
+.. note::
 
-Rather than manually setting the ``version`` configuration variable, you can set it so match your Python project's version string.
-One approach is to use `importlib.metadata.version`:
+   Curious about the ``toml`` syntax? Learn more at the `official TOML website <https://toml.io/en/>`__.
+   Documenteer uses TOML for configuration to match Python's adoption of toml (such as for :file:`pyproject.toml`).
 
-.. code-block:: python
-   :caption: conf.py
+Next steps
+==========
 
-   from importlib.metadata import version as get_version
-
-   from documenteer.conf.guide import *
-
-   # The version info for the project you're documenting, acts as replacement for
-   # |version| and |release|, also used in various other places throughout the
-   # built documents.
-   version = get_version("example")
-   release = version
-
-   # ... include other conf.py configurations
-
-Change ``example`` to your Python package's name.
-
-Adding a package to Intersphinx
--------------------------------
-
-One scenario is adding additional projects to the Intersphinx_ configuration.
-For example, to add the Python standard library so that built-in Python APIs can be referenced:
-
-.. code-block:: python
-   :caption: conf.py
-
-   from documenteer.conf.guide import *
-
-   intersphinx_mapping["python"] = ("https://docs.python.org/3", None)
-
-To additionally add the LSST Science Pipelines:
-
-.. code-block:: python
-   :caption: conf.py
-
-   from documenteer.conf.guide import *
-
-   intersphinx_mapping["python"] = ("https://pipelines.lsst.io", None)
-
-Adding a Sphinx extension
--------------------------
-
-You can add additional `Sphinx extensions`_ to your Sphinx build to make use of custom reStructuredText directives and roles.
-To add a new extension, append to the ``extensions`` list:
-
-.. code-block:: python
-   :caption: conf.py
-
-   from documenteer.conf.guide import *
-
-   extensions.extend(["sphinx-click"])
-
-Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).
+- If you are setting up a Python project, see :doc:`pyproject-configuration`.
+- For additional Sphinx configuration control, see :doc:`extend-conf-py`.
 
 .. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide <configuration-preset>`
-
-.. _Sphinx extensions: https://www.sphinx-doc.org/en/master/develop.html
-
-.. _Intersphinx: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
