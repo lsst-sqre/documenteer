@@ -203,7 +203,7 @@ class DocumenteerConfig:
             return None
 
     def _get_pyproject_metadata(self, package_name: str) -> Message:
-        if sys.version_info >= (3, 10):
+        if sys.version_info >= (3, 10) or sys.version_info < (3, 8):
             pkg_metadata = cast(Message, metadata(package_name))
         else:
             pkg_metadata = metadata(package_name)
