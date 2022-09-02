@@ -40,6 +40,8 @@ __all__ = [
     "project",
     "author",
     "copyright",
+    "version",
+    "release",
     "source_suffix",
     "root_doc",
     "language",
@@ -121,6 +123,9 @@ project = _conf.project
 author = "Rubin Observatory"
 
 copyright = _conf.copyright
+
+version = _conf.version
+release = version
 
 source_suffix = {
     ".rst": "restructuredtext",

@@ -6,6 +6,7 @@ Documenteer
 
 **Sphinx extensions, configurations, and tooling for Rubin Observatory documentation projects.**
 
+This documentation is for version |version|. `Find docs for other versions. <https://documenteer.lsst.io/v>`__
 Documenteer is developed on GitHub at https://github.com/lsst-sqre/documenteer.
 
 .. _installation:

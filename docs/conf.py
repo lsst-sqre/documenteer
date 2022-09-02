@@ -1,12 +1,4 @@
-from importlib.metadata import version as get_version
-
 from documenteer.conf.guide import *
-
-# The version info for the project you're documenting, acts as replacement for
-# |version| and |release|, also used in various other places throughout the
-# built documents.
-version = get_version("documenteer")
-release = version
 
 # Intersphinx
 

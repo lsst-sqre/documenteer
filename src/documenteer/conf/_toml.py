@@ -8,6 +8,13 @@ import sys
 from dataclasses import dataclass
 from typing import Optional
 
+if sys.version_info < (3, 8):
+    from importlib_metadata import PackageNotFoundError
+    from importlib_metadata import version as get_version
+else:
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as get_version
+
 if sys.version_info < (3, 11):
     import tomli as tomllib
 else:
@@ -15,10 +22,27 @@ else:
 
 from pathlib import Path
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, ValidationError, validator
 from sphinx.errors import ConfigError
 
 __all__ = ["ProjectModel", "ConfigRoot", "DocumenteerConfig"]
+
+
+class PythonPackageModel(BaseModel):
+    """Model for a Python package (i.e. built with pyproject.toml-compatible
+    build system.
+    """
+
+    package: str = Field(description="Package name")
+
+    @validator("package")
+    def validate_package(cls, v: str) -> str:
+        """Ensure the package is importable."""
+        try:
+            get_version(v)
+        except PackageNotFoundError:
+            raise ValueError(f"The package {v!r} is not importable.")
+        return v
 
 
 class ProjectModel(BaseModel):
@@ -44,6 +68,10 @@ class ProjectModel(BaseModel):
         description="The URL of the project's GitHub repository."
     )
 
+    version: Optional[str] = Field(description="Version string.")
+
+    python: Optional[PythonPackageModel]
+
 
 class ConfigRoot(BaseModel):
     """The root model for a documenteer.toml configuration file."""
@@ -66,7 +94,14 @@ class DocumenteerConfig:
 
     @classmethod
     def load(cls, toml_content: str) -> DocumenteerConfig:
-        conf = ConfigRoot.parse_obj(tomllib.loads(toml_content))
+        try:
+            conf = ConfigRoot.parse_obj(tomllib.loads(toml_content))
+        except ValidationError as e:
+            message = (
+                f"Syntax or validation issue in documenteer.toml:\n\n"
+                f"{str(e)}"
+            )
+            raise ConfigError(message)
         return cls(conf)
 
     @property
@@ -96,3 +131,19 @@ class DocumenteerConfig:
     def github_url(self) -> Optional[str]:
         """The project's GitHub repository."""
         return self.conf.project.github_url
+
+    @property
+    def version(self) -> Optional[str]:
+        """The project's version.
+
+        If the python package is set, the version is obtained via
+        ``importlib``. Otherwise, the version is obtained from the
+        ``project.version`` field in ``documenteer.toml``.
+        """
+        if self.conf.project.python is not None:
+            # Via pydantic validation we know this works
+            return get_version(self.conf.project.python.package)
+        elif self.conf.project.version is not None:
+            return self.conf.project.version
+        else:
+            return None
