@@ -25,13 +25,6 @@ nitpick_ignore = [
     ("py:class", "pybtex.style.formatting.plain.Style"),
 ]
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options["icon_links"][0][
-    "url"
-] = "https://github.com/lsst-sqre/documenteer"
-
 # Automodapi
 # https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
 automodapi_toctreedirnm = "dev/api/contents"

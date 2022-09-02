@@ -40,6 +40,10 @@ class ProjectModel(BaseModel):
         description="Copyright statement, without a 'copyright' prefix word.",
     )
 
+    github_url: Optional[HttpUrl] = Field(
+        description="The URL of the project's GitHub repository."
+    )
+
 
 class ConfigRoot(BaseModel):
     """The root model for a documenteer.toml configuration file."""
@@ -87,3 +91,8 @@ class DocumenteerConfig:
         Default is ``""`` if not set.
         """
         return self.conf.project.copyright
+
+    @property
+    def github_url(self) -> Optional[str]:
+        """The project's GitHub repository."""
+        return self.conf.project.github_url

@@ -185,14 +185,7 @@ html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "header_links_before_dropdown": 5,
     "external_links": [{"name": "Rubin docs", "url": "https://www.lsst.io"}],
-    "icon_links": [
-        {
-            "name": "GitHub",
-            # "url": "https://github.com/lsst-sqre/documenteer",
-            "icon": "fab fa-github-square",
-            "type": "fontawesome",
-        }
-    ],
+    "icon_links": [],
     "logo": {
         "image_light": "rubin-titlebar-imagotype-light.svg",
         "image_dark": "rubin-titlebar-imagotype-dark.svg",
@@ -209,6 +202,17 @@ html_theme_options = {
     "pygment_light_style": "xcode",
     "pygment_dark_style": "github-dark",
 }
+
+if _conf.github_url:
+    assert isinstance(html_theme_options["icon_links"], list)
+    html_theme_options["icon_links"].append(
+        {
+            "name": "GitHub",
+            "url": _conf.github_url,
+            "icon": "fab fa-github-square",
+            "type": "fontawesome",
+        }
+    )
 
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
 # :html_theme.sidebar_secondary.remove: metadata to remove the sidebar
