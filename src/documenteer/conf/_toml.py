@@ -6,13 +6,14 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import Optional
+from email.message import Message
+from typing import Optional, cast
 
 if sys.version_info < (3, 8):
-    from importlib_metadata import PackageNotFoundError
+    from importlib_metadata import PackageNotFoundError, metadata
     from importlib_metadata import version as get_version
 else:
-    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import PackageNotFoundError, metadata
     from importlib.metadata import version as get_version
 
 if sys.version_info < (3, 11):
@@ -34,6 +35,25 @@ class PythonPackageModel(BaseModel):
     """
 
     package: str = Field(description="Package name")
+
+    documentation_url_key: str = Field(
+        "Homepage",
+        description=(
+            "Key for the documentation URL in the pyproject.toml "
+            "[project.urls] table. The corresponding URL is used for "
+            "the Sphinx html_baseurl configuration, which in turns sets the "
+            "canonical URL link relation on the web pages."
+        ),
+    )
+
+    github_url_key: str = Field(
+        "Source",
+        description=(
+            "Key for the documentation URL in the pyproject.toml "
+            "[project.urls] table. The corresponding URL is used for "
+            "as an alternative to setting [project.github_url]."
+        ),
+    )
 
     @validator("package")
     def validate_package(cls, v: str) -> str:
@@ -113,10 +133,25 @@ class DocumenteerConfig:
     def base_url(self) -> str:
         """Base root URL for the site.
 
-        Default is ``""`` if not set.
+        The URL is obtained in this order:
+
+        1. The ``base_url`` field of the ``[project]`` table in
+           documenteer.toml.
+        2. From importlib.metadata if `[project.python]` is set in
+           documenteer.toml.
+        3. Default is "".
         """
         if self.conf.project.base_url is not None:
             return str(self.conf.project.base_url)
+        elif self.conf.project.python is not None:
+            package_name = self.conf.project.python.package
+            pyproject_meta = self._get_pyproject_metadata(package_name)
+            url = self._get_pyproject_url(
+                pyproject_meta, self.conf.project.python.documentation_url_key
+            )
+            if url is None:
+                return ""
+            return url
         return ""
 
     @property
@@ -129,21 +164,61 @@ class DocumenteerConfig:
 
     @property
     def github_url(self) -> Optional[str]:
-        """The project's GitHub repository."""
-        return self.conf.project.github_url
+        """The project's GitHub repository.
+
+        The GitHub URL is obtained in this order:
+
+        1. The project.github_url field in ``documenteer.toml``
+        2. From importlib if the project.python table is set
+        3. Default is None.
+        """
+        if self.conf.project.github_url is not None:
+            # User explicitly set the github URL
+            return self.conf.project.github_url
+        elif self.conf.project.python is not None:
+            package_name = self.conf.project.python.package
+            pyproject_meta = self._get_pyproject_metadata(package_name)
+            url = self._get_pyproject_url(
+                pyproject_meta, self.conf.project.python.github_url_key
+            )
+            return url
+        return None
 
     @property
     def version(self) -> Optional[str]:
         """The project's version.
 
-        If the python package is set, the version is obtained via
-        ``importlib``. Otherwise, the version is obtained from the
-        ``project.version`` field in ``documenteer.toml``.
+        The version is obtained in this order:
+
+        1. project.version field in ``documenteer.toml``
+        2. From importlib if the project.python table is set
+        3. Default is None.
         """
-        if self.conf.project.python is not None:
+        if self.conf.project.version is not None:
+            return self.conf.project.version
+        elif self.conf.project.python is not None:
             # Via pydantic validation we know this works
             return get_version(self.conf.project.python.package)
-        elif self.conf.project.version is not None:
-            return self.conf.project.version
         else:
             return None
+
+    def _get_pyproject_metadata(self, package_name: str) -> Message:
+        if sys.version_info >= (3, 10):
+            pkg_metadata = cast(Message, metadata(package_name))
+        else:
+            pkg_metadata = metadata(package_name)
+        return pkg_metadata
+
+    def _get_pyproject_url(
+        self, pkg_metadata: Message, label: str
+    ) -> Optional[str]:
+        """Get a URL from a python package's metadata.
+
+        Label corresponds to a field under [project.urls] in project.toml.
+        """
+        prefix = f"{label}, "
+        for key, value in pkg_metadata.items():
+            if key == "Project-URL":
+                if value.startswith(prefix):
+                    return value[len(prefix) :]
+        return None

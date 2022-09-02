@@ -14,12 +14,11 @@ title = "Documenteer"
 base_url = "https://documenteer.lsst.io"
 copyright = "2022 AURA"
 github_url = "https://github.com/lsst-sqre/documenteer"
-
-[project.python]
-package = "documenteer"
+version = "1.0.0"
 """
 
 EXAMPLE_BAD_PACKAGE = """
+[project]
 title = "Documenteer"
 base_url = "https://documenteer.lsst.io"
 copyright = "2022 AURA"
@@ -29,6 +28,16 @@ github_url = "https://github.com/lsst-sqre/documenteer"
 package = "notapackage"
 """
 
+EXAMPLE_PYTHON = """
+
+[project]
+title = "Documenteer"
+copyright = "2022 AURA"
+
+[project.python]
+package = "documenteer"
+"""
+
 
 def test_load() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
@@ -36,9 +45,18 @@ def test_load() -> None:
     assert config.base_url == "https://documenteer.lsst.io"
     assert config.copyright == "2022 AURA"
     assert config.github_url == "https://github.com/lsst-sqre/documenteer"
-    assert config.version is not None
+    assert config.version == "1.0.0"
 
 
 def test_bad_package() -> None:
     with pytest.raises(ConfigError):
         DocumenteerConfig.load(EXAMPLE_BAD_PACKAGE)
+
+
+def test_python_metadata() -> None:
+    config = DocumenteerConfig.load(EXAMPLE_PYTHON)
+    assert config.project == "Documenteer"
+    assert config.base_url == "https://documenteer.lsst.io"
+    assert config.copyright == "2022 AURA"
+    assert config.github_url == "https://github.com/lsst-sqre/documenteer"
+    assert isinstance(config.version, str)
