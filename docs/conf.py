@@ -20,10 +20,3 @@ nitpick_ignore = [
 # Automodapi
 # https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
 automodapi_toctreedirnm = "dev/api/contents"
-
-# ReStructuredText epilog for common links/substitutions =====================
-rst_epilog = """
-
-.. _conda-forge: https://conda-forge.org
-.. _conda: https://conda.io/en/latest/index.html
-"""

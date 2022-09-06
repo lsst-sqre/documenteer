@@ -124,6 +124,37 @@ github\_url\_key
 By default the :ref:`guide-project-github-url` is detected from the ``Source`` field in the ``[project.urls]`` table of :file:`pyproject.toml`.
 If your GitHub repository's URL is associated with a different field label, set that with ``github_url_key``.
 
+[sphinx]
+========
+
+|optional|
+
+This ``[sphinx]`` table allows you to set a number of Sphinx configurations that you would normally set through the :file:`conf.py` file.
+
+rst_epilog_file
+---------------
+
+|optional|
+
+Set this as a path to a reStructuredText file (relative to :file:`documenteer.toml` and :file:`conf.py`) containing substitutions and link targets that are available to all documentation pages.
+This configuration sets Sphinx's ``rst_epilog`` configuration.
+If set, the file is also included in the Sphinx source ignore list to prevent it from becoming a standalone page.
+
+.. code-block:: toml
+   :caption: documenteer.toml
+
+    [sphinx]
+    rst_epilog_file = "_rst_epilog.rst"
+
+.. code-block:: rst
+   :caption: _rst_epilog.rst
+
+   .. _Astropy Project: https://www.astropy.org
+
+   .. |required| replace:: :bdg-primary-line:`Required`
+   .. |optional| replace:: :bdg-secondary-line:`Optional`
+
+
 .. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide <configuration-preset>`
 .. |required| replace:: :bdg-primary-line:`Required`
 .. |optional| replace:: :bdg-secondary-line:`Optional`
