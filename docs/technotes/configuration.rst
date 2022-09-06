@@ -65,10 +65,6 @@ To add a new extension, append to the ``extensions`` list:
 
 Remember that if an additional package needs to be installed, add that dependency to the technote's :file:`requirements.txt` file.
 
-.. _Sphinx extensions: https://www.sphinx-doc.org/en/master/develop.html
-
-.. _Intersphinx: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
-
 .. _technote-conf-source:
 
 Configuration source reference

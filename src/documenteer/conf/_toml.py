@@ -23,7 +23,14 @@ else:
 
 from pathlib import Path
 
-from pydantic import BaseModel, Field, HttpUrl, ValidationError, validator
+from pydantic import (
+    BaseModel,
+    Field,
+    FilePath,
+    HttpUrl,
+    ValidationError,
+    validator,
+)
 from sphinx.errors import ConfigError
 
 __all__ = ["ProjectModel", "ConfigRoot", "DocumenteerConfig"]
@@ -93,10 +100,23 @@ class ProjectModel(BaseModel):
     python: Optional[PythonPackageModel]
 
 
+class SphinxModel(BaseModel):
+    """Model for Sphinx configurations in documenteer.toml."""
+
+    rst_epilog_file: Optional[FilePath] = Field(
+        description=(
+            "Path to a reStructuredText file that is added to every source "
+            "file. Use this file to define common links and substitutions."
+        )
+    )
+
+
 class ConfigRoot(BaseModel):
     """The root model for a documenteer.toml configuration file."""
 
     project: ProjectModel
+
+    sphinx: Optional[SphinxModel] = None
 
 
 @dataclass
@@ -201,6 +221,24 @@ class DocumenteerConfig:
             return get_version(self.conf.project.python.package)
         else:
             return None
+
+    @property
+    def rst_epilog_path(self) -> Optional[Path]:
+        """Path to the user's reStructuredText epilog file, if set."""
+        if self.conf.sphinx and self.conf.sphinx.rst_epilog_file is not None:
+            return Path(self.conf.sphinx.rst_epilog_file)
+        else:
+            return None
+
+    @property
+    def rst_epilog(self) -> str:
+        """Content of the user's reStructuredText epilog, or an empty string
+        if not set.
+        """
+        if self.rst_epilog_path is None:
+            return ""
+        else:
+            return self.rst_epilog_path.read_text()
 
     def _get_pyproject_metadata(self, package_name: str) -> Message:
         if sys.version_info >= (3, 10) or sys.version_info < (3, 8):

@@ -6,3 +6,6 @@ github_url = "https://github.com/lsst-sqre/documenteer"
 
 [project.python]
 package = "documenteer"
+
+[sphinx]
+rst_epilog_file = "_rst_epilog.rst"

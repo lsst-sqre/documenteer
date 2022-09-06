@@ -182,12 +182,3 @@ Documentation
 
 - Follow the `LSST DM ReStructuredTextStyle Guide`_.
   In particular, ensure that prose is written **one-sentence-per-line** for better Git diffs.
-
-.. _`LSST DM User Documentation Style Guide`: https://developer.lsst.io/user-docs/index.html
-.. _`Google Developer Style Guide`: https://developers.google.com/style/
-.. _`LSST DM Docstring Style Guide`: https://developer.lsst.io/python/style.html
-.. _`LSST DM ReStructuredTextStyle Guide`: https://developer.lsst.io/restructuredtext/style.html
-.. _black: https://black.readthedocs.io/en/stable/
-.. _isort: https://pycqa.github.io/isort/
-.. _pytest: https://pytest.org
-.. _pre-commit: https://pre-commit.com

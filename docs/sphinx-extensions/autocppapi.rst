@@ -7,9 +7,6 @@ The autocppapi extension for listing Doxylink C++ APIs through Doxylink
 Documenteer provides an :dir:`autocppapi` directive that serves a similar role as automodapi_, but instead provides a listing of APIs in a C++ namespace.
 The :dir:`autocppapi` works with Doxylink_ to link to APIs in a Doxygen site.
 
-.. _automodapi: https://sphinx-automodapi.readthedocs.io/en/latest/
-.. _Doxylink: https://sphinxcontrib-doxylink.readthedocs.io/en/stable/
-
 To use this directive, add the ``documenteer.ext.autocppapi`` extension to your :file:`conf.py` file:
 
 .. code-block:: python

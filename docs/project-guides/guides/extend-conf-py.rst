@@ -45,10 +45,3 @@ To add a new extension, append to the ``extensions`` list:
    extensions.extend(["sphinx-click"])
 
 Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).
-
-
-.. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide <configuration-preset>`
-
-.. _Sphinx extensions: https://www.sphinx-doc.org/en/master/develop.html
-
-.. _Intersphinx: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html

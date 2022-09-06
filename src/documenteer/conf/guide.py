@@ -49,6 +49,7 @@ __all__ = [
     "default_role",
     "nitpick_ignore",
     "templates_path",
+    "rst_epilog",
     # INTER
     "intersphinx_mapping",
     "intersphinx_timeout",
@@ -141,6 +142,9 @@ language = "en"
 # directories to ignore when looking for source files.
 exclude_patterns = ["_build", "README.rst", "README.md"]
 
+if _conf.rst_epilog_path:
+    exclude_patterns.append(str(_conf.rst_epilog_path))
+
 # The reST default role cross-links Python (used for this markup: `text`)
 default_role = "py:obj"
 
@@ -150,6 +154,9 @@ nitpick_ignore: List[Tuple[str, str]] = []
 # A list of paths that contain extra templates (or templates that overwrite
 # builtin/theme-specific templates).
 templates_path = [get_template_dir("pydata")]
+
+# Common reStructuredText substitutions and links
+rst_epilog = _conf.rst_epilog
 
 # ============================================================================
 # #INTER Intersphinx configuration
