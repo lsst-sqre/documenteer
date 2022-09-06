@@ -1,19 +1,4 @@
-from importlib.metadata import version as get_version
-
 from documenteer.conf.guide import *
-
-# General information about the project.
-project = "Documenteer"
-copyright = (
-    "2015-2022 "
-    "Association of Universities for Research in Astronomy, Inc. (AURA)"
-)
-
-# The version info for the project you're documenting, acts as replacement for
-# |version| and |release|, also used in various other places throughout the
-# built documents.
-version = get_version("documenteer")
-release = version
 
 # Intersphinx
 
@@ -31,21 +16,6 @@ nitpick_ignore = [
     # in pybtex's intersphinx'd API reference.
     ("py:class", "pybtex.style.formatting.plain.Style"),
 ]
-
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options["icon_links"][0][
-    "url"
-] = "https://github.com/lsst-sqre/documenteer"
-html_theme_options["logo"]["text"] = project
-
-# The name for this set of Sphinx documents.  If None, it defaults to
-# "<project> v<release> documentation".
-html_title = project
-
-# A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = project
 
 # Automodapi
 # https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html

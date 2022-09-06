@@ -8,7 +8,11 @@ containing::
 
 from typing import Any, Dict, List, Tuple, Union
 
-from documenteer.conf.utils import get_asset_path, get_template_dir
+from documenteer.conf import (
+    DocumenteerConfig,
+    get_asset_path,
+    get_template_dir,
+)
 
 # This configuration is broken down into these sections:
 #
@@ -33,7 +37,11 @@ __all__ = [
     # EXT
     "extensions",
     # SPHINX
+    "project",
     "author",
+    "copyright",
+    "version",
+    "release",
     "source_suffix",
     "root_doc",
     "language",
@@ -53,6 +61,9 @@ __all__ = [
     "html_theme",
     "html_theme_options",
     "html_sidebars",
+    "html_title",
+    "html_short_title",
+    "html_baseurl",
     "html_static_path",
     "html_css_files",
     "html_show_sourcelink",
@@ -77,6 +88,8 @@ __all__ = [
     # MYST
     "myst_enable_extensions",
 ]
+
+_conf = DocumenteerConfig.find_and_load()
 
 
 # ============================================================================
@@ -105,7 +118,14 @@ extensions = [
 # #SPHINX Core Sphinx configurations
 # ============================================================================
 
+project = _conf.project
+
 author = "Rubin Observatory"
+
+copyright = _conf.copyright
+
+version = _conf.version
+release = version
 
 source_suffix = {
     ".rst": "restructuredtext",
@@ -170,18 +190,11 @@ html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "header_links_before_dropdown": 5,
     "external_links": [{"name": "Rubin docs", "url": "https://www.lsst.io"}],
-    "icon_links": [
-        {
-            "name": "GitHub",
-            # "url": "https://github.com/lsst-sqre/documenteer",
-            "icon": "fab fa-github-square",
-            "type": "fontawesome",
-        }
-    ],
+    "icon_links": [],
     "logo": {
         "image_light": "rubin-titlebar-imagotype-light.svg",
         "image_dark": "rubin-titlebar-imagotype-dark.svg",
-        # "text": "Documenteer",
+        "text": project,
     },
     "favicons": [
         {
@@ -195,6 +208,17 @@ html_theme_options = {
     "pygment_dark_style": "github-dark",
 }
 
+if _conf.github_url:
+    assert isinstance(html_theme_options["icon_links"], list)
+    html_theme_options["icon_links"].append(
+        {
+            "name": "GitHub",
+            "url": _conf.github_url,
+            "icon": "fab fa-github-square",
+            "type": "fontawesome",
+        }
+    )
+
 # in pydata-sphinx-theme 0.10.0 it'll be possible to use
 # :html_theme.sidebar_secondary.remove: metadata to remove the sidebar
 # for a specific page instead
@@ -202,10 +226,14 @@ html_sidebars: Dict[str, List[Any]] = {"index": [], "changelog": []}
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-# html_title = project
+html_title = project
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = project
+html_short_title = project
+
+# The base URL of the root of the HTML documentation. This is used to set
+# the canonical URL link relation
+html_baseurl = _conf.base_url
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

@@ -6,8 +6,28 @@ Rubin user guide websites
 At Rubin Observatory, every software package, web service, and even data release has a corresponding user guide.
 Documenteer provides a configuration profile for creating branded user guides with `Sphinx <https://sphinx-doc.org>`.
 
+First steps
+===========
+
 .. toctree::
    :maxdepth: 2
 
    configuration
+
+Advanced configuration details
+==============================
+
+.. toctree::
+   :maxdepth: 2
+
+   pyproject-configuration
+   extend-conf-py
+
+Configuration reference
+=======================
+
+.. toctree::
+   :maxdepth: 2
+
+   toml-reference
    configuration-preset

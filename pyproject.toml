@@ -35,7 +35,9 @@ dependencies = [
     "requests",
     "click",
     "sphinxcontrib-bibtex>=2.0.0",  # for pybtex plugin; bibtex_bibfiles config is required.
-    "importlib_metadata; python_version < \"3.8\""
+    "importlib_metadata; python_version < \"3.8\"",
+    "tomli; python_version < \"3.11\"",
+    "pydantic",
 ]
 
 [project.optional-dependencies]
@@ -61,7 +63,7 @@ dev = [
 guide = [
     # Theme and extensions for Rubin user guide projects
     "sphinx_design",
-    "pydata-sphinx-theme>=0.10.0rc2",
+    "pydata-sphinx-theme>=0.10.0",
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
     "sphinx-prompt",
