@@ -114,9 +114,3 @@ The available types are:
 .. seealso::
 
    For more information, see the reference documentation for the :doc:`stack-docs command <stack-docs-cli>`.
-
-.. _`pipelines.lsst.io`: https://pipelines.lsst.io
-.. _pipelines_lsst_io: https://github.com/lsst/pipelines_lsst_io
-.. _Doxygen: http://www.doxygen.nl
-.. _doxylink: https://pythonhosted.org/sphinxcontrib-doxylink/
-.. _`#dm-docs`: https://lsstc.slack.com/archives/C2B6DQBAL

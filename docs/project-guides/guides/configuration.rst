@@ -74,5 +74,3 @@ Next steps
 
 - If you are setting up a Python project, see :doc:`pyproject-configuration`.
 - For additional Sphinx configuration control, see :doc:`extend-conf-py`.
-
-.. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide <configuration-preset>`

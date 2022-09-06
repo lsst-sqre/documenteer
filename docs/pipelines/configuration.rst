@@ -82,5 +82,3 @@ documenteer.conf.pipelinespkg source
 ------------------------------------
 
 .. literalinclude:: ../../src/documenteer/conf/pipelinespkg.py
-
-.. _pipelines.lsst.io: https://pipelines.lsst.io

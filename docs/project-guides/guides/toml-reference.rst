@@ -153,9 +153,3 @@ If set, the file is also included in the Sphinx source ignore list to prevent it
 
    .. |required| replace:: :bdg-primary-line:`Required`
    .. |optional| replace:: :bdg-secondary-line:`Optional`
-
-
-.. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide <configuration-preset>`
-.. |required| replace:: :bdg-primary-line:`Required`
-.. |optional| replace:: :bdg-secondary-line:`Optional`
-.. |py-auto| replace:: :bdg-info-line:`Auto set by project.python`
