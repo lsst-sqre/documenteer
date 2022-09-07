@@ -184,6 +184,7 @@ linkcheck_ignore = [
     r"^https://jira.lsstcorp.org/browse/",
     r"^https://ls.st/",
 ]
+_conf.append_linkcheck_ignore(linkcheck_ignore)
 
 linkcheck_timeout = 15
 

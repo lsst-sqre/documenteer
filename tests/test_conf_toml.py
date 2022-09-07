@@ -28,6 +28,11 @@ extensions = [
 sphinx = "https://www.sphinx-doc.org/en/master/"
 documenteer = "https://documenteer.lsst.io"
 python = "https://docs.python.org/3/"
+
+[sphinx.linkcheck]
+ignore = [
+    "^https://confluence.lsstcorp.org/"
+]
 """
 
 EXAMPLE_BAD_PACKAGE = """
@@ -105,3 +110,18 @@ def test_append_intersphinx_projects() -> None:
         "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
         "documenteer": ("https://documenteer.lsst.io", None),
     }
+
+
+def test_append_linkcheck_ignore() -> None:
+    config = DocumenteerConfig.load(EXAMPLE)
+
+    linkcheck_ignore = [
+        r"^https://jira.lsstcorp.org/browse/",
+        r"^https://ls.st/",
+    ]
+    config.append_linkcheck_ignore(linkcheck_ignore)
+    assert linkcheck_ignore == [
+        r"^https://jira.lsstcorp.org/browse/",
+        r"^https://ls.st/",
+        r"^https://confluence.lsstcorp.org/",
+    ]

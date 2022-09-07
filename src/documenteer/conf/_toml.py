@@ -108,6 +108,15 @@ class IntersphinxModel(BaseModel):
     )
 
 
+class LinkCheckModel(BaseModel):
+    """Model for linkcheck builder configurations in documenteer.toml."""
+
+    ignore: List[str] = Field(
+        description="Regular expressions of URLs to skip checking links",
+        default_factory=list,
+    )
+
+
 class SphinxModel(BaseModel):
     """Model for Sphinx configurations in documenteer.toml."""
 
@@ -123,6 +132,8 @@ class SphinxModel(BaseModel):
     )
 
     intersphinx: Optional[IntersphinxModel]
+
+    linkcheck: Optional[LinkCheckModel]
 
 
 class ConfigRoot(BaseModel):
@@ -295,3 +306,10 @@ class DocumenteerConfig:
         ):
             for project, url in self.conf.sphinx.intersphinx.projects.items():
                 mapping[project] = (str(url), None)
+
+    def append_linkcheck_ignore(self, link_patterns: List[str]) -> None:
+        """Append URL patterns for sphinx.linkcheck.ignore to existing
+        patterns.
+        """
+        if self.conf.sphinx and self.conf.sphinx.linkcheck:
+            link_patterns.extend(self.conf.sphinx.linkcheck.ignore)

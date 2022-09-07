@@ -188,3 +188,18 @@ The values are URLs to the root of Sphinx documentation projects.
    python = "https://docs.python.org/3/"
 
 See the Intersphinx_ documentation for details on linking to other Sphinx projects.
+
+[sphinx.linkcheck]
+==================
+
+|optional|
+
+Configurations related to Sphinx's linkcheck_ builder.
+
+ignore
+------
+
+|optional|
+
+List of URL regular expressions patterns to ignore checking.
+These are appended to the ``linkcheck_ignore`` configuration.

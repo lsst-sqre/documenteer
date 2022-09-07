@@ -37,6 +37,7 @@
 .. _pre-commit: https://pre-commit.com
 .. _pytest: https://pytest.org
 .. _toctree: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree
+.. _linkcheck: https://www.sphinx-doc.org/en/master/usage/configuration.html?#options-for-the-linkcheck-builder
 
 .. Internal links
 
