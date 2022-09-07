@@ -32,7 +32,6 @@
 .. _breathe: http://breathe.readthedocs.io/en/latest/index.html
 .. _conda-forge: https://conda-forge.org
 .. _conda: https://conda.io/en/latest/index.html
-.. _doxylink: https://pythonhosted.org/sphinxcontrib-doxylink/
 .. _isort: https://pycqa.github.io/isort/
 .. _numpydoc: https://numpydoc.readthedocs.io/en/latest/index.html
 .. _pre-commit: https://pre-commit.com
