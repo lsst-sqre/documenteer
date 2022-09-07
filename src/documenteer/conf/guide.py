@@ -114,6 +114,7 @@ extensions = [
     "sphinx_automodapi.smart_resolver",
     "documenteer.sphinxext",
 ]
+_conf.append_extensions(extensions)
 
 # ============================================================================
 # #SPHINX Core Sphinx configurations

@@ -131,6 +131,16 @@ If your GitHub repository's URL is associated with a different field label, set 
 
 This ``[sphinx]`` table allows you to set a number of Sphinx configurations that you would normally set through the :file:`conf.py` file.
 
+extensions
+----------
+
+|optional|
+
+A list of Sphinx extensions to append to the extensions included in the Documenteer configuration preset (see |documenteer.conf.guide|).
+Duplicate extensions are ignored.
+
+Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).
+
 rst_epilog_file
 ---------------
 

@@ -30,18 +30,3 @@ To additionally add the LSST Science Pipelines:
    from documenteer.conf.guide import *
 
    intersphinx_mapping["python"] = ("https://pipelines.lsst.io", None)
-
-Adding a Sphinx extension
--------------------------
-
-You can add additional `Sphinx extensions`_ to your Sphinx build to make use of custom reStructuredText directives and roles.
-To add a new extension, append to the ``extensions`` list:
-
-.. code-block:: python
-   :caption: conf.py
-
-   from documenteer.conf.guide import *
-
-   extensions.extend(["sphinx-click"])
-
-Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).

@@ -15,6 +15,12 @@ base_url = "https://documenteer.lsst.io"
 copyright = "2022 AURA"
 github_url = "https://github.com/lsst-sqre/documenteer"
 version = "1.0.0"
+
+[sphinx]
+extensions = [
+    "sphinx_design",
+    "new_extension",
+]
 """
 
 EXAMPLE_BAD_PACKAGE = """
@@ -60,3 +66,21 @@ def test_python_metadata() -> None:
     assert config.copyright == "2022 AURA"
     assert config.github_url == "https://github.com/lsst-sqre/documenteer"
     assert isinstance(config.version, str)
+
+
+def test_append_extensions() -> None:
+    """Test DocumenteerConfig.append_extensions()."""
+    config = DocumenteerConfig.load(EXAMPLE)
+
+    existing_extensions = [
+        "sphinx_design",
+        "sphinx.ext.autodoc",
+        "documenteer.sphinxext",
+    ]
+    config.append_extensions(existing_extensions)
+    assert existing_extensions == [
+        "sphinx_design",
+        "sphinx.ext.autodoc",
+        "documenteer.sphinxext",
+        "new_extension",
+    ]

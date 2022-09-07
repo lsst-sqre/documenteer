@@ -7,7 +7,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from email.message import Message
-from typing import Optional, cast
+from typing import List, Optional, cast
 
 if sys.version_info < (3, 8):
     from importlib_metadata import PackageNotFoundError, metadata
@@ -108,6 +108,10 @@ class SphinxModel(BaseModel):
             "Path to a reStructuredText file that is added to every source "
             "file. Use this file to define common links and substitutions."
         )
+    )
+
+    extensions: List[str] = Field(
+        description="Additional Sphinx extension.", default_factory=list
     )
 
 
@@ -260,3 +264,10 @@ class DocumenteerConfig:
                 if value.startswith(prefix):
                     return value[len(prefix) :]
         return None
+
+    def append_extensions(self, extensions: List[str]) -> None:
+        """Append user-configured extensions to an existing list."""
+        if self.conf.sphinx:
+            for new_ext in self.conf.sphinx.extensions:
+                if new_ext not in extensions:
+                    extensions.append(new_ext)
