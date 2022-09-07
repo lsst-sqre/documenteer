@@ -9,3 +9,10 @@ package = "documenteer"
 
 [sphinx]
 rst_epilog_file = "_rst_epilog.rst"
+
+[sphinx.intersphinx.projects]
+python = "https://docs.python.org/3/"
+requests = "https://requests.readthedocs.io/en/latest/"
+developer = "https://developer.lsst.io/"
+pybtex = "https://docs.pybtex.org/"
+sphinx = "https://www.sphinx-doc.org/en/master/"
