@@ -6,27 +6,29 @@ The basic configurations, through :file:`documenteer.toml` and |documenteer.conf
 You will likely need to extend that configuration, though.
 This page describes a few common scenarios.
 
-In general, structure your customizations so that they add to the configuration presets from |documenteer.conf.guide|.
-If the configuration variable is a list or a dictionary, try to append to that list or dictionary rather than reassigning the whole variable.
+Using the [sphinx] table in documenteer.toml
+============================================
 
-Adding a package to Intersphinx
--------------------------------
+Before editing :file:`conf.py`, check the :doc:`toml-reference` to see if there's support for a particular Sphinx configuration.
+For example, the ``[sphinx]`` table includes support for adding Sphinx extensions, adding projects to the Intersphinx_ mapping, among other capabilities.
 
-One scenario is adding additional projects to the Intersphinx_ configuration.
-For example, to add the Python standard library so that built-in Python APIs can be referenced:
+If the configuration isn't supported by :file:`documenteer.toml`, you can edit the Sphinx :file:`conf.py` configuration file directly.
+
+Editing conf.py
+===============
+
+When Sphinx runs, the :file:`conf.py` configuration file is "executed" so that all variables in the global namespace become Sphinx configurations.
+The |documenteer.conf.guide| configuration presets populate the global namespace.
+Therefore you can add or edit those configurations by setting variables after the import of |documenteer.conf.guide|.
+
+For example, to change the number of times the linkcheck builder will try a URL:
 
 .. code-block:: python
    :caption: conf.py
 
    from documenteer.conf.guide import *
 
-   intersphinx_mapping["python"] = ("https://docs.python.org/3", None)
+   linkcheck_retries = 2
 
-To additionally add the LSST Science Pipelines:
-
-.. code-block:: python
-   :caption: conf.py
-
-   from documenteer.conf.guide import *
-
-   intersphinx_mapping["python"] = ("https://pipelines.lsst.io", None)
+See the `list of Sphinx configuration in the Sphinx documentation <https://www.sphinx-doc.org/en/master/usage/configuration.html>`__.
+Extensions can also declare additional configurations, see their documentation for listings.

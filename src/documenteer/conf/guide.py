@@ -165,7 +165,8 @@ rst_epilog = _conf.rst_epilog
 
 # Example entry:
 #   "python": ("https://docs.python.org/3/", None),
-intersphinx_mapping: Dict[str, Tuple[Union[str, None]]] = {}
+intersphinx_mapping: Dict[str, Tuple[str, Union[str, None]]] = {}
+_conf.extend_intersphinx_mapping(intersphinx_mapping)
 
 intersphinx_timeout = 10.0  # seconds
 

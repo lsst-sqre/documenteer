@@ -163,3 +163,28 @@ If set, the file is also included in the Sphinx source ignore list to prevent it
 
    .. |required| replace:: :bdg-primary-line:`Required`
    .. |optional| replace:: :bdg-secondary-line:`Optional`
+
+[sphinx.intersphinx]
+====================
+
+|optional|
+
+Configurations related to Intersphinx_ for linking to other Sphinx projects.
+
+[sphinx.intersphinx.projects]
+=============================
+
+|optional|
+
+A table of Sphinx projects.
+The labels are targets for the :external+sphinx:rst:role:`external` role.
+The values are URLs to the root of Sphinx documentation projects.
+
+.. code-block:: toml
+
+   [sphinx.intersphinx.projects]
+   sphinx = "https://www.sphinx-doc.org/en/master/"
+   documenteer = "https://documenteer.lsst.io"
+   python = "https://docs.python.org/3/"
+
+See the Intersphinx_ documentation for details on linking to other Sphinx projects.

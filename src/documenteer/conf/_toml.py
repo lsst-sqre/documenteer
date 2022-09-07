@@ -7,7 +7,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from email.message import Message
-from typing import List, Optional, cast
+from typing import Dict, List, MutableMapping, Optional, Tuple, Union, cast
 
 if sys.version_info < (3, 8):
     from importlib_metadata import PackageNotFoundError, metadata
@@ -100,6 +100,14 @@ class ProjectModel(BaseModel):
     python: Optional[PythonPackageModel]
 
 
+class IntersphinxModel(BaseModel):
+    """Model for Intersphinx configurations in documenteer.toml."""
+
+    projects: Dict[str, HttpUrl] = Field(
+        description="Mapping of projects and their URLs.", default_factory=dict
+    )
+
+
 class SphinxModel(BaseModel):
     """Model for Sphinx configurations in documenteer.toml."""
 
@@ -113,6 +121,8 @@ class SphinxModel(BaseModel):
     extensions: List[str] = Field(
         description="Additional Sphinx extension.", default_factory=list
     )
+
+    intersphinx: Optional[IntersphinxModel]
 
 
 class ConfigRoot(BaseModel):
@@ -271,3 +281,17 @@ class DocumenteerConfig:
             for new_ext in self.conf.sphinx.extensions:
                 if new_ext not in extensions:
                     extensions.append(new_ext)
+
+    def extend_intersphinx_mapping(
+        self, mapping: MutableMapping[str, Tuple[str, Union[str, None]]]
+    ) -> None:
+        """Extend the ``intersphinx_mapping`` dictionary with configured
+        projects.
+        """
+        if (
+            self.conf.sphinx
+            and self.conf.sphinx.intersphinx
+            and self.conf.sphinx.intersphinx.projects
+        ):
+            for project, url in self.conf.sphinx.intersphinx.projects.items():
+                mapping[project] = (str(url), None)

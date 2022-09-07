@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Dict, Tuple, Union
+
 import pytest
 from sphinx.errors import ConfigError
 
@@ -21,6 +23,11 @@ extensions = [
     "sphinx_design",
     "new_extension",
 ]
+
+[sphinx.intersphinx.projects]
+sphinx = "https://www.sphinx-doc.org/en/master/"
+documenteer = "https://documenteer.lsst.io"
+python = "https://docs.python.org/3/"
 """
 
 EXAMPLE_BAD_PACKAGE = """
@@ -84,3 +91,17 @@ def test_append_extensions() -> None:
         "documenteer.sphinxext",
         "new_extension",
     ]
+
+
+def test_append_intersphinx_projects() -> None:
+    config = DocumenteerConfig.load(EXAMPLE)
+
+    projects: Dict[str, Tuple[str, Union[str, None]]] = {
+        "python": ("https://docs.python.org/3/", None),
+    }
+    config.extend_intersphinx_mapping(projects)
+    assert projects == {
+        "python": ("https://docs.python.org/3/", None),
+        "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
+        "documenteer": ("https://documenteer.lsst.io", None),
+    }
