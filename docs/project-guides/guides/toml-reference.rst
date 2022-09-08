@@ -131,6 +131,79 @@ If your GitHub repository's URL is associated with a different field label, set 
 
 This ``[sphinx]`` table allows you to set a number of Sphinx configurations that you would normally set through the :file:`conf.py` file.
 
+extensions
+----------
+
+|optional|
+
+A list of Sphinx extensions to append to the extensions included in the Documenteer configuration preset (see |documenteer.conf.guide|).
+Duplicate extensions are ignored.
+
+Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).
+
+nitpicky
+--------
+
+|optional|
+
+Set to ``true`` to escalate Sphinx warnings to errors, which is useful for leveraging CI to notify you of any syntax errors.
+The default is ``false``.
+
+.. code-block:: toml
+
+   [sphinx]
+   nitpicky = true
+
+See ``nitpick_ignore`` and ``nitpick_ignore_regex`` for ways to suppress unavoidable errors.
+
+nitpick_ignore
+--------------
+
+|optional|
+
+A list of Sphinx warnings to ignore.
+Each item is a tuple of two items:
+
+1. ``type``, often the reStructuredText role or directive creating the error/warning.
+2. ``target``, often the argument to the reStructuredText role.
+
+.. code-block:: toml
+
+   [sphinx]
+   nitpick_ignore = [
+     ["py:class", "fastapi.applications.FastAPI"],
+     ["py:class", "httpx.AsyncClient"],
+     ["py:class", "pydantic.main.BaseModel"],
+   ]
+
+This configuration extends the Sphinx ``nitpick_ignore`` configuration.
+
+nitpick_ignore_regex
+--------------------
+
+|optional|
+
+A list of Sphinx warnings to ignore, formatted as regular expressions.
+Each item is a tuple of two items:
+
+1. ``type``, a regular expression of the warning type.
+2. ``target``, a regular expression of the warning target.
+
+.. code-block:: toml
+
+   [sphinx]
+   nitpick_ignore_regex = [
+     ['py:.*', 'fastapi.*'],
+     ['py:.*', 'httpx.*'],
+     ['py:.*', 'pydantic*'],
+   ]
+
+.. tip::
+
+   Use single quotes for literal strings in TOML.
+
+This configuration extends the Sphinx ``nitpick_ignore_regex`` configuration.
+
 rst_epilog_file
 ---------------
 
@@ -153,3 +226,43 @@ If set, the file is also included in the Sphinx source ignore list to prevent it
 
    .. |required| replace:: :bdg-primary-line:`Required`
    .. |optional| replace:: :bdg-secondary-line:`Optional`
+
+[sphinx.intersphinx]
+====================
+
+|optional|
+
+Configurations related to Intersphinx_ for linking to other Sphinx projects.
+
+[sphinx.intersphinx.projects]
+=============================
+
+|optional|
+
+A table of Sphinx projects.
+The labels are targets for the :external+sphinx:rst:role:`external` role.
+The values are URLs to the root of Sphinx documentation projects.
+
+.. code-block:: toml
+
+   [sphinx.intersphinx.projects]
+   sphinx = "https://www.sphinx-doc.org/en/master/"
+   documenteer = "https://documenteer.lsst.io"
+   python = "https://docs.python.org/3/"
+
+See the Intersphinx_ documentation for details on linking to other Sphinx projects.
+
+[sphinx.linkcheck]
+==================
+
+|optional|
+
+Configurations related to Sphinx's linkcheck_ builder.
+
+ignore
+------
+
+|optional|
+
+List of URL regular expressions patterns to ignore checking.
+These are appended to the ``linkcheck_ignore`` configuration.

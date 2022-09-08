@@ -54,7 +54,7 @@ def configure_technote(meta_stream):
 
     Parameters
     ----------
-    meta_stream : file handle
+    meta_stream : `io.StringIO`
         A file stream (e.g., from :func:`open`) for the ``metadata.yaml``
         document in a design document's repository.
 

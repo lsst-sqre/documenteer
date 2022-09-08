@@ -7,7 +7,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from email.message import Message
-from typing import Optional, cast
+from typing import Dict, List, MutableMapping, Optional, Tuple, Union, cast
 
 if sys.version_info < (3, 8):
     from importlib_metadata import PackageNotFoundError, metadata
@@ -100,6 +100,23 @@ class ProjectModel(BaseModel):
     python: Optional[PythonPackageModel]
 
 
+class IntersphinxModel(BaseModel):
+    """Model for Intersphinx configurations in documenteer.toml."""
+
+    projects: Dict[str, HttpUrl] = Field(
+        description="Mapping of projects and their URLs.", default_factory=dict
+    )
+
+
+class LinkCheckModel(BaseModel):
+    """Model for linkcheck builder configurations in documenteer.toml."""
+
+    ignore: List[str] = Field(
+        description="Regular expressions of URLs to skip checking links",
+        default_factory=list,
+    )
+
+
 class SphinxModel(BaseModel):
     """Model for Sphinx configurations in documenteer.toml."""
 
@@ -109,6 +126,35 @@ class SphinxModel(BaseModel):
             "file. Use this file to define common links and substitutions."
         )
     )
+
+    extensions: List[str] = Field(
+        description="Additional Sphinx extension.", default_factory=list
+    )
+
+    nitpicky: bool = Field(
+        False, description="Escalate warnings to build errors."
+    )
+
+    nitpick_ignore: List[Tuple[str, str]] = Field(
+        description=(
+            "Errors to ignore. First item is the type (like a role or "
+            "directive) and the second is the target (like the argument to "
+            "the role)."
+        ),
+        default_factory=list,
+    )
+
+    nitpick_ignore_regex: List[Tuple[str, str]] = Field(
+        description=(
+            "Same as ``nitpick_ignore``, but both type and target are "
+            "interpreted as regular expressions."
+        ),
+        default_factory=list,
+    )
+
+    intersphinx: Optional[IntersphinxModel]
+
+    linkcheck: Optional[LinkCheckModel]
 
 
 class ConfigRoot(BaseModel):
@@ -157,7 +203,7 @@ class DocumenteerConfig:
 
         1. The ``base_url`` field of the ``[project]`` table in
            documenteer.toml.
-        2. From importlib.metadata if `[project.python]` is set in
+        2. From importlib.metadata if ``[project.python]`` is set in
            documenteer.toml.
         3. Default is "".
         """
@@ -260,3 +306,50 @@ class DocumenteerConfig:
                 if value.startswith(prefix):
                     return value[len(prefix) :]
         return None
+
+    def append_extensions(self, extensions: List[str]) -> None:
+        """Append user-configured extensions to an existing list."""
+        if self.conf.sphinx:
+            for new_ext in self.conf.sphinx.extensions:
+                if new_ext not in extensions:
+                    extensions.append(new_ext)
+
+    def extend_intersphinx_mapping(
+        self, mapping: MutableMapping[str, Tuple[str, Union[str, None]]]
+    ) -> None:
+        """Extend the ``intersphinx_mapping`` dictionary with configured
+        projects.
+        """
+        if (
+            self.conf.sphinx
+            and self.conf.sphinx.intersphinx
+            and self.conf.sphinx.intersphinx.projects
+        ):
+            for project, url in self.conf.sphinx.intersphinx.projects.items():
+                mapping[project] = (str(url), None)
+
+    def append_linkcheck_ignore(self, link_patterns: List[str]) -> None:
+        """Append URL patterns for sphinx.linkcheck.ignore to existing
+        patterns.
+        """
+        if self.conf.sphinx and self.conf.sphinx.linkcheck:
+            link_patterns.extend(self.conf.sphinx.linkcheck.ignore)
+
+    def append_nitpick_ignore(
+        self, nitpick_ignore: List[Tuple[str, str]]
+    ) -> None:
+        if self.conf.sphinx and self.conf.sphinx.nitpick_ignore:
+            nitpick_ignore.extend(self.conf.sphinx.nitpick_ignore)
+
+    def append_nitpick_ignore_regex(
+        self, nitpick_ignore_regex: List[Tuple[str, str]]
+    ) -> None:
+        if self.conf.sphinx and self.conf.sphinx.nitpick_ignore_regex:
+            nitpick_ignore_regex.extend(self.conf.sphinx.nitpick_ignore_regex)
+
+    @property
+    def nitpicky(self) -> bool:
+        if self.conf.sphinx:
+            return self.conf.sphinx.nitpicky
+        else:
+            return False

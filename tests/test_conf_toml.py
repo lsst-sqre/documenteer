@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Dict, Tuple, Union
+
 import pytest
 from sphinx.errors import ConfigError
 
@@ -15,6 +17,28 @@ base_url = "https://documenteer.lsst.io"
 copyright = "2022 AURA"
 github_url = "https://github.com/lsst-sqre/documenteer"
 version = "1.0.0"
+
+[sphinx]
+extensions = [
+    "sphinx_design",
+    "new_extension",
+]
+nitpick_ignore = [
+    ["py:class", "pydantic.main.BaseModel"]
+]
+nitpick_ignore_regex = [
+    ["py:.+", 'fastapi\\..+']
+]
+
+[sphinx.intersphinx.projects]
+sphinx = "https://www.sphinx-doc.org/en/master/"
+documenteer = "https://documenteer.lsst.io"
+python = "https://docs.python.org/3/"
+
+[sphinx.linkcheck]
+ignore = [
+    "^https://confluence.lsstcorp.org/"
+]
 """
 
 EXAMPLE_BAD_PACKAGE = """
@@ -60,3 +84,50 @@ def test_python_metadata() -> None:
     assert config.copyright == "2022 AURA"
     assert config.github_url == "https://github.com/lsst-sqre/documenteer"
     assert isinstance(config.version, str)
+
+
+def test_append_extensions() -> None:
+    """Test DocumenteerConfig.append_extensions()."""
+    config = DocumenteerConfig.load(EXAMPLE)
+
+    existing_extensions = [
+        "sphinx_design",
+        "sphinx.ext.autodoc",
+        "documenteer.sphinxext",
+    ]
+    config.append_extensions(existing_extensions)
+    assert existing_extensions == [
+        "sphinx_design",
+        "sphinx.ext.autodoc",
+        "documenteer.sphinxext",
+        "new_extension",
+    ]
+
+
+def test_append_intersphinx_projects() -> None:
+    config = DocumenteerConfig.load(EXAMPLE)
+
+    projects: Dict[str, Tuple[str, Union[str, None]]] = {
+        "python": ("https://docs.python.org/3/", None),
+    }
+    config.extend_intersphinx_mapping(projects)
+    assert projects == {
+        "python": ("https://docs.python.org/3/", None),
+        "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
+        "documenteer": ("https://documenteer.lsst.io", None),
+    }
+
+
+def test_append_linkcheck_ignore() -> None:
+    config = DocumenteerConfig.load(EXAMPLE)
+
+    linkcheck_ignore = [
+        r"^https://jira.lsstcorp.org/browse/",
+        r"^https://ls.st/",
+    ]
+    config.append_linkcheck_ignore(linkcheck_ignore)
+    assert linkcheck_ignore == [
+        r"^https://jira.lsstcorp.org/browse/",
+        r"^https://ls.st/",
+        r"^https://confluence.lsstcorp.org/",
+    ]

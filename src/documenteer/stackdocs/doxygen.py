@@ -310,7 +310,7 @@ class DoxygenConfiguration:
 
         Returns
         -------
-        config_content
+        config_content : `str`
             Text content of a doxygen configuration file.
         """
         lines: List[str] = []
@@ -484,7 +484,7 @@ class DoxygenConfiguration:
 
         Returns
         -------
-        doxygen_configuration
+        doxygen_configuration : `DoxygenConfiguration`
             A DoxygenConfiguration instance populated with configurations
             parsed from ``doxygen_conf``.
 
@@ -720,7 +720,7 @@ def run_doxygen(*, conf: DoxygenConfiguration, root_dir: Path) -> int:
 
     Returns
     -------
-    status
+    status : `int`
         The shell status code returned by the ``doxygen`` executable.
     """
     os.makedirs(root_dir, exist_ok=True)

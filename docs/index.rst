@@ -9,6 +9,7 @@ Documenteer
 This documentation is for version |version|. `Find docs for other versions. <https://documenteer.lsst.io/v>`__
 Documenteer is developed on GitHub at https://github.com/lsst-sqre/documenteer.
 
+.. _pip-install:
 .. _installation:
 
 Installation

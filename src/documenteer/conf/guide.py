@@ -47,7 +47,9 @@ __all__ = [
     "language",
     "exclude_patterns",
     "default_role",
+    "nitpicky",
     "nitpick_ignore",
+    "nitpick_ignore_regex",
     "templates_path",
     "rst_epilog",
     # INTER
@@ -114,6 +116,7 @@ extensions = [
     "sphinx_automodapi.smart_resolver",
     "documenteer.sphinxext",
 ]
+_conf.append_extensions(extensions)
 
 # ============================================================================
 # #SPHINX Core Sphinx configurations
@@ -148,8 +151,15 @@ if _conf.rst_epilog_path:
 # The reST default role cross-links Python (used for this markup: `text`)
 default_role = "py:obj"
 
+# Escalate warnings ot errors if True
+nitpicky = _conf.nitpicky
+
 # Warnings to ignore
 nitpick_ignore: List[Tuple[str, str]] = []
+_conf.append_nitpick_ignore(nitpick_ignore)
+
+nitpick_ignore_regex: List[Tuple[str, str]] = []
+_conf.append_nitpick_ignore_regex(nitpick_ignore_regex)
 
 # A list of paths that contain extra templates (or templates that overwrite
 # builtin/theme-specific templates).
@@ -164,7 +174,8 @@ rst_epilog = _conf.rst_epilog
 
 # Example entry:
 #   "python": ("https://docs.python.org/3/", None),
-intersphinx_mapping: Dict[str, Tuple[Union[str, None]]] = {}
+intersphinx_mapping: Dict[str, Tuple[str, Union[str, None]]] = {}
+_conf.extend_intersphinx_mapping(intersphinx_mapping)
 
 intersphinx_timeout = 10.0  # seconds
 
@@ -182,6 +193,7 @@ linkcheck_ignore = [
     r"^https://jira.lsstcorp.org/browse/",
     r"^https://ls.st/",
 ]
+_conf.append_linkcheck_ignore(linkcheck_ignore)
 
 linkcheck_timeout = 15
 
