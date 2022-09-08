@@ -131,6 +131,10 @@ class SphinxModel(BaseModel):
         description="Additional Sphinx extension.", default_factory=list
     )
 
+    nitpicky: bool = Field(
+        False, description="Escalate warnings to build errors."
+    )
+
     nitpick_ignore: List[Tuple[str, str]] = Field(
         description=(
             "Errors to ignore. First item is the type (like a role or "
@@ -342,3 +346,10 @@ class DocumenteerConfig:
     ) -> None:
         if self.conf.sphinx and self.conf.sphinx.nitpick_ignore_regex:
             nitpick_ignore_regex.extend(self.conf.sphinx.nitpick_ignore_regex)
+
+    @property
+    def nitpicky(self) -> bool:
+        if self.conf.sphinx:
+            return self.conf.sphinx.nitpicky
+        else:
+            return False

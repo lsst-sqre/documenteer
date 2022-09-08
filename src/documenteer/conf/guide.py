@@ -47,6 +47,7 @@ __all__ = [
     "language",
     "exclude_patterns",
     "default_role",
+    "nitpicky",
     "nitpick_ignore",
     "nitpick_ignore_regex",
     "templates_path",
@@ -149,6 +150,9 @@ if _conf.rst_epilog_path:
 
 # The reST default role cross-links Python (used for this markup: `text`)
 default_role = "py:obj"
+
+# Escalate warnings ot errors if True
+nitpicky = _conf.nitpicky
 
 # Warnings to ignore
 nitpick_ignore: List[Tuple[str, str]] = []

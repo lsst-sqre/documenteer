@@ -141,6 +141,21 @@ Duplicate extensions are ignored.
 
 Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).
 
+nitpicky
+--------
+
+|optional|
+
+Set to ``true`` to escalate Sphinx warnings to errors, which is useful for leveraging CI to notify you of any syntax errors.
+The default is ``false``.
+
+.. code-block:: toml
+
+   [sphinx]
+   nitpicky = true
+
+See ``nitpick_ignore`` and ``nitpick_ignore_regex`` for ways to suppress unavoidable errors.
+
 nitpick_ignore
 --------------
 
