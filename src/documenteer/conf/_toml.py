@@ -131,6 +131,23 @@ class SphinxModel(BaseModel):
         description="Additional Sphinx extension.", default_factory=list
     )
 
+    nitpick_ignore: List[Tuple[str, str]] = Field(
+        description=(
+            "Errors to ignore. First item is the type (like a role or "
+            "directive) and the second is the target (like the argument to "
+            "the role)."
+        ),
+        default_factory=list,
+    )
+
+    nitpick_ignore_regex: List[Tuple[str, str]] = Field(
+        description=(
+            "Same as ``nitpick_ignore``, but both type and target are "
+            "interpreted as regular expressions."
+        ),
+        default_factory=list,
+    )
+
     intersphinx: Optional[IntersphinxModel]
 
     linkcheck: Optional[LinkCheckModel]
@@ -313,3 +330,15 @@ class DocumenteerConfig:
         """
         if self.conf.sphinx and self.conf.sphinx.linkcheck:
             link_patterns.extend(self.conf.sphinx.linkcheck.ignore)
+
+    def append_nitpick_ignore(
+        self, nitpick_ignore: List[Tuple[str, str]]
+    ) -> None:
+        if self.conf.sphinx and self.conf.sphinx.nitpick_ignore:
+            nitpick_ignore.extend(self.conf.sphinx.nitpick_ignore)
+
+    def append_nitpick_ignore_regex(
+        self, nitpick_ignore_regex: List[Tuple[str, str]]
+    ) -> None:
+        if self.conf.sphinx and self.conf.sphinx.nitpick_ignore_regex:
+            nitpick_ignore_regex.extend(self.conf.sphinx.nitpick_ignore_regex)

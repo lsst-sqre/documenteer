@@ -141,6 +141,54 @@ Duplicate extensions are ignored.
 
 Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).
 
+nitpick_ignore
+--------------
+
+|optional|
+
+A list of Sphinx warnings to ignore.
+Each item is a tuple of two items:
+
+1. ``type``, often the reStructuredText role or directive creating the error/warning.
+2. ``target``, often the argument to the reStructuredText role.
+
+.. code-block:: toml
+
+   [sphinx]
+   nitpick_ignore = [
+     ["py:class", "fastapi.applications.FastAPI"],
+     ["py:class", "httpx.AsyncClient"],
+     ["py:class", "pydantic.main.BaseModel"],
+   ]
+
+This configuration extends the Sphinx ``nitpick_ignore`` configuration.
+
+nitpick_ignore_regex
+--------------------
+
+|optional|
+
+A list of Sphinx warnings to ignore, formatted as regular expressions.
+Each item is a tuple of two items:
+
+1. ``type``, a regular expression of the warning type.
+2. ``target``, a regular expression of the warning target.
+
+.. code-block:: toml
+
+   [sphinx]
+   nitpick_ignore_regex = [
+     ['py:.*', 'fastapi.*'],
+     ['py:.*', 'httpx.*'],
+     ['py:.*', 'pydantic*'],
+   ]
+
+.. tip::
+
+   Use single quotes for literal strings in TOML.
+
+This configuration extends the Sphinx ``nitpick_ignore_regex`` configuration.
+
 rst_epilog_file
 ---------------
 

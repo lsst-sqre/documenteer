@@ -23,6 +23,12 @@ extensions = [
     "sphinx_design",
     "new_extension",
 ]
+nitpick_ignore = [
+    ["py:class", "pydantic.main.BaseModel"]
+]
+nitpick_ignore_regex = [
+    ["py:.+", 'fastapi\\..+']
+]
 
 [sphinx.intersphinx.projects]
 sphinx = "https://www.sphinx-doc.org/en/master/"

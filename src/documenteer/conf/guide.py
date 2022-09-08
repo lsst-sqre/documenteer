@@ -48,6 +48,7 @@ __all__ = [
     "exclude_patterns",
     "default_role",
     "nitpick_ignore",
+    "nitpick_ignore_regex",
     "templates_path",
     "rst_epilog",
     # INTER
@@ -151,6 +152,10 @@ default_role = "py:obj"
 
 # Warnings to ignore
 nitpick_ignore: List[Tuple[str, str]] = []
+_conf.append_nitpick_ignore(nitpick_ignore)
+
+nitpick_ignore_regex: List[Tuple[str, str]] = []
+_conf.append_nitpick_ignore_regex(nitpick_ignore_regex)
 
 # A list of paths that contain extra templates (or templates that overwrite
 # builtin/theme-specific templates).
