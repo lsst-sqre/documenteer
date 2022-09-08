@@ -199,7 +199,7 @@ class DocumenteerConfig:
 
         1. The ``base_url`` field of the ``[project]`` table in
            documenteer.toml.
-        2. From importlib.metadata if `[project.python]` is set in
+        2. From importlib.metadata if ``[project.python]`` is set in
            documenteer.toml.
         3. Default is "".
         """

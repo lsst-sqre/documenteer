@@ -435,22 +435,22 @@ def build_package_configs(
 
     Parameters
     ----------
-    project_name : str
+    project_name : `str`
         Name of the package.
-    copyright : str, optional
+    copyright : `str`, optional
         Copyright statement. Do not include the 'Copyright (c)' string; it'll
         be added automatically.
-    version : str
+    version : `str`
         Version string. Use the ``__version__`` member in a package's
         ``version`` module.
-    doxygen_xml_dirname : str
+    doxygen_xml_dirname : `str`
         Path to doxygen-generated XML, allowing C++ APIs to be documented
         through breathe. If not set, the breathe sphinx extension will not be
         enabled.
 
     Returns
     -------
-    c : dict
+    c : `dict`
         Dictionary of configurations that should be added to the ``conf.py``
         global namespace via::
 

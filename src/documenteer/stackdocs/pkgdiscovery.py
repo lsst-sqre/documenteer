@@ -28,13 +28,13 @@ def discover_setup_packages(
 
     Parameters
     ----------
-    scope
+    scope : `list` of `str`
         Names of packages that are in scope to include in the returned package
         data. Leave as `None` if packages should not be filtered.
 
     Returns
     -------
-    packages
+    packages : `dict`
        Dictionary with keys that are EUPS package names. Values are
        dictionaries with fields:
 
@@ -76,14 +76,14 @@ def find_table_file(root_project_dir: Union[str, Path]) -> Path:
 
     Parameters
     ----------
-    root_project_dir
+    root_project_dir : `str` or `pathlib.Path`
         Path to the root directory of the main documentation project. This
         is the directory containing the ``conf.py`` file and a ``ups``
         directory.
 
     Returns
     -------
-    table_path
+    table_path : `pathlib.Path`
         Path to the EUPS table file.
     """
     root_project_dir = Path(root_project_dir)
@@ -104,12 +104,12 @@ def list_packages_in_eups_table(table_text: str) -> List[str]:
 
     Parameters
     ----------
-    table_text
+    table_text : `str`
         The text content of an EUPS table file.
 
     Returns
     -------
-    names
+    names : `list` of `str`
         List of package names that are required byy the EUPS table file.
     """
     logger = logging.getLogger(__name__)
@@ -178,14 +178,14 @@ def find_package_docs(
 
     Parameters
     ----------
-    package_dir
+    package_dir : `str` or `pathlib.Path`
         Directory of an EUPS package.
-    skipped_names
+    skipped_names : `list` of `str`, optional
         List of package or module names to skip when creating links.
 
     Returns
     -------
-    doc_dirs
+    doc_dirs : `Package`
         Metadata about a stack package's documentation content.
 
     Raises

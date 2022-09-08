@@ -20,16 +20,16 @@ def run_sphinx(
 
     Parameters
     ----------
-    root_dir
+    root_dir : `str`
         Root directory of the Sphinx project and content source. This directory
         contains both the root ``index.rst`` file and the ``conf.py``
         configuration file.
-    job_count
+    job_count : `int`
         Number of cores to run the Sphinx build with (``-j`` flag)
 
     Returns
     -------
-    status
+    status : `int`
         Sphinx status code. ``0`` is expected. Greater than ``0`` indicates
         an error.
 

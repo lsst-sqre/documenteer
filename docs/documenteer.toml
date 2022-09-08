@@ -9,6 +9,14 @@ package = "documenteer"
 
 [sphinx]
 rst_epilog_file = "_rst_epilog.rst"
+nitpick_ignore = [
+  ["py:class", "pybtex.style.formatting.plain.Style"],
+  ["py:obj", "sphinx_automodapi.automodapi"],
+]
+nitpick_ignore_regex = [
+  ['py:.*', 'docutils.*'],
+  ['py:.*', 'pydantic.*'],
+]
 
 [sphinx.intersphinx.projects]
 python = "https://docs.python.org/3/"

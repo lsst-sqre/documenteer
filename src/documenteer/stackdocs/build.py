@@ -80,7 +80,7 @@ def build_stack_docs(
 
     Returns
     -------
-    sphinx_status
+    sphinx_status : `int`
         The shell status code for the Sphinx build. If ``enable_sphinx`` is
         ``False``, the status defaults to ``0``.
     """
