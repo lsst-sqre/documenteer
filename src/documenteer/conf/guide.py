@@ -107,8 +107,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
     "sphinx.ext.ifconfig",
-    "sphinx_click.ext",
-    "sphinxcontrib.autoprogram",
     "sphinx-prompt",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
