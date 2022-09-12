@@ -86,6 +86,7 @@ def test_load() -> None:
     assert config.copyright == "2022 AURA"
     assert config.github_url == "https://github.com/lsst-sqre/documenteer"
     assert config.version == "1.0.0"
+    assert config.automodapi_toctreedirm == "api"
 
 
 def test_bad_package() -> None:

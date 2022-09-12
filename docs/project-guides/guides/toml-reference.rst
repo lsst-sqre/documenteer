@@ -250,6 +250,21 @@ If set, the file is also included in the Sphinx source ignore list to prevent it
    .. |required| replace:: :bdg-primary-line:`Required`
    .. |optional| replace:: :bdg-secondary-line:`Optional`
 
+python_api_dir
+--------------
+
+|optional|
+
+Set this to the directory where Python API documentation is generated, through automodapi_.
+The default value is ``api``, which is a good standard for Python projects with a public API.
+
+If the Python API is oriented towards contributors, such as in an application or service, you can change the default:
+
+.. code-block:: toml
+
+   [sphinx]
+   python_api_dir = "dev/api/contents"
+
 [sphinx.intersphinx]
 ====================
 

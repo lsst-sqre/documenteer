@@ -161,6 +161,14 @@ class SphinxModel(BaseModel):
         ),
     )
 
+    python_api_dir: Optional[str] = Field(
+        None,
+        description=(
+            "Directory path where the Python API reference documentation "
+            "is created."
+        ),
+    )
+
     intersphinx: Optional[IntersphinxModel]
 
     linkcheck: Optional[LinkCheckModel]
@@ -371,3 +379,10 @@ class DocumenteerConfig:
         else:
             pages = ["index"]  # default
         html_sidebars.update({name: list() for name in pages})
+
+    @property
+    def automodapi_toctreedirm(self) -> str:
+        if self.conf.sphinx and self.conf.sphinx.python_api_dir is not None:
+            return self.conf.sphinx.python_api_dir
+        else:
+            return "api"

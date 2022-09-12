@@ -23,6 +23,7 @@ nitpick_ignore_regex = [
   ['py:.*', 'docutils.*'],
   ['py:.*', 'pydantic.*'],
 ]
+python_api_dir = "dev/api/contents"
 
 [sphinx.intersphinx.projects]
 python = "https://docs.python.org/3/"
