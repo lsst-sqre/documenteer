@@ -66,6 +66,7 @@ guide = [
     "pydata-sphinx-theme>=0.10.0",
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
+    "sphinx-copybutton",
     "sphinx-prompt",
     "myst-parser",
     "markdown-it-py[linkify]",

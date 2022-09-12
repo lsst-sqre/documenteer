@@ -101,6 +101,7 @@ _conf = DocumenteerConfig.find_and_load()
 
 extensions = [
     "myst_parser",
+    "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
