@@ -12,6 +12,7 @@ extensions = [
   "sphinx_click.ext",
   "sphinxcontrib.autoprogram",
 ]
+disable_primary_sidebars = ["index", "changelog"]
 rst_epilog_file = "_rst_epilog.rst"
 nitpicky = true
 nitpick_ignore = [

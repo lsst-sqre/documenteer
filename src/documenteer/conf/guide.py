@@ -6,7 +6,7 @@ containing::
     from documenteer.conf.guide import *
 """
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 from documenteer.conf import (
     DocumenteerConfig,
@@ -237,10 +237,11 @@ if _conf.github_url:
         }
     )
 
-# in pydata-sphinx-theme 0.10.0 it'll be possible to use
-# :html_theme.sidebar_secondary.remove: metadata to remove the sidebar
-# for a specific page instead
-html_sidebars: Dict[str, List[Any]] = {"index": [], "changelog": []}
+# Specifies templates to put in the primary (left) sidebars of
+# specific pages (by their docname or pattern). An empty list results in the
+# sidebar being dropped altogether.
+html_sidebars: Dict[str, List[str]] = {"index": [], "changelog": []}
+_conf.disable_primary_sidebars(html_sidebars)
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".

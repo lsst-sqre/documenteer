@@ -152,6 +152,15 @@ class SphinxModel(BaseModel):
         default_factory=list,
     )
 
+    disable_primary_sidebars: Optional[List[str]] = Field(
+        None,
+        description=(
+            "Pages that should not have a primary sidebar. Can be the page's "
+            "path (without extension) or a glob of pages. By default the "
+            "homepage and change logs do not have a primary sidebar."
+        ),
+    )
+
     intersphinx: Optional[IntersphinxModel]
 
     linkcheck: Optional[LinkCheckModel]
@@ -353,3 +362,12 @@ class DocumenteerConfig:
             return self.conf.sphinx.nitpicky
         else:
             return False
+
+    def disable_primary_sidebars(
+        self, html_sidebars: MutableMapping[str, List[str]]
+    ) -> None:
+        if self.conf.sphinx and self.conf.sphinx.disable_primary_sidebars:
+            pages = self.conf.sphinx.disable_primary_sidebars
+        else:
+            pages = ["index"]  # default
+        html_sidebars.update({name: list() for name in pages})

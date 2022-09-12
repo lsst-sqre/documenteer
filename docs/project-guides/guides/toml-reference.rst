@@ -131,6 +131,29 @@ If your GitHub repository's URL is associated with a different field label, set 
 
 This ``[sphinx]`` table allows you to set a number of Sphinx configurations that you would normally set through the :file:`conf.py` file.
 
+disable_primary_sidebars
+------------------------
+
+|optional|
+
+On some pages the default sidebar (on the left) is inappropriate, such as index pages that already contain a table of contents as their main content.
+In that case, you can set individual pages or globs (without extensions) of pages that are shown without
+the primary sidebar.
+The default is ``["index"]`` to remove the sidebar from the homepage.
+
+.. code-block:: toml
+
+   [sphinx]
+   disable_primary_sidebars = [
+     "**/index",
+     "changelog"
+   ]
+
+.. note::
+
+   This configuration is for the **primary** sidebar, on the left side, containing side or section-level navigation links.
+   To remove the page-level contents sidebar, on the right side, add ``:html_theme.sidebar_secondary.remove:`` to the *page's* file metadata.
+
 extensions
 ----------
 
