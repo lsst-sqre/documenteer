@@ -1,5 +1,3 @@
-from documenteer.conf.guide import *
+# See the documenteer.toml for overrides of the Rubin user guide presets
 
-# Automodapi
-# https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
-automodapi_toctreedirnm = "dev/api/contents"
+from documenteer.conf.guide import *

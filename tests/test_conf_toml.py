@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import pytest
 from sphinx.errors import ConfigError
@@ -62,6 +62,22 @@ copyright = "2022 AURA"
 package = "documenteer"
 """
 
+EXAMPLE_SIDEBARS = """
+
+[project]
+title = "Documenteer"
+copyright = "2022 AURA"
+
+[project.python]
+package = "documenteer"
+
+[sphinx]
+disable_primary_sidebars = [
+    "index",
+    "changelog",
+]
+"""
+
 
 def test_load() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
@@ -70,6 +86,7 @@ def test_load() -> None:
     assert config.copyright == "2022 AURA"
     assert config.github_url == "https://github.com/lsst-sqre/documenteer"
     assert config.version == "1.0.0"
+    assert config.automodapi_toctreedirm == "api"
 
 
 def test_bad_package() -> None:
@@ -131,3 +148,19 @@ def test_append_linkcheck_ignore() -> None:
         r"^https://ls.st/",
         r"^https://confluence.lsstcorp.org/",
     ]
+
+
+def test_disable_primary_sidebars_defaults() -> None:
+    """Test sphinx.disable_primary_sidebars defaults where it wasn't set."""
+    config = DocumenteerConfig.load(EXAMPLE)
+    html_sidebars: Dict[str, List[str]] = {}
+    config.disable_primary_sidebars(html_sidebars)
+    assert html_sidebars == {"index": []}
+
+
+def test_disable_primary_sidebars() -> None:
+    """Test sphinx.disable_primary_sidebars."""
+    config = DocumenteerConfig.load(EXAMPLE_SIDEBARS)
+    html_sidebars: Dict[str, List[str]] = {}
+    config.disable_primary_sidebars(html_sidebars)
+    assert html_sidebars == {"index": [], "changelog": []}

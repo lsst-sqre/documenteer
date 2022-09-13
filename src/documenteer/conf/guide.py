@@ -62,6 +62,7 @@ __all__ = [
     "linkcheck_timeout",
     # HTML
     "html_theme",
+    "html_context",
     "html_theme_options",
     "html_sidebars",
     "html_title",
@@ -101,6 +102,7 @@ _conf = DocumenteerConfig.find_and_load()
 
 extensions = [
     "myst_parser",
+    "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
@@ -201,11 +203,14 @@ linkcheck_timeout = 15
 
 html_theme = "pydata_sphinx_theme"
 
+# Context available to Jinja templates
+html_context: Dict[str, Any] = {}
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "header_links_before_dropdown": 5,
+    "header_links_before_dropdown": _conf.header_links_before_dropdown,
     "external_links": [{"name": "Rubin docs", "url": "https://www.lsst.io"}],
     "icon_links": [],
     "logo": {
@@ -236,10 +241,14 @@ if _conf.github_url:
         }
     )
 
-# in pydata-sphinx-theme 0.10.0 it'll be possible to use
-# :html_theme.sidebar_secondary.remove: metadata to remove the sidebar
-# for a specific page instead
-html_sidebars: Dict[str, List[Any]] = {"index": [], "changelog": []}
+# Configure the "Edit this page" link
+_conf.set_edit_on_github(html_theme_options, html_context)
+
+# Specifies templates to put in the primary (left) sidebars of
+# specific pages (by their docname or pattern). An empty list results in the
+# sidebar being dropped altogether.
+html_sidebars: Dict[str, List[str]] = {"index": [], "changelog": []}
+_conf.disable_primary_sidebars(html_sidebars)
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -274,7 +283,7 @@ html_show_sourcelink = False
 
 # Automodapi
 # https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
-automodapi_toctreedirnm = "api"
+automodapi_toctreedirnm = _conf.automodapi_toctreedirm
 
 # sphinx_autodoc_typehints
 always_document_param_types = True

@@ -67,6 +67,17 @@ When set, a link to the repository is included in the site's header.
    [project]
    github_url = "https://github.com/lsst-sqre/documenteer"
 
+.. _guide-project-github-default-branch:
+
+github_default_branch
+---------------------
+
+|optional|
+
+The default branch on GitHub.
+Default is ``main``.
+Used in conjunction with the "Edit on GitHub" link, see :ref:`sphinx.show_github_edit_link <guide-project-show-github-edit-link>`.
+
 .. _guide-project-version:
 
 version
@@ -130,6 +141,29 @@ If your GitHub repository's URL is associated with a different field label, set 
 |optional|
 
 This ``[sphinx]`` table allows you to set a number of Sphinx configurations that you would normally set through the :file:`conf.py` file.
+
+disable_primary_sidebars
+------------------------
+
+|optional|
+
+On some pages the default sidebar (on the left) is inappropriate, such as index pages that already contain a table of contents as their main content.
+In that case, you can set individual pages or globs (without extensions) of pages that are shown without
+the primary sidebar.
+The default is ``["index"]`` to remove the sidebar from the homepage.
+
+.. code-block:: toml
+
+   [sphinx]
+   disable_primary_sidebars = [
+     "**/index",
+     "changelog"
+   ]
+
+.. note::
+
+   This configuration is for the **primary** sidebar, on the left side, containing side or section-level navigation links.
+   To remove the page-level contents sidebar, on the right side, add ``:html_theme.sidebar_secondary.remove:`` to the *page's* file metadata.
 
 extensions
 ----------
@@ -226,6 +260,52 @@ If set, the file is also included in the Sphinx source ignore list to prevent it
 
    .. |required| replace:: :bdg-primary-line:`Required`
    .. |optional| replace:: :bdg-secondary-line:`Optional`
+
+python_api_dir
+--------------
+
+|optional|
+
+Set this to the directory where Python API documentation is generated, through automodapi_.
+The default value is ``api``, which is a good standard for Python projects with a public API.
+
+If the Python API is oriented towards contributors, such as in an application or service, you can change the default:
+
+.. code-block:: toml
+
+   [sphinx]
+   python_api_dir = "dev/api/contents"
+
+[sphinx.theme]
+==============
+
+|optional|
+
+Configurations related to the Sphinx HTML theme.
+
+header_links_before_dropdown
+----------------------------
+
+|optional|
+
+Number of links to show in the navigation head before folding extra items into a "More" dropdown.
+The default is 5.
+
+If the section titles are long you may need to reduce this number.
+
+.. _guide-project-show-github-edit-link:
+
+show_github_edit_link
+---------------------
+
+|optional|
+
+Default is ``true``, so that each page contains a link to edit its source on GitHub.
+
+This configuration requires information about the GitHub repository from these other configurations:
+
+- :ref:`project.github_url <guide-project-github-url>`
+- :ref:`project.github_default_branch <guide-project-github-default-branch>`
 
 [sphinx.intersphinx]
 ====================

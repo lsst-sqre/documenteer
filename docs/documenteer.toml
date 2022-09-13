@@ -12,6 +12,7 @@ extensions = [
   "sphinx_click.ext",
   "sphinxcontrib.autoprogram",
 ]
+disable_primary_sidebars = ["index", "changelog"]
 rst_epilog_file = "_rst_epilog.rst"
 nitpicky = true
 nitpick_ignore = [
@@ -22,6 +23,7 @@ nitpick_ignore_regex = [
   ['py:.*', 'docutils.*'],
   ['py:.*', 'pydantic.*'],
 ]
+python_api_dir = "dev/api/contents"
 
 [sphinx.intersphinx.projects]
 python = "https://docs.python.org/3/"
