@@ -6,7 +6,7 @@ containing::
     from documenteer.conf.guide import *
 """
 
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from documenteer.conf import (
     DocumenteerConfig,
@@ -62,6 +62,7 @@ __all__ = [
     "linkcheck_timeout",
     # HTML
     "html_theme",
+    "html_context",
     "html_theme_options",
     "html_sidebars",
     "html_title",
@@ -202,6 +203,9 @@ linkcheck_timeout = 15
 
 html_theme = "pydata_sphinx_theme"
 
+# Context available to Jinja templates
+html_context: Dict[str, Any] = {}
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
@@ -236,6 +240,9 @@ if _conf.github_url:
             "type": "fontawesome",
         }
     )
+
+# Configure the "Edit this page" link
+_conf.set_edit_on_github(html_theme_options, html_context)
 
 # Specifies templates to put in the primary (left) sidebars of
 # specific pages (by their docname or pattern). An empty list results in the

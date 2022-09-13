@@ -67,6 +67,17 @@ When set, a link to the repository is included in the site's header.
    [project]
    github_url = "https://github.com/lsst-sqre/documenteer"
 
+.. _guide-project-github-default-branch:
+
+github_default_branch
+---------------------
+
+|optional|
+
+The default branch on GitHub.
+Default is ``main``.
+Used in conjunction with the "Edit on GitHub" link, see :ref:`sphinx.show_github_edit_link <guide-project-show-github-edit-link>`.
+
 .. _guide-project-version:
 
 version
@@ -264,6 +275,27 @@ If the Python API is oriented towards contributors, such as in an application or
 
    [sphinx]
    python_api_dir = "dev/api/contents"
+
+[sphinx.theme]
+==============
+
+|optional|
+
+Configurations related to the Sphinx HTML theme.
+
+.. _guide-project-show-github-edit-link:
+
+show_github_edit_link
+---------------------
+
+|optional|
+
+Default is ``true``, so that each page contains a link to edit its source on GitHub.
+
+This configuration requires information about the GitHub repository from these other configurations:
+
+- :ref:`project.github_url <guide-project-github-url>`
+- :ref:`project.github_default_branch <guide-project-github-default-branch>`
 
 [sphinx.intersphinx]
 ====================

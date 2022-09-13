@@ -7,7 +7,17 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from email.message import Message
-from typing import Dict, List, MutableMapping, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    Dict,
+    List,
+    MutableMapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
+from urllib.parse import urlparse
 
 if sys.version_info < (3, 8):
     from importlib_metadata import PackageNotFoundError, metadata
@@ -32,6 +42,8 @@ from pydantic import (
     validator,
 )
 from sphinx.errors import ConfigError
+
+from ._utils import GitRepository
 
 __all__ = ["ProjectModel", "ConfigRoot", "DocumenteerConfig"]
 
@@ -95,6 +107,11 @@ class ProjectModel(BaseModel):
         description="The URL of the project's GitHub repository."
     )
 
+    github_default_branch: str = Field(
+        "main",
+        description="The project's default development branch on GitHub.",
+    )
+
     version: Optional[str] = Field(description="Version string.")
 
     python: Optional[PythonPackageModel]
@@ -114,6 +131,14 @@ class LinkCheckModel(BaseModel):
     ignore: List[str] = Field(
         description="Regular expressions of URLs to skip checking links",
         default_factory=list,
+    )
+
+
+class ThemeModel(BaseModel):
+    """Model for theme configurations in documenteer.toml."""
+
+    show_github_edit_link: bool = Field(
+        True, description="Show a link to edit on GitHub if True"
     )
 
 
@@ -168,6 +193,8 @@ class SphinxModel(BaseModel):
             "is created."
         ),
     )
+
+    theme: ThemeModel
 
     intersphinx: Optional[IntersphinxModel]
 
@@ -386,3 +413,53 @@ class DocumenteerConfig:
             return self.conf.sphinx.python_api_dir
         else:
             return "api"
+
+    def set_edit_on_github(
+        self,
+        html_theme_options: MutableMapping[str, Any],
+        html_context: MutableMapping[str, Any],
+    ) -> None:
+        """Configures the Edit on GitHub functionality, if possible."""
+        if (
+            self.conf.sphinx
+            and self.conf.sphinx.theme.show_github_edit_link is False
+        ):
+            return
+
+        if self.github_url is None:
+            raise ConfigError(
+                "sphinx.show_github_edit_link is True by the "
+                "project.github_url is not set."
+            )
+
+        parsed_url = urlparse(self.github_url)
+        path_parts = parsed_url.path.split("/")
+        try:
+            # first part is "/"
+            github_owner = path_parts[1]
+            github_repo = path_parts[2].split(".")[0]  # drop .git if present
+        except IndexError:
+            raise ConfigError(
+                f"Could not parse GitHub repo URL: {self.github_url}"
+            )
+
+        repo = GitRepository(Path.cwd())
+        try:
+            # the current working directory for sphinx config is always
+            # the same as the directory containing the conf.py file.
+            doc_dir = str(Path.cwd().relative_to(repo.working_tree_dir))
+        except ValueError:
+            raise ConfigError(
+                "Cannot determine the path of the documentation directory "
+                "relative to the Git repository root. Set "
+                "sphinx.show_github_edit_link to false if this is not a "
+                "git repository."
+            )
+
+        html_theme_options["use_edit_page_button"] = True
+        html_context["github_user"] = github_owner
+        html_context["github_repo"] = github_repo
+        html_context[
+            "github_version"
+        ] = self.conf.project.github_default_branch
+        html_context["doc_path"] = doc_dir

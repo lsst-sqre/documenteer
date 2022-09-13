@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from git import Repo
 from sphinx.errors import ConfigError
 
-__all__ = ["get_asset_path", "get_template_dir"]
+__all__ = ["get_asset_path", "get_template_dir", "GitRepository"]
 
 
 def get_asset_path(name: str) -> str:
@@ -75,3 +76,20 @@ def get_template_dir(root: str) -> str:
             "Documenteer package."
         )
     return str(dirname)
+
+
+class GitRepository:
+    """Access to to metadata about the Git repository of the documentation
+    project.
+    """
+
+    def __init__(self, dirname: Path) -> None:
+        self._repo = Repo(dirname, search_parent_directories=True)
+
+    @property
+    def working_tree_dir(self) -> Path:
+        """The root directory of the Git repository."""
+        path = self._repo.working_tree_dir
+        if path is None:
+            raise RuntimeError("Git repository is not available.")
+        return Path(path)
