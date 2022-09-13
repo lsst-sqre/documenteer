@@ -210,7 +210,7 @@ html_context: Dict[str, Any] = {}
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "header_links_before_dropdown": 5,
+    "header_links_before_dropdown": _conf.header_links_before_dropdown,
     "external_links": [{"name": "Rubin docs", "url": "https://www.lsst.io"}],
     "icon_links": [],
     "logo": {

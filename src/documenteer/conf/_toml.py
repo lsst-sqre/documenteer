@@ -141,6 +141,14 @@ class ThemeModel(BaseModel):
         True, description="Show a link to edit on GitHub if True"
     )
 
+    header_links_before_dropdown: int = Field(
+        5,
+        description=(
+            "Number of links in the header nav before showing a 'More' "
+            "dropdown."
+        ),
+    )
+
 
 class SphinxModel(BaseModel):
     """Model for Sphinx configurations in documenteer.toml."""
@@ -194,7 +202,7 @@ class SphinxModel(BaseModel):
         ),
     )
 
-    theme: ThemeModel
+    theme: ThemeModel = Field(default_factory=lambda: ThemeModel())
 
     intersphinx: Optional[IntersphinxModel]
 
@@ -463,3 +471,13 @@ class DocumenteerConfig:
             "github_version"
         ] = self.conf.project.github_default_branch
         html_context["doc_path"] = doc_dir
+
+    @property
+    def header_links_before_dropdown(self) -> int:
+        """Number of links to show in the nav head before folding extra items
+        into a More dropdown.
+        """
+        if self.conf.sphinx:
+            return self.conf.sphinx.theme.header_links_before_dropdown
+        else:
+            return 5

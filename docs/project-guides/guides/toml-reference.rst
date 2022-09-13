@@ -283,6 +283,16 @@ If the Python API is oriented towards contributors, such as in an application or
 
 Configurations related to the Sphinx HTML theme.
 
+header_links_before_dropdown
+----------------------------
+
+|optional|
+
+Number of links to show in the navigation head before folding extra items into a "More" dropdown.
+The default is 5.
+
+If the section titles are long you may need to reduce this number.
+
 .. _guide-project-show-github-edit-link:
 
 show_github_edit_link
