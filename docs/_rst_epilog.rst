@@ -41,7 +41,7 @@
 
 .. Internal links
 
-.. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide </project-guides/guides/configuration-preset>`
+.. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide </guides/configuration-preset>`
 .. |package-docs| replace:: :doc:`package-docs </pipelines/package-docs-cli>`
 .. |stack-docs| replace:: :doc:`stack-docs </pipelines/stack-docs-cli>`
 .. |stack-docs-build| replace:: :doc:`stack-docs build </pipelines/stack-docs-cli>`

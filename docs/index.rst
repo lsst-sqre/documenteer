@@ -25,9 +25,9 @@ Installation
 
          pip install documenteer
 
-      To use Documenteer's configurations for :doc:`specific Rubin documentation use cases </project-guides/index>`, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
+      To use Documenteer's configurations for specific Rubin documentation use cases, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
 
-      For :doc:`Rubin user guide projects </project-guides/guides/index>`:
+      For :doc:`Rubin user guide projects </guides/index>`:
 
       .. code-block:: sh
 
@@ -35,13 +35,13 @@ Installation
 
       .. _install-technotes:
 
-      For technote projects:
+      For :doc:`technote projects </technotes/index>`:
 
       .. code-block:: sh
 
          pip install "documenteer[technote]"
 
-      For LSST Stack projects (such as https://pipelines.lsst.io and EUPS packages):
+      For :doc:`LSST Science Pipelines projects and other EUPS stacks </pipelines/index>`:
 
       .. code-block:: sh
 
@@ -65,7 +65,7 @@ Installation
 
          conda install documenteer
 
-      To use Documenteer's configurations for :doc:`specific Rubin documentation use cases </project-guides/index>`, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
+      To use Documenteer's configurations for specific Rubin documentation use cases, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
 
       To install Documenteer for technote projects:
 
@@ -86,9 +86,11 @@ Documenteer provides centralized Sphinx configuration and support for Rubin Obse
 This section describes how to use Documenteer for specific types of projects, from single-page technical notes to user guides, to LSST Science Pipelines package documentation.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
-   project-guides/index
+   Rubin user guides <guides/index>
+   Technical notes <technotes/index>
+   Science Pipelines <pipelines/index>
 
 Sphinx extensions
 =================
@@ -101,6 +103,11 @@ These extensions are designed for Rubin Observatory documentation projects, but 
 
    sphinx-extensions/index
 
+.. toctree::
+   :hidden:
+
+   changelog
+
 Developer guide
 ===============
 
@@ -108,8 +115,3 @@ Developer guide
    :maxdepth: 2
 
    dev/index
-
-.. toctree::
-   :hidden:
-
-   changelog

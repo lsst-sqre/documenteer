@@ -1,6 +1,6 @@
-##################
-Pipelines projects
-##################
+#########
+Pipelines
+#########
 
 The `LSST Science Pipelines`_ is an EUPS-managed stack.
 Documenteer includes specific command-line tools and Sphinx configurations to build documentation for both multi-package stacks (such as pipelines.lsst.io_) as well as individual or stand-alone stack packages (such as astro-metadata-translator.lsst.io_).
