@@ -238,6 +238,8 @@ Each item is a tuple of two items:
 
 This configuration extends the Sphinx ``nitpick_ignore_regex`` configuration.
 
+.. _guide-project-rst-epilog-file:
+
 rst_epilog_file
 ---------------
 
@@ -260,6 +262,8 @@ If set, the file is also included in the Sphinx source ignore list to prevent it
 
    .. |required| replace:: :bdg-primary-line:`Required`
    .. |optional| replace:: :bdg-secondary-line:`Optional`
+
+See :doc:`rst-epilog`.
 
 python_api_dir
 --------------

@@ -20,6 +20,8 @@ Documenteer provides a configuration profile for creating branded user guides wi
    :caption: Advanced
 
    pyproject-configuration
+   rst-epilog
+   badges
    extend-conf-py
 
 .. toctree::
