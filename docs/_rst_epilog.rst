@@ -16,6 +16,7 @@
 .. _`LSST DM Docstring Style Guide`: https://developer.lsst.io/python/style.html
 .. _`LSST DM ReStructuredTextStyle Guide`: https://developer.lsst.io/restructuredtext/style.html
 .. _`LSST DM User Documentation Style Guide`: https://developer.lsst.io/user-docs/index.html
+.. _`PyData Sphinx Theme`: https://pydata-sphinx-theme.readthedocs.io/en/stable/
 .. _`SQR-006`: https://sqr-006.lsst.io
 .. _`lsstDoxygen`: https://github.com/lsst/lsstDoxygen
 .. _`package-docs`: https://documenteer.lsst.io/pipelines/package-docs-cli.html
@@ -46,6 +47,10 @@
 .. |stack-docs| replace:: :doc:`stack-docs </pipelines/stack-docs-cli>`
 .. |stack-docs-build| replace:: :doc:`stack-docs build </pipelines/stack-docs-cli>`
 .. |stack-docs-clean| replace:: :doc:`stack-docs clean </pipelines/stack-docs-cli>`
+
+.. links to sphinx directives
+
+.. |toctree| replace:: :external+sphinx:rst:dir:`toctree`
 
 .. Badges
 

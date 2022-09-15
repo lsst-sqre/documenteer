@@ -283,6 +283,8 @@ If the Python API is oriented towards contributors, such as in an application or
 
 Configurations related to the Sphinx HTML theme.
 
+.. _guide-project-header-links-before-dropdown:
+
 header_links_before_dropdown
 ----------------------------
 

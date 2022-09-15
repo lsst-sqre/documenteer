@@ -13,6 +13,7 @@ Documenteer provides a configuration profile for creating branded user guides wi
    :caption: First steps
 
    configuration
+   organization
 
 .. toctree::
    :maxdepth: 2
