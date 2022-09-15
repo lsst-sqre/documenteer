@@ -9,24 +9,37 @@ At Rubin Observatory, every software package, web service, and even data release
 Documenteer provides a configuration profile for creating branded user guides with `Sphinx`_.
 
 .. toctree::
+
+   overview
+
+.. toctree::
    :maxdepth: 2
    :caption: First steps
+   :name: toc-guides-begin
 
    configuration
    organization
 
 .. toctree::
    :maxdepth: 2
-   :caption: Advanced
+   :caption: Advanced configuration
+   :name: toc-guides-advanced-config
 
    pyproject-configuration
    rst-epilog
-   badges
    extend-conf-py
 
 .. toctree::
    :maxdepth: 2
+   :caption: Design features
+   :name: toc-guides-design
+
+   badges
+
+.. toctree::
+   :maxdepth: 2
    :caption: Reference
+   :name: toc-guides-ref
 
    toml-reference
    configuration-preset

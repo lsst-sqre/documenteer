@@ -17,6 +17,9 @@
 .. _`LSST DM ReStructuredTextStyle Guide`: https://developer.lsst.io/restructuredtext/style.html
 .. _`LSST DM User Documentation Style Guide`: https://developer.lsst.io/user-docs/index.html
 .. _`PyData Sphinx Theme`: https://pydata-sphinx-theme.readthedocs.io/en/stable/
+.. _`Sphinx Design`: https://sphinx-design.readthedocs.io/en/latest/index.html
+.. _`MyST`: https://myst-parser.readthedocs.io/en/latest/intro.html
+.. _TOML: https://toml.io/en/
 .. _`SQR-006`: https://sqr-006.lsst.io
 .. _`lsstDoxygen`: https://github.com/lsst/lsstDoxygen
 .. _`package-docs`: https://documenteer.lsst.io/pipelines/package-docs-cli.html
@@ -40,6 +43,9 @@
 .. _toctree: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree
 .. _linkcheck: https://www.sphinx-doc.org/en/master/usage/configuration.html?#options-for-the-linkcheck-builder
 .. _rst_epilog: https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=rst_epilog#confval-rst_epilog
+.. _napoleon: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
+.. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
+.. _sphinx_autodoc_typehints: https://github.com/tox-dev/sphinx-autodoc-typehints
 
 .. Internal links
 
