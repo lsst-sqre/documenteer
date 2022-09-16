@@ -9,6 +9,8 @@
 .. _SCons: https://scons.org
 .. _Sphinx extensions: https://www.sphinx-doc.org/en/master/develop.html
 .. _Sphinx: https://www.sphinx-doc.org/en/master/
+.. _Mermaid: https://mermaid-js.github.io/mermaid/#/
+.. _sphinxcontrib-mermaid: https://github.com/mgaitan/sphinxcontrib-mermaid
 .. _`#dm-docs`: https://lsstc.slack.com/archives/C2B6DQBAL
 .. _`DMTN-030`:
 .. _`DMTN-030 Science Pipelines Documentation Design`: https://dmtn-030.lsst.io
