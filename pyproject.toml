@@ -70,6 +70,7 @@ guide = [
     "sphinx-prompt",
     "myst-parser",
     "markdown-it-py[linkify]",
+    "sphinxcontrib-mermaid",
 ]
 technote = [
     # Theme and extensions for technotes

@@ -32,6 +32,7 @@ Documenteer provides a configuration profile for creating branded user guides wi
    :caption: Design features
    :name: toc-guides-design
 
+   diagrams
    badges
    tabsets
 
