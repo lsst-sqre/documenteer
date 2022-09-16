@@ -33,6 +33,14 @@ Rubin user guides can be written in Markdown, in addition to reStructuredText, t
 Through MyST_, reStructuredText/Sphinx directives and roles are available as a layer on top of standard Markdown syntax.
 See the MyST_ documentation for more details on how to use reStructuredText features from Markdown.
 
+Diagrams as code
+================
+
+Support for Mermaid_ is built in, enabling you to add standard technical diagrams with restoring to graphics editors or binary files
+For infrastructure diagrams, we recommend using Diagrams_, which you can easily install and configure.
+
+See :doc:`diagrams` for more information.
+
 Python APIs with automodapi and autodoc
 =======================================
 

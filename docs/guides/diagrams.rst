@@ -98,3 +98,57 @@ Mermaid_ supports many diagram types, including:
 - `Gantt <https://mermaid-js.github.io/mermaid/#/gantt>`__
 
 See the Mermaid_ documentation for details on the available diagram types and their syntax.
+
+Diagrams for architectural diagrams
+===================================
+
+Mermaid_ does not have support for architectural diagrams (that is, diagrams showing the infrastructure and services in a deployment).
+For this application the Diagrams_ package, with the sphinx-diagrams_ extension, is ideal.
+
+Installation and set up
+-----------------------
+
+sphinx-diagrams_ is not part of the standard Documenteer configuration for Rubin user guides.
+You'll need to install and configure it:
+
+1. Add the ``sphinx-diagrams`` Python dependency to your project's development/documentation requirements.
+
+2. Ensure that ``graphviz`` is available in the build environment.
+   If you are using GitHub Actions with an Ubuntu runner, this can be done with an apt installation:
+
+   .. code-block:: yaml
+      :caption: .github/workflows/ci.yaml
+
+      - name: Install graphviz
+        run: |
+          sudo apt-get install -y graphviz
+
+   If you are using tox_, you may need to add ``graphviz`` to the documentation environment's ``allowlist_externals`` configuration.
+
+3. Add ``"sphinx_diagrams"`` to the extensions list in |documenteer.toml|:
+
+   .. code-block:: toml
+      :caption: documenteer.toml
+
+      [sphinx]
+      extensions = [
+        "sphinx_diagrams"
+      ]
+
+Basic syntax
+------------
+
+You add Diagrams_\ -based diagrams to your documentation with ``diagrams`` directives.
+As with Mermaid, you can write Diagrams_ code both within the ``diagrams`` directive, or set the name (or path) of a Python file as an argument to the ``diagrams`` diagram.
+Referencing a Python module is recommended to take advantage of syntax highlighting in your code editor.
+
+.. tab-set-code::
+
+   .. code-block:: rst
+
+      .. diagrams:: diagram.py
+
+   .. code-block:: md
+
+      ```diagrams diagram.py
+      ```

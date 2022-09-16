@@ -11,6 +11,8 @@
 .. _Sphinx: https://www.sphinx-doc.org/en/master/
 .. _Mermaid: https://mermaid-js.github.io/mermaid/#/
 .. _sphinxcontrib-mermaid: https://github.com/mgaitan/sphinxcontrib-mermaid
+.. _Diagrams: https://diagrams.mingrammer.com/
+.. _sphinx-diagrams: https://github.com/j-martin/sphinx-diagrams
 .. _`#dm-docs`: https://lsstc.slack.com/archives/C2B6DQBAL
 .. _`DMTN-030`:
 .. _`DMTN-030 Science Pipelines Documentation Design`: https://dmtn-030.lsst.io
@@ -48,9 +50,11 @@
 .. _napoleon: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
 .. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 .. _sphinx_autodoc_typehints: https://github.com/tox-dev/sphinx-autodoc-typehints
+.. _tox: https://tox.wiki/en/latest/
 
 .. Internal links
 
+.. |documenteer.toml| replace:: :doc:`documenteer.toml </guides/toml-reference>`
 .. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide </guides/configuration-preset>`
 .. |package-docs| replace:: :doc:`package-docs </pipelines/package-docs-cli>`
 .. |stack-docs| replace:: :doc:`stack-docs </pipelines/stack-docs-cli>`
