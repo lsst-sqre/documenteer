@@ -1,14 +1,19 @@
-#################
-Technote projects
-#################
+#########
+Technotes
+#########
 
-LSST technical notes (or *technotes*) are often written in reStructuredText, especially within LSST Data Management.
+Rubin technical notes (or *technotes*) are often written in reStructuredText, especially within LSST Data Management.
 Documenteer provides centralized configuration and tooling for technotes.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Configuration
 
    configuration
+
+.. toctree::
+   :caption: CLI tools
+
    refresh-lsst-bib
 
 .. seealso::

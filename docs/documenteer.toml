@@ -25,6 +25,9 @@ nitpick_ignore_regex = [
 ]
 python_api_dir = "dev/api/contents"
 
+[sphinx.theme]
+header_links_before_dropdown = 5
+
 [sphinx.intersphinx.projects]
 python = "https://docs.python.org/3/"
 requests = "https://requests.readthedocs.io/en/latest/"
