@@ -29,7 +29,9 @@ from documenteer.conf import (
 # #API
 #     API reference configuration
 # #MYST
-#     My-ST markdown configurations
+#     MyST markdown configurations
+# #MERMIAID
+#     Mermaid diagram support
 
 
 # Ordered as they are declared in this module
@@ -91,6 +93,8 @@ __all__ = [
     "napoleon_attr_annotations",
     # MYST
     "myst_enable_extensions",
+    # MERMAID
+    "mermaid_output_format",
 ]
 
 _conf = DocumenteerConfig.find_and_load()
@@ -104,6 +108,7 @@ extensions = [
     "myst_parser",
     "sphinx_copybutton",
     "sphinx_design",
+    "sphinxcontrib.mermaid",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
@@ -305,9 +310,8 @@ napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
 
-
 # ============================================================================
-# #MYST My-ST markdown configurations
+# #MYST MyST markdown configurations
 # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html
 # ============================================================================
 
@@ -326,3 +330,13 @@ myst_enable_extensions = [
     "substitution",
     "tasklist",
 ]
+
+# ============================================================================
+# #MERMIAID Mermaid diagram support
+# https://github.com/mgaitan/sphinxcontrib-mermaid
+# https://mermaid-js.github.io/mermaid/#/
+# ============================================================================
+
+# The raw format renders the diagram client-side, and doesn't require a
+# Mermaid CLI installation
+mermaid_output_format = "raw"
