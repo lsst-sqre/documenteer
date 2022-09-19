@@ -25,11 +25,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # full history for setuptools_scm
 
       - name: Run tests in tox
         uses: lsst-sqre/run-tox@v1
         with:
-          python-version: ${{ matrix.python-python }}
+          python-version: ${{ matrix.python-version }}
           tox-envs: "lint,typing-sphinx${{ matrix.sphinx-version }},py-test-sphinx${{ matrix.sphinx-version }}"
           use-cache: false
 
@@ -38,6 +40,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # full history for setuptools_scm
 
       - name: Build docs in tox
         uses: lsst-sqre/run-tox@v1
