@@ -32,6 +32,8 @@ from documenteer.conf import (
 #     MyST markdown configurations
 # #MERMIAID
 #     Mermaid diagram support
+# #OPENGRAPH
+#     OpenGraph metadata support
 
 
 # Ordered as they are declared in this module
@@ -95,6 +97,10 @@ __all__ = [
     "myst_enable_extensions",
     # MERMAID
     "mermaid_output_format",
+    # OPENGRAPH
+    "ogp_site_url",
+    "ogp_site_name",
+    "ogp_use_first_image",
 ]
 
 _conf = DocumenteerConfig.find_and_load()
@@ -109,6 +115,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinxcontrib.mermaid",
+    "sphinxext.opengraph",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
@@ -340,3 +347,13 @@ myst_enable_extensions = [
 # The raw format renders the diagram client-side, and doesn't require a
 # Mermaid CLI installation
 mermaid_output_format = "raw"
+
+# ============================================================================
+# #OPENGRAPH OpenGraph diagram support
+# https://github.com/wpilibsuite/sphinxext-opengraph
+# https://ogp.me/
+# ============================================================================
+
+ogp_site_url = _conf.base_url
+ogp_site_name = _conf.project
+ogp_use_first_image = True

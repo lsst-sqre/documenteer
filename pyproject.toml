@@ -71,6 +71,7 @@ guide = [
     "myst-parser",
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid",
+    "sphinxext-opengraph",
 ]
 technote = [
     # Theme and extensions for technotes
