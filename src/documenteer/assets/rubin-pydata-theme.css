@@ -69,6 +69,9 @@ html[data-theme='dark'] {
   --pst-font-family-base: 'Source Sans Pro', var(--pst-font-family-base-system);
   --pst-font-family-heading: 'Source Sans Pro',
     var(--pst-font-family-base-system);
+
+  /* Base font size; increased for pydata-sphinx-theme default. */
+  font-size: 18px;
 }
 
 html[data-theme='light'] {
@@ -83,4 +86,19 @@ html[data-theme='dark'] {
   /* Colours */
   --pst-color-text-base: var(--rsd-component-text-color);
   --pst-color-primary: var(--rsd-color-primary-500);
+}
+
+html[data-theme='dark'] .table td,
+html[data-theme='dark'] .table th {
+  /* Reduce contrast of tables in dark mode. */
+  border-top: 1px solid var(--rsd-color-gray-500);
+}
+
+body {
+  /* Override pydata-sphinx-theme */
+  line-height: 1.5;
+}
+
+.navbar-nav i {
+  font-size: var(--pst-font-size-icon);
 }

@@ -1,3 +1,4 @@
+:og:description: Documenteer provides Sphinx extensions, configurations, and tooling for Rubin Observatory documentation projects.
 :html_theme.sidebar_secondary.remove:
 
 ###########
