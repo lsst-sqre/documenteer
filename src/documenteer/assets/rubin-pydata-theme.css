@@ -88,6 +88,12 @@ html[data-theme='dark'] {
   --pst-color-primary: var(--rsd-color-primary-500);
 }
 
+html[data-theme='dark'] .table td,
+html[data-theme='dark'] .table th {
+  /* Reduce contrast of tables in dark mode. */
+  border-top: 1px solid var(--rsd-color-gray-500);
+}
+
 body {
   /* Override pydata-sphinx-theme */
   line-height: 1.5;
