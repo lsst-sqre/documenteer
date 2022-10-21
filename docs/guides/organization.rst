@@ -4,7 +4,7 @@ Organizing content in a Rubin user guide
 
 Once your Sphinx project is :doc:`configured to use the Rubin user guide theme <configuration>`, the next step is to organize your content into pages and directories, and create links into those pages with Sphinx toctrees.
 The HTML theme of Rubin user guides, based on `PyData Sphinx Theme`_, offers multiple layers of navigational UI.
-Taking best advantage of that navigational UI requires specific considerations for how the Sphinx toctrees are structured.
+Taking best advantage of that navigational UI requires specific considerations for how the Sphinx |toctree| directives are structured.
 This page describes the navigational architecture of the HTML theme and its relationship to Sphinx toctrees, and includes suggested layouts for common project types.
 
 Navigational levels in the HTML theme
@@ -20,7 +20,7 @@ The HTML theme provides four levels of navigation:
 Creating sections
 =================
 
-Sections are the *root* level |toctree| items in the homepage of your documenation project (the root-level :file:`index.rst` or :file:`index.md` file).
+Sections are the *root* level |toctree| items in the homepage of your documentation project (the root-level :file:`index.rst` or :file:`index.md` file).
 In this example, there are three sections (a user guide, a developer guide, and a change log):
 
 .. code-block:: rst
@@ -45,6 +45,7 @@ This example is functionally equivalent to the first example, above:
       user-guide/index
 
    .. toctree::
+
       api
 
    .. toctree::
