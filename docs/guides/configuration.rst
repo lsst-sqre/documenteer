@@ -2,7 +2,7 @@
 Setting up the Documenteer configuration for Rubin user guides
 ##############################################################
 
-Documenteer provides centralized configuration, |documenteer.conf.guide| for Rubin Observatory user guide websites created with Sphinx.
+Documenteer provides centralized configuration, |documenteer.conf.guide|, for Rubin Observatory user guide websites created with Sphinx.
 This page page shows how to add Documenteer as a Python dependency, install Documenteer's Sphinx configuration, and then customize that configuration.
 
 Python dependency
