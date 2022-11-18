@@ -19,7 +19,6 @@ jobs:
           - "3.9"
           - "3.10"
         sphinx-version:
-          - "4"
           - "5"
           - "dev"
 
@@ -27,6 +26,15 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # full history for setuptools_scm
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: npm install and build
+        run: |
+          npm install
+          npm run build
 
       - name: Run tests in tox
         uses: lsst-sqre/run-tox@v1
@@ -57,6 +65,15 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # full history for setuptools_scm
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: npm install and build
+        run: |
+          npm install
+          npm run build
 
       - name: Build and publish
         uses: lsst-sqre/build-and-publish-to-pypi@v1

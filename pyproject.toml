@@ -29,7 +29,7 @@ classifiers = [
 requires-python = ">=3.7"
 dynamic = ["version"]
 dependencies = [
-    "Sphinx>=2.4.0",
+    "Sphinx>=5",
     "PyYAML",
     "GitPython",
     "requests",
@@ -76,6 +76,7 @@ guide = [
 technote = [
     # Theme and extensions for technotes
     "lsst-dd-rtd-theme>=0.2.3,<0.3.0",
+    "technote>=0.2.0a1",
     "sphinx-prompt",
 ]
 pipelines = [
