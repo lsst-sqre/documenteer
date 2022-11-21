@@ -31,6 +31,12 @@ jobs:
         with:
           node-version-file: '.nvmrc'
 
+      - name: Authenticate GitHub Packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NPM_PKG_TOKEN}" > ~/.npmrc
+        env:
+          NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: npm install and build
         run: |
           npm install
@@ -69,6 +75,12 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
+
+      - name: Authenticate GitHub Packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NPM_PKG_TOKEN}" > ~/.npmrc
+        env:
+          NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: npm install and build
         run: |
