@@ -1,0 +1,17 @@
+.rubin-technote-global-breadcrumbs {
+  list-style: none;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.rubin-technote-global-breadcrumbs li {
+  display: inline;
+}
+
+.rubin-technote-global-breadcrumbs li::after {
+  content: ' / ';
+}
+
+.rubin-technote-global-breadcrumbs li:last-child::after {
+  content: '';
+}
