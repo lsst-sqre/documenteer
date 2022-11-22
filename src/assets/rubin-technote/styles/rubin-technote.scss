@@ -1,9 +1,9 @@
-@import '@lsst-sqre/rubin-style-dictionary/dist/tokens.css';
-
 /*
- * Styles for Rubin Technotes, built on top of technote.lsst.io.
+ * Styles for Rubin technotes (documenteer.conf.technotebeta config).
+ * These are intended to cascade *after* the base skeleton.css and
+ * technote.css from https://technote.lsst.io.
  */
 
-body {
-  color: var(--rsd-color-primary-500);
-}
+@import '@lsst-sqre/rubin-style-dictionary/dist/tokens.css';
+
+@import 'properties.scss';

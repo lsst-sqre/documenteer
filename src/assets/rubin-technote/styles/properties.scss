@@ -1,0 +1,16 @@
+/*
+ * Override technote CSS properties with Rubin Style Dictionary.
+ */
+
+:root {
+  --tn-component-text-color: var(--rsd-component-text-color);
+}
+
+.technote-article-header-id {
+  color: var(--rsd-color-primary-600);
+}
+
+.technote-sidebar-section__heading,
+.toc-header {
+  color: var(--rsd-color-primary-600);
+}
