@@ -6,6 +6,7 @@ github_url = "https://github.com/lsst-sqre/sqr-000"
 github_default_branch = "master"
 date_created = "2015-11-18"
 date_updated = "2015-11-23"
+version = "1.0.0"
 
 [[technote.authors]]
 name = { given_names = "Jonathan", family_names = "Sick" }
