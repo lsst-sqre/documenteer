@@ -20,6 +20,7 @@
 .. _`LSST DM Docstring Style Guide`: https://developer.lsst.io/python/style.html
 .. _`LSST DM ReStructuredTextStyle Guide`: https://developer.lsst.io/restructuredtext/style.html
 .. _`LSST DM User Documentation Style Guide`: https://developer.lsst.io/user-docs/index.html
+.. _`pydata-sphinx-theme`:
 .. _`PyData Sphinx Theme`: https://pydata-sphinx-theme.readthedocs.io/en/stable/
 .. _`Sphinx Design`: https://sphinx-design.readthedocs.io/en/latest/index.html
 .. _`MyST`: https://myst-parser.readthedocs.io/en/latest/intro.html
@@ -51,6 +52,7 @@
 .. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 .. _sphinx_autodoc_typehints: https://github.com/tox-dev/sphinx-autodoc-typehints
 .. _tox: https://tox.wiki/en/latest/
+.. _Technote: https://technote.lsst.io/
 
 .. Internal links
 
