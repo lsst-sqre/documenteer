@@ -4,7 +4,7 @@
  * technote.css from https://technote.lsst.io.
  */
 
-@import '@lsst-sqre/rubin-style-dictionary/dist/tokens.css';
+@use '../../../../node_modules/@lsst-sqre/rubin-style-dictionary/dist/tokens.css';
 
-@import 'properties.scss';
-@import 'components/';
+@use 'properties';
+@use 'components';
