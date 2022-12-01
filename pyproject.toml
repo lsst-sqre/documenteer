@@ -2,12 +2,9 @@
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 name = "documenteer"
 description = "Rubin Observatory / LSST Sphinx documentation tools, extensions, and configurations."
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 readme = "README.md"
-keywords = [
-    "rubin",
-    "lsst",
-]
+keywords = ["rubin", "lsst"]
 # https://pypi.org/classifiers/
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -34,7 +31,7 @@ dependencies = [
     "GitPython",
     "requests",
     "click",
-    "sphinxcontrib-bibtex>=2.0.0",  # for pybtex plugin; bibtex_bibfiles config is required.
+    "sphinxcontrib-bibtex>=2.0.0",                  # for pybtex plugin; bibtex_bibfiles config is required.
     "importlib_metadata; python_version < \"3.8\"",
     "tomli; python_version < \"3.11\"",
     "pydantic",
@@ -102,11 +99,7 @@ build-stack-docs = "documenteer.bin.buildstackdocs:run_build_cli"
 refresh-lsst-bib = "documenteer.bin.refreshlsstbib:run"
 
 [build-system]
-requires = [
-    "setuptools>=61",
-    "wheel",
-    "setuptools_scm[toml]>=6.2"
-]
+requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = 'setuptools.build_meta'
 
 [tool.setuptools_scm]
@@ -162,10 +155,7 @@ exclude_lines = [
 norecursedirs = "node_modules"
 
 [tool.pytest.ini_options]
-python_files = [
-    "tests/*.py",
-    "tests/*/*.py"
-]
+python_files = ["tests/*.py", "tests/*/*.py"]
 
 [tool.mypy]
 # provisional config; disallow_untyped_defs once fully typed
