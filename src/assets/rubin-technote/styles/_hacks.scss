@@ -15,3 +15,7 @@
 .sb-container {
   margin-top: var(--tn-space-md-fixed);
 }
+
+.technote-sidebar-section:first-of-type {
+  margin-top: var(--tn-space-lg-fixed);
+}
