@@ -31,14 +31,14 @@ module.exports = {
         {
           from: join(
             rsdAssetsDir,
-            'rubin-imagotype/rubin-imagotype-color-on-black.svg'
+            'rubin-imagotype/rubin-imagotype-color-on-black-crop.svg'
           ),
           to: 'rsd-assets',
         },
         {
           from: join(
             rsdAssetsDir,
-            'rubin-imagotype/rubin-imagotype-color-on-white.svg'
+            'rubin-imagotype/rubin-imagotype-color-on-white-crop.svg'
           ),
           to: 'rsd-assets',
         },

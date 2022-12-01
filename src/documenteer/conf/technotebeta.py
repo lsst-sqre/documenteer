@@ -11,8 +11,8 @@ html_static_path: List[str] = [
     get_asset_path("rubin-favicon.svg"),
     get_asset_path("styles/rubin-technote.css"),
     get_asset_path("styles/rubin-technote.css.map"),
-    get_asset_path("rsd-assets/rubin-imagotype-color-on-white.svg"),
-    get_asset_path("rsd-assets/rubin-imagotype-color-on-black.svg"),
+    get_asset_path("rsd-assets/rubin-imagotype-color-on-white-crop.svg"),
+    get_asset_path("rsd-assets/rubin-imagotype-color-on-black-crop.svg"),
 ]
 
 html_css_files = ["rubin-technote.css"]
@@ -24,8 +24,8 @@ templates_path = [get_template_dir("technote")]
 
 # Configurations for the technote theme.
 html_theme_options = {
-    "light_logo": "rubin-imagotype-color-on-white.svg",
-    "dark_logo": "rubin-imagotype-color-on-black.svg",
+    "light_logo": "rubin-imagotype-color-on-white-crop.svg",
+    "dark_logo": "rubin-imagotype-color-on-black-crop.svg",
     "logo_link_url": "https://www.lsst.io",
     "logo_alt_text": "Rubin Observatory logo",
 }
