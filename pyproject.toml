@@ -72,7 +72,7 @@ guide = [
 technote = [
     # Theme and extensions for technotes
     "lsst-dd-rtd-theme>=0.2.3,<0.3.0",
-    "technote>=0.2.0a4",
+    "technote>=0.2.0",
     "sphinx-prompt",
 ]
 pipelines = [
