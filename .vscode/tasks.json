@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Demo",
+      "detail": "Build demo technote",
+      "type": "shell",
+      "command": "tox -e demo",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "group": "build",
+      "problemMatcher": [],
+      "label": "npm: build",
+      "detail": "Build CSS & JS with webpack"
+    },
+    {
+      "label": "Preview",
+      "detail": "Build CSS, JS and demo technote",
+      "dependsOn": ["npm: build", "Demo"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}

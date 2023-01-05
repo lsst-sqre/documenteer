@@ -1,0 +1,32 @@
+<div class="match-content-width">
+  <ol class="rubin-technote-global-breadcrumbs">
+    <li><a href="https://www.lsst.io/">Rubin Documentation</a></li>
+    <li>
+      <a href="https://www.lsst.io/{{technote.toml.technote.series_id|lower}}/"
+        >{{technote.toml.technote.series_id}}</a
+      >
+    </li>
+  </ol>
+
+  <p class="technote-article-header-id">{{technote.toml.technote.id}}</p>
+
+  <div class="rubin-technote-version-info">
+    {% if technote.version %}
+    <p>
+      <span class="rubin-technote-version-info__label">Version</span>
+      <span class="rubin-technote-version-info__value"
+        >{{technote.version}}</span
+      >
+    </p>
+    {% endif %} {% if technote.date_updated_iso %}
+    <p>
+      <span class="rubin-technote-version-info__label">Updated</span>
+      <time
+        class="rubin-technote-version-info__value"
+        datetime="technote.date_updated_iso"
+        >{{ technote.date_updated_iso }}</time
+      >
+    </p>
+    {% endif %}
+  </div>
+</div>

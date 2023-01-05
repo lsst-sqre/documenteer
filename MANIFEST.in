@@ -1,0 +1,3 @@
+graft src/documenteer/assets/styles
+graft src/documenteer/assets/scripts
+graft src/documenteer/assets/rsd-assets

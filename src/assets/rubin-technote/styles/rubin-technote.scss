@@ -1,0 +1,11 @@
+/*
+ * Styles for Rubin technotes (documenteer.conf.technotebeta config).
+ * These are intended to cascade *after* the base skeleton.css and
+ * technote.css from https://technote.lsst.io.
+ */
+
+@use '../../../../node_modules/@lsst-sqre/rubin-style-dictionary/dist/tokens.css';
+
+@use 'properties';
+@use 'components';
+@use 'hacks';

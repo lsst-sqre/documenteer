@@ -1,0 +1,21 @@
+/*
+ * The version info in the header-article section (located below the
+ * technote ID)
+ */
+
+.rubin-technote-version-info {
+  display: flex;
+  flex-direction: row;
+}
+
+.rubin-technote-version-info > p {
+  margin: 0 0 var(--tn-space-sm);
+}
+
+.rubin-technote-version-info > p {
+  margin-right: var(--tn-space-xl);
+}
+
+.rubin-technote-version-info > p:last-child {
+  margin-right: 0;
+}

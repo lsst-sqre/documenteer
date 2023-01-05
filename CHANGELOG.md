@@ -1,5 +1,12 @@
 # Change Log
 
+## Unreleased
+
+- Add a new `documenteer.conf.technotebeta` configuration for [technote](https://technote.lsst.io)-based technotes.
+  These technotes are now themed with Rubin's modern branding.
+- Drop support for Python 3.7.
+- Drop support for Sphinx versions earlier than 5.
+
 ## 0.7.0 (2022-10-20)
 
 - Documenteer provides a new Sphinx configuration profile for general Rubin user guide projects, `documenteer.conf.guide`.
