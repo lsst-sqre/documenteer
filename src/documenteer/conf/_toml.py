@@ -226,7 +226,7 @@ class DocumenteerConfig:
     @classmethod
     def find_and_load(cls) -> DocumenteerConfig:
         path = Path("documenteer.toml")
-        if not path.is_file:
+        if not path.is_file():
             raise ConfigError("Cannot find the documenteer.toml file.")
         return cls.load(path.read_text())
 
