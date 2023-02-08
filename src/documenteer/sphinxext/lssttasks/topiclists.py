@@ -161,7 +161,6 @@ class PipelineTaskListDirective(BaseTopicListDirective):
 
 
 class ConfigurableListDirective(BaseTopicListDirective):
-
     directive_name = "lsst-configurables"
 
     @property
@@ -170,7 +169,6 @@ class ConfigurableListDirective(BaseTopicListDirective):
 
 
 class ConfigListDirective(TaskListDirective):
-
     directive_name = "lsst-configs"
 
     @property
