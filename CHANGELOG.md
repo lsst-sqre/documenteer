@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.1 (2023-02-23)
+
+Fixes:
+
+- Temporarily pinning Mermaid to 9.4.0 in the User Guide configuration to workaround a change in the Mermaid CDN.
+
 ## 0.7.0 (2022-10-20)
 
 - Documenteer provides a new Sphinx configuration profile for general Rubin user guide projects, `documenteer.conf.guide`.
@@ -108,7 +114,7 @@ Fixes:
 
 - Documenteer works with the latest version of [sphinxcontrib-bibtex](https://github.com/mcmtroffaes/sphinxcontrib-bibtex).
   Both the new (`documenteer.conf.technote`) and old (`documenteer.sphinxconfig.technoteconf`) versions of the technote configuration use the new `bibtex_bibfiles` configuration variable.
-  Version 2.0.0 or later of `sphinxcontrib-bibtex`_ is now required because of that package's API.
+  Version 2.0.0 or later of `sphinxcontrib-bibtex`\_ is now required because of that package's API.
 
 ## 0.6.2 (2020-10-08)
 
@@ -213,7 +219,7 @@ Fixes:
 ## 0.5.5 (2019-12-09)
 
 - Technote configuration now uses `yaml.safe_load` instead of `yaml.load`.
-  See the [pyyaml docs for details](https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation).
+  See the [pyyaml docs for details](<https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation>).
   [[DM-22537](https://jira.lsstcorp.org/browse/DM-22537)]
 
 ## 0.5.4 (2019-11-03)
@@ -339,7 +345,7 @@ Fixes:
   This configuration is critical:
 
   1. It is actually responsible for ensuring that inherited members of classes appear in our docs.
-  2. Without this, classes that have a `__slots__` attribute (typically through inheritance of a `collections.abc` class) won't have *any* of their members documented. See (DM-16102)(https://jira.lsstcorp.org/browse/DM-16102) for discussion.
+  2. Without this, classes that have a `__slots__` attribute (typically through inheritance of a `collections.abc` class) won't have _any_ of their members documented. See (DM-16102)(https://jira.lsstcorp.org/browse/DM-16102) for discussion.
 
 - `todo` directives are now hidden when using `build_pipelines_lsst_io_configs`.
   They are still shown, by default, for standalone package documentation builds, which are primarily developer-facing.
@@ -373,7 +379,7 @@ Fixes:
   - Add `documenteer.sphinxconf.stackconf.build_pipelines_lsst_io_configs` to configure the Sphinx build of the https://github.com/lsst/pipelines_lsst_io repo.
     This pattern lets us share configurations between per-package documentation builds and the "stack" build in `pipelines_lsst_io`.
 
-  - Replaced the third-party `astropy_helpers`_ package with the numpydoc_ and `sphinx-automodapi`_ packages.
+  - Replaced the third-party `astropy_helpers`_ package with the numpydoc_ and `sphinx-automodapi`\_ packages.
     This helps reduce the number of extraneous dependencies needed for Stack documentation.
 
   - `autoclass_content` is now `"class"`, fitting the LSST DM standards for writing class docstrings, and not filling out `__init__` docstrings.
@@ -468,7 +474,7 @@ Fixes:
 
 ## 0.1.10 (2016-12-14)
 
-Includes prototype support for LSST Science Pipelines documentation, as part of `DM-6199 <https://jira.lsstcorp.org/browse/DM-6199>`__:
+Includes prototype support for LSST Science Pipelines documentation, as part of `DM-6199 <https://jira.lsstcorp.org/browse/DM-6199>`\_\_:
 
 - Added dependencies to [breathe](http://breathe.readthedocs.io/en/latest/), [astropy-helpers](https://github.com/astropy/astropy-helpers) and the [lsst-sphinx-bootstrap-theme](https://github.com/lsst-sqre/lsst-sphinx-bootstrap-theme) to generally coordinate LSST Science Pipelines documentation dependencies.
 - Created `documenteer.sphinxconfig.stackconf` module to centrally coordinate Science Pipelines documentation configuration. Much of the configuration is based on [astropy-helper's Sphinx configuration](https://github.com/astropy/astropy-helpers/blob/master/astropy_helpers/sphinx/conf.py) since the LSST Science Pipelines documentation is heavily based upon Astropy's Sphinx theme and API reference generation infrastructure.
