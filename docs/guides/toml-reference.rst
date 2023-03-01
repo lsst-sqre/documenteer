@@ -33,7 +33,7 @@ base\_url
 
 |optional| |py-auto|
 
-The root URL of the documentation project, used to set the `canonical URL link rel <https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel#attr-canonical>`__, which is valuable for search engines.
+The root URL of the documentation project, used to set the `canonical URL link rel <https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel>`__, which is valuable for search engines.
 
 .. code-block:: toml
 
