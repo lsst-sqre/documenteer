@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.2 (2023-03-01)
+
+Fixes:
+
+- Temporarily pin pydata-sphinx-theme to <0.13. The new version changed how it treats light/dark logos.
+
 ## 0.7.1 (2023-02-23)
 
 Fixes:
