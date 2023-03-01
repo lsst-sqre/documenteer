@@ -6,6 +6,7 @@
   These technotes are now themed with Rubin's modern branding.
 - Drop support for Python 3.7.
 - Drop support for Sphinx versions earlier than 5.
+- Temporarily pin pydata-sphinx-theme < 0.13 on account of a change in logo path checking (affects user guide projects).
 
 ## 0.7.0 (2022-10-20)
 
