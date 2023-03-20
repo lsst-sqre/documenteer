@@ -166,6 +166,7 @@ exclude_patterns = [
     ".github",
     ".tox",
 ]
+_conf.extend_exclude_patterns(exclude_patterns)
 
 if _conf.rst_epilog_path:
     exclude_patterns.append(str(_conf.rst_epilog_path))

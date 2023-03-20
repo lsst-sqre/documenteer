@@ -165,6 +165,15 @@ The default is ``["index"]`` to remove the sidebar from the homepage.
    This configuration is for the **primary** sidebar, on the left side, containing side or section-level navigation links.
    To remove the page-level contents sidebar, on the right side, add ``:html_theme.sidebar_secondary.remove:`` to the *page's* file metadata.
 
+exclude
+-------
+
+|optional|
+
+A list of file paths, relative to :file:`conf.py`, to exclude from the Sphinx build.
+This configuration is often used to prevent file unrelated to the documentation from being accidentally included in the site build.
+|documenteer.conf.guide| includes common files and directories, so you may not need to modify this configuration in standard situations.
+
 extensions
 ----------
 
