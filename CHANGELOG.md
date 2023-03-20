@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.3 (2023-03-20)
+
+Fixes:
+
+- Add `requirements.txt` and `.venv`/`venv` to the default `exclude_patterns` for User Guides.
+
 ## 0.7.2 (2023-03-01)
 
 Fixes:

@@ -156,7 +156,16 @@ language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ["_build", "README.rst", "README.md"]
+exclude_patterns = [
+    "_build",
+    "README.rst",
+    "README.md",
+    ".venv",
+    "venv",
+    "requirements.txt",
+    ".github",
+    ".tox",
+]
 
 if _conf.rst_epilog_path:
     exclude_patterns.append(str(_conf.rst_epilog_path))
