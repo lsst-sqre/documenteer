@@ -202,6 +202,14 @@ class SphinxModel(BaseModel):
         ),
     )
 
+    exclude: List[str] = Field(
+        description=(
+            "List of paths to exclude from being considered as Sphinx content "
+            "sources."
+        ),
+        default_factory=list,
+    )
+
     theme: ThemeModel = Field(default_factory=lambda: ThemeModel())
 
     intersphinx: Optional[IntersphinxModel]
@@ -405,6 +413,13 @@ class DocumenteerConfig:
             return self.conf.sphinx.nitpicky
         else:
             return False
+
+    def extend_exclude_patterns(self, exclude_patterns: List[str]) -> None:
+        """Extend Sphinx ``exclude_patterns`` with the "exclude" configuration
+        from the sphinx TOML table.
+        """
+        if self.conf.sphinx and self.conf.sphinx.exclude:
+            exclude_patterns.extend(self.conf.sphinx.exclude)
 
     def disable_primary_sidebars(
         self, html_sidebars: MutableMapping[str, List[str]]
