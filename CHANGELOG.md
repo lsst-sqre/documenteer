@@ -7,6 +7,8 @@
 - Drop support for Python 3.7.
 - Drop support for Sphinx versions earlier than 5.
 - Temporarily pin pydata-sphinx-theme < 0.13 on account of a change in logo path checking (affects user guide projects).
+- Add a new `sphinx.exclude` field to `documenteer.toml` to list files for exclusion from a documentation project.
+  More files and directories like `.venv` and `requirements.txt` are now excluded, as well.
 
 ## 0.7.0 (2022-10-20)
 
