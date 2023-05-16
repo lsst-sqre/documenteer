@@ -75,11 +75,13 @@ guide = [
 ]
 technote = [
     # Theme and extensions for technotes
+    "sphinx<7.0.0",
     "lsst-dd-rtd-theme>=0.2.3,<0.3.0",
     "sphinx-prompt",
 ]
 pipelines = [
     # Theme and extensions for pipelines.lsst.io
+    "sphinx<7.0.0",
     "lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0",
     "numpydoc",
     "sphinx-automodapi",

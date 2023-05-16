@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.4 (2023-05-16)
+
+Fixes:
+
+- Pinned Sphinx < 7 for the `pipelines` and `technote` extras since their themes are not currently compatible with Sphinx 7 and later.
+
 ## 0.7.3 (2023-03-20)
 
 Fixes:
