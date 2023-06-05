@@ -13,3 +13,4 @@ Sphinx extensions
    package-toctree
    lsst-pybtex-style
    autodocreset
+   openapi

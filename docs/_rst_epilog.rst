@@ -51,6 +51,7 @@
 .. _napoleon: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
 .. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 .. _sphinx_autodoc_typehints: https://github.com/tox-dev/sphinx-autodoc-typehints
+.. _sphinxcontrib-redoc: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 .. _tox: https://tox.wiki/en/latest/
 .. _Technote: https://technote.lsst.io/
 
