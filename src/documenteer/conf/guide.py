@@ -123,11 +123,13 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.ifconfig",
     "sphinx-prompt",
+    "sphinxcontrib.redoc",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
     "sphinx_automodapi.automodapi",
     "sphinx_automodapi.smart_resolver",
     "documenteer.sphinxext",
+    "documenteer.ext.openapi",
 ]
 _conf.append_extensions(extensions)
 

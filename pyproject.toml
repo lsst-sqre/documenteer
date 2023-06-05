@@ -69,6 +69,7 @@ guide = [
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid",
     "sphinxext-opengraph",
+    "sphinxcontrib-redoc",
 ]
 technote = [
     # Theme and extensions for technotes
