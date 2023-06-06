@@ -6,7 +6,7 @@ containing::
     from documenteer.conf.guide import *
 """
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from documenteer.conf import (
     DocumenteerConfig,
@@ -34,6 +34,8 @@ from documenteer.conf import (
 #     Mermaid diagram support
 # #OPENGRAPH
 #     OpenGraph metadata support
+# #OPENAPI
+#     OpenAPI/redoc support
 
 
 # Ordered as they are declared in this module
@@ -102,6 +104,11 @@ __all__ = [
     "ogp_site_url",
     "ogp_site_name",
     "ogp_use_first_image",
+    # OPENAPI
+    "documenteer_openapi_generator",
+    "documenteer_openapi_path",
+    "redoc",
+    "redoc_uri",
 ]
 
 _conf = DocumenteerConfig.find_and_load()
@@ -374,3 +381,39 @@ mermaid_version = "9.4.0"
 ogp_site_url = _conf.base_url
 ogp_site_name = _conf.project
 ogp_use_first_image = True
+
+# ============================================================================
+# #OPEN OpenAPI/Redoc support
+# https://sphinxcontrib-redoc.readthedocs.io/en/stable/
+# documenteer.ext.openapi
+# ============================================================================
+
+if _conf.conf.project.openapi is not None:
+    if _conf.conf.project.openapi.generator is not None:
+        documenteer_openapi_generator: Optional[Dict[str, Any]] = {
+            "func": _conf.conf.project.openapi.generator.function,
+            "args": _conf.conf.project.openapi.generator.positional_args,
+            "kwargs": _conf.conf.project.openapi.generator.keyword_args,
+        }
+    else:
+        documenteer_openapi_generator = None
+    documenteer_openapi_path: Optional[
+        str
+    ] = _conf.conf.project.openapi.openapi_path
+    redoc: Optional[List[Any]] = [
+        {
+            "name": "REST API",
+            "page": _conf.conf.project.openapi.doc_path,
+            "spec": _conf.conf.project.openapi.openapi_path,
+            "embed": True,
+            "opts": {"hide-hostname": True},
+        }
+    ]
+    redoc_uri: Optional[
+        str
+    ] = "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
+else:
+    documenteer_openapi_generator = None
+    documenteer_openapi_path = None
+    redoc = []
+    redoc_uri = None
