@@ -98,11 +98,12 @@ class OpenApiDocsModel(BaseModel):
         ),
     )
 
-    openapi_path: Optional[str] = Field(
-        None,
+    openapi_path: str = Field(
+        "_static/openapi.json",
         description=(
             "This is the path, relative to the Sphinx conf.py file, where the "
-            "OpenAPI spec file is written."
+            "OpenAPI spec file is written. Default is "
+            "``_static/openapi.json``."
         ),
     )
 
