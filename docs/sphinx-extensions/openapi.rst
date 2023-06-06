@@ -72,6 +72,7 @@ In the :file:`conf.py` file, use the :ref:`documenteer-openapi-generator-conf` c
    documenteer_openapi_generator = {
        "func": "squarebot.main:create_openapi",
    }
+   documenteer_openapi_path = "_static/openapi.json"
 
 Note how the value of the ``"func"`` key is a string that specifies the module and function name, separated by a colon.
 In this case, the ``create_openapi`` function is importable from the ``squarebot.main`` Python namespace.
@@ -97,9 +98,7 @@ The second set of configurations is for the `sphinxcontrib-redoc`_ extension.
        }
    ]
 
-The ``spec`` field is critical.
-By default it should be ``_static/openapi.json``, where the ``documenteer.ext.openapi`` extension writes the OpenAPI spec.
-However, if you modify :ref:`documenteer-openapi-path-conf`, then you should also modify this field to match.
+The ``spec`` field is critical, and should match the value of ``documenteer_openapi_path``.
 
 5. Add a stub page to the documentation
 ---------------------------------------
@@ -198,7 +197,6 @@ documenteer\_openapi\_path
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This is the path, relative to the Sphinx :file:`conf.py` file, where the OpenAPI spec file is written.
-The default is :file:`_static/openapi.json`.
 
 If you are using the `sphinxcontrib-redoc`_ extension, this path should match the ``spec`` field in the ``redoc`` configuration.
 

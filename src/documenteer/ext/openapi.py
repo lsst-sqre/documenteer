@@ -60,6 +60,14 @@ def generate_openapi_spec(app: Sphinx, config: Config) -> None:
     openapi_text = generator_func(*generator_args, **generator_kwargs)
 
     # Write the OpenAPI spec to a file
+    openapi_path = config["documenteer_openapi_path"]
+    if openapi_path is None:
+        raise SphinxError(
+            "documenteer_openapi_path must be set to a path relative to the "
+            "Sphinx source directory. It is the path to write the OpenAPI "
+            "spec to."
+        )
+
     openapi_spec_path = Path(app.confdir).joinpath(
         config["documenteer_openapi_path"]
     )
@@ -76,9 +84,7 @@ def setup(app: Sphinx) -> Dict[str, Any]:
 
     # The path to write the OpenAPI spec, relative to the Sphinx conf.py
     # file.
-    app.add_config_value(
-        "documenteer_openapi_path", "_static/openapi.json", "html"
-    )
+    app.add_config_value("documenteer_openapi_path", None, "html")
 
     # Events
     app.connect("config-inited", generate_openapi_spec)
