@@ -4,8 +4,8 @@
 
 .. _Doxygen: http://www.doxygen.nl
 .. _Doxylink: https://sphinxcontrib-doxylink.readthedocs.io/en/stable/
+.. _FastAPI: https://fastapi.tiangolo.com
 .. _Intersphinx: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
-.. _LSST Science Pipelines:
 .. _SCons: https://scons.org
 .. _Sphinx extensions: https://www.sphinx-doc.org/en/master/develop.html
 .. _Sphinx: https://www.sphinx-doc.org/en/master/
@@ -31,6 +31,7 @@
 .. _`pex_config`: https://github.com/lsst/pex_config
 .. _`pipe_base`: https://github.com/lsst/pipe_base
 .. _`pipe_supertask`: https://github.com/lsst/pipe_supertask
+.. _LSST Science Pipelines:
 .. _`pipelines.lsst.io`: https://pipelines.lsst.io
 .. _`pipelines_lsst_io`: https://github.com/lsst/pipelines_lsst_io
 .. _`sconsUtils`: https://github.com/lsst/sconsUtils
@@ -47,6 +48,7 @@
 .. _pytest: https://pytest.org
 .. _toctree: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree
 .. _linkcheck: https://www.sphinx-doc.org/en/master/usage/configuration.html?#options-for-the-linkcheck-builder
+.. _Redoc: https://redocly.com/redoc/
 .. _rst_epilog: https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=rst_epilog#confval-rst_epilog
 .. _napoleon: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
 .. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html

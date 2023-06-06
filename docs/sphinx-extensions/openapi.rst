@@ -7,6 +7,11 @@ FastAPI, the Python web framework for building web APIs automatically generates 
 The `documenteer.ext.openapi` extension can call a function in your application to generate the OpenAPI specification and include it in the Sphinx documentation.
 Then with the third-party `sphinxcontrib-redoc`_ extension, the OpenAPI specification can be rendered as an HTML page in your documentation site.
 
+.. seealso::
+
+   If you are using the :doc:`Rubin user guide </guides/index>` configuration (``documenteer[guide]``), the Redoc site and OpenAPI generator can be configured with the documenteer.toml file.
+   See :doc:`/guides/openapi` for more details.
+
 Usage guide
 ===========
 
