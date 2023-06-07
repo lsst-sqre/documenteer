@@ -21,6 +21,7 @@ For SQuaRE/Safir-standardized FastAPI applications, it may make sense to add thi
    import json
 
    from fastapi import FastAPI
+   from fastapi.openapi.utils import get_openapi
 
 
    app = FastAPI()
