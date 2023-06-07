@@ -70,6 +70,7 @@ guide = [
     "sphinxcontrib-mermaid",
     "sphinxext-opengraph",
     "sphinxcontrib-redoc",
+    "sphinxcontrib-jquery",
 ]
 technote = [
     # Theme and extensions for technotes
@@ -87,6 +88,7 @@ pipelines = [
     "sphinx-prompt",
     "sphinxcontrib-doxylink",
     "sphinx-click",
+    "sphinxcontrib-jquery",
 ]
 
 [project.urls]

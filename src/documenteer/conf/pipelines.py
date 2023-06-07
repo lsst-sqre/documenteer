@@ -118,6 +118,7 @@ except Exception as e:
     print(f"Error getting sphinx-jinja version: {str(e)}")
 
 extensions = [
+    "sphinxcontrib.jquery",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",

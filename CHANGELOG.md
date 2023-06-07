@@ -7,6 +7,7 @@
 - Drop support for Python 3.7.
 - Drop support for Sphinx versions earlier than 5.
 - Temporarily pin pydata-sphinx-theme < 0.13 on account of a change in logo path checking (affects user guide projects).
+- Use [sphinxcontrib-jquery](https://github.com/sphinx-contrib/jquery/) to ensure jQuery is available for user guide and Pipelines documentation builds.
 - Add a new `sphinx.exclude` field to `documenteer.toml` to list files for exclusion from a documentation project.
   More files and directories like `.venv` and `requirements.txt` are now excluded, as well.
 - New support for embedding OpenAPI documentation in a Redoc-generated subsite. The `documenteer.ext.openapi` extension can call a user-specified function to generate and install the OpenAPI specification the Sphinx source. For user guide projects, the `[project.openapi]` table in `documenteer.toml` can be used to configure both the `documenteer.ext.openapi` and `sphinxcontrib-redoc` extensions. [sphinxcontrib-redoc](https://sphinxcontrib-redoc.readthedocs.io/en/stable/) is installed and configured by default for all Rubin user guide projects (projects that use `documenteer.conf.guide`).
