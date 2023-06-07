@@ -112,6 +112,7 @@ _conf = DocumenteerConfig.find_and_load()
 # ============================================================================
 
 extensions = [
+    "sphinxcontrib.jquery",
     "myst_parser",
     "sphinx_copybutton",
     "sphinx_design",

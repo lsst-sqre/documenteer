@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.5 (2023-06-07)
+
+Fixes:
+
+- Use [sphinxcontrib-jquery](https://github.com/sphinx-contrib/jquery/) to ensure jQuery is available for user guide and Pipelines documentation builds. Sphinx 6 dropped jQuery from its default theme, and the new pydata-sphinx-theme v0.12 does not include it either.
+
 ## 0.7.4 (2023-05-16)
 
 Fixes:
