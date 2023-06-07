@@ -87,6 +87,93 @@ version
 
 The project's version, which is set to the standard Sphinx ``version`` and ``release`` configuration variables.
 
+.. _guide-project-openapi:
+
+[project.openapi]
+=================
+
+|optional|
+
+Web applications that use OpenAPI can include a ``[project.openapi]`` table in :file:`documenteer.toml` to embed a Redoc_ subsite of the API documentation (see :doc:`openapi`).
+
+.. _guide-project-openapi-doc-path:
+
+doc\_path
+---------
+
+|optional|
+
+The docname (without extension) of the page in the Sphinx documentation tree where the Redoc HTML page is built.
+Default is ``api``.
+
+.. _guide-project-openapi-openapi-path:
+
+openapi\_path
+-------------
+
+|optional|
+
+The path to the OpenAPI specification file, relative to the Sphinx configuration file, :file:`conf.py`.
+If ``[project.openapi.generator]`` is set, this is the path where the OpenAPI specification file is generated.
+
+.. _guide-project-openapi-generator:
+
+[project.openapi.generator]
+===========================
+
+|optional|
+
+If this table is provided, the OpenAPI specification file is generated from a user-specified Python function.
+This is useful for FastAPI and similar applications where the OpenAPI specification is generated from the application code.
+
+.. _guide-project-openapi-generator-function:
+
+function
+--------
+
+|required|
+
+The Python function that generates the OpenAPI specification file.
+This function must return the OpenAPI specification as a JSON-serialized string.
+
+Specify the function as ``<module>:<function>``.
+For example, if the function called ``create_openapi`` is in the :file:`main.py` module of the :file:`example` package, the value would be ``"example.main:create_openapi"``.
+
+.. code-block:: toml
+
+   [project.openapi.generator]
+   function = "example.main:create_openapi"
+
+.. _guide-project-openapi-generator-positional-args:
+
+positional\_args
+----------------
+
+|optional|
+
+Positional arguments to pass to the function, if required.
+
+.. code-block:: toml
+
+   [project.openapi.generator]
+   function = "example.main:create_openapi"
+   positional_args = ["arg1", "arg2"]
+
+.. _guide-project-openapi-generator-keyword-args:
+
+keyword\_args
+-------------
+
+|optional|
+
+Keyword arguments to pass to the function, if required.
+
+.. code-block:: toml
+
+   [project.openapi.generator]
+   function = "example.main:create_openapi"
+   keyword_args = {kwarg1 = "value1", kwarg2 = "value2"}
+
 [project.python]
 ================
 

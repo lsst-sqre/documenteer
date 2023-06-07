@@ -24,6 +24,7 @@ Documenteer provides a configuration profile for creating branded user guides wi
    :name: toc-guides-advanced-config
 
    pyproject-configuration
+   openapi
    rst-epilog
    extend-conf-py
 
