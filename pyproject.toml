@@ -72,6 +72,7 @@ guide = [
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid",
     "sphinxext-opengraph",
+    "sphinxcontrib-jquery",
 ]
 technote = [
     # Theme and extensions for technotes
@@ -90,6 +91,7 @@ pipelines = [
     "sphinx-prompt",
     "sphinxcontrib-doxylink",
     "sphinx-click",
+    "sphinxcontrib-jquery",
 ]
 
 [project.urls]
