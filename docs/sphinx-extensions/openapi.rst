@@ -30,6 +30,7 @@ For FastAPI applications, it may make sense to add this function to the :file:`m
    import json
 
    from fastapi import FastAPI
+   from fastapi.openapi.utils import get_openapi
 
 
    app = FastAPI()
