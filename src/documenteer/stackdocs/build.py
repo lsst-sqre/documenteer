@@ -38,6 +38,7 @@ def build_stack_docs(
     enable_sphinx: bool = True,
     select_doxygen_packages: Optional[List[str]] = None,
     skip_doxygen_packages: Optional[List[str]] = None,
+    warning_is_error: bool = False,
 ) -> int:
     """Build stack Sphinx documentation (main entrypoint).
 
@@ -77,6 +78,8 @@ def build_stack_docs(
     skip_doxygen_packages
         If set, EUPS packages named in this sequence will be removed from the
         set of packages processed by Doxygen.
+    warning_is_error
+        If ``True``, warnings from Sphinx will be treated as errors.
 
     Returns
     -------
@@ -236,7 +239,9 @@ def build_stack_docs(
 
     # Trigger the Sphinx build
     if enable_sphinx:
-        return run_sphinx(root_project_dir)
+        return run_sphinx(
+            root_project_dir, warnings_as_errors=warning_is_error
+        )
     else:
         return 0
 
