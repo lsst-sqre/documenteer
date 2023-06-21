@@ -58,3 +58,10 @@ docs/_build/
 
 # PyBuilder
 target/
+
+.venv/
+demo/
+node_modules/
+src/documenteer/assets/rsd-assets/
+src/documenteer/assets/scripts/
+src/documenteer/assets/styles/
