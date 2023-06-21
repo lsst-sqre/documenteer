@@ -7,7 +7,7 @@ help:
 init:
 	rm -rf .tox
 	pip install -e ".[dev,guide,technote,pipelines]"
-	pip install tox tox-pyenv pre-commit
+	pip install tox pre-commit
 	pre-commit install
 
 .PHONY: clean
