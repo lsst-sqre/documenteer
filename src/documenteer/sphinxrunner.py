@@ -26,6 +26,8 @@ def run_sphinx(
         configuration file.
     job_count : `int`
         Number of cores to run the Sphinx build with (``-j`` flag)
+    warnings_as_errors : `bool`
+        If ``True``, treat Sphinx warnings as errors (``-W`` flag).
 
     Returns
     -------

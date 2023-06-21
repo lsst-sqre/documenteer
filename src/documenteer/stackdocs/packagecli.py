@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 import sys
+from typing import Any
 
 import click
 
@@ -94,14 +95,19 @@ def help(ctx, topic, **kw):
 
 
 @main.command()
+@click.option(
+    "-W", "--warning-is-error", is_flag=True, help="Treat warnings as errors."
+)
 @click.pass_context
-def build(ctx):
+def build(ctx: Any, warning_is_error: bool) -> None:
     """Build documentation as HTML.
 
     The build HTML site is located in the ``doc/_build/html`` directory
     of the package.
     """
-    return_code = run_sphinx(ctx.obj["root_dir"])
+    return_code = run_sphinx(
+        ctx.obj["root_dir"], warnings_as_errors=warning_is_error
+    )
     if return_code > 0:
         sys.exit(return_code)
 

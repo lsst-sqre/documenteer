@@ -162,6 +162,9 @@ def help(ctx, topic, **kw):
     multiple=True,
     help=("Skip running Doxygen on these packages."),
 )
+@click.option(
+    "-W", "--warning-is-error", is_flag=True, help="Treat warnings as errors."
+)
 @click.pass_context
 def build(
     ctx,
@@ -174,6 +177,7 @@ def build(
     doxygen_conf_defaults_path,
     dox,
     skip_dox,
+    warning_is_error,
 ):
     """Build documentation as HTML.
 
@@ -213,6 +217,7 @@ def build(
         enable_sphinx=enable_sphinx,
         select_doxygen_packages=dox,
         skip_doxygen_packages=skip_dox,
+        warning_is_error=warning_is_error,
     )
     if return_code > 0:
         sys.exit(return_code)
