@@ -163,6 +163,9 @@ def help(ctx, topic, **kw):
 @click.option(
     "-W", "--warning-is-error", is_flag=True, help="Treat warnings as errors."
 )
+@click.option(
+    "-n", "--nitpicky", is_flag=True, help="Activate Sphinx's nitpicky mode."
+)
 @click.pass_context
 def build(
     ctx,
@@ -176,6 +179,7 @@ def build(
     dox,
     skip_dox,
     warning_is_error,
+    nitpicky,
 ):
     """Build documentation as HTML.
 
@@ -218,6 +222,7 @@ def build(
         select_doxygen_packages=dox,
         skip_doxygen_packages=skip_dox,
         warning_is_error=warning_is_error,
+        nitpicky=nitpicky,
     )
     if return_code > 0:
         sys.exit(return_code)

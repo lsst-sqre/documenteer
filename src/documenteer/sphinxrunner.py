@@ -15,6 +15,7 @@ def run_sphinx(
     root_dir: Union[str, Path],
     job_count: int = 1,
     warnings_as_errors: bool = False,
+    nitpicky: bool = False,
 ) -> int:
     """Run the Sphinx build process.
 
@@ -28,6 +29,8 @@ def run_sphinx(
         Number of cores to run the Sphinx build with (``-j`` flag)
     warnings_as_errors : `bool`
         If ``True``, treat Sphinx warnings as errors (``-W`` flag).
+    nitpicky : `bool`
+        If ``True``, activate Sphinx's nitpicky mode (``-n`` flag).
 
     Returns
     -------
@@ -53,6 +56,8 @@ def run_sphinx(
     ]
     if warnings_as_errors:
         argv.append("-W")
+    if nitpicky:
+        argv.append("-n")
     argv.extend([src_dir, os.path.join("_build", "html")])
 
     start_dir = os.path.abspath(".")
