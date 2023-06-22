@@ -98,15 +98,20 @@ def help(ctx, topic, **kw):
 @click.option(
     "-W", "--warning-is-error", is_flag=True, help="Treat warnings as errors."
 )
+@click.option(
+    "-n", "--nitpicky", is_flag=True, help="Activate Sphinx's nitpicky mode."
+)
 @click.pass_context
-def build(ctx: Any, warning_is_error: bool) -> None:
+def build(ctx: Any, warning_is_error: bool, nitpicky: bool) -> None:
     """Build documentation as HTML.
 
     The build HTML site is located in the ``doc/_build/html`` directory
     of the package.
     """
     return_code = run_sphinx(
-        ctx.obj["root_dir"], warnings_as_errors=warning_is_error
+        ctx.obj["root_dir"],
+        warnings_as_errors=warning_is_error,
+        nitpicky=nitpicky,
     )
     if return_code > 0:
         sys.exit(return_code)
