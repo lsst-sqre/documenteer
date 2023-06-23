@@ -1,4 +1,4 @@
-[![Documentation](https://img.shields.io/badge/documenteer-lsst.io-brightgreen.svg)](https://documentation.lsst.io)
+[![Documentation](https://img.shields.io/badge/documenteer-lsst.io-brightgreen.svg)](https://documenteer.lsst.io)
 [![PyPI](https://img.shields.io/pypi/v/documenteer.svg?style=flat-square)](https://pypi.python.org/pypi/documenteer)
 [![For Python 3.7+](https://img.shields.io/pypi/pyversions/documenteer.svg?style=flat-square)](https://pypi.python.org/pypi/documenteer)
 [![MIT license](https://img.shields.io/pypi/l/documenteer.svg?style=flat-square)](https://pypi.python.org/pypi/documenteer)
@@ -18,7 +18,7 @@ Browse the [lsst-doc-engineering](https://github.com/topics/lsst-doc-engineering
 For [user guides](https://documenteer.lsst.io/guides/index.html):
 
 ```sh
-pip install "documenteer[technote]"
+pip install "documenteer[guide]"
 ```
 
 For [technical note projects](https://documenteer.lsst.io/technotes/index.html):
