@@ -106,7 +106,7 @@ def build(ctx: Any, warning_is_error: bool, nitpicky: bool) -> None:
     The build HTML site is located in the ``doc/_build/html`` directory
     of the package.
     """
-    root_dir = discover_package_doc_dir(ctx["root_dir"])
+    root_dir = discover_package_doc_dir(ctx.obj["root_dir"])
     return_code = run_sphinx(
         root_dir,
         warnings_as_errors=warning_is_error,
@@ -132,7 +132,7 @@ def clean(ctx):
     """
     logger = logging.getLogger(__name__)
 
-    root_dir = discover_package_doc_dir(ctx["root_dir"])
+    root_dir = discover_package_doc_dir(ctx.obj["root_dir"])
 
     dirnames = ["py-api", "_build"]
     dirnames = [os.path.join(root_dir, dirname) for dirname in dirnames]
