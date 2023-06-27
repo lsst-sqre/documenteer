@@ -12,11 +12,18 @@
   More files and directories like `.venv` and `requirements.txt` are now excluded, as well.
 - New support for embedding OpenAPI documentation in a Redoc-generated subsite. The `documenteer.ext.openapi` extension can call a user-specified function to generate and install the OpenAPI specification the Sphinx source. For user guide projects, the `[project.openapi]` table in `documenteer.toml` can be used to configure both the `documenteer.ext.openapi` and `sphinxcontrib-redoc` extensions. [sphinxcontrib-redoc](https://sphinxcontrib-redoc.readthedocs.io/en/stable/) is installed and configured by default for all Rubin user guide projects (projects that use `documenteer.conf.guide`).
 
-## 0.8.0 (2023-07-23)
+## 0.8.1 (2023-06-27)
+
+Fixes:
+
+- Fixed a bug in the in the `help` subcommand for the `package-docs` and `stack-docs` commands.
+
+## 0.8.0 (2023-06-23)
 
 New features:
 
 - Added a `-W` / `--warning-is-error` flag to the `package-docs build` and `stack-docs build` commands for Science Pipelines documentation builds. This flag causes Sphinx to treat warnings as errors, which is useful for CI builds.
+- Also added a `-n` / `--nitpicky` flag that enables Sphinx's nitpicky mode to flag warnings when links cannot resolve.
 
 Fixes:
 
