@@ -1,10 +1,17 @@
 # Change Log
 
+## 0.8.1 (2023-06-27)
+
+Fixes:
+
+- Fixed a bug in the in the `help` subcommand for the `package-docs` and `stack-docs` commands.
+
 ## 0.8.0 (2023-07-23)
 
 New features:
 
 - Added a `-W` / `--warning-is-error` flag to the `package-docs build` and `stack-docs build` commands for Science Pipelines documentation builds. This flag causes Sphinx to treat warnings as errors, which is useful for CI builds.
+- Also added a `-n` / `--nitpicky` flag that enables Sphinx's nitpicky mode to flag warnings when links cannot resolve.
 
 Fixes:
 

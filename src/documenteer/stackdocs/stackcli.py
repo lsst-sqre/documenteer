@@ -67,9 +67,7 @@ def main(ctx, root_project_dir, verbose):
 
     For more information about stack-docs, see https://documenteer.lsst.io.
     """
-    root_project_dir = discover_conf_py_directory(root_project_dir)
-
-    # Subcommands should use the click.pass_obj decorator to get this
+    # Subcommands should use the click.pass_context decorator to get this
     # ctx.obj object as the first argument.
     ctx.obj = {"root_project_dir": root_project_dir, "verbose": verbose}
 
@@ -205,13 +203,15 @@ def build(
     To peek inside the build process, see the ``documenteer.stackdocs.build``
     APIs.
     """
+    root_project_dir = discover_conf_py_directory(ctx.obj["root_project_dir"])
+
     if doxygen_conf_defaults_path is not None:
         _doxygen_conf_defaults_path = Path(doxygen_conf_defaults_path)
     else:
         _doxygen_conf_defaults_path = None
 
     return_code = build_stack_docs(
-        ctx.obj["root_project_dir"],
+        root_project_dir,
         skipped_names=skip,
         prefer_doxygen_conf_in=use_doxygen_conf_in,
         doxygen_conf_defaults_path=_doxygen_conf_defaults_path,
@@ -247,10 +247,10 @@ def clean(ctx):
     """
     logger = logging.getLogger(__name__)
 
+    root_project_dir = discover_conf_py_directory(ctx.obj["root_project_dir"])
     dirnames = ["py-api", "_build", "modules", "packages", "_doxygen"]
     dirnames = [
-        os.path.join(ctx.obj["root_project_dir"], dirname)
-        for dirname in dirnames
+        os.path.join(root_project_dir, dirname) for dirname in dirnames
     ]
     for dirname in dirnames:
         if os.path.isdir(dirname):
@@ -312,9 +312,8 @@ def listcc(
 
         stack-docs listcc -t class -t function -p lsst::afw::table
     """
-    tag_path = os.path.join(
-        ctx.obj["root_project_dir"], "_doxygen", "doxygen.tag"
-    )
+    root_project_dir = discover_conf_py_directory(ctx.obj["root_project_dir"])
+    tag_path = os.path.join(root_project_dir, "_doxygen", "doxygen.tag")
 
     if pattern:
         p = re.compile(pattern)
