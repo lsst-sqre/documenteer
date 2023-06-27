@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 import sys
+from typing import Any
 
 import click
 
@@ -63,9 +64,7 @@ def main(ctx, root_dir, verbose):
     - ``package-docs clean``: removes documentation build products from a
       package.
     """
-    root_dir = discover_package_doc_dir(root_dir)
-
-    # Subcommands should use the click.pass_obj decorator to get this
+    # Subcommands should use the click.pass_context decorator to get this
     # ctx.obj object as the first argument.
     ctx.obj = {"root_dir": root_dir, "verbose": verbose}
 
@@ -94,14 +93,23 @@ def help(ctx, topic, **kw):
 
 
 @main.command()
+@click.option(
+    "-W", "--warning-is-error", is_flag=True, help="Treat warnings as errors."
+)
+@click.option(
+    "-n", "--nitpicky", is_flag=True, help="Activate Sphinx's nitpicky mode."
+)
 @click.pass_context
-def build(ctx):
+def build(ctx: Any, warning_is_error: bool, nitpicky: bool) -> None:
     """Build documentation as HTML.
 
     The build HTML site is located in the ``doc/_build/html`` directory
     of the package.
     """
-    return_code = run_sphinx(ctx.obj["root_dir"])
+    root_dir = discover_package_doc_dir(ctx.obj["root_dir"])
+    return_code = run_sphinx(
+        root_dir, warnings_as_errors=warning_is_error, nitpicky=nitpicky
+    )
     if return_code > 0:
         sys.exit(return_code)
 
@@ -122,10 +130,10 @@ def clean(ctx):
     """
     logger = logging.getLogger(__name__)
 
+    root_dir = discover_package_doc_dir(ctx.obj["root_dir"])
+
     dirnames = ["py-api", "_build"]
-    dirnames = [
-        os.path.join(ctx.obj["root_dir"], dirname) for dirname in dirnames
-    ]
+    dirnames = [os.path.join(root_dir, dirname) for dirname in dirnames]
     for dirname in dirnames:
         if os.path.isdir(dirname):
             shutil.rmtree(dirname)

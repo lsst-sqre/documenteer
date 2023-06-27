@@ -12,6 +12,53 @@
   More files and directories like `.venv` and `requirements.txt` are now excluded, as well.
 - New support for embedding OpenAPI documentation in a Redoc-generated subsite. The `documenteer.ext.openapi` extension can call a user-specified function to generate and install the OpenAPI specification the Sphinx source. For user guide projects, the `[project.openapi]` table in `documenteer.toml` can be used to configure both the `documenteer.ext.openapi` and `sphinxcontrib-redoc` extensions. [sphinxcontrib-redoc](https://sphinxcontrib-redoc.readthedocs.io/en/stable/) is installed and configured by default for all Rubin user guide projects (projects that use `documenteer.conf.guide`).
 
+## 0.8.1 (2023-06-27)
+
+Fixes:
+
+- Fixed a bug in the in the `help` subcommand for the `package-docs` and `stack-docs` commands.
+
+## 0.8.0 (2023-06-23)
+
+New features:
+
+- Added a `-W` / `--warning-is-error` flag to the `package-docs build` and `stack-docs build` commands for Science Pipelines documentation builds. This flag causes Sphinx to treat warnings as errors, which is useful for CI builds.
+- Also added a `-n` / `--nitpicky` flag that enables Sphinx's nitpicky mode to flag warnings when links cannot resolve.
+
+Fixes:
+
+- Pinned `sphinx-autodoc-typehints<1.23.0` to avoid a Sphinx version conflict with `sphinx-design`. The former required Sphinx >= 7.
+
+## 0.7.5 (2023-06-07)
+
+Fixes:
+
+- Use [sphinxcontrib-jquery](https://github.com/sphinx-contrib/jquery/) to ensure jQuery is available for user guide and Pipelines documentation builds. Sphinx 6 dropped jQuery from its default theme, and the new pydata-sphinx-theme v0.12 does not include it either.
+
+## 0.7.4 (2023-05-16)
+
+Fixes:
+
+- Pinned Sphinx < 7 for the `pipelines` and `technote` extras since their themes are not currently compatible with Sphinx 7 and later.
+
+## 0.7.3 (2023-03-20)
+
+Fixes:
+
+- Add `requirements.txt` and `.venv`/`venv` to the default `exclude_patterns` for User Guides.
+
+## 0.7.2 (2023-03-01)
+
+Fixes:
+
+- Temporarily pin pydata-sphinx-theme to <0.13. The new version changed how it treats light/dark logos.
+
+## 0.7.1 (2023-02-23)
+
+Fixes:
+
+- Temporarily pinning Mermaid to 9.4.0 in the User Guide configuration to workaround a change in the Mermaid CDN.
+
 ## 0.7.0 (2022-10-20)
 
 - Documenteer provides a new Sphinx configuration profile for general Rubin user guide projects, `documenteer.conf.guide`.
