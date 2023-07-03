@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.8.3 (2023-07-03)
+
+Fixes:
+
+- Pin Pydantic < 2.0.0. This is a temporary measure while we add and test compatibility with Pydantic 1 and 2.
+
 ## 0.8.2 (2023-06-27)
 
 Fixes:
