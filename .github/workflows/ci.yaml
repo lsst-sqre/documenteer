@@ -11,9 +11,9 @@ name: CI
       - 'renovate/**'
       - 'tickets/**'
       - 'u/**'
-    tags:
-      - '*'
   pull_request: {}
+  release:
+    types: [published]
 
 jobs:
   lint:
@@ -100,10 +100,31 @@ jobs:
         if: >
           github.event_name != 'pull_request' || startsWith(github.head_ref, 'tickets/')
 
-
-  pypi:
+  test-package:
+    name: Test PyPI package build
     runs-on: ubuntu-latest
-    needs: [lint, test, docs]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # full history for setuptools_scm
+
+      - name: Build and publish
+        uses: lsst-sqre/build-and-publish-to-pypi@tickets/DM-39837
+        with:
+          python-version: "3.11"
+          upload: "false"
+
+  pypi-publish:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+    needs: [lint, test, docs, test-package]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/documenteer
+    permissions:
+      id-token: write
+    if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
       - uses: actions/checkout@v3
@@ -121,8 +142,6 @@ jobs:
           npm run build
 
       - name: Build and publish
-        uses: lsst-sqre/build-and-publish-to-pypi@v1
+        uses: lsst-sqre/build-and-publish-to-pypi@tickets/DM-39837
         with:
-          pypi-token: ${{ secrets.PYPI_SQRE_ADMIN }}
           python-version: '3.11'
-          upload: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
