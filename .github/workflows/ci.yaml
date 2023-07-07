@@ -141,10 +141,6 @@ jobs:
           npm install
           npm run build
 
-      - name: Show package version
-        run: |
-          python -c 'import documenteer; print(documenteer.__version__)'
-
       - name: Build and publish
         uses: lsst-sqre/build-and-publish-to-pypi@tickets/DM-39837
         with:
