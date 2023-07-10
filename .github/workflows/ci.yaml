@@ -142,6 +142,6 @@ jobs:
           npm run build
 
       - name: Build and publish
-        uses: lsst-sqre/build-and-publish-to-pypi@tickets/DM-39837
+        uses: lsst-sqre/build-and-publish-to-pypi@v2
         with:
           python-version: '3.11'
