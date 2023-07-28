@@ -14,6 +14,24 @@
 - Pin pydantic < 2.0.
 - Pin Sphinx < 7.
 
+## 0.8.4 (2023-07-28)
+
+Fixes:
+
+- Pin Sphinx < 7 for the `guide` extra (same as the pinning already being done for the `pipelines` and `technote` extras).
+
+## 0.8.3 (2023-07-03)
+
+Fixes:
+
+- Pin Pydantic < 2.0.0. This is a temporary measure while we add and test compatibility with Pydantic 1 and 2.
+
+## 0.8.2 (2023-06-27)
+
+Fixes:
+
+- Fixed a bug in the `help` subcommand for the `package-docs` and `stack-docs` commands.
+
 ## 0.8.1 (2023-06-27)
 
 Fixes:
