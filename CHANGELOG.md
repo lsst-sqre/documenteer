@@ -12,6 +12,7 @@
   More files and directories like `.venv` and `requirements.txt` are now excluded, as well.
 - New support for embedding OpenAPI documentation in a Redoc-generated subsite. The `documenteer.ext.openapi` extension can call a user-specified function to generate and install the OpenAPI specification the Sphinx source. For user guide projects, the `[project.openapi]` table in `documenteer.toml` can be used to configure both the `documenteer.ext.openapi` and `sphinxcontrib-redoc` extensions. [sphinxcontrib-redoc](https://sphinxcontrib-redoc.readthedocs.io/en/stable/) is installed and configured by default for all Rubin user guide projects (projects that use `documenteer.conf.guide`).
 - Pin pydantic < 2.0.
+- Pin Sphinx < 7.
 
 ## 0.8.1 (2023-06-27)
 

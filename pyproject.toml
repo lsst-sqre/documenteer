@@ -59,6 +59,7 @@ dev = [
 ]
 guide = [
     # Theme and extensions for Rubin user guide projects
+    "sphinx<7",
     "sphinx_design",
     "pydata-sphinx-theme>=0.10.0,<0.13.0",
     "sphinx-autodoc-typehints<1.23.0",  # avoid requiring Sphinx > 7 only
@@ -74,12 +75,14 @@ guide = [
 ]
 technote = [
     # Theme and extensions for technotes
+    "sphinx<7",
     "lsst-dd-rtd-theme>=0.2.3,<0.3.0",
     "technote>=0.2.0",
     "sphinx-prompt",
 ]
 pipelines = [
     # Theme and extensions for pipelines.lsst.io
+    "sphinx<7",
     "lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0",
     "numpydoc",
     "sphinx-automodapi",
