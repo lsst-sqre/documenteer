@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.8.4 (2023-07-28)
+
+Fixes:
+
+- Pin Sphinx < 7 for the `guide` extra (same as the pinning already being done for the `pipelines` and `technote` extras).
+
 ## 0.8.3 (2023-07-03)
 
 Fixes:
