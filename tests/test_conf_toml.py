@@ -82,7 +82,7 @@ disable_primary_sidebars = [
 def test_load() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
     assert config.project == "Documenteer"
-    assert config.base_url == "https://documenteer.lsst.io"
+    assert config.base_url == "https://documenteer.lsst.io/"
     assert config.copyright == "2022 AURA"
     assert config.github_url == "https://github.com/lsst-sqre/documenteer"
     assert config.version == "1.0.0"
@@ -131,7 +131,7 @@ def test_append_intersphinx_projects() -> None:
     assert projects == {
         "python": ("https://docs.python.org/3/", None),
         "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
-        "documenteer": ("https://documenteer.lsst.io", None),
+        "documenteer": ("https://documenteer.lsst.io/", None),
     }
 
 
