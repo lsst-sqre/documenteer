@@ -71,7 +71,6 @@ guide = [
 technote = [
     # Theme and extensions for technotes
     "sphinx<7",
-    "lsst-dd-rtd-theme>=0.2.3,<0.3.0",
     "technote>=0.2.0",
     "sphinx-prompt",
 ]
