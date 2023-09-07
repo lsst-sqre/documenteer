@@ -3,17 +3,9 @@
 from __future__ import annotations
 
 import re
-import sys
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from typing import Optional, Tuple
-
-if sys.version_info < (3, 8):
-    # Use backport module from Python in Python 3.7
-    from importlib_metadata import PackageNotFoundError, version
-else:
-    # Use standard library module by default
-    from importlib.metadata import PackageNotFoundError, version
-
 
 __all__ = [
     "get_package_version_str",

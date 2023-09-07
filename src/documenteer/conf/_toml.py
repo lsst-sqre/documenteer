@@ -5,8 +5,12 @@ configuration preset modules.
 from __future__ import annotations
 
 import sys
+import tomllib
 from dataclasses import dataclass
 from email.message import Message
+from importlib.metadata import PackageNotFoundError, metadata
+from importlib.metadata import version as get_version
+from pathlib import Path
 from typing import (
     Any,
     Dict,
@@ -18,20 +22,6 @@ from typing import (
     cast,
 )
 from urllib.parse import urlparse
-
-if sys.version_info < (3, 8):
-    from importlib_metadata import PackageNotFoundError, metadata
-    from importlib_metadata import version as get_version
-else:
-    from importlib.metadata import PackageNotFoundError, metadata
-    from importlib.metadata import version as get_version
-
-if sys.version_info < (3, 11):
-    import tomli as tomllib
-else:
-    import tomllib
-
-from pathlib import Path
 
 from pydantic import (
     BaseModel,
