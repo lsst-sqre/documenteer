@@ -14,6 +14,8 @@
 - Pin pydantic < 2.0.
 - Pin Sphinx < 7.
 
+<!-- scriv-insert-here -->
+
 ## 0.8.4 (2023-07-28)
 
 Fixes:

@@ -5,8 +5,12 @@ configuration preset modules.
 from __future__ import annotations
 
 import sys
+import tomllib
 from dataclasses import dataclass
 from email.message import Message
+from importlib.metadata import PackageNotFoundError, metadata
+from importlib.metadata import version as get_version
+from pathlib import Path
 from typing import (
     Any,
     Dict,
@@ -19,27 +23,13 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-if sys.version_info < (3, 8):
-    from importlib_metadata import PackageNotFoundError, metadata
-    from importlib_metadata import version as get_version
-else:
-    from importlib.metadata import PackageNotFoundError, metadata
-    from importlib.metadata import version as get_version
-
-if sys.version_info < (3, 11):
-    import tomli as tomllib
-else:
-    import tomllib
-
-from pathlib import Path
-
 from pydantic import (
     BaseModel,
     Field,
     FilePath,
     HttpUrl,
     ValidationError,
-    validator,
+    field_validator,
 )
 from sphinx.errors import ConfigError
 
@@ -138,7 +128,8 @@ class PythonPackageModel(BaseModel):
         ),
     )
 
-    @validator("package")
+    @field_validator("package")
+    @classmethod
     def validate_package(cls, v: str) -> str:
         """Ensure the package is importable."""
         try:
@@ -159,7 +150,7 @@ class ProjectModel(BaseModel):
     )
 
     base_url: Optional[HttpUrl] = Field(
-        description="Canonical URL of the site's root page."
+        None, description="Canonical URL of the site's root page."
     )
 
     copyright: str = Field(
@@ -168,7 +159,7 @@ class ProjectModel(BaseModel):
     )
 
     github_url: Optional[HttpUrl] = Field(
-        description="The URL of the project's GitHub repository."
+        None, description="The URL of the project's GitHub repository."
     )
 
     github_default_branch: str = Field(
@@ -176,7 +167,7 @@ class ProjectModel(BaseModel):
         description="The project's default development branch on GitHub.",
     )
 
-    version: Optional[str] = Field(description="Version string.")
+    version: Optional[str] = Field(None, description="Version string.")
 
     python: Optional[PythonPackageModel] = Field(None)
 
@@ -220,10 +211,11 @@ class SphinxModel(BaseModel):
     """Model for Sphinx configurations in documenteer.toml."""
 
     rst_epilog_file: Optional[FilePath] = Field(
+        None,
         description=(
             "Path to a reStructuredText file that is added to every source "
             "file. Use this file to define common links and substitutions."
-        )
+        ),
     )
 
     extensions: List[str] = Field(
@@ -278,9 +270,11 @@ class SphinxModel(BaseModel):
 
     theme: ThemeModel = Field(default_factory=lambda: ThemeModel())
 
-    intersphinx: Optional[IntersphinxModel]
+    intersphinx: IntersphinxModel = Field(
+        default_factory=lambda: IntersphinxModel()
+    )
 
-    linkcheck: Optional[LinkCheckModel]
+    linkcheck: LinkCheckModel = Field(default_factory=lambda: LinkCheckModel())
 
 
 class ConfigRoot(BaseModel):
@@ -307,7 +301,7 @@ class DocumenteerConfig:
     @classmethod
     def load(cls, toml_content: str) -> DocumenteerConfig:
         try:
-            conf = ConfigRoot.parse_obj(tomllib.loads(toml_content))
+            conf = ConfigRoot.model_validate(tomllib.loads(toml_content))
         except ValidationError as e:
             message = (
                 f"Syntax or validation issue in documenteer.toml:\n\n"
@@ -366,14 +360,17 @@ class DocumenteerConfig:
         """
         if self.conf.project.github_url is not None:
             # User explicitly set the github URL
-            return self.conf.project.github_url
-        elif self.conf.project.python is not None:
+            return str(self.conf.project.github_url)
+
+        if self.conf.project.python is not None:
+            # Get the URL from the package metadata
             package_name = self.conf.project.python.package
             pyproject_meta = self._get_pyproject_metadata(package_name)
             url = self._get_pyproject_url(
                 pyproject_meta, self.conf.project.python.github_url_key
             )
             return url
+
         return None
 
     @property

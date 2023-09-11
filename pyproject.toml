@@ -11,9 +11,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Intended Audience :: Developers",
     "Topic :: Documentation",
@@ -23,7 +20,7 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: POSIX",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
     "Sphinx",
@@ -32,9 +29,7 @@ dependencies = [
     "requests",
     "click",
     "sphinxcontrib-bibtex>=2.0.0",                  # for pybtex plugin; bibtex_bibfiles config is required.
-    "importlib_metadata; python_version < \"3.8\"",
-    "tomli; python_version < \"3.11\"",
-    "pydantic < 2.0.0",
+    "pydantic >= 2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -76,7 +71,6 @@ guide = [
 technote = [
     # Theme and extensions for technotes
     "sphinx<7",
-    "lsst-dd-rtd-theme>=0.2.3,<0.3.0",
     "technote>=0.2.0",
     "sphinx-prompt",
 ]
@@ -112,7 +106,7 @@ build-backend = 'setuptools.build_meta'
 
 [tool.black]
 line-length = 79
-target-version = ['py38']
+target-version = ['py311']
 exclude = '''
 /(
     \.eggs
@@ -174,3 +168,16 @@ warn_redundant_casts = true
 warn_unreachable = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+
+[tool.scriv]
+categories = [
+    "Backwards-incompatible changes",
+    "New features",
+    "Bug fixes",
+    "Other changes",
+]
+entry_title_template = "{{ version }} ({{ date.strftime('%Y-%m-%d') }})"
+format = "md"
+md_header_level = "2"
+new_fragment_template = "file:changelog.d/_template.md.jinja"
+skip_fragments = "_template.md.jinja"
