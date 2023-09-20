@@ -71,7 +71,7 @@ guide = [
 technote = [
     # Theme and extensions for technotes
     "sphinx<7",
-    "technote @ git+https://github.com/lsst-sqre/technote@main",
+    "technote>=0.3.0a2",
     "sphinx-prompt",
 ]
 pipelines = [
