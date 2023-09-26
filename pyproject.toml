@@ -71,7 +71,7 @@ guide = [
 technote = [
     # Theme and extensions for technotes
     "sphinx<7",
-    "technote==0.3.0a3",
+    "technote==0.3.0a4",
     "sphinx-prompt",
 ]
 pipelines = [
