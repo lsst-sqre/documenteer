@@ -117,7 +117,7 @@ Changes:
   - rtn
   - pstn
 
-- Link to technical notes, which are hosted on lsst.io, now linking directly to lsst.io rather than going through ls.st. This includes the sqr, dmtn, etc. roles and all the new roles mentioned above.
+- Link to technical notes, which are hosted on [lsst.io](https://www.lsst.io), now linking directly to [lsst.io](https://www.lsst.io) rather than going through `ls.st``. This includes the sqr, dmtn, etc. roles and all the new roles mentioned above.
 - Use `importlib.metadata` for getting the package version, rather than `pkg_resources`.
 - Move to a `src/` based package layout for consistency.
 
