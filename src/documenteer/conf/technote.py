@@ -1,8 +1,25 @@
 """Sphinx configuration for Rubin technotes."""
 
+from pathlib import Path
+
 from technote.sphinxconf import *  # noqa: F401 F403
 
 from documenteer.conf import get_asset_path, get_template_dir
+
+try:
+    extensions.remove("sphinxcontrib.bibtex")  # noqa: F405
+except ValueError:
+    pass
+
+# Add the GitHub bibfile cache extension before sphinxcontrib-bibtex so
+# that it can add bibfiles to the sphinxcontrib-bibtex configuration.
+extensions.extend(  # noqa: F405
+    [
+        "documenteer.sphinxext.bibtex",
+        "documenteer.ext.githubbibcache",
+        "sphinxcontrib.bibtex",
+    ]
+)
 
 html_static_path: list[str] = [
     get_asset_path("rubin-favicon-transparent-32px.png"),
@@ -27,3 +44,28 @@ html_theme_options = {
     "logo_link_url": "https://www.lsst.io",
     "logo_alt_text": "Rubin Observatory logo",
 }
+
+# Configure bibliography with the bib cache
+documenteer_bibfile_cache_dir = ".technote/bibfiles"
+documenteer_bibfile_github_repos = [
+    {
+        "repo": "lsst/lsst-texmf",
+        "ref": "main",
+        "bibfiles": [
+            "texmf/bibtex/bib/lsst.bib",
+            "texmf/bibtex/bib/lsst-dm.bib",
+            "texmf/bibtex/bib/refs_ads.bib",
+            "texmf/bibtex/bib/refs.bib",
+            "texmf/bibtex/bib/books.bib",
+        ],
+    }
+]
+# Set up bibtex_bibfiles
+bibtex_bibfiles = []
+
+# Automatically load local bibfiles in the root directory.
+for p in Path.cwd().glob("*.bib"):
+    bibtex_bibfiles.append(str(p))
+
+bibtex_default_style = "lsst_aa"
+bibtex_reference_style = "author_year"
