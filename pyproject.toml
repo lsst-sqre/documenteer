@@ -23,12 +23,13 @@ classifiers = [
 requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
-    "Sphinx",
+    "docutils>=0.20",  # solves an extra div bug with the bibliography directive
+    "Sphinx>=7",  # Consistent docutils constraint
     "PyYAML",
     "GitPython",
     "requests",
     "click",
-    "sphinxcontrib-bibtex>=2.0.0",                  # for pybtex plugin; bibtex_bibfiles config is required.
+    "sphinxcontrib-bibtex>=2.0.0", # for pybtex extension
     "pydantic >= 2.0.0",
     "urllib3",
 ]
@@ -55,10 +56,9 @@ dev = [
 ]
 guide = [
     # Theme and extensions for Rubin user guide projects
-    "sphinx<7",
     "sphinx_design",
     "pydata-sphinx-theme>=0.10.0,<0.13.0",
-    "sphinx-autodoc-typehints<1.23.0",  # avoid requiring Sphinx > 7 only
+    "sphinx-autodoc-typehints",
     "sphinx-automodapi",
     "sphinx-copybutton",
     "sphinx-prompt",
@@ -71,13 +71,11 @@ guide = [
 ]
 technote = [
     # Theme and extensions for technotes
-    "sphinx<7",
     "technote==0.3.0a7",
     "sphinx-prompt",
 ]
 pipelines = [
     # Theme and extensions for pipelines.lsst.io
-    "sphinx<7",
     "lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0",
     "numpydoc",
     "sphinx-automodapi",

@@ -34,6 +34,7 @@ requests = "https://requests.readthedocs.io/en/latest/"
 developer = "https://developer.lsst.io/"
 pybtex = "https://docs.pybtex.org/"
 sphinx = "https://www.sphinx-doc.org/en/master/"
+sphinxcontrib-bibtex = "https://sphinxcontrib-bibtex.readthedocs.io/en/latest/"
 
 [sphinx.linkcheck]
 ignore = [
