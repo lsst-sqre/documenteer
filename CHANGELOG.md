@@ -189,7 +189,7 @@ Fixes:
 
 - Documenteer works with the latest version of [sphinxcontrib-bibtex](https://github.com/mcmtroffaes/sphinxcontrib-bibtex).
   Both the new (`documenteer.conf.technote`) and old (`documenteer.sphinxconfig.technoteconf`) versions of the technote configuration use the new `bibtex_bibfiles` configuration variable.
-  Version 2.0.0 or later of `sphinxcontrib-bibtex`_ is now required because of that package's API.
+  Version 2.0.0 or later of `sphinxcontrib-bibtex` is now required because of that package's API.
 
 ## 0.6.2 (2020-10-08)
 

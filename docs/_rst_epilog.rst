@@ -54,6 +54,7 @@
 .. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 .. _sphinx_autodoc_typehints: https://github.com/tox-dev/sphinx-autodoc-typehints
 .. _sphinxcontrib-redoc: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
+.. _sphinxcontrib-bibtex: https://sphinxcontrib-bibtex.readthedocs.io/en/latest/
 .. _tox: https://tox.wiki/en/latest/
 .. _Technote: https://technote.lsst.io/
 
