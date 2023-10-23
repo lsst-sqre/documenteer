@@ -1,13 +1,12 @@
-####################
-Python API reference
-####################
+##########
+Python API
+##########
 
 .. toctree::
+   :titlesonly:
 
    documenteer.conf
    documenteer.ext
    documenteer.requestsutils
-   documenteer.sphinxconfig
-   documenteer.sphinxext
    documenteer.sphinxrunner
    documenteer.stackdocs

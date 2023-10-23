@@ -1,5 +1,4 @@
-"""Tests for `documenteer.sphinext.lsstdocushare`.
-"""
+"""Tests for `documenteer.ext.lsstdocushare`."""
 
 
 from shutil import rmtree
@@ -8,7 +7,7 @@ from tempfile import mkdtemp
 import pytest
 from sphinx.application import Sphinx
 
-import documenteer.sphinxext.lsstdocushare as lsstdocushare
+import documenteer.ext.lsstdocushare as lsstdocushare
 
 try:
     from unittest.mock import Mock

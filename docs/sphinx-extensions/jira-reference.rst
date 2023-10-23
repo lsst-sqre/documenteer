@@ -6,11 +6,11 @@ Jira reference roles
 
 Documenteer provides reStructuredText roles to simplify linking to issues in LSST's Jira ticketing system at https://jira.lsstcorp.org.
 
-To use these roles, add the ``documenteer.sphinxext.jira`` extension to your :file:`conf.py` file:
+To use these roles, add the ``documenteer.ext.jira`` extension to your :file:`conf.py` file:
 
 .. code-block:: python
 
-   extensions = ["documenteer.sphinxext.jira"]
+   extensions = ["documenteer.ext.jira"]
 
 Roles
 =====

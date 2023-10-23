@@ -110,13 +110,13 @@ def test_append_extensions() -> None:
     existing_extensions = [
         "sphinx_design",
         "sphinx.ext.autodoc",
-        "documenteer.sphinxext",
+        "documenteer.ext.jira",
     ]
     config.append_extensions(existing_extensions)
     assert existing_extensions == [
         "sphinx_design",
         "sphinx.ext.autodoc",
-        "documenteer.sphinxext",
+        "documenteer.ext.jira",
         "new_extension",
     ]
 

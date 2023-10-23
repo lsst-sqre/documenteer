@@ -24,7 +24,7 @@ help:
 
 clean:
 	rm -rf $(BUILDDIR)/*
-	rm -rf api/*
+	rm -rf dev/api/contents*
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html

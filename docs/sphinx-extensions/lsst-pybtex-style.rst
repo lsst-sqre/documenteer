@@ -5,17 +5,17 @@ BibTeX style extension for Rubin Observatory
 ############################################
 
 sphinxcontrib-bibtex_ is an excellent way to include academic citations in Sphinx documentation projects.
-Documenteer provides support for `LSST's common BibTeX bibliography files <https://github.com/lsst/lsst-texmf/tree/main/texmf/bibtex/bib>`__ (maintained in `lsst-texmf <https://github.com/lsst/lsst-texmf>`__) through its ``documenteer.sphinxext.bibtex`` extension.
+Documenteer provides support for `LSST's common BibTeX bibliography files <https://github.com/lsst/lsst-texmf/tree/main/texmf/bibtex/bib>`__ (maintained in `lsst-texmf <https://github.com/lsst/lsst-texmf>`__) through its ``documenteer.ext.bibtex`` extension.
 Specifically, this extension provides support for ``docushare`` fields in those bib files.
 
 Usage
 =====
 
-To use this Sphinx extension, add ``documenteer.sphinxext.bibtex`` to your :file:`conf.py` file:
+To use this Sphinx extension, add ``documenteer.ext.bibtex`` to your :file:`conf.py` file:
 
 .. code-block:: python
 
-   extensions = ["documenteer.sphinxext.bibtex"]
+   extensions = ["documenteer.ext.bibtex"]
 
    bibtex_default_style = "lsst_aa"
 

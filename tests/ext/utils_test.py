@@ -1,7 +1,7 @@
-"""Tests for the ``documenteer.sphinxext.util`` module.
+"""Tests for the ``documenteer.ext._utils`` module.
 """
 
-from documenteer.sphinxext.utils import split_role_content
+from documenteer.ext._utils import split_role_content
 
 
 def test_parse_plain_role():

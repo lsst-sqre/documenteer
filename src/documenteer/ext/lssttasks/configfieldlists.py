@@ -16,7 +16,7 @@ from docutils.parsers.rst import Directive
 from sphinx.errors import SphinxError
 from sphinx.util.logging import getLogger
 
-from ..utils import (
+from .._utils import (
     make_python_xref_nodes_for_type,
     make_section,
     parse_rst_content,
@@ -1157,12 +1157,12 @@ def create_configfield_ref_target_node(target_id, env, lineno):
     """Create a ``target`` node that marks a configuration field.
 
     Internally, this also adds to the ``lsst_configfields`` attribute of the
-    environment that is consumed by `documenteer.sphinxext.lssttasks.
+    environment that is consumed by `documenteer.ext.lssttasks.
     crossrefs.process_pending_configfield_xref_nodes`.
 
     See also
     --------
-    `documenteer.sphinxext.lssttasks.crossrefs.process_pending_configfield_xref_nodes`
+    `documenteer.ext.lssttasks.crossrefs.process_pending_configfield_xref_nodes`
     """
     target_node = nodes.target("", "", ids=[target_id])
 

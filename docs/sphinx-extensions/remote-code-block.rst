@@ -6,11 +6,11 @@ The remote code block extension
 
 Documenteer provides a :dir:`remote-code-block` directive that works like :dir:`literalinclude`, but supports getting content from the web.
 
-To use this directive, add the ``documenteer.sphinext.remotecodeblock`` extension to your :file:`conf.py` file:
+To use this directive, add the ``documenteer.ext.remotecodeblock`` extension to your :file:`conf.py` file:
 
 .. code-block:: python
 
-   extensions = ["documenteer.sphinxext.remotecodeblock"]
+   extensions = ["documenteer.ext.remotecodeblock"]
 
 Directive
 =========

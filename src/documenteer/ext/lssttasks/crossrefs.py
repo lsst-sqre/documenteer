@@ -17,7 +17,7 @@ __all__ = (
 from docutils import nodes
 from sphinx.util.logging import getLogger
 
-from ..utils import split_role_content
+from .._utils import split_role_content
 
 
 def format_task_id(task_class_name):

@@ -6,11 +6,11 @@ LSST document reference roles
 
 Documenteer provides reStructuredText roles that simplify linking to LSST documents according to their handle.
 
-To use these roles, add the ``documenteer.sphinext.lsstdocushare`` extension to your :file:`conf.py` file:
+To use these roles, add the ``documenteer.ext.lsstdocushare`` extension to your :file:`conf.py` file:
 
 .. code-block:: python
 
-   extensions = ["documenteer.sphinxext.lsstdocushare"]
+   extensions = ["documenteer.ext.lsstdocushare"]
 
 Summary
 =======

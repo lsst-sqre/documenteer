@@ -1,6 +1,4 @@
-"""Extensions to support LSST bibliographies with
-`sphinxcontrib-bibtex <http://sphinxcontrib-bibtex.readthedocs.io>`_.
-"""
+"""Support for Rubin BibTeX files for pybtex/sphinxcontrib.bibtex."""
 
 __all__ = ("LsstBibtexStyle", "setup")
 

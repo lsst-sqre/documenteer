@@ -47,7 +47,7 @@ class BaseTopicListDirective(Directive):
         These names correspond to the ``'types'`` key of the
         ``lsst_task_topics`` environment attribute set by the
         topic marker directives (such as
-        `documenteer.sphinxext.lssttasks.topics.TaskTopicDirective`).
+        `documenteer.ext.lssttasks.topics.TaskTopicDirective`).
         """
         raise NotImplementedError
 

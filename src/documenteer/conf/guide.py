@@ -136,7 +136,10 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx_automodapi.automodapi",
     "sphinx_automodapi.smart_resolver",
-    "documenteer.sphinxext",
+    "documenteer.ext.jira",
+    "documenteer.ext.lsstdocushare",
+    "documenteer.ext.mockcoderefs",
+    "documenteer.ext.remotecodeblock",
     "documenteer.ext.openapi",
 ]
 _conf.append_extensions(extensions)

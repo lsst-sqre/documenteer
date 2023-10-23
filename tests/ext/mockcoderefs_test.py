@@ -1,4 +1,4 @@
-"""Tests for documenteer.sphinext.mockcoderefs."""
+"""Tests for documenteer.ext.mockcoderefs."""
 
 
 from shutil import rmtree
@@ -7,7 +7,7 @@ from tempfile import mkdtemp
 import pytest
 from sphinx.application import Sphinx
 
-import documenteer.sphinxext.mockcoderefs as mockcoderefs
+import documenteer.ext.mockcoderefs as mockcoderefs
 
 try:
     from unittest.mock import Mock

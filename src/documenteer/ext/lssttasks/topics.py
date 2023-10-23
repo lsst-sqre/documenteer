@@ -14,7 +14,7 @@ from sphinx.errors import SphinxError
 from sphinx.util.docutils import switch_source_input
 from sphinx.util.logging import getLogger
 
-from ..utils import parse_rst_content
+from .._utils import parse_rst_content
 from .crossrefs import format_config_id, format_task_id
 from .taskutils import extract_docstring_summary, get_docstring, get_type
 
