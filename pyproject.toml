@@ -107,7 +107,6 @@ Source = "https://github.com/lsst-sqre/documenteer"
 stack-docs = "documenteer.stackdocs.stackcli:main"
 package-docs = "documenteer.stackdocs.packagecli:main"
 build-stack-docs = "documenteer.bin.buildstackdocs:run_build_cli"
-refresh-lsst-bib = "documenteer.bin.refreshlsstbib:run"
 
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
