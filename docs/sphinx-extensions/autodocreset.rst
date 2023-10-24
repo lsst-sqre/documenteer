@@ -6,7 +6,7 @@ The autodocreset extension for resetting automodapi's autodoc enhancements
 
 The `sphinx-automodapi`_ extension includes an ``autodoc_enhancements`` module that replaces autodoc's built-in "attr getter" for ``type``.
 While this enhancement is useful for Python meta programming, it can also be incompatible with Pybind11 static properties, which are present in the LSST Science Pipelines.
-This Sphinx extension resets automodapi's autodoc enhancements and is included by default in the :doc:`Pipelines Sphinx configuration </pipelines/configuration>`.
+This Sphinx extension resets automodapi's autodoc enhancements and is included by default in the :doc:`Pipelines Sphinx configuration </guides/pipelines/configuration>`.
 
 .. _sphinx-automodapi: https://sphinx-automodapi.readthedocs.io/en/latest/
 

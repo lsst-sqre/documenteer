@@ -74,11 +74,11 @@ Configuration source reference
 documenteer.conf.pipelines source
 ---------------------------------
 
-.. literalinclude:: ../../src/documenteer/conf/pipelines.py
+.. literalinclude:: ../../../src/documenteer/conf/pipelines.py
 
 .. _pipelinespkg-conf-source:
 
 documenteer.conf.pipelinespkg source
 ------------------------------------
 
-.. literalinclude:: ../../src/documenteer/conf/pipelinespkg.py
+.. literalinclude:: ../../../src/documenteer/conf/pipelinespkg.py

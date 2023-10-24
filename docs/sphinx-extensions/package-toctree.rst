@@ -12,7 +12,7 @@ To use this Sphinx extension, add ``documenteer.ext.packagetoctree`` to your :fi
 
    extensions = ["documenteer.ext.packagetoctree"]
 
-To learn more about the build process for stack documentation projects, see :doc:`/pipelines/build-overview`.
+To learn more about the build process for stack documentation projects, see :doc:`/guides/pipelines/build-overview`.
 
 Summary
 =======
