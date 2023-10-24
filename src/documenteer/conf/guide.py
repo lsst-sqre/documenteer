@@ -28,6 +28,8 @@ from documenteer.conf import (
 #     HTML builder and theme configuration
 # #API
 #     API reference configuration
+# #GRAPHVIZ
+#     Graphviz configuration
 # #MYST
 #     MyST markdown configurations
 # #MERMIAID
@@ -345,6 +347,22 @@ napoleon_type_aliases = None
 napoleon_attr_annotations = True
 
 # ============================================================================
+# #GRAPHVIZ graphviz configuration
+# graphviz is primarily used by automodapi to create inheritance diagrams.
+# ============================================================================
+# Render inheritance diagrams in SVG
+graphviz_output_format = "svg"
+
+graphviz_dot_args = [
+    "-Nfontsize=10",
+    "-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Efontsize=10",
+    "-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Gfontsize=10",
+    "-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+]
+
+# ============================================================================
 # #MYST MyST markdown configurations
 # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html
 # ============================================================================
@@ -427,6 +445,5 @@ else:
 
 # ============================================================================
 # #JINJA Sphinx Jinja support
-# https://github.com/tardyp/sphinx-jinja
 # ============================================================================
 jinja_contexts: dict[str, Any] = {}
