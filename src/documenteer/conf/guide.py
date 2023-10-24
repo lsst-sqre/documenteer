@@ -109,6 +109,8 @@ __all__ = [
     "documenteer_openapi_path",
     "redoc",
     "redoc_uri",
+    # Sphinx jinja
+    "jinja_contexts",
 ]
 
 _conf = DocumenteerConfig.find_and_load()
@@ -131,6 +133,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.ifconfig",
     "sphinx-prompt",
+    "sphinx_jinja",
     "sphinxcontrib.redoc",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
@@ -421,3 +424,9 @@ else:
     documenteer_openapi_path = None
     redoc = []
     redoc_uri = None
+
+# ============================================================================
+# #JINJA Sphinx Jinja support
+# https://github.com/tardyp/sphinx-jinja
+# ============================================================================
+jinja_contexts: dict[str, Any] = {}

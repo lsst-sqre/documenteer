@@ -62,6 +62,7 @@ guide = [
     "sphinx-automodapi",
     "sphinx-copybutton",
     "sphinx-prompt",
+    "sphinx-jinja>=2", # namespace changed in 2.0
     "myst-parser",
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid",
@@ -76,6 +77,8 @@ technote = [
 ]
 pipelines = [
     # Theme and extensions for pipelines.lsst.io
+    # Include all dependencies fof guide, and add additional dependencies
+    # specifically for pipelines.lsst.io
     "lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0",
     "numpydoc",
     "sphinx-automodapi",
