@@ -69,6 +69,7 @@ guide = [
     "sphinxext-opengraph",
     "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
+    "sphinxext-rediraffe",
 ]
 pipelines = [
     # Theme and extensions for pipelines.lsst.io

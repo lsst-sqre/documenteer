@@ -38,6 +38,8 @@ from documenteer.conf import (
 #     OpenGraph metadata support
 # #OPENAPI
 #     OpenAPI/redoc support
+# #REDIRECTS
+#     Sphinx-rediraffe support
 
 
 # Ordered as they are declared in this module
@@ -113,6 +115,8 @@ __all__ = [
     "redoc_uri",
     # Sphinx jinja
     "jinja_contexts",
+    # Sphinx rediraffe
+    "rediraffe_redirects",
 ]
 
 _conf = DocumenteerConfig.find_and_load()
@@ -137,6 +141,7 @@ extensions = [
     "sphinx-prompt",
     "sphinx_jinja",
     "sphinxcontrib.redoc",
+    "sphinxext.rediraffe",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
     "sphinx_automodapi.automodapi",
@@ -447,3 +452,9 @@ else:
 # #JINJA Sphinx Jinja support
 # ============================================================================
 jinja_contexts: dict[str, Any] = {}
+
+# ============================================================================
+# #REDIRECTS Sphinx-rediraffe support
+# https://sphinxext-rediraffe.readthedocs.io/en/latest/
+# ============================================================================
+rediraffe_redirects: dict[str, str] = {}
