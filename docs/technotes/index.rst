@@ -7,6 +7,13 @@ Documenteer provides centralized configuration and tooling for technotes.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Getting started
+   :titlesonly:
+
+   migrate
+
+.. toctree::
+   :maxdepth: 2
    :caption: Configuration
    :titlesonly:
 

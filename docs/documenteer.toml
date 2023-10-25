@@ -24,6 +24,9 @@ nitpick_ignore_regex = [
   ['py:.*', 'pydantic.*'],
 ]
 python_api_dir = "dev/api/contents"
+exclude = [
+  "technotes/_templates/*"
+]
 
 [sphinx.theme]
 header_links_before_dropdown = 5
