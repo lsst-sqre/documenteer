@@ -13,7 +13,7 @@
 .. _sphinxcontrib-mermaid: https://github.com/mgaitan/sphinxcontrib-mermaid
 .. _Diagrams: https://diagrams.mingrammer.com/
 .. _sphinx-diagrams: https://github.com/j-martin/sphinx-diagrams
-.. _`#dm-docs`: https://lsstc.slack.com/archives/C2B6DQBAL
+.. _`#dm-docs-support`: https://lsstc.slack.com/archives/C2B6DQBAL
 .. _`DMTN-030`:
 .. _`DMTN-030 Science Pipelines Documentation Design`: https://dmtn-030.lsst.io
 .. _`Google Developer Style Guide`: https://developers.google.com/style/

@@ -23,7 +23,7 @@ The Sphinx configuration for the pipelines.lsst.io project includes a special :r
 
    Use the :ref:`stack-docs listcc command <lsstcc-listcc>` to identify linkable API signatures.
    As a last resort, you may want to manually create a relative hyperlink.
-   Contact `#dm-docs`_ on Slack for help.
+   Contact `#dm-docs-support`_ on Slack for help.
 
 .. role:: lsstcc
 
