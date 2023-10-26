@@ -4,13 +4,13 @@ Sphinx extensions for the LSST Science Pipelines task framework
 
 These extensions allow you to document and reference tasks in the LSST Science Pipelines.
 
-Enable these extensions by adding ``documenteer.sphinxext.lssttasks`` to the Sphinx project's ``extensions`` configuration list.
+Enable these extensions by adding ``documenteer.ext.lssttasks`` to the Sphinx project's ``extensions`` configuration list.
 
-To use this Sphinx extension, add ``documenteer.sphinxext.lssttasks`` to your :file:`conf.py` file:
+To use this Sphinx extension, add ``documenteer.ext.lssttasks`` to your :file:`conf.py` file:
 
 .. code-block:: python
 
-   extensions = ["documenteer.sphinxext.lssttasks"]
+   extensions = ["documenteer.ext.lssttasks"]
 
 The ``documenteer.conf.pipelines`` and ``documenteer.conf.pipelinespkg`` configurations automatically add these extensions to LSST Science Pipelines package documentation projects.
 

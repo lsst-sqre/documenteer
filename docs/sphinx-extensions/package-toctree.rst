@@ -6,13 +6,13 @@ Package toctree extension for LSST Stack documentation
 
 Documenteer provides the :dir:`package-toctree` :dir:`module-toctree` directives that are useful building dynamic toctrees of package and module documentation in stack documentation projects like the LSST Science Pipelines (https://pipelines.lsst.io).
 
-To use this Sphinx extension, add ``documenteer.sphinxext.packagetoctree`` to your :file:`conf.py` file:
+To use this Sphinx extension, add ``documenteer.ext.packagetoctree`` to your :file:`conf.py` file:
 
 .. code-block:: python
 
-   extensions = ["documenteer.sphinxext.packagetoctree"]
+   extensions = ["documenteer.ext.packagetoctree"]
 
-To learn more about the build process for stack documentation projects, see :doc:`/pipelines/build-overview`.
+To learn more about the build process for stack documentation projects, see :doc:`/guides/pipelines/build-overview`.
 
 Summary
 =======

@@ -1,18 +1,17 @@
-"""Utilities for making Sphinx extensions.
-"""
-
-__all__ = (
-    "parse_rst_content",
-    "make_python_xref_nodes",
-    "make_python_xref_nodes_for_type",
-    "make_section",
-)
+"""Utilities for Sphinx extensions."""
 
 import re
 
 from docutils import nodes
 from docutils.statemachine import ViewList
 from sphinx.util.docutils import switch_source_input
+
+__all__ = [
+    "parse_rst_content",
+    "make_python_xref_nodes",
+    "make_python_xref_nodes_for_type",
+    "make_section",
+]
 
 
 def parse_rst_content(content, state):

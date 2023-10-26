@@ -11,11 +11,6 @@ Documenteer provides centralized configuration and tooling for technotes.
 
    configuration
 
-.. toctree::
-   :caption: CLI tools
-
-   refresh-lsst-bib
-
 .. seealso::
 
    To learn more about technotes:

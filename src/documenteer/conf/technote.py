@@ -7,6 +7,8 @@ from technote.sphinxconf import *  # noqa: F401 F403
 from documenteer.conf import get_asset_path, get_template_dir
 
 try:
+    # Remove the sphinxcontrib-bibtex extension so that we can add it back
+    # in the proper order relative to documenteer.ext.githubbibcache.
     extensions.remove("sphinxcontrib.bibtex")  # noqa: F405
 except ValueError:
     pass
@@ -15,7 +17,11 @@ except ValueError:
 # that it can add bibfiles to the sphinxcontrib-bibtex configuration.
 extensions.extend(  # noqa: F405
     [
-        "documenteer.sphinxext.bibtex",
+        "documenteer.ext.jira",
+        "documenteer.ext.lsstdocushare",
+        "documenteer.ext.mockcoderefs",
+        "documenteer.ext.remotecodeblock",
+        "documenteer.ext.bibtex",
         "documenteer.ext.githubbibcache",
         "sphinxcontrib.bibtex",
     ]

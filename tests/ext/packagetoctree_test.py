@@ -2,7 +2,7 @@
 module-toctree directives).
 """
 
-from documenteer.sphinxext.packagetoctree import _filter_index_pages
+from documenteer.ext.packagetoctree import _filter_index_pages
 
 
 def test_filter_index_pages():

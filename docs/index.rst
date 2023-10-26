@@ -42,13 +42,13 @@ Installation
 
          pip install "documenteer[technote]"
 
-      For :doc:`LSST Science Pipelines projects and other EUPS stacks </pipelines/index>`:
+      For :doc:`LSST Science Pipelines projects and other EUPS stacks </guides/pipelines/index>`:
 
       .. code-block:: sh
 
          pip install "documenteer[pipelines]"
 
-      See :doc:`/pipelines/install` for more information.
+      See :doc:`/guides/pipelines/install` for more information.
 
    .. tab-item:: conda
 
@@ -91,7 +91,6 @@ This section describes how to use Documenteer for specific types of projects, fr
 
    Rubin user guides <guides/index>
    Technical notes <technotes/index>
-   Science Pipelines <pipelines/index>
 
 Sphinx extensions
 =================

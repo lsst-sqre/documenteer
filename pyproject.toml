@@ -62,29 +62,42 @@ guide = [
     "sphinx-automodapi",
     "sphinx-copybutton",
     "sphinx-prompt",
+    "sphinx-jinja>=2", # namespace changed in 2.0
     "myst-parser",
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid",
     "sphinxext-opengraph",
     "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
+    "sphinxext-rediraffe",
+]
+pipelines = [
+    # Theme and extensions for pipelines.lsst.io
+    # Include all dependencies fof guide, and add additional dependencies
+    # specifically for pipelines.lsst.io
+    "sphinx_design",
+    "pydata-sphinx-theme>=0.10.0,<0.13.0",
+    "sphinx-autodoc-typehints",
+    "sphinx-automodapi",
+    "sphinx-copybutton",
+    "sphinx-prompt",
+    "sphinx-jinja>=2", # namespace changed in 2.0
+    "myst-parser",
+    "markdown-it-py[linkify]",
+    "sphinxcontrib-mermaid",
+    "sphinxext-opengraph",
+    "sphinxcontrib-redoc",
+    "sphinxcontrib-jquery",
+
+    # Additional extensions for Pipelines
+    "sphinxcontrib-autoprogram",
+    "sphinxcontrib-doxylink",
+    "sphinx-click",
 ]
 technote = [
     # Theme and extensions for technotes
     "technote==0.3.0a7",
     "sphinx-prompt",
-]
-pipelines = [
-    # Theme and extensions for pipelines.lsst.io
-    "lsst-sphinx-bootstrap-theme>=0.2.0,<0.3.0",
-    "numpydoc",
-    "sphinx-automodapi",
-    "sphinx-jinja",
-    "sphinxcontrib-autoprogram",
-    "sphinx-prompt",
-    "sphinxcontrib-doxylink",
-    "sphinx-click",
-    "sphinxcontrib-jquery",
 ]
 
 [project.urls]
@@ -94,8 +107,6 @@ Source = "https://github.com/lsst-sqre/documenteer"
 [project.scripts]
 stack-docs = "documenteer.stackdocs.stackcli:main"
 package-docs = "documenteer.stackdocs.packagecli:main"
-build-stack-docs = "documenteer.bin.buildstackdocs:run_build_cli"
-refresh-lsst-bib = "documenteer.bin.refreshlsstbib:run"
 
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]

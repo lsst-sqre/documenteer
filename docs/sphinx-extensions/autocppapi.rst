@@ -17,7 +17,7 @@ To use this directive, add the ``documenteer.ext.autocppapi`` extension to your 
 
    The ``autocppapi`` extension needs Doxylink to be installed and also included in the extensions listing.
    If you installed ``autocppapi`` through the :ref:`"pipelines" extra <pip-install>`, Doxylink will be installed for you.
-   Doxylink is automatically configured in Pipelines documentation builds to point to a Doxygen site that's embedded during the build process (see :doc:`/pipelines/build-overview`).
+   Doxylink is automatically configured in Pipelines documentation builds to point to a Doxygen site that's embedded during the build process (see :doc:`/guides/pipelines/build-overview`).
    Otherwise, you can manually add Doxylink to your project's depenencies:
 
    .. prompt:: bash

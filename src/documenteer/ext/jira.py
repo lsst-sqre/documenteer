@@ -1,4 +1,4 @@
-"""JIRA ticket reference roles (for stories, epics, RFCs, etc.).
+"""Rubin JIRA ticket reference roles.
 
 This module is heavily influenced by sphinx-issue (Steven Loria). See
 /licenses/sphinx-issue.txt for licensing information.

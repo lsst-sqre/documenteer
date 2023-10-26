@@ -28,6 +28,8 @@ from documenteer.conf import (
 #     HTML builder and theme configuration
 # #API
 #     API reference configuration
+# #GRAPHVIZ
+#     Graphviz configuration
 # #MYST
 #     MyST markdown configurations
 # #MERMIAID
@@ -36,6 +38,8 @@ from documenteer.conf import (
 #     OpenGraph metadata support
 # #OPENAPI
 #     OpenAPI/redoc support
+# #REDIRECTS
+#     Sphinx-rediraffe support
 
 
 # Ordered as they are declared in this module
@@ -109,6 +113,10 @@ __all__ = [
     "documenteer_openapi_path",
     "redoc",
     "redoc_uri",
+    # Sphinx jinja
+    "jinja_contexts",
+    # Sphinx rediraffe
+    "rediraffe_redirects",
 ]
 
 _conf = DocumenteerConfig.find_and_load()
@@ -131,12 +139,17 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.ifconfig",
     "sphinx-prompt",
+    "sphinx_jinja",
     "sphinxcontrib.redoc",
+    "sphinxext.rediraffe",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
     "sphinx_automodapi.automodapi",
     "sphinx_automodapi.smart_resolver",
-    "documenteer.sphinxext",
+    "documenteer.ext.jira",
+    "documenteer.ext.lsstdocushare",
+    "documenteer.ext.mockcoderefs",
+    "documenteer.ext.remotecodeblock",
     "documenteer.ext.openapi",
 ]
 _conf.append_extensions(extensions)
@@ -339,6 +352,22 @@ napoleon_type_aliases = None
 napoleon_attr_annotations = True
 
 # ============================================================================
+# #GRAPHVIZ graphviz configuration
+# graphviz is primarily used by automodapi to create inheritance diagrams.
+# ============================================================================
+# Render inheritance diagrams in SVG
+graphviz_output_format = "svg"
+
+graphviz_dot_args = [
+    "-Nfontsize=10",
+    "-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Efontsize=10",
+    "-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+    "-Gfontsize=10",
+    "-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
+]
+
+# ============================================================================
 # #MYST MyST markdown configurations
 # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html
 # ============================================================================
@@ -418,3 +447,14 @@ else:
     documenteer_openapi_path = None
     redoc = []
     redoc_uri = None
+
+# ============================================================================
+# #JINJA Sphinx Jinja support
+# ============================================================================
+jinja_contexts: dict[str, Any] = {}
+
+# ============================================================================
+# #REDIRECTS Sphinx-rediraffe support
+# https://sphinxext-rediraffe.readthedocs.io/en/latest/
+# ============================================================================
+rediraffe_redirects: dict[str, str] = {}

@@ -36,14 +36,14 @@ In your project's :file:`conf.py` file, set up the extensions like this:
       :caption: conf.py
 
       extensions = [
-          "documenteer.sphinxext.bibtex",
+          "documenteer.ext.bibtex",
           "documenteer.ext.githubbibcache",
           "sphinxcontrib.bibtex",
       ]
 
       bibtex_default_style = "lsst_aa"
 
-   The style configuration specifies the style provided by ``documenteer.sphinxext.bibtex``.
+   The style configuration specifies the style provided by ``documenteer.ext.bibtex``.
 
 Specify the GitHub repositories and their BibTeX files
 ======================================================

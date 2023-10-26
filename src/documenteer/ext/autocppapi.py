@@ -13,8 +13,8 @@ from docutils import nodes
 from docutils.parsers.rst import directives
 from sphinx.util.docutils import SphinxDirective
 
-from ..sphinxext.utils import parse_rst_content
 from ..version import __version__
+from ._utils import parse_rst_content
 
 try:
     from sphinxcontrib.doxylink import doxylink

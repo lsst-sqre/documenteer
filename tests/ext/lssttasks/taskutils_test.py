@@ -1,9 +1,8 @@
-"""Tests for the ``documenteer.sphinxext.lssttasks.taskutils`` module.
-"""
+"""Tests for ``documenteer.ext.lssttasks.taskutils``."""
 
 import pytest
 
-from documenteer.sphinxext.lssttasks.taskutils import (
+from documenteer.ext.lssttasks.taskutils import (
     get_subtask_fields,
     get_task_config_class,
 )

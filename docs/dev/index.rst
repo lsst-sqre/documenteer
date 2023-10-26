@@ -16,7 +16,7 @@ Development
    theme
 
 .. toctree::
-   :caption: Reference
    :maxdepth: 2
+   :caption: Reference
 
    api/index

@@ -1,4 +1,4 @@
-"""Tests for documenteer.sphinext.jira
+"""Tests for documenteer.ext.jira
 
 Based on sphinx-issue (Steven Loria). See :file:`/licenses/sphinx-issue.txt`
 for licensing information.
@@ -11,7 +11,7 @@ from tempfile import mkdtemp
 import pytest
 from sphinx.application import Sphinx
 
-import documenteer.sphinxext.jira as jira
+import documenteer.ext.jira as jira
 
 try:
     from unittest.mock import Mock

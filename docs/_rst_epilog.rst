@@ -62,10 +62,10 @@
 
 .. |documenteer.toml| replace:: :doc:`documenteer.toml </guides/toml-reference>`
 .. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide </guides/configuration-preset>`
-.. |package-docs| replace:: :doc:`package-docs </pipelines/package-docs-cli>`
-.. |stack-docs| replace:: :doc:`stack-docs </pipelines/stack-docs-cli>`
-.. |stack-docs-build| replace:: :doc:`stack-docs build </pipelines/stack-docs-cli>`
-.. |stack-docs-clean| replace:: :doc:`stack-docs clean </pipelines/stack-docs-cli>`
+.. |package-docs| replace:: :doc:`package-docs </guides/pipelines/package-docs-cli>`
+.. |stack-docs| replace:: :doc:`stack-docs </guides/pipelines/stack-docs-cli>`
+.. |stack-docs-build| replace:: :doc:`stack-docs build </guides/pipelines/stack-docs-cli>`
+.. |stack-docs-clean| replace:: :doc:`stack-docs clean </guides/pipelines/stack-docs-cli>`
 
 .. links to sphinx directives
 

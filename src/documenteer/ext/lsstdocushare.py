@@ -1,4 +1,4 @@
-"""LSST LSST the Docs and DocuShare/ls.st reference roles."""
+"""LSST the Docs and DocuShare/ls.st reference roles."""
 
 from __future__ import annotations
 

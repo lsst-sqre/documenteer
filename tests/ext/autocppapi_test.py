@@ -1,5 +1,4 @@
-"""Tests for documenteer.ext.autocppapi.
-"""
+"""Tests for documenteer.ext.autocppapi."""
 
 import lxml.html
 import pytest
