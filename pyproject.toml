@@ -96,7 +96,7 @@ pipelines = [
 ]
 technote = [
     # Theme and extensions for technotes
-    "technote==0.3.0a7",
+    "technote>=0.3.0,<0.4.0",
     "sphinx-prompt",
 ]
 
