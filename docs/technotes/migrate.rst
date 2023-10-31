@@ -4,7 +4,7 @@ Migrate legacy Sphinx technical notes
 
 Introduced in November 2023, Rubin Observatory has a new technical note format for Markdown and reStructuredText documents, based on the Sphinx_ and the `Technote <https://technote.lsst.io>`__ Python packages.
 If your started writing your technical note before November 2023, it is likely in the legacy Sphinx format.
-You can tell if your technical note is in the legacy format if it has a :file:`manifest.yaml` file.
+You can tell if your technical note is in the legacy format if it has a :file:`metadata.yaml` file.
 If you are continuing to write such a technical note, you should migrate it to the new format to take advantage of new features.
 This page provides a guide to migrating your technical note to the new format.
 
@@ -14,7 +14,7 @@ Work on a ticket branch, `per the Developer Guide <https://developer.lsst.io/wor
 Step 1. Create a technote.toml file
 ===================================
 
-The :file:`technote.toml` file replaces the original :file:`manifest.yaml` file.
+The :file:`technote.toml` file replaces the original :file:`metadata.yaml` file.
 This new file provides both metadata and Sphinx configuration for your document.
 
 Here is a simple :file:`technote.toml` file to get you started:
@@ -220,16 +220,16 @@ Commit any changes
          git add index.md
          git commit -m "Reformat index.md for new technote format"
 
-Step 4. Delete manifest.yaml
+Step 4. Delete metadata.yaml
 ============================
 
 At this point, all relevant metadata about the technote is in :file:`technote.toml` or :file:`index.rst`/:file:`index.md`.
-Delete the deprecated :file:`manifest.yaml` file:
+Delete the deprecated :file:`metadata.yaml` file:
 
 .. prompt:: bash
 
-   git rm manifest.yaml
-   git commit -m "Remove manifest.yaml file"
+   git rm metadata.yaml
+   git commit -m "Remove metadata.yaml file"
 
 Step 5. Delete the lsstbib/ directory
 =====================================
@@ -320,7 +320,7 @@ Step 7. Add a tox.ini file
 Tox_ is a tool for running Python programs in dedicated virtual environments.
 This makes your local technote builds more reproducible by separating the technote's dependencies from your system and other projects.
 
-This is the recommend tox configuration to start with:
+This is the recommended tox configuration to start with:
 
 .. code-block:: ini
    :caption: tox.ini
