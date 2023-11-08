@@ -6,7 +6,7 @@ Technotes are continuously updated on the web as you add commits and merge pull 
 Your "drafts" are visible to the rest of the observatory, and even the public, to speed up collaboration and provide transparency.
 You can communicate the status of the document by setting metadata in :file:`technote.toml`.
 For example, you can specify that the technote is an incomplete draft, or that the technote is deprecated and is now replaced by another set of documents.
-This configuration is optional; the default status is "stable" when the ``[technote.state]`` table is omitted.
+This configuration is optional; the default status is "stable" when the ``[technote.status]`` table is omitted.
 
 Setting "draft" status
 ======================
@@ -16,8 +16,8 @@ If the technote is incomplete and being actively written, you can set the status
 .. code-block:: toml
    :caption: technote.toml
 
-   [technote.state]
-   status = "draft"
+   [technote.status]
+   state = "draft"
 
 Setting "stable" status
 =======================
@@ -27,8 +27,8 @@ If the technote is complete, accurate and no longer being actively worked upon, 
 .. code-block:: toml
    :caption: technote.toml
 
-   [technote.state]
-   status = "stable"
+   [technote.status]
+   state = "stable"
 
 This is the default state if one is not specified in :file:`technote.toml`.
 
@@ -40,8 +40,8 @@ If your technote is no longer accurate or relevant, you can mark it as deprecate
 .. code-block:: toml
    :caption: technote.toml
 
-   [technote.state]
-   status = "deprecated"
+   [technote.status]
+   state = "deprecated"
    note = "This technote is deprecated because [...]"
 
 If the technote has been replaced by one or more other documents, you can link to them with a ``supersceding_urls`` array:
@@ -49,15 +49,15 @@ If the technote has been replaced by one or more other documents, you can link t
 .. code-block:: toml
    :caption: technote.toml
 
-   [technote.state]
-   status = "deprecated"
+   [technote.status]
+   state = "deprecated"
    note = "This technote is deprecated because [...]"
 
-   [[technote.state.supersceding_urls]]
+   [[technote.status.supersceding_urls]]
    title = "New technote"
    url = "https://example.lsst.io/"
 
-   [[technote.state.supersceding_urls]]
+   [[technote.status.supersceding_urls]]
    title = "Another document"
    url = "https://example-two.lsst.io/"
 
@@ -69,6 +69,6 @@ If none of the above states are appropriate, you can specify an "other" state an
 .. code-block:: toml
    :caption: technote.toml
 
-   [technote.state]
-   status = "other"
-   note = "Explaination of state..."
+   [technote.status]
+   state = "other"
+   note = "Explaination of status..."
