@@ -60,3 +60,15 @@ If the technote has been replaced by one or more other documents, you can link t
    [[technote.state.supersceding_urls]]
    title = "Another document"
    url = "https://example-two.lsst.io/"
+
+Setting "other" status
+======================
+
+If none of the above states are appropriate, you can specify an "other" state and explain with a "note"
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote.state]
+   status = "other"
+   note = "Explaination of state..."
