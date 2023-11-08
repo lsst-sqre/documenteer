@@ -6,6 +6,7 @@ Technotes are continuously updated on the web as you add commits and merge pull 
 Your "drafts" are visible to the rest of the observatory, and even the public, to speed up collaboration and provide transparency.
 You can communicate the status of the document by setting metadata in :file:`technote.toml`.
 For example, you can specify that the technote is an incomplete draft, or that the technote is deprecated and is now replaced by another set of documents.
+This configuration is optional; the default status is "stable" when the ``[technote.state]`` table is omitted.
 
 Setting "draft" status
 ======================
