@@ -27,11 +27,12 @@ Here is a simple :file:`technote.toml` file to get you started:
    canonical_url = "https://example-000.lsst.io/"
    github_url = "https://github.com/lsst/example-000"
    github_default_branch = "main"
-   date_created = "2015-11-18"
-   date_updated = "2023-11-01"
+   date_created = 2015-11-18
+   date_updated = 2023-11-01
 
    [[technote.authors]]
-   name = { given_names = "Drew", family_names = "Developer" }
+   name.given = "Drew"
+   name.family = "Developer"
    orcid = "https://orcid.org/0000-0001-2345-6789"
    affiliations = [
        { name = "Rubin Observatory", ror = "https://ror.org/048g3cy84" }
