@@ -19,6 +19,7 @@ Documenteer provides centralized configuration and tooling for technotes.
 
    document-status
    configuration
+   extensions
 
 .. seealso::
 

@@ -38,6 +38,7 @@ developer = "https://developer.lsst.io/"
 pybtex = "https://docs.pybtex.org/"
 sphinx = "https://www.sphinx-doc.org/en/master/"
 sphinxcontrib-bibtex = "https://sphinxcontrib-bibtex.readthedocs.io/en/latest/"
+technote = "https://technote.lsst.io/"
 
 [sphinx.linkcheck]
 ignore = [
