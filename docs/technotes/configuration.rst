@@ -55,15 +55,7 @@ Adding a Sphinx extension
 -------------------------
 
 You can add additional `Sphinx extensions`_ to your Sphinx build to make use of custom reStructuredText directives and roles.
-To add a new extension, append to the ``extensions`` list:
-
-.. code-block:: python
-
-   from documenteer.conf.technote import *
-
-   extensions.extend(["sphinx-click"])
-
-Remember that if an additional package needs to be installed, add that dependency to the technote's :file:`requirements.txt` file.
+See :ref:`technote-adding-extensions`.
 
 .. _technote-conf-source:
 

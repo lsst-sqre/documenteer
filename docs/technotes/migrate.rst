@@ -168,7 +168,7 @@ The new technote format uses an ``abstract`` directive to mark up the abstract/s
 Simplify the reference section
 ------------------------------
 
-If your technote makes references to other documents with roles like :rst:dir:`cite`, you'll need a reference section to display the bibliography.
+If your technote makes references to other documents with roles like :external+sphinxcontrib-bibtex:rst:role:`cite`, you'll need a reference section to display the bibliography.
 In the new technote format, this section is simplified:
 
 .. tab-set::

@@ -24,6 +24,9 @@ extensions.extend(  # noqa: F405
         "documenteer.ext.bibtex",
         "documenteer.ext.githubbibcache",
         "sphinxcontrib.bibtex",
+        "sphinx_diagrams",
+        "sphinxcontrib.mermaid",
+        "sphinx_prompt",
     ]
 )
 
