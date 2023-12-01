@@ -27,3 +27,14 @@
   --tn-component-sidebar-header-color: var(--rsd-color-primary-600);
   --tn-component-toc-level-border-color: var(--rsd-color-primary-600);
 }
+
+@supports (font-variation-settings: 'wdth' 222) {
+  :root {
+    --tn-component-h1-weight: 600;
+    --tn-component-h2-weight: 500;
+    --tn-component-h3-weight: 600;
+    --tn-component-h4-weight: 700;
+    --tn-component-h5-weight: 800;
+    --tn-component-h6-weight: 800;
+  }
+}
