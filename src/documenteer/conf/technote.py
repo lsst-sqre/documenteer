@@ -4,7 +4,11 @@ from pathlib import Path
 
 from technote.sphinxconf import *  # noqa: F401 F403
 
-from documenteer.conf import get_asset_path, get_template_dir
+from documenteer.conf import (
+    extend_static_paths_with_asset_extension,
+    get_asset_path,
+    get_template_dir,
+)
 
 try:
     # Remove the sphinxcontrib-bibtex extension so that we can add it back
@@ -33,11 +37,12 @@ extensions.extend(  # noqa: F405
 html_static_path: list[str] = [
     get_asset_path("rubin-favicon-transparent-32px.png"),
     get_asset_path("rubin-favicon.svg"),
-    get_asset_path("styles/rubin-technote.css"),
-    get_asset_path("styles/rubin-technote.css.map"),
+    get_asset_path("rubin-technote.css"),
+    get_asset_path("rubin-technote.css.map"),
     get_asset_path("rsd-assets/rubin-imagotype-color-on-white-crop.svg"),
     get_asset_path("rsd-assets/rubin-imagotype-color-on-black-crop.svg"),
 ]
+extend_static_paths_with_asset_extension(html_static_path, "woff2")
 
 html_css_files = ["rubin-technote.css"]
 
