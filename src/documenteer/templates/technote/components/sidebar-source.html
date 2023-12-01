@@ -1,0 +1,75 @@
+<section class="technote-sidebar-section">
+  <h2 class="technote-sidebar-section__heading">Source</h2>
+
+  <ul class="technote-sidebar-metadata-list technote-icon-pair-list">
+    {% if technote.github_url %}
+    <li>
+      <div class="technote-icon-metadata">
+        <div class="technote-icon-metadata__icon">
+          <a href="{{technote.github_url}}">
+            <svg class="technote-svg-icon">
+              <use href="#svg-octicon-octocat-16">
+            </svg>
+          </a>
+        </div>
+        <p class="technote-icon-metadata__value">
+          <a href="{{technote.github_url}}" data-technote-source-url="{{ technote.github_url }}">
+          {{ technote.github_repo_slug }}
+          </a>
+        </p>
+      </div>
+    </li>
+    {% endif %}
+    {% if technote.github_ref_name %}
+    <li>
+      <div class="technote-icon-metadata">
+        <div class="technote-icon-metadata__icon">
+          <svg class="technote-svg-icon">
+            {% if technote.github_ref_type == "tag" %}
+            <use href="#svg-octicon-tag-16">
+            {% else %}
+            <use href="#svg-octicon-branch-16">
+            {% endif %}
+          </svg>
+        </div>
+        <p class="technote-icon-metadata__value">
+          {{ technote.github_ref_name }}
+        </p>
+      </div>
+    </li>
+    {% endif %}
+    {% if technote.github_edit_url %}
+    <li>
+      <div class="technote-icon-metadata">
+        <div class="technote-icon-metadata__icon">
+          <a href="{{ technote.github_edit_url }}">
+            <svg class="technote-svg-icon">
+              <use href="#svg-octicon-pencil-16">
+            </svg>
+          </a>
+        </div>
+        <p class="technote-icon-metadata__value"><a href="{{ technote.github_edit_url }}">Edit on GitHub</a></p>
+      </div>
+    </li>
+    {% endif %}
+
+    {% if editions_url %}
+    <li>
+      <div class="technote-icon-metadata">
+        <div class="technote-icon-metadata__icon">
+          <a href="{{editions_url}}">
+            <svg class="technote-svg-icon">
+              <use href="#svg-octicon-versions-16">
+            </svg>
+          </a>
+        </div>
+        <p class="technote-icon-metadata__value">
+          <a href="{{editions_url}}">View all versions</a>
+        </p>
+      </div>
+    </li>
+    {% endif %}
+    <!-- <li>Commit?</li> -->
+    <!-- <li>CI run link?</li> -->
+  </ul>
+</section>

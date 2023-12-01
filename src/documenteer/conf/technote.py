@@ -78,3 +78,9 @@ for p in Path.cwd().glob("*.bib"):
 
 bibtex_default_style = "lsst_aa"
 bibtex_reference_style = "author_year"
+
+_id = T.metadata.id  # noqa: F405
+if _id is not None:
+    html_context[  # noqa: F405
+        "editions_url"
+    ] = f"https://{_id.lower()}.lsst.io/v/"
