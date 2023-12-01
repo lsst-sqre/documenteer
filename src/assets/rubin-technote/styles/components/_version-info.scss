@@ -19,3 +19,9 @@
 .rubin-technote-version-info > p:last-child {
   margin-right: 0;
 }
+
+@supports (font-variation-settings: 'wdth' 222) {
+  .rubin-technote-version-info a {
+    font-weight: 500;
+  }
+}
