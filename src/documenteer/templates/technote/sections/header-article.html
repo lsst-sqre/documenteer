@@ -14,18 +14,22 @@
     {% if technote.version %}
     <p>
       <span class="rubin-technote-version-info__label">Version</span>
+      {% if editions_url %}<a href="{{editions_url}}">{% endif %}
       <span class="rubin-technote-version-info__value"
         >{{technote.version}}</span
       >
+      {% if editions_url %}</a>{% endif %}
     </p>
     {% endif %} {% if technote.date_updated_iso %}
     <p>
       <span class="rubin-technote-version-info__label">Updated</span>
+      {% if editions_url %}<a href="{{editions_url}}">{% endif %}
       <time
         class="rubin-technote-version-info__value"
         datetime="technote.date_updated_iso"
         >{{ technote.date_updated_iso }}</time
       >
+      {% if editions_url %} </a>{% endif %}
     </p>
     {% endif %}
   </div>
