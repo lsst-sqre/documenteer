@@ -60,6 +60,8 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin facilisis pharetr
 
    git add index.rst
 
+Some following text.
+
 .. mermaid::
 
    graph TD

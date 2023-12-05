@@ -15,3 +15,15 @@
     margin-bottom: 0.5em;
   }
 }
+
+/*
+ * Border specififcally for prompts, which act differently than code blocks.
+ */
+.highlight-default .highlight {
+  border: var(--tn-sphinx-code-block-border-thickness) solid
+    var(--tn-sphinx-code-block-border-color);
+  border-radius: var(--tn-sphinx-code-block-border-radius);
+}
+.highlight-default .highlight pre {
+  margin: 1em;
+}
