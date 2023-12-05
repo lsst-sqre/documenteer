@@ -32,6 +32,7 @@ dependencies = [
     "sphinxcontrib-bibtex>=2.0.0", # for pybtex extension
     "pydantic >= 2.0.0",
     "urllib3",
+    "pylatexenc",
 ]
 
 [project.optional-dependencies]
