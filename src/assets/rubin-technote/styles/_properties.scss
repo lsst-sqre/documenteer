@@ -38,3 +38,14 @@
     --tn-component-h6-weight: 800;
   }
 }
+
+@media (max-width: 76rem) {
+  :root {
+    --tn-component-h1-size: 2.4rem;
+    --tn-component-h2-size: 1.8rem;
+    --tn-component-h3-size: 1.2rem;
+    --tn-component-h4-size: 1rem;
+    --tn-component-h5-size: 1rem;
+    --tn-component-h6-size: 1rem;
+  }
+}
