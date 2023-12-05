@@ -7,7 +7,17 @@ from pathlib import Path
 from git import Repo
 from sphinx.errors import ConfigError
 
-__all__ = ["get_asset_path", "get_template_dir", "GitRepository"]
+__all__ = [
+    "get_asset_path",
+    "extend_static_paths_with_asset_extension",
+    "get_template_dir",
+    "GitRepository",
+]
+
+
+def _get_assert_dir() -> Path:
+    """Get the absolute path to the Documenteer assets directory."""
+    return Path(__file__).parent.joinpath("../assets")
 
 
 def get_asset_path(name: str) -> str:
@@ -34,8 +44,7 @@ def get_asset_path(name: str) -> str:
            get_asset_path("rubin-titlebar-imagotype-light.svg"),
        ]
     """
-    asset_path = Path(__file__).parent.joinpath("../assets", name)
-    asset_path.resolve()
+    asset_path = _get_assert_dir().joinpath(name).resolve()
     if not asset_path.exists():
         raise ConfigError(
             f"Documenteer asset {name!r} does not exist.\n"
@@ -43,6 +52,17 @@ def get_asset_path(name: str) -> str:
             "Documenteer package."
         )
     return str(asset_path)
+
+
+def extend_static_paths_with_asset_extension(
+    html_static_path: list[str], extension: str
+) -> None:
+    """Extend a Sphinx ``html_static_path`` configuration list with the
+    files of a given extension in Documenteer's assets directory.
+    """
+    asset_dir = _get_assert_dir()
+    for p in asset_dir.glob(f"*.{extension}"):
+        html_static_path.append(str(p))
 
 
 def get_template_dir(root: str) -> str:

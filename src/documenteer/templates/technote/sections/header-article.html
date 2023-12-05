@@ -1,4 +1,9 @@
 <div class="match-content-width">
+  <a class="mobile-rubin-technote-logo" href="{{ theme_logo_link_url or '#' }}">
+  <img class="technote-themed-light" src="{{ pathto('_static/' + theme_light_logo, 1) }}" alt="{{theme_logo_alt_text}}">
+  <img class="technote-themed-dark" src="{{ pathto('_static/' + theme_dark_logo, 1) }}" alt="{{theme_logo_alt_text}}">
+  </a>
+
   <ol class="rubin-technote-global-breadcrumbs">
     <li><a href="https://www.lsst.io/">Rubin Documentation</a></li>
     <li>
@@ -14,18 +19,22 @@
     {% if technote.version %}
     <p>
       <span class="rubin-technote-version-info__label">Version</span>
+      {% if editions_url %}<a href="{{editions_url}}">{% endif %}
       <span class="rubin-technote-version-info__value"
         >{{technote.version}}</span
       >
+      {% if editions_url %}</a>{% endif %}
     </p>
     {% endif %} {% if technote.date_updated_iso %}
     <p>
       <span class="rubin-technote-version-info__label">Updated</span>
+      {% if editions_url %}<a href="{{editions_url}}">{% endif %}
       <time
         class="rubin-technote-version-info__value"
         datetime="technote.date_updated_iso"
         >{{ technote.date_updated_iso }}</time
       >
+      {% if editions_url %} </a>{% endif %}
     </p>
     {% endif %}
   </div>

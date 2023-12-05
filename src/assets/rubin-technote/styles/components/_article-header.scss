@@ -1,0 +1,22 @@
+.mobile-rubin-technote-logo {
+  display: block;
+  margin: 0 auto 2rem auto;
+  width: 100%;
+  max-width: 12rem;
+}
+
+@media (max-width: 76rem) {
+  // When the primary sidebar is hidden, remove extra top margin from the
+  // container so the logo is closer to the top.
+  .sb-container {
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 76rem) {
+  // Hide the mobile logo when the primary sidebar is visible.
+  .mobile-rubin-technote-logo {
+    display: none;
+    margin: 0;
+  }
+}

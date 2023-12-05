@@ -1,0 +1,7 @@
+@supports (font-variation-settings: 'wdth' 222) {
+  .technote-sidebar-section__heading {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.01em; // goes well with upper case
+  }
+}

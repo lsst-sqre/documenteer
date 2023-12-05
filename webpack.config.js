@@ -23,7 +23,7 @@ module.exports = {
     path: resolve(__dirname, 'src/documenteer/assets'),
   },
   plugins: [
-    new MiniCssExtractPlugin({ filename: 'styles/[name].css' }),
+    new MiniCssExtractPlugin({ filename: '[name].css' }),
     new CopyPlugin({
       // Copy assets from Rubin Style Dictionary into
       // src/documenteer/assets/rsd-assets/
