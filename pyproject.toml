@@ -33,6 +33,7 @@ dependencies = [
     "pydantic >= 2.0.0",
     "urllib3",
     "pylatexenc",
+    "tomlkit",
 ]
 
 [project.optional-dependencies]
