@@ -56,6 +56,43 @@ class AuthorDbYaml(BaseModel):
 
 
 @dataclass
+class AffiliationInfo:
+    """Consolidated affiliation information."""
+
+    id: str
+    name: str
+    address: str | None = None
+
+    @classmethod
+    def create_from_db(
+        cls, affiliation_id: str, affiliation: str
+    ) -> AffiliationInfo:
+        """Create an AffiliationInfo from the affiliation key value paid in
+        authordb.yaml.
+
+        The ``affiliation`` string is composed of the affiliation name, a
+        comma, and the affiliation address.
+        """
+        # Parse the affiliation string
+        parts = affiliation.split(",")
+
+        affiliation_name = Latex(parts[0]).to_text()
+
+        if len(parts) > 1:
+            address_parts = [p.strip() for p in parts[1:]]
+            affiliation_address = ", ".join(address_parts)
+            affiliation_address = Latex(affiliation_address).to_text()
+        else:
+            affiliation_address = None
+
+        return cls(
+            id=affiliation_id,
+            name=affiliation_name,
+            address=affiliation_address,
+        )
+
+
+@dataclass
 class AuthorInfo:
     """Consolidated author information."""
 
@@ -63,9 +100,7 @@ class AuthorInfo:
     given_name: str
     family_name: str
     orcid: str
-    affiliation_name: str
-    affiliation_id: str
-    affiliation_address: str
+    affiliations: list[AffiliationInfo]
 
     @classmethod
     def create_from_db(
@@ -84,25 +119,14 @@ class AuthorInfo:
         else:
             orcid = ""
 
-        # Transform the first affiliation
-        if db_author.affil:
-            affiliation_id = db_author.affil[0]
-            affil = db_affils[affiliation_id]
-            parts = affil.split(",")
-            affiliation_name = parts[0]
-            if len(parts) > 1:
-                address_parts = [p.strip() for p in parts[1:]]
-                affiliation_address = ", ".join(address_parts)
-            else:
-                affiliation_address = ""
-        else:
-            affiliation_id = ""
-            affiliation_name = ""
-            affiliation_address = ""
+        affiliations: list[AffiliationInfo] = []
+        for affiliation_id in db_author.affil:
+            affiliation = db_affils[affiliation_id]
+            affiliations.append(
+                AffiliationInfo.create_from_db(affiliation_id, affiliation)
+            )
 
         # Convert LaTeX to text
-        affiliation_name = Latex(affiliation_name).to_text()
-        affiliation_address = Latex(affiliation_address).to_text()
         given_name = Latex(db_author.initials).to_text()
         family_name = Latex(db_author.name).to_text()
 
@@ -111,9 +135,7 @@ class AuthorInfo:
             given_name=given_name,
             family_name=family_name,
             orcid=orcid,
-            affiliation_name=affiliation_name,
-            affiliation_id=affiliation_id,
-            affiliation_address=affiliation_address,
+            affiliations=affiliations,
         )
 
 

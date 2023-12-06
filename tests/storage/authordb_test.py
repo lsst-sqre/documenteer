@@ -24,11 +24,11 @@ def test_from_yaml(author_db_yaml: str) -> None:
     author = author_db.get_author("sickj")
     assert author.family_name == "Sick"
     assert author.given_name == "Jonathan"
-    assert author.orcid == "https://orcid.org/0000-0003-3001-676X"
-    assert author.affiliation_id == "RubinObs"
     assert author.author_id == "sickj"
+    assert author.orcid == "https://orcid.org/0000-0003-3001-676X"
+    assert author.affiliations[0].id == "RubinObs"
     assert (
-        author.affiliation_address
+        author.affiliations[0].address
         == "950 N. Cherry Ave., Tucson, AZ 85719, USA"
     )
-    assert author.affiliation_name == "Rubin Observatory Project Office"
+    assert author.affiliations[0].name == "Rubin Observatory Project Office"
