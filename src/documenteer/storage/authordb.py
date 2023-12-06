@@ -99,7 +99,7 @@ class AuthorInfo:
     author_id: str
     given_name: str
     family_name: str
-    orcid: str
+    orcid: str | None
     affiliations: list[AffiliationInfo]
 
     @classmethod
@@ -117,7 +117,7 @@ class AuthorInfo:
             else:
                 orcid = f"https://orcid.org/{db_author.orcid}"
         else:
-            orcid = ""
+            orcid = None
 
         affiliations: list[AffiliationInfo] = []
         for affiliation_id in db_author.affil:
