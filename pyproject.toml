@@ -109,6 +109,7 @@ Homepage = "https://documenteer.lsst.io"
 Source = "https://github.com/lsst-sqre/documenteer"
 
 [project.scripts]
+documenteer = "documenteer.cli:main"
 stack-docs = "documenteer.stackdocs.stackcli:main"
 package-docs = "documenteer.stackdocs.packagecli:main"
 
