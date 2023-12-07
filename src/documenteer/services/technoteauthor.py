@@ -17,7 +17,11 @@ class TechnoteAuthorService:
         self.toml_file = toml_file
         self.author_db = author_db
 
-    def add_author_by_id(self, toml_path: Path, author_id: str) -> AuthorInfo:
+    def write_toml(self, path: Path) -> None:
+        """Write the technote.toml file."""
+        self.toml_file.save(path)
+
+    def add_author_by_id(self, author_id: str) -> AuthorInfo:
         """Add an author to the technote.toml file."""
         try:
             author = self.author_db.get_author(author_id)
@@ -25,24 +29,21 @@ class TechnoteAuthorService:
             raise ValueError(f"Author {author_id} not found in authordb.yaml")
 
         self.toml_file.upsert_author(author)
-        self.toml_file.save(toml_path)
 
         return author
 
-    def sync_authors(self, toml_path: Path) -> list[AuthorInfo]:
+    def sync_authors(self) -> list[AuthorInfo]:
         """Synchronize author info from authordb.yaml."""
-        new_authors: list[AuthorInfo] = []
+        updated_authors: list[AuthorInfo] = []
 
         for author_id in self.toml_file.author_ids:
             try:
                 author = self.author_db.get_author(author_id)
-                new_authors.append(author)
+                updated_authors.append(author)
             except KeyError:
                 raise ValueError(
                     f"Author {author_id} not found in authordb.yaml"
                 )
             self.toml_file.upsert_author(author)
 
-        self.toml_file.save(toml_path)
-
-        return new_authors
+        return updated_authors

@@ -86,7 +86,10 @@ class TechnoteTomlFile:
         # if "authors" in self._doc["technote"].keys():
 
         for existing_author in self.authors_aot:
-            if existing_author["internal_id"] == author.author_id:
+            if (
+                "internal_id" in existing_author
+                and existing_author["internal_id"] == author.author_id
+            ):
                 author_exists = True
                 # Write over the existing author
                 self._update_author(existing_author, author)

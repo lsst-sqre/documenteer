@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
+
+from documenteer.services.technoteauthor import TechnoteAuthorService
+from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.technotetoml import TechnoteTomlFile
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -58,3 +64,37 @@ def display_help(
 def help(ctx: click.Context, topic: str | None) -> None:
     """Show help for any command."""
     display_help(main, ctx, topic)
+
+
+@main.group()
+def technote() -> None:
+    """Manage Rubin technotes."""
+    pass
+
+
+@technote.command(name="add-author")
+@click.argument("author_id", nargs=1, required=True)
+@click.option(
+    "--toml",
+    "-t",
+    "technote_toml",
+    type=click.Path(exists=True),
+    default="technote.toml",
+    help="Path to technote.toml file",
+)
+def technote_add_author(author_id: str, technote_toml: str) -> None:
+    """Add an author to technote.toml from the Rubin author DB.
+
+    Author IDs are the keys in the "authors" map in authordb.yaml. See
+    https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
+    """
+    toml_path = Path(technote_toml)
+    toml_file = TechnoteTomlFile.open(toml_path)
+    author_db = AuthorDb.download()
+
+    service = TechnoteAuthorService(toml_file, author_db)
+    author = service.add_author_by_id(author_id)
+    service.write_toml(toml_path)
+    print(
+        f"Added author {author.given_name} {author.family_name} to {toml_path}"
+    )
