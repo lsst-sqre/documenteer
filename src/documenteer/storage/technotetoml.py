@@ -108,7 +108,8 @@ class TechnoteTomlFile:
         table["given"] = author.given_name
         table["family"] = author.family_name
         table["internal_id"] = author.author_id
-        table["orcid"] = author.orcid
+        if author.orcid is not None:
+            table["orcid"] = author.orcid
 
         if "affiliations" not in table:
             table.add("affiliations", tomlkit.aot())
