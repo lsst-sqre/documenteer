@@ -73,7 +73,14 @@ def technote() -> None:
 
 
 @technote.command(name="add-author")
-@click.argument("author_id", nargs=1, required=True)
+@click.option(
+    "-a",
+    "--author-id",
+    "author_id",
+    nargs=1,
+    required=True,
+    prompt="Author ID",
+)
 @click.option(
     "--toml",
     "-t",
@@ -94,10 +101,10 @@ def technote_add_author(author_id: str, technote_toml: str) -> None:
 
     service = TechnoteAuthorService(toml_file, author_db)
     author = service.add_author_by_id(author_id)
-    service.write_toml(toml_path)
     print(
         f"Added author {author.given_name} {author.family_name} to {toml_path}"
     )
+    service.write_toml(toml_path)
 
 
 @technote.command(name="sync-authors")
