@@ -98,3 +98,31 @@ def technote_add_author(author_id: str, technote_toml: str) -> None:
     print(
         f"Added author {author.given_name} {author.family_name} to {toml_path}"
     )
+
+
+@technote.command(name="sync-authors")
+@click.option(
+    "--toml",
+    "-t",
+    "technote_toml",
+    type=click.Path(exists=True),
+    default="technote.toml",
+    help="Path to technote.toml file",
+)
+def technote_sync_authors(technote_toml: str) -> None:
+    """Sync author info from authordb.yaml to technote.toml."""
+    toml_path = Path(technote_toml)
+    toml_file = TechnoteTomlFile.open(toml_path)
+    author_db = AuthorDb.download()
+
+    service = TechnoteAuthorService(toml_file, author_db)
+    updated_authors = service.sync_authors()
+    service.write_toml(toml_path)
+
+    if len(updated_authors) == 0:
+        print("No authors to update")
+        return
+    else:
+        print(f"Synchronized authors to {toml_path}:")
+        for a in updated_authors:
+            print(f"- {a.given_name} {a.family_name} ({a.author_id})")
