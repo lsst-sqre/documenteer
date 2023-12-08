@@ -1,0 +1,128 @@
+"""Technote migration service."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.technotetoml import TechnoteTomlFile
+
+from .technoteauthor import TechnoteAuthorService
+
+
+class TechnoteMigrationService:
+    """A service for migrating technotes to the new Technote-based format."""
+
+    def __init__(self, technote_dir: Path, author_db: AuthorDb) -> None:
+        self.root_dir = technote_dir
+        self.author_db = author_db
+
+    def migrate(self, *, author_ids: list[str]) -> None:
+        """Migrate a technote.yaml to technote.toml."""
+        yaml_path = self.root_dir / "metadata.yaml"
+        toml_path = self.root_dir / "technote.toml"
+        original_metadata = yaml.safe_load(yaml_path.read_text())
+
+        toml_file = self._create_toml_file(original_metadata)
+        toml_file.save(toml_path)
+
+        # Add authors
+        author_service = TechnoteAuthorService(toml_file, self.author_db)
+        for author_id in author_ids:
+            try:
+                author_service.add_author_by_id(author_id)
+            except ValueError:
+                print(
+                    f"Warning: Author {author_id} not found in authordb.yaml"
+                )
+        toml_file.save(self.root_dir / "technote.toml")
+
+        content = self._upgrade_content(original_metadata)
+        self.root_dir.joinpath("index.rst").write_text(content)
+
+    def _create_toml_file(
+        self, original_metadata: dict[str, Any]
+    ) -> TechnoteTomlFile:
+        """Create a technote.toml file."""
+        try:
+            github_url = original_metadata["github_url"]
+        except KeyError:
+            raise ValueError("metadata.yaml does not contain github_url")
+
+        try:
+            number = original_metadata["serial_number"]
+        except KeyError:
+            raise ValueError("metadata.yaml does not contain serial_number")
+
+        try:
+            series = original_metadata["series"]
+        except KeyError:
+            raise ValueError("metadata.yaml does not contain series")
+
+        toml_content = (
+            "[technote]\n"
+            f'id = "{series}-{number}"\n'
+            f'series_id = "{series}"\n'
+            f'canonical_url = "https://{series.lower()}-{number}.lsst.io/"\n'
+            f'github_url = "{github_url}"\n'
+            f'github_default_branch = "main"\n'
+        )
+
+        return TechnoteTomlFile(toml_content)
+
+    def _upgrade_content(self, original_metadata: dict[str, Any]) -> str:
+        """Upgrade index.rst."""
+        index_rst_path = self.root_dir / "index.rst"
+        if not index_rst_path.exists():
+            raise RuntimeError("index.rst does not exist")
+        rst_content = index_rst_path.read_text()
+
+        # Add title
+        try:
+            title = original_metadata["doc_title"]
+        except KeyError:
+            raise ValueError("metadata.yaml does not contain doc_title")
+        underlines = "#" * len(title)
+        rst_title = f"{underlines}\n{title}\n{underlines}\n\n"
+
+        # Add abstract
+        try:
+            abstract = original_metadata["description"]
+        except KeyError:
+            raise ValueError("metadata.yaml does not contain a description")
+        rst_abstract = f".. abstract::\n\n   {abstract}\n\n"
+
+        # Filter out lines of content with old formatting concerns
+        lines = rst_content.splitlines()
+        # Patterns for lines that should be dropped
+        drop_lines = [
+            r"^:tocdepth:",
+            r"^\.\. Please do not modify tocdepth",
+            r"\.\. sectnum::",
+            r"^   :style: lsst_aa",
+        ]
+        new_lines: list[str] = []
+        for line in lines:
+            if not any([re.match(p, line) for p in drop_lines]):
+                new_lines.append(line)
+
+        # Replace lines related to the bibliography
+        replacements = [
+            (
+                r"^\.\. rubric:: References",
+                "References\n==========\n",
+            ),
+            (r"^\.\. bibliography::", ".. bibliography::\n"),
+        ]
+        for pattern, replacement in replacements:
+            new_lines = [
+                replacement if re.match(pattern, line) else line
+                for line in new_lines
+            ]
+
+        # Prepend title and abstract
+        return rst_title + rst_abstract + "\n".join(new_lines)
