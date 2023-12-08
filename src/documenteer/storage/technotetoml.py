@@ -105,8 +105,12 @@ class TechnoteTomlFile:
         self, table: tomlkit.items.Table, author: AuthorInfo
     ) -> None:
         """Update a toml author table with the AuthorInfo data."""
-        table["given"] = author.given_name
-        table["family"] = author.family_name
+        # TODO properly add the table for the authors's name.
+        name_table = tomlkit.inline_table()
+        # name_table = tomlkit.out_of_order_dict()
+        name_table["given"] = author.given_name
+        name_table["family"] = author.family_name
+        table["name"] = name_table
         table["internal_id"] = author.author_id
         if author.orcid is not None:
             table["orcid"] = author.orcid
