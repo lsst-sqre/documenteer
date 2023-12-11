@@ -5,10 +5,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
 from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.localtemplates import LocalProjectTemplates
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
 from .technoteauthor import TechnoteAuthorService
@@ -27,6 +29,15 @@ class TechnoteMigrationService:
         toml_path = self.root_dir / "technote.toml"
         original_metadata = yaml.safe_load(yaml_path.read_text())
 
+        self._migrate_toml(original_metadata, toml_path, author_ids)
+        self._overwrite_template_files(original_metadata)
+
+    def _migrate_toml(
+        self,
+        original_metadata: dict[str, Any],
+        toml_path: Path,
+        author_ids: list[str],
+    ) -> None:
         toml_file = self._create_toml_file(original_metadata)
         toml_file.save(toml_path)
 
@@ -41,8 +52,11 @@ class TechnoteMigrationService:
                 )
         toml_file.save(self.root_dir / "technote.toml")
 
+        print("✅ technote.toml")
+
         content = self._upgrade_content(original_metadata)
         self.root_dir.joinpath("index.rst").write_text(content)
+        print("✅ index.rst")
 
     def _create_toml_file(
         self, original_metadata: dict[str, Any]
@@ -126,3 +140,91 @@ class TechnoteMigrationService:
 
         # Prepend title and abstract
         return rst_title + rst_abstract + "\n".join(new_lines)
+
+    def _overwrite_template_files(
+        self, original_metadata: dict[str, Any]
+    ) -> None:
+        """Write/overwrite files with template content."""
+        templates = LocalProjectTemplates()
+
+        url_path = urlparse(original_metadata["github_url"]).path
+        parts = url_path.split("/")
+        github_namespace = "/".join(parts[1:3])
+        github_namespace = github_namespace.removesuffix(".git")
+
+        series = original_metadata["series"]
+        serial_number = original_metadata["serial_number"]
+
+        cookiecutter_context = {
+            "title": original_metadata["doc_title"],
+            "series": original_metadata["series"],
+            "serial_number": original_metadata["serial_number"],
+            "description": original_metadata["description"],
+            "url": f"https://{series.lower()}-{serial_number}.lsst.io/",
+            "github_namespace": github_namespace,
+        }
+        context = {"cookiecutter": cookiecutter_context}
+
+        # Write/overwrite files
+        templates.write(
+            name="technote/dependabot.yml",
+            path=self.root_dir / ".github" / "dependabot.yml",
+            context=context,
+        )
+        print("✅ .github/dependabot.yml")
+
+        templates.write(
+            name="technote/ci.yaml",
+            path=self.root_dir / ".github" / "workflows" / "ci.yaml",
+            context=context,
+        )
+        print("✅ .github/workflows/ci.yaml")
+
+        templates.write(
+            name="technote/pre-commit-config.yaml",
+            path=self.root_dir / ".pre-commit-config.yaml",
+            context=context,
+        )
+        print("✅ .pre-commit-config.yaml")
+
+        templates.write(
+            name="technote/gitignore",
+            path=self.root_dir / ".gitignore",
+            context=context,
+        )
+        print("✅ .gitignore")
+
+        templates.write(
+            name="technote/conf.py",
+            path=self.root_dir / "conf.py",
+            context=context,
+        )
+        print("✅ conf.py")
+
+        templates.write(
+            name="technote/Makefile",
+            path=self.root_dir / "Makefile",
+            context=context,
+        )
+        print("✅ Makefile")
+
+        templates.write(
+            name="technote/README.rst",
+            path=self.root_dir / "README.rst",
+            context=context,
+        )
+        print("✅ README.rst")
+
+        templates.write(
+            name="technote/requirements.txt",
+            path=self.root_dir / "requirements.txt",
+            context=context,
+        )
+        print("✅ requirements.txt")
+
+        templates.write(
+            name="technote/tox.ini",
+            path=self.root_dir / "tox.ini",
+            context=context,
+        )
+        print("✅ tox.ini")

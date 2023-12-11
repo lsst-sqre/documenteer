@@ -1,3 +1,4 @@
 graft src/documenteer/assets
 graft src/documenteer/assets/scripts
 graft src/documenteer/assets/rsd-assets
+graft src/documenteer/storage/localtemplates

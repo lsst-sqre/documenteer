@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 
 from documenteer.services.technoteauthor import TechnoteAuthorService
+from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.storage.authordb import AuthorDb
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
@@ -133,3 +134,40 @@ def technote_sync_authors(technote_toml: str) -> None:
         print(f"Synchronized authors to {toml_path}:")
         for a in updated_authors:
             print(f"- {a.given_name} {a.family_name} ({a.author_id})")
+
+
+@technote.command(name="migrate")
+@click.option(
+    "--author-id",
+    "-a",
+    "author_ids",
+    multiple=True,
+    required=True,
+    help="Author IDs to add to technote.toml",
+)
+@click.option(
+    "--dir",
+    "-d",
+    "root_dir",
+    type=click.Path(exists=True),
+    required=True,
+    default=".",
+    help="Path to technote directory",
+)
+def technote_migrate(author_ids: list[str], root_dir: str) -> None:
+    """Migrate a technote from a metadata.yaml file.
+
+    This command migrates an old-style Rubin technote (that uses a
+    metadata.yaml file) into the modern format.
+
+    This command creates a technote.toml file, upgrades the index.rst file,
+    and adds/updates other supporting files. Check the git diff after running
+    this command to see what changed.
+
+    authors to the technote.toml file from the Rubin author DB.
+    The `-a/--author-id` options are author IDs in the Rubin author database.
+    See https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
+    """
+    author_db = AuthorDb.download()
+    migration_service = TechnoteMigrationService(Path(root_dir), author_db)
+    migration_service.migrate(author_ids=author_ids)
