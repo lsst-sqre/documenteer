@@ -228,3 +228,32 @@ class TechnoteMigrationService:
             context=context,
         )
         print("✅ tox.ini")
+
+    def delete_deprecated_files(self) -> None:
+        """Delete deprecated files."""
+        deprecated_files = [
+            "metadata.yaml",
+            ".travis.yml",
+        ]
+        for file in deprecated_files:
+            path = self.root_dir / file
+            self._delete_file(path)
+
+        deprecated_dirs = [
+            "lsstbib",
+        ]
+        for dirname in deprecated_dirs:
+            path = self.root_dir / dirname
+            self._delete_directory(path)
+
+    def _delete_file(self, path: Path) -> None:
+        """Delete a file."""
+        if path.exists():
+            path.unlink()
+            print(f"❌ {path}")
+
+    def _delete_directory(self, path: Path) -> None:
+        """Delete a directory."""
+        if path.exists():
+            path.rmdir()
+            print(f"❌ {path}")

@@ -154,7 +154,17 @@ def technote_sync_authors(technote_toml: str) -> None:
     default=".",
     help="Path to technote directory",
 )
-def technote_migrate(author_ids: list[str], root_dir: str) -> None:
+@click.option(
+    "--auto-delete",
+    "-D",
+    "auto_delete",
+    is_flag=True,
+    default=False,
+    help="Delete deprecated files without prompting",
+)
+def technote_migrate(
+    author_ids: list[str], root_dir: str, auto_delete: bool
+) -> None:
     """Migrate a technote from a metadata.yaml file.
 
     This command migrates an old-style Rubin technote (that uses a
@@ -171,3 +181,6 @@ def technote_migrate(author_ids: list[str], root_dir: str) -> None:
     author_db = AuthorDb.download()
     migration_service = TechnoteMigrationService(Path(root_dir), author_db)
     migration_service.migrate(author_ids=author_ids)
+
+    if auto_delete or click.confirm("Delete deprecated files?"):
+        migration_service.delete_deprecated_files()
