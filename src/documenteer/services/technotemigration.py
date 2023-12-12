@@ -84,7 +84,9 @@ class TechnoteMigrationService:
             f'canonical_url = "https://{series.lower()}-{number}.lsst.io/"\n'
             f'github_url = "{github_url}"\n'
             f'github_default_branch = "main"\n'
-            f"license.id = 'CC-BY-4.0'\n"
+            f'organization.name = "Vera C. Rubin Observatory"\n'
+            f'organization.ror = "https://ror.org/048g3cy84"\n'
+            f'license.id = "CC-BY-4.0"\n'
         )
 
         return TechnoteTomlFile(toml_content)
