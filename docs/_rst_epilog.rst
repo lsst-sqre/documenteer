@@ -60,6 +60,8 @@
 .. _Technote: https://technote.lsst.io/
 .. _`myst_parser`: https://myst-parser.readthedocs.io/en/latest/index.html
 .. _sphinx.ext.intersphinx: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
+.. _`authordb.yaml`: https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
+.. _pipx: https://pipx.pypa.io
 
 .. Internal links
 

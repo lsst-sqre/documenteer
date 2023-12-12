@@ -3,6 +3,7 @@ repos:
     rev: v4.5.0
     hooks:
       - id: check-yaml
+        exclude: ^src/documenteer/storage/localtemplates/technote/ci\.yaml
       - id: check-toml
       - id: check-json
       - id: trailing-whitespace
