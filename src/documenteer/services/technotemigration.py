@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -258,5 +259,5 @@ class TechnoteMigrationService:
     def _delete_directory(self, path: Path) -> None:
         """Delete a directory."""
         if path.exists():
-            path.rmdir()
+            shutil.rmtree(path)
             print(f"❌ {path}")
