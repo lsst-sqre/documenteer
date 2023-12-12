@@ -84,6 +84,7 @@ class TechnoteMigrationService:
             f'canonical_url = "https://{series.lower()}-{number}.lsst.io/"\n'
             f'github_url = "{github_url}"\n'
             f'github_default_branch = "main"\n'
+            f"license.id = 'CC-BY-4.0'\n"
         )
 
         return TechnoteTomlFile(toml_content)
