@@ -334,14 +334,9 @@ Step 6. Update .gitignore
 The new technote format introduces additional directories that should be ignored by Git.
 Ensure at least the following paths are included in the :file:`.gitignore` file:
 
-.. code-block:: text
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/gitignore
+   :language: text
    :caption: .gitignore
-
-   _build
-   .technote
-   .tox
-   venv
-   .venv
 
 .. prompt:: bash
 
@@ -355,16 +350,9 @@ Pre-commit_ is a Python package that runs validation and formatting checks on yo
 Although it is not required, it's highly recommended that you set up pre-commit hooks for your technote.
 To start, add a :file:`.pre-commit-config.yaml` file:
 
-.. code-block:: yaml
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/pre-commit-config.yaml
+   :language: yaml
    :caption: .pre-commit-config.yaml
-
-   repos:
-     - repo: https://github.com/pre-commit/pre-commit-hooks
-       rev: v4.5.0
-       hooks:
-         - id: trailing-whitespace
-         - id: check-yaml
-         - id: check-toml
 
 Commit any changes:
 
@@ -383,10 +371,9 @@ Step 8. Update requirements.txt
 
 The Python dependencies for your technote are listed in a :file:`requirements.txt` file that should now look like this:
 
-.. code-block:: text
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/requirements.txt
+   :language: text
    :caption: requirements.txt
-
-   documenteer[technote]>=1.0.0,<2.0.0
 
 Commit any changes:
 
@@ -407,29 +394,9 @@ This makes your local technote builds more reproducible by separating the techno
 
 This is the recommended tox configuration to start with:
 
-.. code-block:: ini
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/tox.ini
+   :language: ini
    :caption: tox.ini
-
-   [tox]
-   environments = html
-   isolated_build = True
-
-   [testenv]
-   skip_install = true
-   deps =
-       -rrequirements.txt
-
-   [testenv:html]
-   commands =
-      sphinx-build --keep-going -n -W -T -b html -d {envtmpdir}/doctrees . _build/html
-
-   [testenv:linkcheck]
-   commands =
-      sphinx-build --keep-going -n -W -T -b linkcheck -d {envtmpdir}/doctrees . _build/linkcheck
-
-   [testenv:lint]
-   commands =
-      pre-commit run --all-files
 
 Step 10. Update the Makefile
 ----------------------------
@@ -437,26 +404,9 @@ Step 10. Update the Makefile
 The :file:`Makefile` file provides a simple entrypoint for building your technote and performing other common tasks.
 This is the suggested content for your :file:`Makefile` that works with the tox and pre-commit configurations:
 
-.. code-block:: Makefile
-
-   .PHONY:
-   init:
-   	pip install tox pre-commit
-   	pre-commit install
-
-   .PHONY:
-   html:
-   	tox run -e html
-
-   .PHONY:
-   lint:
-   	tox run -e lint,link-check
-
-   .PHONY:
-   clean:
-   	rm -rf _build
-   	rm -rf .technote
-   	rm -rf .tox
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/Makefile
+   :language: make
+   :caption: Makefile
 
 Step 11. Update GitHub Actions workflows
 ----------------------------------------
@@ -508,20 +458,9 @@ Step 12. Add dependabot support
 Dependabot is a service provided by GitHub that generates pull requests when there are new versions of your technote's dependencies.
 Set up Dependabot by adding a :file:`.github/dependabot.yml` file:
 
-.. code-block:: yaml
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/dependabot.yml
+   :language: yaml
    :caption: .github/dependabot.yml
-
-   version: 2
-   updates:
-     - package-ecosystem: "github-actions"
-       directory: "/"
-       schedule:
-         interval: "weekly"
-
-     - package-ecosystem: "pip"
-       directory: "/"
-       schedule:
-         interval: "weekly"
 
 Commit the changes:
 
