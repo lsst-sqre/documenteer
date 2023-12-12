@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -84,6 +85,9 @@ class TechnoteMigrationService:
             f'canonical_url = "https://{series.lower()}-{number}.lsst.io/"\n'
             f'github_url = "{github_url}"\n'
             f'github_default_branch = "main"\n'
+            f'organization.name = "Vera C. Rubin Observatory"\n'
+            f'organization.ror = "https://ror.org/048g3cy84"\n'
+            f'license.id = "CC-BY-4.0"\n'
         )
 
         return TechnoteTomlFile(toml_content)
@@ -255,5 +259,5 @@ class TechnoteMigrationService:
     def _delete_directory(self, path: Path) -> None:
         """Delete a directory."""
         if path.exists():
-            path.rmdir()
+            shutil.rmtree(path)
             print(f"❌ {path}")
