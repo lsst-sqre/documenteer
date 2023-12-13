@@ -10,6 +10,9 @@ Documenteer provides centralized configuration and tooling for technotes.
    :caption: Getting started
    :titlesonly:
 
+   start-a-technote
+   edit-locally
+   edit-on-github
    migrate
 
 .. toctree::

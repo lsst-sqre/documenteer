@@ -62,6 +62,9 @@
 .. _sphinx.ext.intersphinx: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
 .. _`authordb.yaml`: https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
 .. _pipx: https://pipx.pypa.io
+.. _`LSSTC Slack Workspace`: https://lsstc.slack.com
+
+.. |dmw-sqrbot| replace:: `direct message with @sqrbot-jr <https://slack.com/app_redirect?app=AF2U6ADV3&team=T06D204F2>`__
 
 .. Internal links
 
