@@ -18,10 +18,17 @@ Documenteer provides centralized configuration and tooling for technotes.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Configuration
+   :caption: Metadata
    :titlesonly:
 
+   author-metadata
    document-status
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Sphinx configuration
+   :titlesonly:
+
    configuration
    extensions
 
