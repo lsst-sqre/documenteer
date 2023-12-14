@@ -13,6 +13,7 @@ Documenteer provides centralized configuration and tooling for technotes.
    start-a-technote
    edit-locally
    edit-on-github
+   how-your-technote-gets-published
    migrate
 
 .. toctree::
