@@ -1,4 +1,4 @@
-.. image:: https://img.shields.io/badge/{{ cookiecutter.repo_name|replace("-", "--") }}-lsst.io-brightgreen.svg
+.. image:: https://img.shields.io/badge/{{ cookiecutter.series|lower }}--{{ cookiecutter.serial_number }}-lsst.io-brightgreen.svg
    :target: {{ cookiecutter.url }}
 .. image:: https://github.com/{{ cookiecutter.github_namespace }}/workflows/CI/badge.svg
    :target: https://github.com/{{ cookiecutter.github_namespace }}/actions/
