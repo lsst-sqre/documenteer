@@ -11,6 +11,8 @@ This page provides a guide to migrating your technical note to the new format.
 To get started on your migration, be sure to have your technote repository checked-out locally.
 Work on a ticket branch, `per the Developer Guide <https://developer.lsst.io/work/flow.html>`__, so you can check your work with a pull request before merging to the ``main`` branch.
 
+.. _technote-migration-tool:
+
 Running the migration tool
 ==========================
 
@@ -159,13 +161,16 @@ The new technote format requires some changes to this file: the title is now par
 .. tip::
 
    Besides these changes, your technote can also be written in Markdown (:file:`index.md`).
-   If you wish to switch from ReStructuredText to markdown, install pandoc and run:
+   If you wish to switch from ReStructuredText to Markdown, you can use MyST Parser's migration tool:
 
    .. prompt:: bash
 
-      pandoc -f rst -t markdown -o index.md index.rst
+      pipx install "rst-to-myst[sphinx]"
+      rst2myst convert index.rst
 
-   Then, delete the original :file:`index.rst` file and edit :file:`index.md` to fix any formatting issues.
+   This procedure uses pipx_ to install the ``rst-to-myst`` tool in an isolated Python environment (you might have already installed pipx_ to run the :ref:`main migration tool <technote-migration-tool>`).
+
+   Finally, delete the original :file:`index.rst` file and edit :file:`index.md` to fix any formatting issues.
 
    .. prompt:: bash
 
