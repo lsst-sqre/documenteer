@@ -10,14 +10,25 @@ Documenteer provides centralized configuration and tooling for technotes.
    :caption: Getting started
    :titlesonly:
 
+   start-a-technote
+   edit-locally
+   edit-on-github
+   how-your-technote-gets-published
    migrate
 
 .. toctree::
    :maxdepth: 2
-   :caption: Configuration
+   :caption: Metadata
    :titlesonly:
 
+   author-metadata
    document-status
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Sphinx configuration
+   :titlesonly:
+
    configuration
    extensions
 

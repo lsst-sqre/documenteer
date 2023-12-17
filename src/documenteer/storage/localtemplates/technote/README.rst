@@ -1,4 +1,4 @@
-.. image:: https://img.shields.io/badge/{{ cookiecutter.repo_name|replace("-", "--") }}-lsst.io-brightgreen.svg
+.. image:: https://img.shields.io/badge/{{ cookiecutter.series|lower }}--{{ cookiecutter.serial_number }}-lsst.io-brightgreen.svg
    :target: {{ cookiecutter.url }}
 .. image:: https://github.com/{{ cookiecutter.github_namespace }}/workflows/CI/badge.svg
    :target: https://github.com/{{ cookiecutter.github_namespace }}/actions/
@@ -15,7 +15,7 @@
 **Links:**
 
 - Publication URL: {{ cookiecutter.url }}
-- Alternative editions: {{ cookiecutter.url }}/v
+- Alternative editions: {{ cookiecutter.url }}v
 - GitHub repository: https://github.com/{{ cookiecutter.github_namespace }}
 - Build system: https://github.com/{{ cookiecutter.github_namespace }}/actions/
 
@@ -40,7 +40,7 @@ Publishing changes to the web
 =============================
 
 This technote is published to {{ cookiecutter.url }} whenever you push changes to the ``main`` branch on GitHub.
-When you push changes to a another branch, a preview of the technote is published to {{ cookiecutter.url }}/v.
+When you push changes to a another branch, a preview of the technote is published to {{ cookiecutter.url }}v.
 
 Editing this technical note
 ===========================

@@ -1,20 +1,73 @@
 # Change Log
 
-## Unreleased
-
-- Add a new `documenteer.conf.technotebeta` configuration for [technote](https://technote.lsst.io)-based technotes.
-  These technotes are now themed with Rubin's modern branding.
-- Drop support for Python 3.7.
-- Drop support for Sphinx versions earlier than 5.
-- Temporarily pin pydata-sphinx-theme < 0.13 on account of a change in logo path checking (affects user guide projects).
-- Use [sphinxcontrib-jquery](https://github.com/sphinx-contrib/jquery/) to ensure jQuery is available for user guide and Pipelines documentation builds.
-- Add a new `sphinx.exclude` field to `documenteer.toml` to list files for exclusion from a documentation project.
-  More files and directories like `.venv` and `requirements.txt` are now excluded, as well.
-- New support for embedding OpenAPI documentation in a Redoc-generated subsite. The `documenteer.ext.openapi` extension can call a user-specified function to generate and install the OpenAPI specification the Sphinx source. For user guide projects, the `[project.openapi]` table in `documenteer.toml` can be used to configure both the `documenteer.ext.openapi` and `sphinxcontrib-redoc` extensions. [sphinxcontrib-redoc](https://sphinxcontrib-redoc.readthedocs.io/en/stable/) is installed and configured by default for all Rubin user guide projects (projects that use `documenteer.conf.guide`).
-- Pin pydantic < 2.0.
-- Pin Sphinx < 7.
-
 <!-- scriv-insert-here -->
+
+<a id='changelog-1.0.0'></a>
+## 1.0.0 (2023-12-17)
+
+### Backwards-incompatible changes
+
+- Documenteer now requires Python 3.11 or later.
+
+- Dependency changes:
+
+  - Pydantic 2.0 or later.
+  - Sphinx 7 and later (and docutils 0.20 and later)
+  - pydata-sphinx-theme < 0.13 on account of a change in logo path checking (affects user guide projects).
+
+- Dropped support for the original technote configuration for Documenteer < 1.0. The `documenteer.conf.technote` configuration now uses the modern platform build with [Technote](https://technote.lsst.io). See new features below for more details.
+
+- Dropped CLI commands:
+
+  - The `refresh-lsst-bib` CLI command is removed. Technotes now automatically vendor lsst-texmf's bib files and cache them using `documenteer.ext.githubbibcache`.
+  - The `build-stack-docs` CLI command is removed and replaced by the `stack-docs` and `package-docs` CLIs in Documenteer 0.3.0.
+
+- The `documenteer.conf.pipelines` and `documenteer.conf.pipelinespkg` configuration modules now derive from `documenteer.conf.guide`. In doing so, the Pipelines documentation configuration works the same as Rubin Guides, but with additional configuration for pipelines-specific Sphinx extensions and other configurations. With this change, the `lsst-sphinx-bootstrap-theme` is no longer used by Documenteer.
+
+- The `documenteer.sphinxext` module has been removed and the existing Sphinx extensions within it are now available from `documenteer.ext`. It's no longer possible to use `documenteer.sphinxext` to automatically load all Documenteer Sphinx extensions. Extensions need to now be added individually to the `extensions` configuration variable in `conf.py`. The migrated extension modules are:
+
+  - `documenteer.ext.bibtex`
+  - `documenteer.ext.jira`
+  - `documenteer.ext.lsstdocushare`
+  - `documenteer.ext.lssttasks`
+  - `documenteer.ext.mockcoderefs`
+  - `documenteer.ext.packagetoctree`
+
+### New features
+
+- All-new technote configuration for Rubin Observatory. Technotes are now built with a framework we created by the same name, [Technote](https://technote.lsst.io). The new technotes feature a responsive design, better on-page navigation, and overall cleaner design that matches Rubin Observatory's visual identity. For authors, technotes use a new configuration file, `technote.toml`, which replaces `metadata.yaml`. Technotes can also be written in Markdown (in addition to continuing reStructuredText support) thanks to [MyST Parser](https://myst-parser.readthedocs.io/en/latest/intro.html). Other key features:
+
+  - You can migrate your existing technote by running the `documenteer technote migrate` CLI command. The migration process is explained in detail at https://documenteer.lsst.io/technotes/migrate.html.
+
+  - Rubin technotes automatically use the bib files from https://github.com/lsst/lsst-texmf. In your text, use the `:cite:` directive with a bibkey from those bib files to cite a reference. Documenteer automatically retrieves the bib files from GitHub so you no longer need to maintain a copy in your repository.
+
+  - Rubin technotes include a richer metadata base than the original technote system. This will make it easier to cite technotes. Part of the richer metadata system is the authors table in `technote.toml` files. This author information is derived from, and synchronized with, the `authordb.yaml` file in [lsst/lsst-texmf](https://github.com/lsst/lsst-texmf). The `documenteer technote add-author` and `documenteer technote sync-authors` CLI commands can help you manage author information in your technote.
+
+  - The title for a technote is now derived from the top-level heading in the content itself.
+
+  - There is a new `abstract` directive for marking up a technote's abstract or summary. This replaces the use of a note for the summary. This summary abstract is used by the documentation crawler to build https://www.lsst.io.
+
+  - Technotes can now indicate their status with the `technote.status` field in `technote.toml`. For example, a technote can start out as a draft. You can also mark a technote as deprecated and link to superseding websites.
+
+  - The new technote configuration comes pre-loaded with extensions for making diagrams as code, including `sphinxcontrib-mermaid` and `sphinx-diagrams`.
+
+- Improvements for Rubin user guides (`documenteer.conf.guide`):
+
+  - Add `sphinx-jinja` to the Rubin guides configuration by default.
+  - Add `sphinx-rediraffe` to the Rubin guides configuration by default.
+  - Use [sphinxcontrib-jquery](https://github.com/sphinx-contrib/jquery/) to ensure jQuery is available for user guide and Pipelines documentation builds.
+  - New `sphinx.exclude` field to `documenteer.toml` to list files for exclusion from a documentation project. More files and directories like `.venv` and `requirements.txt` are now excluded, as well.
+  - New support for embedding OpenAPI documentation in a Redoc-generated subsite. The `documenteer.ext.openapi` extension can call a user-specified function to generate and install the OpenAPI specification the Sphinx source. For user guide projects, the `[project.openapi]` table in `documenteer.toml` can be used to configure both the `documenteer.ext.openapi` and `sphinxcontrib-redoc` extensions. [sphinxcontrib-redoc](https://sphinxcontrib-redoc.readthedocs.io/en/stable/) is installed and configured by default for all Rubin user guide projects (projects that use `documenteer.conf.guide`).
+
+- A new extension, `documenteer.ext.githubbibcache`, can fetch and locally cache BibTeX files from one or more public GitHub repositories. These bibfiles are automatically added to `sphinxcontrib-bibtex`'s `bibtex_files` configuration. This powers the technote's automatic use of bib files from the https://github.com/lsst/lsst-texmf repository.
+
+### Bug fixes
+
+- `Retry` is now imported directly from `urllib3` instead of the vendored version in requests.
+
+### Other changes
+
+- Adopted Scriv for maintaining the change log.
 
 ## 0.8.4 (2023-07-28)
 
