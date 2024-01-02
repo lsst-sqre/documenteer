@@ -2,6 +2,17 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.0.1'></a>
+## 1.0.1 (2024-01-02)
+
+### Bug fixes
+
+- In `documenteer technote migrate`, change the icon for a file deletion event from ❌ to 🗑️.
+
+### Other changes
+
+- Update the migration docs around the migration tool and convert the previous manual migration docs into a reference of the file-by-file changes.
+
 <a id='changelog-1.0.0'></a>
 ## 1.0.0 (2023-12-17)
 
