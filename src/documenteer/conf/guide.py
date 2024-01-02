@@ -427,9 +427,9 @@ if _conf.conf.project.openapi is not None:
         }
     else:
         documenteer_openapi_generator = None
-    documenteer_openapi_path: Optional[
-        str
-    ] = _conf.conf.project.openapi.openapi_path
+    documenteer_openapi_path: Optional[str] = (
+        _conf.conf.project.openapi.openapi_path
+    )
     redoc: Optional[List[Any]] = [
         {
             "name": "REST API",
@@ -439,9 +439,9 @@ if _conf.conf.project.openapi is not None:
             "opts": {"hide-hostname": True},
         }
     ]
-    redoc_uri: Optional[
-        str
-    ] = "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
+    redoc_uri: Optional[str] = (
+        "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
+    )
 else:
     documenteer_openapi_generator = None
     documenteer_openapi_path = None

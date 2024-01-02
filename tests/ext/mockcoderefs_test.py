@@ -1,6 +1,5 @@
 """Tests for documenteer.ext.mockcoderefs."""
 
-
 from shutil import rmtree
 from tempfile import mkdtemp
 

@@ -1,6 +1,5 @@
 """Tests for `documenteer.ext.lsstdocushare`."""
 
-
 from shutil import rmtree
 from tempfile import mkdtemp
 
