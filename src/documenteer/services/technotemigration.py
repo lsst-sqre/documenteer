@@ -254,10 +254,10 @@ class TechnoteMigrationService:
         """Delete a file."""
         if path.exists():
             path.unlink()
-            print(f"❌ {path}")
+            print(f"🗑️ {path}")
 
     def _delete_directory(self, path: Path) -> None:
         """Delete a directory."""
         if path.exists():
             shutil.rmtree(path)
-            print(f"❌ {path}")
+            print(f"🗑️ {path}")
