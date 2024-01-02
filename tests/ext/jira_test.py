@@ -4,7 +4,6 @@ Based on sphinx-issue (Steven Loria). See :file:`/licenses/sphinx-issue.txt`
 for licensing information.
 """
 
-
 from shutil import rmtree
 from tempfile import mkdtemp
 

@@ -545,9 +545,9 @@ class DocumenteerConfig:
         html_theme_options["use_edit_page_button"] = True
         html_context["github_user"] = github_owner
         html_context["github_repo"] = github_repo
-        html_context[
-            "github_version"
-        ] = self.conf.project.github_default_branch
+        html_context["github_version"] = (
+            self.conf.project.github_default_branch
+        )
         html_context["doc_path"] = doc_dir
 
     @property
