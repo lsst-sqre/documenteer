@@ -199,7 +199,7 @@ Here is a simple :file:`technote.toml` file:
    - ``github_url`` is the URL of the technote's GitHub repository.
    - ``date_created`` is an optional field that specifies when the technote was first created.
    - ``date_updated`` is an optional field that specifies when the technote was last updated. If you omit this field, the current date is used.
-   - Each author is specified with a ``[[technote.authors]]`` table (in TOML, the double brackets represent a table in an **array of tables**). Use the :command:`mamke add-author` command to add an author to this file using data from `authordb.yaml`_. It's important to use the ``internal_id`` field to identify authors with their corresponding key in `authordb.yaml`_. This enables Documenteer to update author information with the :command:`make sync-authors` command.
+   - Each author is specified with a ``[[technote.authors]]`` table (in TOML, the double brackets represent a table in an **array of tables**). Use the :command:`make add-author` command to add an author to this file using data from `authordb.yaml`_. It's important to use the ``internal_id`` field to identify authors with their corresponding key in `authordb.yaml`_. This enables Documenteer to update author information with the :command:`make sync-authors` command.
 
 conf.py file (updated)
 ----------------------
