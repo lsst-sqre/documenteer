@@ -381,7 +381,7 @@ class DocumenteerConfig:
 
         1. project.version field in ``documenteer.toml``
         2. From importlib if the project.python table is set
-        3. Default is None.
+        3. Default is "Latest".
         """
         if self.conf.project.version is not None:
             return self.conf.project.version
@@ -389,7 +389,7 @@ class DocumenteerConfig:
             # Via pydantic validation we know this works
             return get_version(self.conf.project.python.package)
         else:
-            return None
+            return "Latest"
 
     @property
     def rst_epilog_path(self) -> Optional[Path]:
