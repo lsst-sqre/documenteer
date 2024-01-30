@@ -31,6 +31,7 @@ extensions.extend(  # noqa: F405
         "sphinx_diagrams",
         "sphinxcontrib.mermaid",
         "sphinx_prompt",
+        "sphinx_design",
     ]
 )
 
