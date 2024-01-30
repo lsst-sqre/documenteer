@@ -2,6 +2,18 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.1.0'></a>
+## 1.1.0 (2024-01-30)
+
+### New features
+
+- Update to Technote 0.7.0.
+- Add `sphinx_design` as a default extension for technotes.
+
+### Bug fixes
+
+- If the `version` field in `documenteer.toml` isn't set, and the project isn't a Python package, then the default value is now "Latest." The former default, None, was invalid.
+
 <a id='changelog-1.0.1'></a>
 ## 1.0.1 (2024-01-02)
 
