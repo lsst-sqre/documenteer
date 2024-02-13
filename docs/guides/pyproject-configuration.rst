@@ -7,17 +7,17 @@ If you are documenting a Python project that uses :file:`pyproject.toml` (or :fi
 Walkthrough
 ===========
 
-This is a minimal :file:`documenteer.toml` file for this project (Documenteer), where the Python package name is ``documenteer``:
+This is a minimal :file:`documenteer.toml` file for this project (Documenteer), where the Python package name is ``mypackage``:
 
 .. code-block:: toml
    :caption: documenteer.toml
 
    [project]
-   title = "Documenteer"
+   title = "My Package"
    copyright = "2015-2022 Association of Universities for Research in Astronomy, Inc. (AURA)"
 
    [project.python]
-   package = "documenteer"
+   package = "mypackage"
 
 The key content from :file:`pyproject.toml` looks like this:
 
@@ -25,12 +25,12 @@ The key content from :file:`pyproject.toml` looks like this:
    :caption: ../pyproject.toml
 
    [project]
-   name = "documenteer"
+   name = "mypackage"
    # ...
 
    [project.urls]
-   Homepage = "https://documenteer.lsst.io"
-   Source = "https://github.com/lsst-sqre/documenteer"
+   Homepage = "https://mypackage.lsst.io"
+   Source = "https://github.com/lsst/mypackage"
 
 Notice how the ``[project]`` table in :file:`documenteer.toml` is quite short because most information is found from the Python project metadata:
 
@@ -40,6 +40,15 @@ Notice how the ``[project]`` table in :file:`documenteer.toml` is quite short be
 - ``base_url`` is inferred from the ``Homepage`` field in ``[project.urls]`` in :file:`pyproject.toml`.
 
 - ``github_url`` is inferred from the ``Source`` field in ``[project.urls]`` in :file:`pyproject.toml`.
+
+.. important::
+
+   The Python package must be installed in the environment where you run Sphinx to use this feature.
+   For example, in your project's GitHub Actions workflow you must install the package with ``pip install .`` before running Sphinx.
+
+   You cannot simply set the ``PYTHONPATH`` environment variable to add the package's source tree.
+   Internally, Documenteer uses `importlib.metadata` to read the installed package's metadata.
+   This is also why EUPS-installed packages are not supported by the ``[project.python]`` feature.
 
 Overriding Python packaging metadata
 ====================================
@@ -51,12 +60,12 @@ For example, to fix the version as "1.0.0":
    :caption: documenteer.toml
 
    [project]
-   title = "Documenteer"
+   title = "My Package"
    copyright = "2015-2022 Association of Universities for Research in Astronomy, Inc. (AURA)"
    version = "1.0.0"
 
    [project.python]
-   package = "documenteer"
+   package = "mypackage"
 
 Using alternative labels in pyproject.toml's [project.urls]
 ===========================================================
@@ -68,11 +77,11 @@ You can change these defaults in :file:`documenteer.toml`:
    :caption: documenteer.toml
 
    [project]
-   title = "Documenteer"
+   title = "My Package"
    copyright = "2015-2022 Association of Universities for Research in Astronomy, Inc. (AURA)"
 
    [project.python]
-   package = "documenteer"
+   package = "mypackage"
    documentation_url_key = "Docs"
    github_url_key = "Repository"
 
@@ -82,9 +91,9 @@ And the corresponding :file:`pyproject.toml` using those labels:
    :caption: ../pyproject.toml
 
    [project]
-   name = "documenteer"
+   name = "mypackage"
    # ...
 
    [project.urls]
-   Docs = "https://documenteer.lsst.io"
-   Repository = "https://github.com/lsst-sqre/documenteer"
+   Docs = "https://mypackage.lsst.io"
+   Repository = "https://github.com/lsst/mypackage"
