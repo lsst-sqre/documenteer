@@ -30,6 +30,7 @@ dependencies = [
     "requests",
     "click",
     "sphinxcontrib-bibtex>=2.0.0", # for pybtex extension
+    "setuptools", # for pkg_resources, used by pybtex
     "pydantic >= 2.0.0",
     "urllib3",
     "pylatexenc",
