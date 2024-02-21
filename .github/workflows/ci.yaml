@@ -19,15 +19,15 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Run pre-commit
-        uses: pre-commit/action@v3.0.0
+        uses: pre-commit/action@v3.0.1
 
   test:
     runs-on: ubuntu-latest
@@ -36,15 +36,16 @@ jobs:
       matrix:
         python-version:
           - '3.11'
+          - '3.12'
         sphinx-version:
           - '7'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history for setuptools_scm
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           cache: 'npm'
           node-version-file: '.nvmrc'
@@ -80,7 +81,7 @@ jobs:
       - name: Run tox
         uses: lsst-sqre/run-tox@v1
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           tox-envs: 'docs,docs-lint'
 
       # Only attempt documentation uploads for tagged releases and pull
@@ -102,14 +103,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history for setuptools_scm
 
       - name: Build and publish
         uses: lsst-sqre/build-and-publish-to-pypi@v2
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           upload: "false"
 
   pypi-publish:
@@ -124,11 +125,11 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history for setuptools_scm
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           cache: 'npm'
           node-version-file: '.nvmrc'
@@ -141,4 +142,4 @@ jobs:
       - name: Build and publish
         uses: lsst-sqre/build-and-publish-to-pypi@v2
         with:
-          python-version: '3.11'
+          python-version: '3.12'
