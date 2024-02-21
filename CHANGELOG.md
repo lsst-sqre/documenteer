@@ -2,6 +2,17 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.1.1'></a>
+## 1.1.1 (2024-02-21)
+
+### Bug fixes
+
+- `setuptools` is now included in the core package dependencies. The `documenteer.ext.bibtex` extension uses `pybtex`, which is turn uses `pkg_resources` from `setuptools`. In Python 3.12, setuptools is not available in Python environments by default. This direct dependency can be removed once `pybtex` is updated to use `importlib.metadata`.
+
+### Other changes
+
+- Update to the Python project configuration guide for `documenteer.toml` to use an example project other than "Documenteer" in the examples. Also emphasize the requirement that the project must be installed to use the `[project.python]` configuration in `documenteer.toml`.
+
 <a id='changelog-1.1.0'></a>
 ## 1.1.0 (2024-01-30)
 
