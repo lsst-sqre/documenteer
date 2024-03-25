@@ -77,7 +77,7 @@
 
 .. links to sphinx directives
 
-.. |toctree| replace:: :external+sphinx:rst:dir:`toctree`
+.. |toctree| replace:: `toctree <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree>`__
 
 .. Badges
 
