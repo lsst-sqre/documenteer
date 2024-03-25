@@ -67,6 +67,7 @@ guide = [
     "sphinx-prompt",
     "sphinx-jinja>=2", # namespace changed in 2.0
     "myst-parser",
+    "myst-nb",
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid",
     "sphinxext-opengraph",
