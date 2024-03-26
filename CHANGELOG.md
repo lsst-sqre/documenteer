@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.2.0'></a>
+## 1.2.0 (2024-03-26)
+
+### New features
+
+- Rubin user guides (`documenteer.conf.guide`) and technotes (`documenteer.conf.technote`) now include [MyST-NB](https://myst-nb.readthedocs.io/en/latest/) to support Jupyter Notebooks in Sphinx documentation. The MyST-NB extension also supersedes MyST-Parser for Markdown syntax support. For guides, Jupyter Notebook files can be intermixed with Markdown (`.md`) and reStructuredText (`.rst`) files. An `ipynb` file is considered as a page in the documentation. For technotes, the Jupyter Notebook must be named `index.ipynb`. By default, these configurations use MyST-NB's "auto" mode for notebook execution: only if a notebook is missing outputs will it be executed.
+
 <a id='changelog-1.1.1'></a>
 ## 1.1.1 (2024-02-21)
 

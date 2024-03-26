@@ -128,7 +128,7 @@ _conf = DocumenteerConfig.find_and_load()
 
 extensions = [
     "sphinxcontrib.jquery",
-    "myst_parser",
+    "myst_nb",  # enables myst-parser as well
     "sphinx_copybutton",
     "sphinx_design",
     "sphinxcontrib.mermaid",
@@ -167,10 +167,10 @@ copyright = _conf.copyright
 version = _conf.version
 release = version
 
+# The source file suffixes for .md and .ipynb are automatically managed by
+# myst-nb.
 source_suffix = {
     ".rst": "restructuredtext",
-    ".txt": "markdown",
-    ".md": "markdown",
 }
 
 root_doc = "index"
