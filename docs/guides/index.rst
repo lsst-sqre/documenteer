@@ -39,6 +39,14 @@ Documenteer provides a configuration profile for creating branded user guides wi
 
 .. toctree::
    :maxdepth: 2
+   :caption: Markdown & Jupyter Notebooks
+   :name: toc-guides-md-ipynb
+
+   markdown-primer
+   including-notebooks
+
+.. toctree::
+   :maxdepth: 2
    :caption: Science Pipelines
    :name: toc-guides-pipelines
    :titlesonly:
