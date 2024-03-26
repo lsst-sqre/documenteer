@@ -17,10 +17,18 @@ try:
 except ValueError:
     pass
 
+try:
+    # Remove myst-parser if added by technote.sphinxconf so we can
+    # add myst-nb.
+    extensions.remove("myst_parser")  # noqa: F405
+except ValueError:
+    pass
+
 # Add the GitHub bibfile cache extension before sphinxcontrib-bibtex so
 # that it can add bibfiles to the sphinxcontrib-bibtex configuration.
 extensions.extend(  # noqa: F405
     [
+        "myst_nb",  # enables MyST markdown and Jupyter Notebook parsing
         "documenteer.ext.jira",
         "documenteer.ext.lsstdocushare",
         "documenteer.ext.mockcoderefs",

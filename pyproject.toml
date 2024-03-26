@@ -105,6 +105,7 @@ technote = [
     "sphinxcontrib-mermaid",
     "sphinx-diagrams",
     "sphinx_design",
+    "myst-nb"
 ]
 
 [project.urls]
