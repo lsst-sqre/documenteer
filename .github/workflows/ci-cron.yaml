@@ -41,6 +41,11 @@ jobs:
           npm install
           npm run build
 
+      - name: Install graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install graphviz
+
       - name: Run tests in tox
         uses: lsst-sqre/run-tox@v1
         with:
