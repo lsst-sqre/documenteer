@@ -43,6 +43,12 @@ extensions.extend(  # noqa: F405
     ]
 )
 
+# The source file suffixes for .md and .ipynb are automatically managed by
+# myst-nb.
+source_suffix = {
+    ".rst": "restructuredtext",
+}
+
 html_static_path: list[str] = [
     get_asset_path("rubin-favicon-transparent-32px.png"),
     get_asset_path("rubin-favicon.svg"),
