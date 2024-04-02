@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.2.1'></a>
+## 1.2.1 (2024-04-02)
+
+### Bug fixes
+
+- Fix the "Source parser for markdown not registered" error for Markdown-based technotes. With the MyST-NB extension the Markdown parser is automatically registered, so the `documenteer.conf.technote` configuration now resets the `source_suffix` configuration originally created by the Technote package.
+
 <a id='changelog-1.2.0'></a>
 ## 1.2.0 (2024-03-26)
 

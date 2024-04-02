@@ -1,0 +1,25 @@
+[technote]
+id = "SQR-000"
+series_id = "SQR"
+canonical_url = "https://sqr-000.lsst.io"
+github_url = "https://github.com/lsst-sqre/sqr-000"
+github_default_branch = "master"
+date_created = 2015-11-18
+date_updated = 2015-11-23
+version = "1.0.0"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"
+orcid = "https://orcid.org/0000-0003-3001-676X"
+affiliations = [
+    { name = "Rubin Observatory", ror = "https://ror.org/048g3cy84" }
+]
+
+[[technote.authors]]
+name.given = "Frossie"
+name.family = "Economou"
+
+[[technote.authors]]
+name.given = "Russ"
+name.family = "Allbery"
