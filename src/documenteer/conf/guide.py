@@ -234,9 +234,8 @@ intersphinx_cache_limit = 5  # days
 
 linkcheck_retries = 2
 
-# Tucson IT infrastructure sometimes goes down or has TLS issues
 linkcheck_ignore = [
-    r"^https://jira.lsstcorp.org/browse/",
+    # Tucson IT infrastructure sometimes goes down or has TLS issues
     r"^https://ls.st/",
 ]
 _conf.append_linkcheck_ignore(linkcheck_ignore)
