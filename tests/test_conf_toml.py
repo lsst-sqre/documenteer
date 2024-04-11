@@ -139,12 +139,12 @@ def test_append_linkcheck_ignore() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
 
     linkcheck_ignore = [
-        r"^https://jira.lsstcorp.org/browse/",
+        r"^https://rubinobs.atlassian.net/browse/",
         r"^https://ls.st/",
     ]
     config.append_linkcheck_ignore(linkcheck_ignore)
     assert linkcheck_ignore == [
-        r"^https://jira.lsstcorp.org/browse/",
+        r"^https://rubinobs.atlassian.net/browse/",
         r"^https://ls.st/",
         r"^https://confluence.lsstcorp.org/",
     ]

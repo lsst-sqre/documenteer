@@ -150,7 +150,7 @@ autoclass_content = "class"
 # methods.
 # NOTE: We want to used `inherited-members`, but it seems to be causing
 # documentation duplication in the automodapi listings. We're leaving
-# this out for now. See https://jira.lsstcorp.org/browse/DM-14782 for
+# this out for now. See https://rubinobs.atlassian.net/browse/DM-14782 for
 # additional notes.
 # NOTE: Without inherited members set, special-members doesn't need seem
 # to have an effect (even for special members where the docstrings are
