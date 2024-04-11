@@ -4,7 +4,7 @@
 Jira reference roles
 ####################
 
-Documenteer provides reStructuredText roles to simplify linking to issues in LSST's Jira ticketing system at https://jira.lsstcorp.org.
+Documenteer provides reStructuredText roles to simplify linking to issues in LSST's Jira ticketing system at https://rubinobs.atlassian.net.
 
 To use these roles, add the ``documenteer.ext.jira`` extension to your :file:`conf.py` file:
 

@@ -153,7 +153,7 @@ def jira_parens_role(
 def setup(app):
     app.add_config_value(
         "jira_uri_template",
-        default="https://jira.lsstcorp.org/browse/{ticket}",
+        default="https://rubinobs.atlassian.net/browse/{ticket}",
         rebuild="html",
     )
     app.add_role("jira", jira_role)

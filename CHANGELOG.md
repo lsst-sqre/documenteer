@@ -2,6 +2,15 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.2.2'></a>
+## 1.2.2 (2024-04-11)
+
+### Bug fixes
+
+- Update `jira_uri_template` configuration default to `https://rubinobs.atlassian.net/browse/{issue}`. This will make all :jira:, :jirab:, and :jirap: roles point to the new Jira instance for Rubin Observatory.
+- Drop `jira.lsstcorp.org` from the linkcheck ignore list defaults for `documenteer.config.guide` since that instance is no longer being used.
+- Replace `jira.lsstcorp.org` URLs in documentation to `rubinobs.atlassian.net`.
+
 <a id='changelog-1.2.1'></a>
 ## 1.2.1 (2024-04-02)
 
@@ -340,7 +349,7 @@ Fixes:
   - Individual Stack packages now import `documenteer.conf.pipelinespkg` in their `conf.py` files.
 
   The previous configuration sub-package, `documenteer.sphinxconf` is deprecated.
-  [[DM-20866](https://jira.lsstcorp.org/browse/DM-20866)]
+  [[DM-20866](https://rubinobs.atlassian.net/browse/DM-20866)]
 
   Overall, the configurations are compatible with these exceptions:
 
@@ -363,13 +372,13 @@ Fixes:
   For example, individual packages can add to the `EXCLUDE` tag.
   By default, each package's `include` directory is included in the Doxygen build.
 
-  [[DM-22698](https://jira.lsstcorp.org/browse/DM-22698), [DM-23094](https://jira.lsstcorp.org/browse/DM-23094), [DM-22461](https://jira.lsstcorp.org/browse/DM-22461)]
+  [[DM-22698](https://rubinobs.atlassian.net/browse/DM-22698), [DM-23094](https://rubinobs.atlassian.net/browse/DM-23094), [DM-22461](https://rubinobs.atlassian.net/browse/DM-22461)]
 
 - Improved Sphinx runner (`documenteer.sphinxrunner`).
-  [[DM-26768](https://jira.lsstcorp.org/browse/DM-26768)]
+  [[DM-26768](https://rubinobs.atlassian.net/browse/DM-26768)]
 
 - Added static type checking using [mypy](https://mypy.readthedocs.io/en/stable/).
-  [[DM-22717](https://jira.lsstcorp.org/browse/DM-22717), [DM-26288](https://jira.lsstcorp.org/browse/DM-26288)]
+  [[DM-22717](https://rubinobs.atlassian.net/browse/DM-22717), [DM-26288](https://rubinobs.atlassian.net/browse/DM-26288)]
 
 - Improved packaging, testing, and development environment:
 
@@ -381,7 +390,7 @@ Fixes:
   - Migrated to `pre-commit` for running linters and code formatters.
   - Migrated to GitHub Actions from Travis CI.
 
-  [`DM-22957 <https://jira.lsstcorp.org/browse/DM-22957>`_, `DM-26288 <https://jira.lsstcorp.org/browse/DM-26288>`_]
+  [`DM-22957 <https://rubinobs.atlassian.net/browse/DM-22957>`_, `DM-26288 <https://rubinobs.atlassian.net/browse/DM-26288>`_]
 
 - Documentation improvements:
 
@@ -396,19 +405,19 @@ Fixes:
 
 - Technote configuration now uses `yaml.safe_load` instead of `yaml.load`.
   See the [pyyaml docs for details](https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation).
-  [[DM-22537](https://jira.lsstcorp.org/browse/DM-22537)]
+  [[DM-22537](https://rubinobs.atlassian.net/browse/DM-22537)]
 
 ## 0.5.4 (2019-11-03)
 
 - This new version of the technote sphinx theme should fix the edition link in the sidebar for non-main editions.
-  [[DM-20839](https://jira.lsstcorp.org/browse/DM-20839)]
+  [[DM-20839](https://rubinobs.atlassian.net/browse/DM-20839)]
 
 ## 0.5.3 (2019-08-07)
 
 - Enabled the `html_use_index` and `html_domain_indices` configurations for Stack documentation projects to enable automatic index generation.
   The `genindex` contains links to all command-line options and Python objects (Sphinx's domains).
   This also opens us up to a more general content index by way of the [index directive](https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#index-generating-markup).
-  [[DM-20850](https://jira.lsstcorp.org/browse/DM-20850)]
+  [[DM-20850](https://rubinobs.atlassian.net/browse/DM-20850)]
 
 - Fixed compatibility with docutils 0.15.
   Now Sphinx will control which version of docutils is used, which should now be 0.15.
@@ -419,7 +428,7 @@ Fixes:
 
 - Add [sphinxcontrib.autoprogram](https://sphinxcontrib-autoprogram.readthedocs.io/en/stable/) to enable automated reference documentation of argparse-based command-line scripts.
   This extension is available with the `documenteer[pipelines]` installation extra and enabled by default for LSST Science Pipelines projects.
-  [[DM-20767](https://jira.lsstcorp.org/browse/)]
+  [[DM-20767](https://rubinobs.atlassian.net/browse/)]
 
 - Update the official list of tested and supported Python versions to Python 3.6 and 3.7.
 
@@ -433,7 +442,7 @@ Fixes:
 - The stack documentation build now requires that packages be explicitly required by the main documentation project's EUPS table file.
   Before, a package only needed a `doc/manifest.yaml` file and to be currently set up in the EUPS environment to be linked into the documentation build.
   This would lead to packages being included in a documentation build despite not being a part of that stack product.
-  [[DM-17765](https://jira.lsstcorp.org/browse/DM-17765)]
+  [[DM-17765](https://rubinobs.atlassian.net/browse/DM-17765)]
 
 - This release adds the [sphinx-jinja](https://github.com/tardyp/sphinx-jinja) extension for `documenteer[pipelines]` installations.
   This extension makes it possible to dynamically create content with Jinja templating.
@@ -453,7 +462,7 @@ Fixes:
   - `pipelines_demo_ref`
 
   These variables are accessible from the `jinja` directive's context.
-  [[DM-17065](https://jira.lsstcorp.org/browse/DM-17065)]
+  [[DM-17065](https://rubinobs.atlassian.net/browse/DM-17065)]
 
 - This release also added some new substitutions to the `rst_epilog` of stack-based projects:
 
@@ -467,7 +476,7 @@ Fixes:
 
 - The project's name is also used as the `logotext` at the top of the page for stack-based projects.
   Previously the `logotext` would always be "LSST Science Pipelines."
-  [[DM-17263](https://jira.lsstcorp.org/browse/DM-17263)]
+  [[DM-17263](https://rubinobs.atlassian.net/browse/DM-17263)]
 
 - Added the following projects to the intersphinx inventory of stack-based projects:
 
@@ -481,18 +490,18 @@ Fixes:
 ## 0.4.4 (2019-02-05)
 
 - Updated scikit-learn's intersphinx inventory URL (now available as HTTPS) in the `documenteer.sphinxconfig.stackconf`.
-- Fixed the `lsst-task-config-subtasks` directive so that it can introspect items in an `lsst.pex.config` `Registry` that are wrapped by a `ConfigurableWrapper`. [(DM-17661)[https://jira.lsstcorp.org/browse/DM-17661]]
+- Fixed the `lsst-task-config-subtasks` directive so that it can introspect items in an `lsst.pex.config` `Registry` that are wrapped by a `ConfigurableWrapper`. [(DM-17661)[https://rubinobs.atlassian.net/browse/DM-17661]]
 
 ## 0.4.3 (2018-11-30)
 
 - Pin [sphinxcontrib-bibtex](https://github.com/mcmtroffaes/sphinxcontrib-bibtex) to version 0.4.0 since later versions are incompatible with Sphinx <1.8.0.
-  [[DM-16651](https://jira.lsstcorp.org/browse/DM-16651)]
+  [[DM-16651](https://rubinobs.atlassian.net/browse/DM-16651)]
 
 ## 0.4.2 (2018-11-01)
 
 - Handle cases where an object does not have a docstring in `documenteer.sphinxext.lssttasks.taskutils.get_docstring`.
   This improves the reliability of the `lsst-task-api-summary` directive.
-  See (DM-16102)(https://jira.lsstcorp.org/browse/DM-16102).
+  See (DM-16102)(https://rubinobs.atlassian.net/browse/DM-16102).
 
 ## 0.4.1 (2018-10-15)
 
@@ -521,7 +530,7 @@ Fixes:
   This configuration is critical:
 
   1. It is actually responsible for ensuring that inherited members of classes appear in our docs.
-  2. Without this, classes that have a `__slots__` attribute (typically through inheritance of a `collections.abc` class) won't have *any* of their members documented. See (DM-16102)(https://jira.lsstcorp.org/browse/DM-16102) for discussion.
+  2. Without this, classes that have a `__slots__` attribute (typically through inheritance of a `collections.abc` class) won't have *any* of their members documented. See (DM-16102)(https://rubinobs.atlassian.net/browse/DM-16102) for discussion.
 
 - `todo` directives are now hidden when using `build_pipelines_lsst_io_configs`.
   They are still shown, by default, for standalone package documentation builds, which are primarily developer-facing.
@@ -650,7 +659,7 @@ Fixes:
 
 ## 0.1.10 (2016-12-14)
 
-Includes prototype support for LSST Science Pipelines documentation, as part of `DM-6199 <https://jira.lsstcorp.org/browse/DM-6199>`__:
+Includes prototype support for LSST Science Pipelines documentation, as part of `DM-6199 <https://rubinobs.atlassian.net/browse/DM-6199>`__:
 
 - Added dependencies to [breathe](http://breathe.readthedocs.io/en/latest/), [astropy-helpers](https://github.com/astropy/astropy-helpers) and the [lsst-sphinx-bootstrap-theme](https://github.com/lsst-sqre/lsst-sphinx-bootstrap-theme) to generally coordinate LSST Science Pipelines documentation dependencies.
 - Created `documenteer.sphinxconfig.stackconf` module to centrally coordinate Science Pipelines documentation configuration. Much of the configuration is based on [astropy-helper's Sphinx configuration](https://github.com/astropy/astropy-helpers/blob/master/astropy_helpers/sphinx/conf.py) since the LSST Science Pipelines documentation is heavily based upon Astropy's Sphinx theme and API reference generation infrastructure.
@@ -685,7 +694,7 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 
 ## 0.1.3 (2016-05-24)
 
-- Add roles for linking to ls.st links: `lpm`, `ldm`, and `lse`. DM-6181.
+- Add roles for linking to `ls.st` links: `lpm`, `ldm`, and `lse`. DM-6181.
 - Add roles for linking to JIRA tickets: `jira`, `jirab`, and `jirap`. DM-6181.
 
 ## 0.1.2 (2016-05-14)
