@@ -18,7 +18,7 @@ except ImportError:
     from mock import Mock
 
 
-URI = "https://jira.lsstcorp.org/browse/{ticket}"
+URI = "https://rubinobs.atlassian.net/browse/{ticket}"
 
 
 @pytest.fixture()
