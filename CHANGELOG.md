@@ -2,6 +2,15 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.2.2'></a>
+## 1.2.2 (2024-04-11)
+
+### Bug fixes
+
+- Update `jira_uri_template` configuration default to `https://rubinobs.atlassian.net/browse/{issue}`. This will make all :jira:, :jirab:, and :jirap: roles point to the new Jira instance for Rubin Observatory.
+- Drop `jira.lsstcorp.org` from the linkcheck ignore list defaults for `documenteer.config.guide` since that instance is no longer being used.
+- Replace `jira.lsstcorp.org` URLs in documentation to `rubinobs.atlassian.net`.
+
 <a id='changelog-1.2.1'></a>
 ## 1.2.1 (2024-04-02)
 
