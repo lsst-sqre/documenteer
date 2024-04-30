@@ -5,6 +5,7 @@ from pathlib import Path
 from technote.sphinxconf import *  # noqa: F401 F403
 
 from documenteer.conf import (
+    extend_excludes_for_non_index_source,
     extend_static_paths_with_asset_extension,
     get_asset_path,
     get_template_dir,
@@ -73,6 +74,11 @@ html_theme_options = {
     "logo_link_url": "https://www.lsst.io",
     "logo_alt_text": "Rubin Observatory logo",
 }
+
+# Exclude non-index.ipynb Jupyter Notebooks
+extend_excludes_for_non_index_source(exclude_patterns, "ipynb")  # noqa: F405
+extend_excludes_for_non_index_source(exclude_patterns, "md")  # noqa: F405
+extend_excludes_for_non_index_source(exclude_patterns, "rst")  # noqa: F405
 
 # Configure bibliography with the bib cache
 documenteer_bibfile_cache_dir = ".technote/bibfiles"
