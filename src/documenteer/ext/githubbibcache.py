@@ -116,11 +116,11 @@ def cache_bibfiles(app: Sphinx, config: Config) -> None:
 def setup(app: Sphinx) -> dict[str, Any]:
     """Set up the ``documenteer.ext.autocppapi`` Sphinx extensions."""
     # Configuration values
-    app.add_config_value("documenteer_bibfile_github_repos", "", True, [list])
+    app.add_config_value("documenteer_bibfile_github_repos", "", "env", [list])
     app.add_config_value(
         "documenteer_bibfile_cache_dir",
         Path("_build/bibfile-cache"),
-        True,
+        "env",
         [str, Path],
     )
     app.connect("config-inited", cache_bibfiles)
