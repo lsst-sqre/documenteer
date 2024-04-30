@@ -13,7 +13,12 @@ from sphinx.addnodes import (
     desc_signature,
     seealso,
 )
-from sphinx.domains.python import PyXRefRole, _pseudo_parse_arglist
+
+try:
+    from sphinx.domains.python._annotations import _pseudo_parse_arglist
+except ImportError:
+    from sphinx.domains.python import _pseudo_parse_arglist  # type: ignore
+from sphinx.domains.python import PyXRefRole
 from sphinx.errors import SphinxError
 from sphinx.util.inspect import signature as make_signature
 from sphinx.util.inspect import stringify_signature
