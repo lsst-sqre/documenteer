@@ -113,3 +113,37 @@ class GitRepository:
         if path is None:
             raise RuntimeError("Git repository is not available.")
         return Path(path)
+
+
+def extend_excludes_for_non_index_source(
+    exclude_patterns: list[str],
+    extension: str,
+    working_dir: Path | None = None,
+) -> None:
+    """Extend the exclude_patterns configuration to include files with a
+    specific extension that aren't the index file.
+
+    This is useful for technotes where only the ``index{.ext}`` file is valid
+    as a source file.
+
+    Parameters
+    ----------
+    exclude_patterns
+        The Sphinx configuration, ``exclude_patterns``. This configuration is
+        modified in place.
+    extension
+        The file extension to exclude. Examples: ``"ipynb"``, ``"md"``,
+        ``"rst"``. The extension does not include the leading period.
+    working_dir
+        The working directory to search for files. If not provided, the
+        current working directory is used. This should be equivalent to the
+        directory where the Sphinx configuration is located.
+    """
+    if working_dir is None:
+        cwd = Path.cwd()
+    else:
+        cwd = working_dir
+
+    for p in cwd.glob(f"**/*.{extension}"):
+        if p.name != f"index.{extension}":
+            exclude_patterns.append(str(p.relative_to(cwd)))

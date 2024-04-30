@@ -47,6 +47,7 @@ dev = [
     # Test depedendencies for analyzing HTML output
     "lxml",
     "cssselect",
+    "defusedxml",  # used by Sphinx but not declared as a dependency
     # Extensions for documenteer's own docs
     "sphinx-click",
     "sphinxcontrib-autoprogram",
@@ -56,6 +57,7 @@ dev = [
     "types-PyYAML",
     "types-docutils",
     "types-mock",
+    # Testing dependencies
 ]
 guide = [
     # Theme and extensions for Rubin user guide projects
