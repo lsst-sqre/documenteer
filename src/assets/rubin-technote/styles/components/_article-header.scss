@@ -5,7 +5,7 @@
   max-width: 12rem;
 }
 
-@media (max-width: 76rem) {
+@media (max-width: 76em) {
   // When the primary sidebar is hidden, remove extra top margin from the
   // container so the logo is closer to the top.
   .sb-container {
@@ -13,7 +13,7 @@
   }
 }
 
-@media (min-width: 76rem) {
+@media (min-width: 76em) {
   // Hide the mobile logo when the primary sidebar is visible.
   .mobile-rubin-technote-logo {
     display: none;
