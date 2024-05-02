@@ -26,6 +26,7 @@ Documenteer provides a configuration profile for creating branded user guides wi
    pyproject-configuration
    openapi
    rst-epilog
+   page-redirects
    extend-conf-py
 
 .. toctree::

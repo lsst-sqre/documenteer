@@ -372,9 +372,26 @@ The default value is ``api``, which is a good standard for Python projects with 
 If the Python API is oriented towards contributors, such as in an application or service, you can change the default:
 
 .. code-block:: toml
+   :caption: documenteer.toml
 
    [sphinx]
    python_api_dir = "dev/api/contents"
+
+.. _guide-sphinx-redirects:
+
+[sphinx.redirects]
+==================
+
+|optional|
+
+A table of paths to redirect to other paths. Use this setting to redirect old page locations to the new locations when a documentation site is reorganized.
+
+.. code-block:: toml
+   :caption: documenteer.toml
+
+   [sphinx.redirects]
+   "old/path" = "new/path"
+   "old/path2" = "new/path2"
 
 [sphinx.theme]
 ==============
