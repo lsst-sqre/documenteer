@@ -276,6 +276,14 @@ class SphinxModel(BaseModel):
 
     linkcheck: LinkCheckModel = Field(default_factory=lambda: LinkCheckModel())
 
+    redirects: Dict[str, str] = Field(
+        description=(
+            "Mapping of paths to redirect to other paths. These redirects "
+            "are implemented with sphinx-rediraffe."
+        ),
+        default_factory=dict,
+    )
+
 
 class ConfigRoot(BaseModel):
     """The root model for a documenteer.toml configuration file."""
@@ -408,6 +416,14 @@ class DocumenteerConfig:
             return ""
         else:
             return self.rst_epilog_path.read_text()
+
+    @property
+    def redirects(self) -> Dict[str, str]:
+        """Redirects defined in the [sphinx.redirects] TOML configuration."""
+        if self.conf.sphinx:
+            return self.conf.sphinx.redirects
+        else:
+            return dict()
 
     def _get_pyproject_metadata(self, package_name: str) -> Message:
         if sys.version_info >= (3, 10) or sys.version_info < (3, 8):

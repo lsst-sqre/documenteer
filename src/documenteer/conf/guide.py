@@ -141,6 +141,7 @@ extensions = [
     "sphinx-prompt",
     "sphinx_jinja",
     "sphinxcontrib.redoc",
+    "sphinxcontrib.youtube",
     "sphinxext.rediraffe",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
@@ -456,4 +457,4 @@ jinja_contexts: dict[str, Any] = {}
 # #REDIRECTS Sphinx-rediraffe support
 # https://sphinxext-rediraffe.readthedocs.io/en/latest/
 # ============================================================================
-rediraffe_redirects: dict[str, str] = {}
+rediraffe_redirects: dict[str, str] = _conf.redirects

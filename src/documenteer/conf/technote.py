@@ -41,6 +41,7 @@ extensions.extend(  # noqa: F405
         "sphinxcontrib.mermaid",
         "sphinx_prompt",
         "sphinx_design",
+        "sphinxcontrib.youtube",
     ]
 )
 
