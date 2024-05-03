@@ -2,6 +2,29 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.3.0'></a>
+## 1.3.0 (2024-05-03)
+
+### New features
+
+- Added a `[sphinx.redirects]` table to `documenteer.toml`. This provides support for configuring page redirects from the TOML configuratin. Redirects are useful if pages move because of a content re-organization. This feature is based on [sphinx-rediraffe](https://github.com/wpilibsuite/sphinxext-rediraffe).
+
+- Added the [sphinxcontrib-youtube](https://sphinxcontrib-youtube.readthedocs.io/en/latest/index.html) for embedded YouTube and Vimeo videos into documentation pages. This extension is available for both user guides (`documenteer.conf.guide`) and technotes (`documenteer.conf.technotes`).
+
+### Bug fixes
+
+- Technotes ignore files in the repository with `.md`, `.rst`, and `.ipynb` extensions if they aren't the index file. Since technotes are single-page documents, only the index file should be used as a source file. This change lets authors include auxiliary notebooks with their technotes without having to explicitly exclude them from the technote build process. This is implemented with `technote.conf.extend_excludes_for_non_index_source`.
+
+- In `documenteer.ext.lssttasks`, attempt to import `_pseudo_parse_arglist` from `sphinx.domains.python._annotations` before falling back to the `sphinx.domains.python` module. Ultimately this is a workaround.
+
+- Fix setting the rebuild condition for the `documenteer.ext.githubbibcache` extension.
+
+- Fixed the monospace text baseline alignment issue in Safari for technotes by updating to technote 0.8.0. In this version, the font size of the code is set to be 0.9em so that the browser doesn't push the text below the baseline in case its larger than the Source Sans body text. This version also changes the font size on the html element to 100% and instead increases the baseline body text size to 1.1rem on the body element. This change should help technotes respect the user's browser font size settings while also making the rem unit work as expected.
+
+### Other changes
+
+- Added `defusedxml` as a dev dependency. This is used by Sphinx's `sphinx.testing.fixtures`, but isn't included as a dependency by Sphinx itself. This change ensures that `defusedxml` is installed when running the tests.
+
 <a id='changelog-1.2.2'></a>
 ## 1.2.2 (2024-04-11)
 
