@@ -141,6 +141,7 @@ extensions = [
     "sphinx-prompt",
     "sphinx_jinja",
     "sphinxcontrib.redoc",
+    "sphinxcontrib.youtube",
     "sphinxext.rediraffe",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",

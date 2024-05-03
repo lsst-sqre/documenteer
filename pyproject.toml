@@ -76,6 +76,7 @@ guide = [
     "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
     "sphinxext-rediraffe",
+    "sphinxcontrib-youtube"
 ]
 pipelines = [
     # Theme and extensions for pipelines.lsst.io
@@ -107,7 +108,8 @@ technote = [
     "sphinxcontrib-mermaid",
     "sphinx-diagrams",
     "sphinx_design",
-    "myst-nb"
+    "myst-nb",
+    "sphinxcontrib-youtube"
 ]
 
 [project.urls]
