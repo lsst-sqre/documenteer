@@ -18,7 +18,7 @@ To create a redirect from the old page to the new one, add the following to the 
    [sphinx.redirects]
    "old-page.rst" = "some-dir/new-page.rst"
 
-These paths are relative to the documentation project's root directory (where :file:`conf.py` and :guide:`documenteer.toml` are located) and include the file extension (e.g., :file:`.rst` or :file:`.md`).
+These paths are relative to the documentation project's root directory (where :file:`conf.py` and :file:`documenteer.toml` are located) and include the file extension (e.g., :file:`.rst` or :file:`.md`).
 
 The table accepts an arbitrary number of redirects:
 
