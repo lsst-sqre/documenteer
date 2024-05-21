@@ -25,7 +25,7 @@ For more details on this feature, see GitHub's `documentation on Editing files <
 Using github.dev
 ----------------
 
-An alternative approach is to use the [github.dev](https://github.dev) service.
+An alternative approach is to use the `github.dev <https://github.dev>`__ service.
 Open the technote's GitHub page in your browser and press the :kbd:`.` key.
 This opens a basic VS Code editor in your browser.
 You can edit multiple files and commit your changes directly from the browser.
