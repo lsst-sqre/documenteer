@@ -4,20 +4,10 @@
  * their proper module either in documenteer or in the parent technote theme.
  */
 
-@media (max-width: 76rem) {
-  // Reduce the margin-bottom on headings in mobile views
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    margin-bottom: 0.5em;
-  }
-}
-
 /*
- * Border specififcally for prompts, which act differently than code blocks.
+ * Border specifically for prompt-type code blocks, which act differently
+ * than code blocks. The prompt extension is used specially by Documenteer
+ * technotes.
  */
 .highlight-default .highlight {
   border: var(--tn-sphinx-code-block-border-thickness) solid
