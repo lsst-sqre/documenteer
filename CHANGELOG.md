@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.4.0'></a>
+## 1.4.0 (2024-07-11)
+
+### New features
+
+- Update to technote 0.9.0. This new version of the technote theme features a two column layout that allows wide content, such as tables, code blocks, and figures, to span the full width of the page (bleeding beyond the text column).
+
 <a id='changelog-1.3.0'></a>
 ## 1.3.0 (2024-05-03)
 
