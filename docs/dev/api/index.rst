@@ -8,5 +8,3 @@ Python API
    documenteer.conf
    documenteer.ext
    documenteer.requestsutils
-   documenteer.sphinxrunner
-   documenteer.stackdocs

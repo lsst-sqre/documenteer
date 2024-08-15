@@ -118,8 +118,6 @@ Source = "https://github.com/lsst-sqre/documenteer"
 
 [project.scripts]
 documenteer = "documenteer.cli:main"
-stack-docs = "documenteer.stackdocs.stackcli:main"
-package-docs = "documenteer.stackdocs.packagecli:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
