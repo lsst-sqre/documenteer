@@ -5,14 +5,19 @@ This module is heavily influenced by sphinx-issue (Steven Loria). See
 """
 
 import logging
+from typing import Any
 
 from docutils import nodes, utils
+from docutils.parsers.rst.states import Inliner
+from sphinx.application import Sphinx
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 
-def _make_ticket_node(ticket_id, config, options=None):
+def _make_ticket_node(
+    ticket_id: str, config: Any, options: dict | None = None
+) -> nodes.reference:
     """Construct a reference node for a JIRA ticket."""
     options = options or {}
     ref = config.jira_uri_template.format(ticket=ticket_id)
@@ -20,7 +25,7 @@ def _make_ticket_node(ticket_id, config, options=None):
     return link
 
 
-def _comma_separator(i, length):
+def _comma_separator(i: int, length: int) -> str | None:
     """A separator for an entirely comma-separated list given current item
     index `i` and total list length `length`. `None` if there should be
     no separator (last item).
@@ -33,7 +38,7 @@ def _comma_separator(i, length):
         return None
 
 
-def _oxford_comma_separator(i, length):
+def _oxford_comma_separator(i: int, length: int) -> str | None:
     """Make a separator for a prose-like list with `,` between items except
     for `, and` after the second to last item.
     """
@@ -50,15 +55,15 @@ def _oxford_comma_separator(i, length):
 
 
 def jira_role(
-    name,
-    rawtext,
-    text,
-    lineno,
-    inliner,
-    options=None,
-    content=None,
-    oxford_comma=True,
-):
+    name: str,
+    rawtext: str,
+    text: str,
+    lineno: int,
+    inliner: Inliner,
+    options: dict | None = None,
+    content: list | None = None,
+    oxford_comma: bool = True,
+) -> tuple[list[nodes.Node], list[nodes.system_message]]:
     """Sphinx role for referencing a JIRA ticket.
 
     Examples::
@@ -79,7 +84,7 @@ def jira_role(
     else:
         sep_factory = _comma_separator
 
-    node_list = []
+    node_list: list[nodes.Node] = []
     for i, ticket_id in enumerate(ticket_ids):
         node = _make_ticket_node(ticket_id, config, options=options)
         node_list.append(node)
@@ -91,16 +96,16 @@ def jira_role(
 
 
 def jira_bracket_role(
-    name,
-    rawtext,
-    text,
-    lineno,
-    inliner,
-    options=None,
-    content=None,
-    open_symbol="[",
-    close_symbol="]",
-):
+    name: str,
+    rawtext: str,
+    text: str,
+    lineno: int,
+    inliner: Inliner,
+    options: dict | None = None,
+    content: bool | None = None,
+    open_symbol: str = "[",
+    close_symbol: str = "]",
+) -> tuple[list[nodes.Node], list[nodes.system_message]]:
     """Sphinx role for referencing a JIRA ticket with ticket numbers
     enclosed in braces. Useful for changelogs.
 
@@ -126,8 +131,14 @@ def jira_bracket_role(
 
 
 def jira_parens_role(
-    name, rawtext, text, lineno, inliner, options=None, content=None
-):
+    name: str,
+    rawtext: str,
+    text: str,
+    lineno: int,
+    inliner: Inliner,
+    options: dict | None = None,
+    content: bool | None = None,
+) -> tuple[list[nodes.Node], list[nodes.system_message]]:
     """Sphinx role for referencing a JIRA ticket with ticket numbers
     enclosed in parentheses. Useful for changelogs.
 
@@ -150,7 +161,7 @@ def jira_parens_role(
     )
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     app.add_config_value(
         "jira_uri_template",
         default="https://rubinobs.atlassian.net/browse/{ticket}",

@@ -348,7 +348,7 @@ napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
 napoleon_preprocess_types = False
-napoleon_type_aliases = None
+napoleon_type_aliases: dict[str, str] | None = None
 napoleon_attr_annotations = True
 
 # ============================================================================

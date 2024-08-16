@@ -1,3 +1,4 @@
+# type: ignore
 """Tests for `documenteer.ext.lsstdocushare`."""
 
 from shutil import rmtree

@@ -1,3 +1,4 @@
+# type: ignore
 """Tests for documenteer.ext.jira
 
 Based on sphinx-issue (Steven Loria). See :file:`/licenses/sphinx-issue.txt`

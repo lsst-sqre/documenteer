@@ -5,10 +5,13 @@ supports getting content over https.
 __all__ = ["setup"]
 
 from docutils import nodes
-from docutils.parsers.rst import Directive, directives
+from docutils.parsers.rst import directives
+from sphinx.application import Sphinx
 from sphinx.directives.code import LiteralIncludeReader, container_wrapper
 from sphinx.util import logging, parselinenos
+from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
+from sphinx.util.typing import ExtensionMetadata
 
 from ..requestsutils import requests_retry_session
 from ..version import __version__
@@ -16,7 +19,7 @@ from ..version import __version__
 logger = logging.getLogger(__name__)
 
 
-class RemoteCodeBlock(Directive):
+class RemoteCodeBlock(SphinxDirective):
     """Directive that works like ``literalinclude`` to show a code block, but
     supports getting content over https.
 
@@ -53,23 +56,7 @@ class RemoteCodeBlock(Directive):
         "diff": directives.unchanged_required,
     }
 
-    @property
-    def env(self):
-        """Reference to the ``.BuildEnvironment`` object.
-
-        FIXME: this can be removed with Sphinx 1.8.0.
-        """
-        return self.state.document.settings.env
-
-    @property
-    def config(self):
-        """Reference to the `Config`` object.
-
-        FIXME: this can be removed with Sphinx 1.8.0.
-        """
-        return self.env.config
-
-    def run(self):
+    def run(self) -> list[nodes.Node]:
         """Run the ``remote-code-block`` directive."""
         document = self.state.document
         if not document.settings.file_insertion_enabled:
@@ -113,7 +100,9 @@ class RemoteCodeBlock(Directive):
 
             if "caption" in self.options:
                 caption = self.options["caption"] or self.arguments[0]
-                retnode = container_wrapper(self, retnode, caption)
+                captioned_container = container_wrapper(self, retnode, caption)
+                self.add_name(captioned_container)
+                return [captioned_container]
 
             # retnode will be note_implicit_target that is linked from caption
             # and numref.  when options['name'] is provided, it should be
@@ -129,7 +118,9 @@ class RemoteCodeBlock(Directive):
 class RemoteCodeBlockReader(LiteralIncludeReader):
     """Reader for content used by `RemoteCodeBlock`."""
 
-    def read_file(self, url, location=None):
+    def read_file(
+        self, url: str, location: tuple[str, int] | None = None
+    ) -> list[str]:
         """Read content from the web by overriding
         `LiteralIncludeReader.read_file`.
         """
@@ -142,7 +133,7 @@ class RemoteCodeBlockReader(LiteralIncludeReader):
         return text.splitlines(True)
 
 
-def setup(app):
+def setup(app: Sphinx) -> ExtensionMetadata:
     app.add_directive("remote-code-block", RemoteCodeBlock)
 
     return {

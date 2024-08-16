@@ -5,25 +5,33 @@ APIs while waiting for the API reference itself to be added.
 """
 
 import logging
+from typing import Any
 
 from docutils import nodes
+from docutils.parsers.rst.states import Inliner
+from sphinx.application import Sphinx
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 
 def mock_code_ref_role(
-    name, rawtext, text, lineno, inliner, options=None, content=None
-):
+    name: str,
+    rawtext: str,
+    text: str,
+    lineno: int,
+    inliner: Inliner,
+    options: dict[str, Any] | None = None,
+    content: bool | None = None,
+) -> tuple[list[nodes.Node], list[nodes.system_message]]:
     options = options or {}
-    content = content or []
     if text.startswith("~"):
         text = text.lstrip("~").split(".")[-1]
     node = nodes.literal(text=text)
     return [node], []
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     # Reference roles from the Python domain
     original_roles = (
         "data",
