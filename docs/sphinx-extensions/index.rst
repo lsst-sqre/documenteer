@@ -19,13 +19,3 @@ Sphinx extensions
 
    remote-code-block
    openapi
-   autodocreset
-
-.. toctree::
-   :maxdepth: 2
-   :titlesonly:
-   :caption: Science Pipelines
-
-   lssttasks
-   autocppapi
-   package-toctree

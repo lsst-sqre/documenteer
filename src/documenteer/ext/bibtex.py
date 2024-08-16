@@ -3,6 +3,7 @@
 __all__ = ("LsstBibtexStyle", "setup")
 
 import pybtex.style.formatting.plain
+from pybtex.database import Entry
 from pybtex.plugin import register_plugin
 from pybtex.style.formatting import toplevel
 from pybtex.style.template import (
@@ -23,7 +24,7 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
     bibliographies.
     """
 
-    def format_docushare(self, e: pybtex.database.Entry) -> str:
+    def format_docushare(self, e: Entry) -> str:
         default_url = join["https://ls.st/", field("handle", raw=True)]
 
         template = toplevel[

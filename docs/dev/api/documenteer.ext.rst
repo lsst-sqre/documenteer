@@ -2,10 +2,6 @@
 documenteer.ext
 ###############
 
-.. automodapi:: documenteer.ext.autocppapi
-
-.. automodapi:: documenteer.ext.autodocreset
-
 .. automodapi:: documenteer.ext.openapi
 
 .. automodapi:: documenteer.ext.bibtex
@@ -19,7 +15,4 @@ documenteer.ext
    :no-inheritance-diagram:
 
 .. automodapi:: documenteer.ext.mockcoderefs
-   :no-inheritance-diagram:
-
-.. automodapi:: documenteer.ext.packagetoctree
    :no-inheritance-diagram:

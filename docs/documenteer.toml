@@ -46,10 +46,10 @@ ignore = [
 ]
 
 [sphinx.redirects]
-"pipelines/build-overview.rst" = "guides/pipelines/build-overview.rst"
-"pipelines/configuration.rst" = "guides/pipelines/configuration.rst"
-"pipelines/cpp-api-linking.rst" = "guides/pipelines/cpp-api-linking.rst"
-"pipelines/index.rst" = "guides/pipelines/index.rst"
-"pipelines/install.rst" = "guides/pipelines/install.rst"
-"pipelines/package-docs-cli.rst" = "guides/pipelines/package-docs-cli.rst"
-"pipelines/stack-docs-cli.rst" = "guides/pipelines/stack-docs-cli.rst"
+"pipelines/build-overview.rst" = "guides/index.rst"
+"pipelines/configuration.rst" = "guides/index.rst"
+"pipelines/cpp-api-linking.rst" = "guides/index.rst"
+"pipelines/index.rst" = "guides/index.rst"
+"pipelines/install.rst" = "guides/index.rst"
+"pipelines/package-docs-cli.rst" = "guides/index.rst"
+"pipelines/stack-docs-cli.rst" = "guides/index.rst"
