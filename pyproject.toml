@@ -78,29 +78,6 @@ guide = [
     "sphinxext-rediraffe",
     "sphinxcontrib-youtube"
 ]
-pipelines = [
-    # Theme and extensions for pipelines.lsst.io
-    # Include all dependencies fof guide, and add additional dependencies
-    # specifically for pipelines.lsst.io
-    "sphinx_design",
-    "pydata-sphinx-theme>=0.10.0,<0.13.0",
-    "sphinx-autodoc-typehints",
-    "sphinx-automodapi",
-    "sphinx-copybutton",
-    "sphinx-prompt",
-    "sphinx-jinja>=2", # namespace changed in 2.0
-    "myst-parser",
-    "markdown-it-py[linkify]",
-    "sphinxcontrib-mermaid",
-    "sphinxext-opengraph",
-    "sphinxcontrib-redoc",
-    "sphinxcontrib-jquery",
-
-    # Additional extensions for Pipelines
-    "sphinxcontrib-autoprogram",
-    "sphinxcontrib-doxylink",
-    "sphinx-click",
-]
 technote = [
     # Theme and extensions for technotes
     "technote>=0.9.0,<0.10.0",
