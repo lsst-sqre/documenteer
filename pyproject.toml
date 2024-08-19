@@ -51,7 +51,6 @@ dev = [
     # Extensions for documenteer's own docs
     "sphinx-click",
     "sphinxcontrib-autoprogram",
-    "autodoc_pydantic",
     # Type stubs
     "types-setuptools",
     "types-requests",
@@ -62,6 +61,7 @@ dev = [
 ]
 guide = [
     # Theme and extensions for Rubin user guide projects
+    "autodoc_pydantic",
     "sphinx_design",
     "pydata-sphinx-theme>=0.10.0,<0.13.0",
     "sphinx-autodoc-typehints",
