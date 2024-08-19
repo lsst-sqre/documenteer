@@ -11,6 +11,7 @@ package = "documenteer"
 extensions = [
   "sphinx_click.ext",
   "sphinxcontrib.autoprogram",
+  "sphinxcontrib.autodoc_pydantic"
 ]
 disable_primary_sidebars = ["index", "changelog"]
 rst_epilog_file = "_rst_epilog.rst"
@@ -25,7 +26,8 @@ nitpick_ignore_regex = [
 ]
 python_api_dir = "dev/api/contents"
 exclude = [
-  "technotes/_templates/*"
+  "technotes/_templates/*",
+  "_templates/**"
 ]
 
 [sphinx.theme]

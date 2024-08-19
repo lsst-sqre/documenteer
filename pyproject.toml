@@ -51,6 +51,7 @@ dev = [
     # Extensions for documenteer's own docs
     "sphinx-click",
     "sphinxcontrib-autoprogram",
+    "autodoc_pydantic",
     # Type stubs
     "types-setuptools",
     "types-requests",
