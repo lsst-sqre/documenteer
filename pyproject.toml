@@ -7,18 +7,20 @@ readme = "README.md"
 keywords = ["rubin", "lsst"]
 # https://pypi.org/classifiers/
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Framework :: Sphinx :: Extension",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
-    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Documentation",
     "Topic :: Documentation :: Sphinx",
-    "Framework :: Sphinx :: Extension",
-    "Environment :: Console",
-    "Natural Language :: English",
-    "Operating System :: POSIX",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.11"
 dynamic = ["version"]
