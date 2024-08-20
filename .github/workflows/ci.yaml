@@ -1,5 +1,8 @@
 name: CI
 
+env:
+  PYTHON_VERSION: '3.12' # Default Python version
+
 'on':
   push:
     branches-ignore:
@@ -76,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history for setuptools_scm
 
@@ -86,7 +89,7 @@ jobs:
       - name: Run tox
         uses: lsst-sqre/run-tox@v1
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
           tox-envs: 'docs,docs-lint'
 
       # Only attempt documentation uploads for tagged releases and pull
@@ -115,7 +118,7 @@ jobs:
       - name: Build and publish
         uses: lsst-sqre/build-and-publish-to-pypi@v2
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
           upload: "false"
 
   pypi-publish:
@@ -147,4 +150,4 @@ jobs:
       - name: Build and publish
         uses: lsst-sqre/build-and-publish-to-pypi@v2
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
