@@ -4,6 +4,8 @@ These roles are useful for temporarily adding semantically-markedup
 APIs while waiting for the API reference itself to be added.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any
 
@@ -24,6 +26,7 @@ def mock_code_ref_role(
     options: dict[str, Any] | None = None,
     content: bool | None = None,
 ) -> tuple[list[nodes.Node], list[nodes.system_message]]:
+    """Process a mock code reference role."""
     options = options or {}
     if text.startswith("~"):
         text = text.lstrip("~").split(".")[-1]
@@ -32,6 +35,7 @@ def mock_code_ref_role(
 
 
 def setup(app: Sphinx) -> None:
+    """Set up the mock code reference roles."""
     # Reference roles from the Python domain
     original_roles = (
         "data",

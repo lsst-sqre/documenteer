@@ -29,7 +29,7 @@ class LocalProjectTemplates:
         `jinja2.Template`
             The template object.
         """
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(self._dir))
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(self._dir))  # noqa: S701
         return env.get_template(name)
 
     def write(self, *, name: str, path: Path, context: dict[str, Any]) -> None:

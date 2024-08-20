@@ -6,21 +6,13 @@ from __future__ import annotations
 
 import sys
 import tomllib
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 from email.message import Message
 from importlib.metadata import PackageNotFoundError, metadata
 from importlib.metadata import version as get_version
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, cast
 from urllib.parse import urlparse
 
 from pydantic import (
@@ -62,14 +54,14 @@ class OpenApiGeneratorModel(BaseModel):
         )
     )
 
-    positional_args: List[Any] = Field(
+    positional_args: list[Any] = Field(
         default_factory=list,
         description=(
             "Positional arguments to pass to the generator function."
         ),
     )
 
-    keyword_args: Dict[str, Any] = Field(
+    keyword_args: dict[str, Any] = Field(
         default_factory=dict,
         description=("Keyword arguments to pass to the generator function."),
     )
@@ -78,7 +70,7 @@ class OpenApiGeneratorModel(BaseModel):
 class OpenApiDocsModel(BaseModel):
     """Model for OpenAPI documentation configurations in documenteer.toml."""
 
-    generator: Optional[OpenApiGeneratorModel] = Field(
+    generator: OpenApiGeneratorModel | None = Field(
         None,
         description=(
             "The function that generates the OpenAPI spec file from the"
@@ -134,8 +126,8 @@ class PythonPackageModel(BaseModel):
         """Ensure the package is importable."""
         try:
             get_version(v)
-        except PackageNotFoundError:
-            raise ValueError(f"The package {v!r} is not importable.")
+        except PackageNotFoundError as e:
+            raise ValueError(f"The package {v!r} is not importable.") from e
         return v
 
 
@@ -149,7 +141,7 @@ class ProjectModel(BaseModel):
         )
     )
 
-    base_url: Optional[HttpUrl] = Field(
+    base_url: HttpUrl | None = Field(
         None, description="Canonical URL of the site's root page."
     )
 
@@ -158,7 +150,7 @@ class ProjectModel(BaseModel):
         description="Copyright statement, without a 'copyright' prefix word.",
     )
 
-    github_url: Optional[HttpUrl] = Field(
+    github_url: HttpUrl | None = Field(
         None, description="The URL of the project's GitHub repository."
     )
 
@@ -167,17 +159,17 @@ class ProjectModel(BaseModel):
         description="The project's default development branch on GitHub.",
     )
 
-    version: Optional[str] = Field(None, description="Version string.")
+    version: str | None = Field(None, description="Version string.")
 
-    python: Optional[PythonPackageModel] = Field(None)
+    python: PythonPackageModel | None = Field(None)
 
-    openapi: Optional[OpenApiDocsModel] = Field(None)
+    openapi: OpenApiDocsModel | None = Field(None)
 
 
 class IntersphinxModel(BaseModel):
     """Model for Intersphinx configurations in documenteer.toml."""
 
-    projects: Dict[str, HttpUrl] = Field(
+    projects: dict[str, HttpUrl] = Field(
         description="Mapping of projects and their URLs.", default_factory=dict
     )
 
@@ -185,7 +177,7 @@ class IntersphinxModel(BaseModel):
 class LinkCheckModel(BaseModel):
     """Model for linkcheck builder configurations in documenteer.toml."""
 
-    ignore: List[str] = Field(
+    ignore: list[str] = Field(
         description="Regular expressions of URLs to skip checking links",
         default_factory=list,
     )
@@ -210,7 +202,7 @@ class ThemeModel(BaseModel):
 class SphinxModel(BaseModel):
     """Model for Sphinx configurations in documenteer.toml."""
 
-    rst_epilog_file: Optional[FilePath] = Field(
+    rst_epilog_file: FilePath | None = Field(
         None,
         description=(
             "Path to a reStructuredText file that is added to every source "
@@ -218,7 +210,7 @@ class SphinxModel(BaseModel):
         ),
     )
 
-    extensions: List[str] = Field(
+    extensions: list[str] = Field(
         description="Additional Sphinx extension.", default_factory=list
     )
 
@@ -226,7 +218,7 @@ class SphinxModel(BaseModel):
         False, description="Escalate warnings to build errors."
     )
 
-    nitpick_ignore: List[Tuple[str, str]] = Field(
+    nitpick_ignore: list[tuple[str, str]] = Field(
         description=(
             "Errors to ignore. First item is the type (like a role or "
             "directive) and the second is the target (like the argument to "
@@ -235,7 +227,7 @@ class SphinxModel(BaseModel):
         default_factory=list,
     )
 
-    nitpick_ignore_regex: List[Tuple[str, str]] = Field(
+    nitpick_ignore_regex: list[tuple[str, str]] = Field(
         description=(
             "Same as ``nitpick_ignore``, but both type and target are "
             "interpreted as regular expressions."
@@ -243,7 +235,7 @@ class SphinxModel(BaseModel):
         default_factory=list,
     )
 
-    disable_primary_sidebars: Optional[List[str]] = Field(
+    disable_primary_sidebars: list[str] | None = Field(
         None,
         description=(
             "Pages that should not have a primary sidebar. Can be the page's "
@@ -252,7 +244,7 @@ class SphinxModel(BaseModel):
         ),
     )
 
-    python_api_dir: Optional[str] = Field(
+    python_api_dir: str | None = Field(
         None,
         description=(
             "Directory path where the Python API reference documentation "
@@ -260,7 +252,7 @@ class SphinxModel(BaseModel):
         ),
     )
 
-    exclude: List[str] = Field(
+    exclude: list[str] = Field(
         description=(
             "List of paths to exclude from being considered as Sphinx content "
             "sources."
@@ -276,7 +268,7 @@ class SphinxModel(BaseModel):
 
     linkcheck: LinkCheckModel = Field(default_factory=lambda: LinkCheckModel())
 
-    redirects: Dict[str, str] = Field(
+    redirects: dict[str, str] = Field(
         description=(
             "Mapping of paths to redirect to other paths. These redirects "
             "are implemented with sphinx-rediraffe."
@@ -290,7 +282,7 @@ class ConfigRoot(BaseModel):
 
     project: ProjectModel
 
-    sphinx: Optional[SphinxModel] = None
+    sphinx: SphinxModel | None = None
 
 
 @dataclass
@@ -312,10 +304,9 @@ class DocumenteerConfig:
             conf = ConfigRoot.model_validate(tomllib.loads(toml_content))
         except ValidationError as e:
             message = (
-                f"Syntax or validation issue in documenteer.toml:\n\n"
-                f"{str(e)}"
+                f"Syntax or validation issue in documenteer.toml:\n\n" f"{e!s}"
             )
-            raise ConfigError(message)
+            raise ConfigError(message) from e
         return cls(conf)
 
     @property
@@ -357,7 +348,7 @@ class DocumenteerConfig:
         return self.conf.project.copyright
 
     @property
-    def github_url(self) -> Optional[str]:
+    def github_url(self) -> str | None:
         """The project's GitHub repository.
 
         The GitHub URL is obtained in this order:
@@ -374,15 +365,14 @@ class DocumenteerConfig:
             # Get the URL from the package metadata
             package_name = self.conf.project.python.package
             pyproject_meta = self._get_pyproject_metadata(package_name)
-            url = self._get_pyproject_url(
+            return self._get_pyproject_url(
                 pyproject_meta, self.conf.project.python.github_url_key
             )
-            return url
 
         return None
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         """The project's version.
 
         The version is obtained in this order:
@@ -400,7 +390,7 @@ class DocumenteerConfig:
             return "Latest"
 
     @property
-    def rst_epilog_path(self) -> Optional[Path]:
+    def rst_epilog_path(self) -> Path | None:
         """Path to the user's reStructuredText epilog file, if set."""
         if self.conf.sphinx and self.conf.sphinx.rst_epilog_file is not None:
             return Path(self.conf.sphinx.rst_epilog_file)
@@ -418,12 +408,12 @@ class DocumenteerConfig:
             return self.rst_epilog_path.read_text()
 
     @property
-    def redirects(self) -> Dict[str, str]:
+    def redirects(self) -> dict[str, str]:
         """Redirects defined in the [sphinx.redirects] TOML configuration."""
         if self.conf.sphinx:
             return self.conf.sphinx.redirects
         else:
-            return dict()
+            return {}
 
     def _get_pyproject_metadata(self, package_name: str) -> Message:
         if sys.version_info >= (3, 10) or sys.version_info < (3, 8):
@@ -434,7 +424,7 @@ class DocumenteerConfig:
 
     def _get_pyproject_url(
         self, pkg_metadata: Message, label: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get a URL from a python package's metadata.
 
         Label corresponds to a field under [project.urls] in project.toml.
@@ -446,7 +436,7 @@ class DocumenteerConfig:
                     return value[len(prefix) :]
         return None
 
-    def append_extensions(self, extensions: List[str]) -> None:
+    def append_extensions(self, extensions: list[str]) -> None:
         """Append user-configured extensions to an existing list."""
         if self.conf.sphinx:
             for new_ext in self.conf.sphinx.extensions:
@@ -454,7 +444,7 @@ class DocumenteerConfig:
                     extensions.append(new_ext)
 
     def extend_intersphinx_mapping(
-        self, mapping: MutableMapping[str, Tuple[str, Union[str, None]]]
+        self, mapping: MutableMapping[str, tuple[str, str | None]]
     ) -> None:
         """Extend the ``intersphinx_mapping`` dictionary with configured
         projects.
@@ -467,7 +457,7 @@ class DocumenteerConfig:
             for project, url in self.conf.sphinx.intersphinx.projects.items():
                 mapping[project] = (str(url), None)
 
-    def append_linkcheck_ignore(self, link_patterns: List[str]) -> None:
+    def append_linkcheck_ignore(self, link_patterns: list[str]) -> None:
         """Append URL patterns for sphinx.linkcheck.ignore to existing
         patterns.
         """
@@ -475,13 +465,13 @@ class DocumenteerConfig:
             link_patterns.extend(self.conf.sphinx.linkcheck.ignore)
 
     def append_nitpick_ignore(
-        self, nitpick_ignore: List[Tuple[str, str]]
+        self, nitpick_ignore: list[tuple[str, str]]
     ) -> None:
         if self.conf.sphinx and self.conf.sphinx.nitpick_ignore:
             nitpick_ignore.extend(self.conf.sphinx.nitpick_ignore)
 
     def append_nitpick_ignore_regex(
-        self, nitpick_ignore_regex: List[Tuple[str, str]]
+        self, nitpick_ignore_regex: list[tuple[str, str]]
     ) -> None:
         if self.conf.sphinx and self.conf.sphinx.nitpick_ignore_regex:
             nitpick_ignore_regex.extend(self.conf.sphinx.nitpick_ignore_regex)
@@ -493,7 +483,7 @@ class DocumenteerConfig:
         else:
             return False
 
-    def extend_exclude_patterns(self, exclude_patterns: List[str]) -> None:
+    def extend_exclude_patterns(self, exclude_patterns: list[str]) -> None:
         """Extend Sphinx ``exclude_patterns`` with the "exclude" configuration
         from the sphinx TOML table.
         """
@@ -501,13 +491,13 @@ class DocumenteerConfig:
             exclude_patterns.extend(self.conf.sphinx.exclude)
 
     def disable_primary_sidebars(
-        self, html_sidebars: MutableMapping[str, List[str]]
+        self, html_sidebars: MutableMapping[str, list[str]]
     ) -> None:
         if self.conf.sphinx and self.conf.sphinx.disable_primary_sidebars:
             pages = self.conf.sphinx.disable_primary_sidebars
         else:
             pages = ["index"]  # default
-        html_sidebars.update({name: list() for name in pages})
+        html_sidebars.update({name: [] for name in pages})
 
     @property
     def automodapi_toctreedirm(self) -> str:
@@ -521,7 +511,7 @@ class DocumenteerConfig:
         html_theme_options: MutableMapping[str, Any],
         html_context: MutableMapping[str, Any],
     ) -> None:
-        """Configures the Edit on GitHub functionality, if possible."""
+        """Configure the Edit on GitHub functionality, if possible."""
         if (
             self.conf.sphinx
             and self.conf.sphinx.theme.show_github_edit_link is False
@@ -540,23 +530,23 @@ class DocumenteerConfig:
             # first part is "/"
             github_owner = path_parts[1]
             github_repo = path_parts[2].split(".")[0]  # drop .git if present
-        except IndexError:
+        except IndexError as e:
             raise ConfigError(
                 f"Could not parse GitHub repo URL: {self.github_url}"
-            )
+            ) from e
 
         repo = GitRepository(Path.cwd())
         try:
             # the current working directory for sphinx config is always
             # the same as the directory containing the conf.py file.
             doc_dir = str(Path.cwd().relative_to(repo.working_tree_dir))
-        except ValueError:
+        except ValueError as e:
             raise ConfigError(
                 "Cannot determine the path of the documentation directory "
                 "relative to the Git repository root. Set "
                 "sphinx.show_github_edit_link to false if this is not a "
                 "git repository."
-            )
+            ) from e
 
         html_theme_options["use_edit_page_button"] = True
         html_context["github_user"] = github_owner

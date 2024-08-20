@@ -65,18 +65,22 @@ class TechnoteMigrationService:
         """Create a technote.toml file."""
         try:
             github_url = original_metadata["github_url"]
-        except KeyError:
-            raise ValueError("metadata.yaml does not contain github_url")
+        except KeyError as e:
+            raise ValueError(
+                "metadata.yaml does not contain github_url"
+            ) from e
 
         try:
             number = original_metadata["serial_number"]
-        except KeyError:
-            raise ValueError("metadata.yaml does not contain serial_number")
+        except KeyError as e:
+            raise ValueError(
+                "metadata.yaml does not contain serial_number"
+            ) from e
 
         try:
             series = original_metadata["series"]
-        except KeyError:
-            raise ValueError("metadata.yaml does not contain series")
+        except KeyError as e:
+            raise ValueError("metadata.yaml does not contain series") from e
 
         toml_content = (
             "[technote]\n"
@@ -102,16 +106,18 @@ class TechnoteMigrationService:
         # Add title
         try:
             title = original_metadata["doc_title"]
-        except KeyError:
-            raise ValueError("metadata.yaml does not contain doc_title")
+        except KeyError as e:
+            raise ValueError("metadata.yaml does not contain doc_title") from e
         underlines = "#" * len(title)
         rst_title = f"{underlines}\n{title}\n{underlines}\n\n"
 
         # Add abstract
         try:
             abstract = original_metadata["description"]
-        except KeyError:
-            raise ValueError("metadata.yaml does not contain a description")
+        except KeyError as e:
+            raise ValueError(
+                "metadata.yaml does not contain a description"
+            ) from e
         rst_abstract = f".. abstract::\n\n   {abstract}\n\n"
 
         # Filter out lines of content with old formatting concerns
@@ -123,10 +129,11 @@ class TechnoteMigrationService:
             r"\.\. sectnum::",
             r"^   :style: lsst_aa",
         ]
-        new_lines: list[str] = []
-        for line in lines:
-            if not any([re.match(p, line) for p in drop_lines]):
-                new_lines.append(line)
+        new_lines: list[str] = [
+            line
+            for line in lines
+            if not any(re.match(p, line) for p in drop_lines)
+        ]
 
         # Replace lines related to the bibliography
         replacements = [

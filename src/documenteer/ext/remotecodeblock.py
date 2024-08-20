@@ -2,7 +2,11 @@
 supports getting content over https.
 """
 
+from __future__ import annotations
+
 __all__ = ["setup"]
+
+from typing import ClassVar
 
 from docutils import nodes
 from docutils.parsers.rst import directives
@@ -33,7 +37,7 @@ class RemoteCodeBlock(SphinxDirective):
     required_arguments = 1
     optional_arguments = 0
     final_argument_whitespace = True
-    option_spec = {
+    option_spec: ClassVar = {
         "dedent": int,
         "linenos": directives.flag,
         "lineno-start": int,
@@ -91,8 +95,9 @@ class RemoteCodeBlock(SphinxDirective):
                 hl_lines = parselinenos(self.options["emphasize-lines"], lines)
                 if any(i >= lines for i in hl_lines):
                     logger.warning(
-                        "line number spec is out of range(1-%d): %r"
-                        % (lines, self.options["emphasize-lines"]),
+                        "line number spec is out of range(1-%d): %r",
+                        lines,
+                        self.options["emphasize-lines"],
                         location=location,
                     )
                 extra_args["hl_lines"] = [x + 1 for x in hl_lines if x < lines]
@@ -108,11 +113,10 @@ class RemoteCodeBlock(SphinxDirective):
             # and numref.  when options['name'] is provided, it should be
             # primary ID.
             self.add_name(retnode)
-
-            return [retnode]
-
         except Exception as exc:
             return [document.reporter.warning(str(exc), line=self.lineno)]
+        else:
+            return [retnode]
 
 
 class RemoteCodeBlockReader(LiteralIncludeReader):
@@ -134,6 +138,7 @@ class RemoteCodeBlockReader(LiteralIncludeReader):
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:
+    """Set up the ``remote-code-block`` directive."""
     app.add_directive("remote-code-block", RemoteCodeBlock)
 
     return {

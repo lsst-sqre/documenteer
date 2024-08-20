@@ -104,6 +104,7 @@ build-backend = 'setuptools.build_meta'
 [tool.setuptools_scm]
 
 [tool.black]
+# Black configuration is maintained for blacken-docs
 line-length = 79
 target-version = ['py311']
 exclude = '''
@@ -121,12 +122,6 @@ exclude = '''
 '''
 # Use single-quoted strings so TOML treats the string like a Python r-string
 # Multi-line strings are implicitly treated by black as regular expressions
-
-[tool.isort]
-profile = "black"
-line_length = 79
-known_first_party = "documenteer"
-skip = ["docs/conf.py"]
 
 [tool.coverage.run]
 parallel = true
@@ -168,6 +163,61 @@ warn_redundant_casts = true
 warn_unreachable = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+
+[tool.ruff]
+extend = "ruff-shared.toml"
+
+[tool.ruff.lint]
+# Reference for settings: https://beta.ruff.rs/docs/settings/
+# Reference for rules: https://beta.ruff.rs/docs/rules/
+exclude = ["docs/**", "tests/roots/**", "demo/**"]
+extend-ignore = [
+   "FIX001", # allow FIXMEs
+   "TD001",  # relax formatting for TODOs
+   "TD002",  # don't require authors for TODOs
+   "TD004",  # don't require colons for TODOs
+]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"src/documenteer/services/technotemigration.py" = [
+    "T201",    # This script can use print
+]
+"tests/**" = [
+    "D103",    # tests don't need docstrings
+    "PLR0915", # tests are allowed to be long, sometimes that's convenient
+    "PT012",   # way too aggressive about limiting pytest.raises blocks
+    "S101",    # tests should use assert
+    "SLF001",  # tests are allowed to access private members
+    "T201",    # tests can print
+    # Temp rules for initial migration
+    "PGH003",  # relax having blanket type ignores in tests
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "PT006",
+    "PT021",
+]
+"tests/roots/**" = [
+    "INP001",  # These aren't importable packages
+]
+"src/documenteer/storage/localtemplates/**" = [
+    "S701",
+    "INP001",
+    "D100"
+]
+"src/documenteer/cli.py" = [
+    "T201",  # CLI scripts can print
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["documenteer", "tests"]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = [
+    "pydantic.root_validator",  # for pydantic v1
+    "pydantic.validator",  # for pydantic v1
+]
 
 [tool.scriv]
 categories = [

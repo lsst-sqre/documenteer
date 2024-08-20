@@ -25,8 +25,10 @@ class TechnoteAuthorService:
         """Add an author to the technote.toml file."""
         try:
             author = self.author_db.get_author(author_id)
-        except KeyError:
-            raise ValueError(f"Author {author_id} not found in authordb.yaml")
+        except KeyError as e:
+            raise ValueError(
+                f"Author {author_id} not found in authordb.yaml"
+            ) from e
 
         self.toml_file.upsert_author(author)
 
@@ -40,10 +42,10 @@ class TechnoteAuthorService:
             try:
                 author = self.author_db.get_author(author_id)
                 updated_authors.append(author)
-            except KeyError:
+            except KeyError as e:
                 raise ValueError(
                     f"Author {author_id} not found in authordb.yaml"
-                )
+                ) from e
             self.toml_file.upsert_author(author)
 
         return updated_authors

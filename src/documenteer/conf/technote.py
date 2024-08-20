@@ -1,8 +1,9 @@
 """Sphinx configuration for Rubin technotes."""
 
+from contextlib import suppress
 from pathlib import Path
 
-from technote.sphinxconf import *  # noqa: F401 F403
+from technote.sphinxconf import *  # noqa: F403
 
 from documenteer.conf import (
     extend_excludes_for_non_index_source,
@@ -11,19 +12,15 @@ from documenteer.conf import (
     get_template_dir,
 )
 
-try:
+with suppress(ValueError):
     # Remove the sphinxcontrib-bibtex extension so that we can add it back
     # in the proper order relative to documenteer.ext.githubbibcache.
     extensions.remove("sphinxcontrib.bibtex")  # noqa: F405
-except ValueError:
-    pass
 
-try:
+with suppress(ValueError):
     # Remove myst-parser if added by technote.sphinxconf so we can
     # add myst-nb.
     extensions.remove("myst_parser")  # noqa: F405
-except ValueError:
-    pass
 
 # Add the GitHub bibfile cache extension before sphinxcontrib-bibtex so
 # that it can add bibfiles to the sphinxcontrib-bibtex configuration.
@@ -97,11 +94,8 @@ documenteer_bibfile_github_repos = [
     }
 ]
 # Set up bibtex_bibfiles
-bibtex_bibfiles = []
-
 # Automatically load local bibfiles in the root directory.
-for p in Path.cwd().glob("*.bib"):
-    bibtex_bibfiles.append(str(p))
+bibtex_bibfiles = [str(p) for p in Path.cwd().glob("*.bib")]
 
 bibtex_default_style = "lsst_aa"
 bibtex_reference_style = "author_year"
