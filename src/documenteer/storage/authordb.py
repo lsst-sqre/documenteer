@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 import requests
 import yaml
 from pydantic import BaseModel, Field, RootModel
 
 from .latex import Latex
-
-# latex = "... LaTeX code ..."
-# text = LatexNodes2Text().latex_to_text(latex)
 
 
 class AuthorDbAuthor(BaseModel):
@@ -33,7 +29,7 @@ class AuthorDbAuthor(BaseModel):
 class AuthorDbAuthors(RootModel):
     """Model for the authors mapping in authordb.yaml file."""
 
-    root: Dict[str, AuthorDbAuthor]
+    root: dict[str, AuthorDbAuthor]
 
     def __getitem__(self, author_id: str) -> AuthorDbAuthor:
         """Get an author entry by ID."""
@@ -158,14 +154,13 @@ class AuthorDb:
             "https://raw.githubusercontent.com/lsst/lsst-texmf"
             "/main/etc/authordb.yaml"
         )
-        r = requests.get(url)
+        r = requests.get(url, timeout=10.0)
         r.raise_for_status()
         yaml_data = r.text
         return cls.from_yaml(yaml_data)
 
     def get_author(self, author_id: str) -> AuthorInfo:
         """Get an author entry by ID."""
-        # return self._data.authors[author_id]
         db_author = self._data.authors[author_id]
         db_affiliations = {
             k: self._data.affiliations[k] for k in db_author.affil

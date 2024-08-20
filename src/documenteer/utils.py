@@ -1,18 +1,16 @@
-"""Utilities used internally be Documenteer.
-"""
+"""Utilities used internally be Documenteer."""
 
-__all__ = "working_directory"
+__all__ = ["working_directory"]
 
 import contextlib
 import os
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator, Union
 
 
 @contextlib.contextmanager
-def working_directory(path: Union[Path, str]) -> Generator:
-    """A context manager that temporarily changes the current working
-    directory.
+def working_directory(path: Path | str) -> Generator:
+    """Temporarily change the current working directory in context.
 
     Parameters
     ----------
@@ -24,16 +22,16 @@ def working_directory(path: Union[Path, str]) -> Generator:
     --------
     >>> from pathlib import Path
     >>> import os
-    >>> p = Path('mydir')
+    >>> p = Path("mydir")
     >>> os.makedirs(p)
-    >>> filepath = p / 'myfile.txt'
-    >>> filepath.write_text('hello')
+    >>> filepath = p / "myfile.txt"
+    >>> filepath.write_text("hello")
     >>> with working_directory(p):
-    ...     print(Path('myfile.txt').read_text())
+    ...     print(Path("myfile.txt").read_text())
     hello
     """
-    original_cwd = os.getcwd()
-    os.chdir(path)
+    original_cwd = Path.cwd()
+    os.chdir(Path(path))
     try:
         yield
     finally:

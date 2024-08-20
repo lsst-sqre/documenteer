@@ -11,10 +11,10 @@ from unittest.mock import Mock
 import pytest
 from sphinx.application import Sphinx
 
-import documenteer.ext.mockcoderefs as mockcoderefs
+from documenteer.ext import mockcoderefs
 
 
-@pytest.fixture()
+@pytest.fixture
 def app(request: Any) -> Sphinx:
     src = mkdtemp()
     doctree = mkdtemp()
@@ -46,7 +46,7 @@ def app(request: Any) -> Sphinx:
     return app
 
 
-@pytest.fixture()
+@pytest.fixture
 def inliner(app: Sphinx) -> Mock:
     return Mock(document=Mock(settings=Mock(env=Mock(app=app))))
 

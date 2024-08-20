@@ -70,7 +70,6 @@ def help(ctx: click.Context, topic: str | None) -> None:
 @main.group()
 def technote() -> None:
     """Manage Rubin technotes."""
-    pass
 
 
 @technote.command(name="add-author")
@@ -163,7 +162,7 @@ def technote_sync_authors(technote_toml: str) -> None:
     help="Delete deprecated files without prompting",
 )
 def technote_migrate(
-    author_ids: list[str], root_dir: str, auto_delete: bool
+    author_ids: list[str], root_dir: str, *, auto_delete: bool
 ) -> None:
     """Migrate a technote from a metadata.yaml file.
 

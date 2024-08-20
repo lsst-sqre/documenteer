@@ -1,5 +1,5 @@
 # type: ignore
-"""Tests for documenteer.ext.jira
+"""Tests for documenteer.ext.jira.
 
 Based on sphinx-issue (Steven Loria). See :file:`/licenses/sphinx-issue.txt`
 for licensing information.
@@ -11,18 +11,18 @@ from tempfile import mkdtemp
 import pytest
 from sphinx.application import Sphinx
 
-import documenteer.ext.jira as jira
+from documenteer.ext import jira
 
 try:
     from unittest.mock import Mock
 except ImportError:
-    from mock import Mock
+    from unittest.mock import Mock
 
 
 URI = "https://rubinobs.atlassian.net/browse/{ticket}"
 
 
-@pytest.fixture()
+@pytest.fixture
 def app(request):
     src = mkdtemp()
     doctree = mkdtemp()
@@ -55,7 +55,7 @@ def app(request):
     return app
 
 
-@pytest.fixture()
+@pytest.fixture
 def inliner(app):
     return Mock(document=Mock(settings=Mock(env=Mock(app=app))))
 

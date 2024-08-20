@@ -1,9 +1,8 @@
-"""Utilities for working with requests.
-"""
+"""Utilities for working with requests."""
 
 __all__ = ("requests_retry_session",)
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import requests
 from requests.adapters import HTTPAdapter

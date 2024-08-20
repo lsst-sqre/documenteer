@@ -21,12 +21,13 @@ def _make_ticket_node(
     """Construct a reference node for a JIRA ticket."""
     options = options or {}
     ref = config.jira_uri_template.format(ticket=ticket_id)
-    link = nodes.reference(text=ticket_id, refuri=ref, **options)
-    return link
+    return nodes.reference(text=ticket_id, refuri=ref, **options)
 
 
 def _comma_separator(i: int, length: int) -> str | None:
-    """A separator for an entirely comma-separated list given current item
+    """Create a comma separator for a list of items at a given index.
+
+    A separator for an entirely comma-separated list given current item
     index `i` and total list length `length`. `None` if there should be
     no separator (last item).
     """
@@ -39,8 +40,11 @@ def _comma_separator(i: int, length: int) -> str | None:
 
 
 def _oxford_comma_separator(i: int, length: int) -> str | None:
-    """Make a separator for a prose-like list with `,` between items except
-    for `, and` after the second to last item.
+    """Create a separator for a list of items at the given index when
+    using the Oxford comma.
+
+    Returns ``, `` between items except for ``, and `` after the second to
+    last item.
     """
     if length == 1:
         return None
@@ -62,6 +66,7 @@ def jira_role(
     inliner: Inliner,
     options: dict | None = None,
     content: list | None = None,
+    *,
     oxford_comma: bool = True,
 ) -> tuple[list[nodes.Node], list[nodes.system_message]]:
     """Sphinx role for referencing a JIRA ticket.
@@ -79,10 +84,7 @@ def jira_role(
     ticket_ids = [each.strip() for each in utils.unescape(text).split(",")]
     n_tickets = len(ticket_ids)
 
-    if oxford_comma:
-        sep_factory = _oxford_comma_separator
-    else:
-        sep_factory = _comma_separator
+    sep_factory = _oxford_comma_separator if oxford_comma else _comma_separator
 
     node_list: list[nodes.Node] = []
     for i, ticket_id in enumerate(ticket_ids):
@@ -162,6 +164,7 @@ def jira_parens_role(
 
 
 def setup(app: Sphinx) -> None:
+    """Set up the Jira ticket reference roles."""
     app.add_config_value(
         "jira_uri_template",
         default="https://rubinobs.atlassian.net/browse/{ticket}",
