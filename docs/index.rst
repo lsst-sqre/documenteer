@@ -42,14 +42,6 @@ Installation
 
          pip install "documenteer[technote]"
 
-      For :doc:`LSST Science Pipelines projects and other EUPS stacks </guides/pipelines/index>`:
-
-      .. code-block:: sh
-
-         pip install "documenteer[pipelines]"
-
-      See :doc:`/guides/pipelines/install` for more information.
-
    .. tab-item:: conda
 
       Documenteer is available from `conda-forge`_ for Conda_ users.
@@ -74,17 +66,11 @@ Installation
 
          conda-install lsst-documenteer-technote
 
-      To install Documenteer for LSST Stack projects (such as https://pipelines.lsst.io and EUPS packages):
-
-      .. code-block:: sh
-
-         conda-install lsst-documenteer-pipelines
-
 Project guides
 ==============
 
 Documenteer provides centralized Sphinx configuration and support for Rubin Observatory documentation projects.
-This section describes how to use Documenteer for specific types of projects, from single-page technical notes to user guides, to LSST Science Pipelines package documentation.
+This section describes how to use Documenteer for specific types of projects, from single-page technical notes to user guides.
 
 .. toctree::
    :maxdepth: 2

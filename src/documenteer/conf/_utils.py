@@ -61,8 +61,8 @@ def extend_static_paths_with_asset_extension(
     files of a given extension in Documenteer's assets directory.
     """
     asset_dir = _get_assert_dir()
-    for p in asset_dir.glob(f"*.{extension}"):
-        html_static_path.append(str(p))
+    new_paths = [str(p) for p in asset_dir.glob(f"*.{extension}")]
+    html_static_path.extend(new_paths)
 
 
 def get_template_dir(root: str) -> str:
@@ -139,11 +139,8 @@ def extend_excludes_for_non_index_source(
         current working directory is used. This should be equivalent to the
         directory where the Sphinx configuration is located.
     """
-    if working_dir is None:
-        cwd = Path.cwd()
-    else:
-        cwd = working_dir
+    cwd = Path.cwd() if working_dir is None else working_dir
 
     for p in cwd.glob(f"**/*.{extension}"):
         if p.name != f"index.{extension}":
-            exclude_patterns.append(str(p.relative_to(cwd)))
+            exclude_patterns.append(str(p.relative_to(cwd)))  # noqa: PERF401

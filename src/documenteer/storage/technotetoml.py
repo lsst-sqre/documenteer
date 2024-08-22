@@ -56,14 +56,14 @@ class TechnoteTomlFile:
     @property
     def technote_table(self) -> tomlkit.items.Table:
         """The technote table."""
-        if "technote" not in self._doc.keys():
+        if "technote" not in self._doc:
             self._doc["technote"] = tomlkit.table()
         return cast(tomlkit.items.Table, self._doc["technote"])
 
     @property
     def authors_aot(self) -> tomlkit.items.AoT:
         """The authors array of tables."""
-        if "authors" not in self.technote_table.keys():
+        if "authors" not in self.technote_table:
             self.technote_table["authors"] = tomlkit.aot()
         return cast(tomlkit.items.AoT, self.technote_table["authors"])
 
@@ -73,7 +73,7 @@ class TechnoteTomlFile:
 
         Authors without an ``internal_id`` are not included.
         """
-        if "authors" not in self.technote_table.keys():
+        if "authors" not in self.technote_table:
             return []
         return [
             a["internal_id"] for a in self.authors_aot if "internal_id" in a
@@ -83,7 +83,6 @@ class TechnoteTomlFile:
         """Append an author to the technote.toml file, or update in place."""
         # Check if the author already exists
         author_exists = False
-        # if "authors" in self._doc["technote"].keys():
 
         for existing_author in self.authors_aot:
             if (
@@ -105,9 +104,7 @@ class TechnoteTomlFile:
         self, table: tomlkit.items.Table, author: AuthorInfo
     ) -> None:
         """Update a toml author table with the AuthorInfo data."""
-        # TODO properly add the table for the authors's name.
         name_table = tomlkit.inline_table()
-        # name_table = tomlkit.out_of_order_dict()
         name_table["given"] = author.given_name
         name_table["family"] = author.family_name
         table["name"] = name_table

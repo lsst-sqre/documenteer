@@ -1,21 +1,21 @@
+# type: ignore
 """Tests for documenteer.ext.mockcoderefs."""
+
+from __future__ import annotations
 
 from shutil import rmtree
 from tempfile import mkdtemp
+from typing import Any
+from unittest.mock import Mock
 
 import pytest
 from sphinx.application import Sphinx
 
-import documenteer.ext.mockcoderefs as mockcoderefs
-
-try:
-    from unittest.mock import Mock
-except ImportError:
-    from mock import Mock
+from documenteer.ext import mockcoderefs
 
 
-@pytest.fixture()
-def app(request):
+@pytest.fixture
+def app(request: Any) -> Sphinx:
     src = mkdtemp()
     doctree = mkdtemp()
     confdir = mkdtemp()
@@ -46,8 +46,8 @@ def app(request):
     return app
 
 
-@pytest.fixture()
-def inliner(app):
+@pytest.fixture
+def inliner(app: Sphinx) -> Mock:
     return Mock(document=Mock(settings=Mock(env=Mock(app=app))))
 
 
@@ -59,7 +59,9 @@ def inliner(app):
         (("lmod", "~lsst"), "lsst"),
     ],
 )
-def test_mock_code_ref_role(inliner, test_input, expected):
+def test_mock_code_ref_role(
+    inliner: Mock, test_input: str, expected: str
+) -> None:
     role_name, role_content = test_input
     result = mockcoderefs.mock_code_ref_role(
         name=role_name,

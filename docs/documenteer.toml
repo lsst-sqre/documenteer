@@ -11,6 +11,7 @@ package = "documenteer"
 extensions = [
   "sphinx_click.ext",
   "sphinxcontrib.autoprogram",
+  "sphinxcontrib.autodoc_pydantic"
 ]
 disable_primary_sidebars = ["index", "changelog"]
 rst_epilog_file = "_rst_epilog.rst"
@@ -25,7 +26,8 @@ nitpick_ignore_regex = [
 ]
 python_api_dir = "dev/api/contents"
 exclude = [
-  "technotes/_templates/*"
+  "technotes/_templates/*",
+  "_templates/**"
 ]
 
 [sphinx.theme]
@@ -46,10 +48,10 @@ ignore = [
 ]
 
 [sphinx.redirects]
-"pipelines/build-overview.rst" = "guides/pipelines/build-overview.rst"
-"pipelines/configuration.rst" = "guides/pipelines/configuration.rst"
-"pipelines/cpp-api-linking.rst" = "guides/pipelines/cpp-api-linking.rst"
-"pipelines/index.rst" = "guides/pipelines/index.rst"
-"pipelines/install.rst" = "guides/pipelines/install.rst"
-"pipelines/package-docs-cli.rst" = "guides/pipelines/package-docs-cli.rst"
-"pipelines/stack-docs-cli.rst" = "guides/pipelines/stack-docs-cli.rst"
+"pipelines/build-overview.rst" = "guides/index.rst"
+"pipelines/configuration.rst" = "guides/index.rst"
+"pipelines/cpp-api-linking.rst" = "guides/index.rst"
+"pipelines/index.rst" = "guides/index.rst"
+"pipelines/install.rst" = "guides/index.rst"
+"pipelines/package-docs-cli.rst" = "guides/index.rst"
+"pipelines/stack-docs-cli.rst" = "guides/index.rst"

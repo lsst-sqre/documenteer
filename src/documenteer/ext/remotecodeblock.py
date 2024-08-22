@@ -2,13 +2,20 @@
 supports getting content over https.
 """
 
+from __future__ import annotations
+
 __all__ = ["setup"]
 
+from typing import ClassVar
+
 from docutils import nodes
-from docutils.parsers.rst import Directive, directives
+from docutils.parsers.rst import directives
+from sphinx.application import Sphinx
 from sphinx.directives.code import LiteralIncludeReader, container_wrapper
 from sphinx.util import logging, parselinenos
+from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
+from sphinx.util.typing import ExtensionMetadata
 
 from ..requestsutils import requests_retry_session
 from ..version import __version__
@@ -16,7 +23,7 @@ from ..version import __version__
 logger = logging.getLogger(__name__)
 
 
-class RemoteCodeBlock(Directive):
+class RemoteCodeBlock(SphinxDirective):
     """Directive that works like ``literalinclude`` to show a code block, but
     supports getting content over https.
 
@@ -30,7 +37,7 @@ class RemoteCodeBlock(Directive):
     required_arguments = 1
     optional_arguments = 0
     final_argument_whitespace = True
-    option_spec = {
+    option_spec: ClassVar = {
         "dedent": int,
         "linenos": directives.flag,
         "lineno-start": int,
@@ -53,23 +60,7 @@ class RemoteCodeBlock(Directive):
         "diff": directives.unchanged_required,
     }
 
-    @property
-    def env(self):
-        """Reference to the ``.BuildEnvironment`` object.
-
-        FIXME: this can be removed with Sphinx 1.8.0.
-        """
-        return self.state.document.settings.env
-
-    @property
-    def config(self):
-        """Reference to the `Config`` object.
-
-        FIXME: this can be removed with Sphinx 1.8.0.
-        """
-        return self.env.config
-
-    def run(self):
+    def run(self) -> list[nodes.Node]:
         """Run the ``remote-code-block`` directive."""
         document = self.state.document
         if not document.settings.file_insertion_enabled:
@@ -104,8 +95,9 @@ class RemoteCodeBlock(Directive):
                 hl_lines = parselinenos(self.options["emphasize-lines"], lines)
                 if any(i >= lines for i in hl_lines):
                     logger.warning(
-                        "line number spec is out of range(1-%d): %r"
-                        % (lines, self.options["emphasize-lines"]),
+                        "line number spec is out of range(1-%d): %r",
+                        lines,
+                        self.options["emphasize-lines"],
                         location=location,
                     )
                 extra_args["hl_lines"] = [x + 1 for x in hl_lines if x < lines]
@@ -113,23 +105,26 @@ class RemoteCodeBlock(Directive):
 
             if "caption" in self.options:
                 caption = self.options["caption"] or self.arguments[0]
-                retnode = container_wrapper(self, retnode, caption)
+                captioned_container = container_wrapper(self, retnode, caption)
+                self.add_name(captioned_container)
+                return [captioned_container]
 
             # retnode will be note_implicit_target that is linked from caption
             # and numref.  when options['name'] is provided, it should be
             # primary ID.
             self.add_name(retnode)
-
-            return [retnode]
-
         except Exception as exc:
             return [document.reporter.warning(str(exc), line=self.lineno)]
+        else:
+            return [retnode]
 
 
 class RemoteCodeBlockReader(LiteralIncludeReader):
     """Reader for content used by `RemoteCodeBlock`."""
 
-    def read_file(self, url, location=None):
+    def read_file(
+        self, url: str, location: tuple[str, int] | None = None
+    ) -> list[str]:
         """Read content from the web by overriding
         `LiteralIncludeReader.read_file`.
         """
@@ -142,7 +137,8 @@ class RemoteCodeBlockReader(LiteralIncludeReader):
         return text.splitlines(True)
 
 
-def setup(app):
+def setup(app: Sphinx) -> ExtensionMetadata:
+    """Set up the ``remote-code-block`` directive."""
     app.add_directive("remote-code-block", RemoteCodeBlock)
 
     return {

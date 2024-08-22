@@ -1,3 +1,4 @@
+# type: ignore
 """Tests for `documenteer.ext.lsstdocushare`."""
 
 from shutil import rmtree
@@ -6,15 +7,15 @@ from tempfile import mkdtemp
 import pytest
 from sphinx.application import Sphinx
 
-import documenteer.ext.lsstdocushare as lsstdocushare
+from documenteer.ext import lsstdocushare
 
 try:
     from unittest.mock import Mock
 except ImportError:
-    from mock import Mock
+    from unittest.mock import Mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def app(request):
     src = mkdtemp()
     doctree = mkdtemp()
@@ -46,7 +47,7 @@ def app(request):
     return app
 
 
-@pytest.fixture()
+@pytest.fixture
 def inliner(app):
     return Mock(document=Mock(settings=Mock(env=Mock(app=app))))
 
@@ -107,7 +108,8 @@ def test_shortlink(inliner, test_input, expected):
 )
 def test_titlecase_shortlink(inliner, test_input, expected):
     """Test that the link names and URL are correct for
-    roles made with `lsst_doc_shortlink_titlecase_display_role`."""
+    roles made with `lsst_doc_shortlink_titlecase_display_role`.
+    """
     name, content = test_input
     result = lsstdocushare.lsst_doc_shortlink_titlecase_display_role(
         name=name, rawtext=content, text=content, inliner=inliner, lineno=None

@@ -1,7 +1,8 @@
-"""Utilities for working with requests.
-"""
+"""Utilities for working with requests."""
 
 __all__ = ("requests_retry_session",)
+
+from collections.abc import Sequence
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -9,11 +10,11 @@ from urllib3.util import Retry
 
 
 def requests_retry_session(
-    retries=3,
-    backoff_factor=0.3,
-    status_forcelist=(500, 502, 504),
-    session=None,
-):
+    retries: int = 3,
+    backoff_factor: float = 0.3,
+    status_forcelist: Sequence[int] = (500, 502, 504),
+    session: requests.Session | None = None,
+) -> requests.Session:
     """Create a requests session that handles errors by retrying.
 
     Parameters

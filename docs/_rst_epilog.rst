@@ -27,7 +27,6 @@
 .. _TOML: https://toml.io/en/
 .. _`SQR-006`: https://sqr-006.lsst.io
 .. _`lsstDoxygen`: https://github.com/lsst/lsstDoxygen
-.. _`package-docs`: https://documenteer.lsst.io/pipelines/package-docs-cli.html
 .. _`pex_config`: https://github.com/lsst/pex_config
 .. _`pipe_base`: https://github.com/lsst/pipe_base
 .. _`pipe_supertask`: https://github.com/lsst/pipe_supertask
@@ -70,10 +69,6 @@
 
 .. |documenteer.toml| replace:: :doc:`documenteer.toml </guides/toml-reference>`
 .. |documenteer.conf.guide| replace:: :doc:`documenteer.conf.guide </guides/configuration-preset>`
-.. |package-docs| replace:: :doc:`package-docs </guides/pipelines/package-docs-cli>`
-.. |stack-docs| replace:: :doc:`stack-docs </guides/pipelines/stack-docs-cli>`
-.. |stack-docs-build| replace:: :doc:`stack-docs build </guides/pipelines/stack-docs-cli>`
-.. |stack-docs-clean| replace:: :doc:`stack-docs clean </guides/pipelines/stack-docs-cli>`
 
 .. links to sphinx directives
 

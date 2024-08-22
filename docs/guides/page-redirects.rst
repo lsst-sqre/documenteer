@@ -23,7 +23,7 @@ These paths are relative to the documentation project's root directory (where :f
 The table accepts an arbitrary number of redirects:
 
 .. code-block:: toml
-   :captin: documenteer.toml
+   :caption: documenteer.toml
 
    [sphinx.redirects]
    "old-page.rst" = "some-dir/new-page.rst"

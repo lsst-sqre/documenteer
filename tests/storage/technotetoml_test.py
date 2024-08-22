@@ -36,7 +36,6 @@ def test_append_author(author_db_yaml: str) -> None:
     print(technote.doc)
 
     authors_aot = technote.authors_aot
-    # a = cast(tomlkit.items.Table, authors_aot[0])
     a = authors_aot[0]
     name = cast(tomlkit.items.Table, a["name"])
     assert cast(str, name["given"]) == "Jonathan"

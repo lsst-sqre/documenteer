@@ -78,7 +78,7 @@ class BibRepo(BaseModel):
         url = self._get_raw_url(bib_file)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.unlink(missing_ok=True)
-        r = requests.get(url, allow_redirects=True)
+        r = requests.get(url, allow_redirects=True, timeout=10)
         r.raise_for_status()
         content = r.text
         cache_path.write_text(content)

@@ -7,18 +7,20 @@ readme = "README.md"
 keywords = ["rubin", "lsst"]
 # https://pypi.org/classifiers/
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Framework :: Sphinx :: Extension",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
-    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Documentation",
     "Topic :: Documentation :: Sphinx",
-    "Framework :: Sphinx :: Extension",
-    "Environment :: Console",
-    "Natural Language :: English",
-    "Operating System :: POSIX",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.11"
 dynamic = ["version"]
@@ -61,6 +63,7 @@ dev = [
 ]
 guide = [
     # Theme and extensions for Rubin user guide projects
+    "autodoc_pydantic",
     "sphinx_design",
     "pydata-sphinx-theme>=0.10.0,<0.13.0",
     "sphinx-autodoc-typehints",
@@ -77,29 +80,6 @@ guide = [
     "sphinxcontrib-jquery",
     "sphinxext-rediraffe",
     "sphinxcontrib-youtube"
-]
-pipelines = [
-    # Theme and extensions for pipelines.lsst.io
-    # Include all dependencies fof guide, and add additional dependencies
-    # specifically for pipelines.lsst.io
-    "sphinx_design",
-    "pydata-sphinx-theme>=0.10.0,<0.13.0",
-    "sphinx-autodoc-typehints",
-    "sphinx-automodapi",
-    "sphinx-copybutton",
-    "sphinx-prompt",
-    "sphinx-jinja>=2", # namespace changed in 2.0
-    "myst-parser",
-    "markdown-it-py[linkify]",
-    "sphinxcontrib-mermaid",
-    "sphinxext-opengraph",
-    "sphinxcontrib-redoc",
-    "sphinxcontrib-jquery",
-
-    # Additional extensions for Pipelines
-    "sphinxcontrib-autoprogram",
-    "sphinxcontrib-doxylink",
-    "sphinx-click",
 ]
 technote = [
     # Theme and extensions for technotes
@@ -118,8 +98,6 @@ Source = "https://github.com/lsst-sqre/documenteer"
 
 [project.scripts]
 documenteer = "documenteer.cli:main"
-stack-docs = "documenteer.stackdocs.stackcli:main"
-package-docs = "documenteer.stackdocs.packagecli:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
@@ -128,6 +106,7 @@ build-backend = 'setuptools.build_meta'
 [tool.setuptools_scm]
 
 [tool.black]
+# Black configuration is maintained for blacken-docs
 line-length = 79
 target-version = ['py311']
 exclude = '''
@@ -145,12 +124,6 @@ exclude = '''
 '''
 # Use single-quoted strings so TOML treats the string like a Python r-string
 # Multi-line strings are implicitly treated by black as regular expressions
-
-[tool.isort]
-profile = "black"
-line_length = 79
-known_first_party = "documenteer"
-skip = ["docs/conf.py"]
 
 [tool.coverage.run]
 parallel = true
@@ -181,16 +154,72 @@ norecursedirs = "node_modules"
 python_files = ["tests/*.py", "tests/*/*.py"]
 
 [tool.mypy]
-# provisional config; disallow_untyped_defs once fully typed
-disallow_untyped_defs = false
+disallow_untyped_defs = true
 disallow_incomplete_defs = true
 ignore_missing_imports = true
+local_partial_types = true
+no_implicit_reexport = true
 show_error_codes = true
 strict_equality = true
 warn_redundant_casts = true
 warn_unreachable = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+
+[tool.ruff]
+extend = "ruff-shared.toml"
+
+[tool.ruff.lint]
+# Reference for settings: https://beta.ruff.rs/docs/settings/
+# Reference for rules: https://beta.ruff.rs/docs/rules/
+exclude = ["docs/**", "tests/roots/**", "demo/**"]
+extend-ignore = [
+   "FIX001", # allow FIXMEs
+   "TD001",  # relax formatting for TODOs
+   "TD002",  # don't require authors for TODOs
+   "TD004",  # don't require colons for TODOs
+]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"src/documenteer/services/technotemigration.py" = [
+    "T201",    # This script can use print
+]
+"tests/**" = [
+    "D103",    # tests don't need docstrings
+    "PLR0915", # tests are allowed to be long, sometimes that's convenient
+    "PT012",   # way too aggressive about limiting pytest.raises blocks
+    "S101",    # tests should use assert
+    "SLF001",  # tests are allowed to access private members
+    "T201",    # tests can print
+    # Temp rules for initial migration
+    "PGH003",  # relax having blanket type ignores in tests
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "PT006",
+    "PT021",
+]
+"tests/roots/**" = [
+    "INP001",  # These aren't importable packages
+]
+"src/documenteer/storage/localtemplates/**" = [
+    "S701",
+    "INP001",
+    "D100"
+]
+"src/documenteer/cli.py" = [
+    "T201",  # CLI scripts can print
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["documenteer", "tests"]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = [
+    "pydantic.root_validator",  # for pydantic v1
+    "pydantic.validator",  # for pydantic v1
+]
 
 [tool.scriv]
 categories = [

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple, Union
-
 import pytest
 from sphinx.errors import ConfigError
 
@@ -124,7 +122,7 @@ def test_append_extensions() -> None:
 def test_append_intersphinx_projects() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
 
-    projects: Dict[str, Tuple[str, Union[str, None]]] = {
+    projects: dict[str, tuple[str, str | None]] = {
         "python": ("https://docs.python.org/3/", None),
     }
     config.extend_intersphinx_mapping(projects)
@@ -153,7 +151,7 @@ def test_append_linkcheck_ignore() -> None:
 def test_disable_primary_sidebars_defaults() -> None:
     """Test sphinx.disable_primary_sidebars defaults where it wasn't set."""
     config = DocumenteerConfig.load(EXAMPLE)
-    html_sidebars: Dict[str, List[str]] = {}
+    html_sidebars: dict[str, list[str]] = {}
     config.disable_primary_sidebars(html_sidebars)
     assert html_sidebars == {"index": []}
 
@@ -161,6 +159,6 @@ def test_disable_primary_sidebars_defaults() -> None:
 def test_disable_primary_sidebars() -> None:
     """Test sphinx.disable_primary_sidebars."""
     config = DocumenteerConfig.load(EXAMPLE_SIDEBARS)
-    html_sidebars: Dict[str, List[str]] = {}
+    html_sidebars: dict[str, list[str]] = {}
     config.disable_primary_sidebars(html_sidebars)
     assert html_sidebars == {"index": [], "changelog": []}

@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
-from typing import Optional, Tuple
 
 __all__ = [
     "get_package_version_str",
@@ -38,9 +37,9 @@ class Semver:
 
     patch: int = 0
 
-    prerelease: Optional[str] = None
+    prerelease: str | None = None
 
-    build: Optional[str] = None
+    build: str | None = None
 
     @classmethod
     def parse(cls, version_string: str) -> Semver:
@@ -50,46 +49,33 @@ class Semver:
             raise ValueError(
                 "Version {version_string} is not a semantic version"
             )
-        semver = cls(
+        return cls(
             major=int(match.group("major")),
             minor=int(match.group("minor")),
             patch=int(match.group("patch")),
             prerelease=match.group("pre"),
             build=match.group("build"),
         )
-        return semver
 
     @property
-    def _version_tuple(self) -> Tuple[int, int, int]:
+    def _version_tuple(self) -> tuple[int, int, int]:
         return (self.major, self.minor, self.patch)
 
     def __gt__(self, other: Semver) -> bool:
         # FIXME this comparison ignore pre-release/build info
-        if self._version_tuple > other._version_tuple:
-            return True
-        else:
-            return False
+        return self._version_tuple > other._version_tuple
 
     def __lt__(self, other: Semver) -> bool:
         # FIXME this comparison ignore pre-release/build info
-        if self._version_tuple < other._version_tuple:
-            return True
-        else:
-            return False
+        return self._version_tuple < other._version_tuple
 
     def __ge__(self, other: Semver) -> bool:
         # FIXME this comparison ignore pre-release/build info
-        if self._version_tuple >= other._version_tuple:
-            return True
-        else:
-            return False
+        return self._version_tuple >= other._version_tuple
 
     def __le__(self, other: Semver) -> bool:
         # FIXME this comparison ignore pre-release/build info
-        if self._version_tuple <= other._version_tuple:
-            return True
-        else:
-            return False
+        return self._version_tuple <= other._version_tuple
 
 
 def get_package_version_semver(package_name: str) -> Semver:
