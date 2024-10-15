@@ -26,7 +26,7 @@ requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
     "docutils>=0.20",  # solves an extra div bug with the bibliography directive
-    "Sphinx>=7,<8.1.0",  # Consistent docutils constraint, mermaid compatibility
+    "Sphinx>=7",  # Consistent docutils constraint
     "PyYAML",
     "GitPython",
     "requests",
@@ -74,7 +74,7 @@ guide = [
     "myst-parser",
     "myst-nb",
     "markdown-it-py[linkify]",
-    "sphinxcontrib-mermaid",
+    "sphinxcontrib-mermaid>=1",
     "sphinxext-opengraph",
     "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
