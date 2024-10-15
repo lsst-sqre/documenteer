@@ -7,7 +7,7 @@ __all__ = ["setup"]
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 from sphinx.directives.code import LiteralIncludeReader, container_wrapper
-from sphinx.util import logging, parselinenos
+from sphinx.util import logging, parselinenos  # type: ignore[attr-defined]
 from sphinx.util.nodes import set_source_info
 
 from ..requestsutils import requests_retry_session
