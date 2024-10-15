@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.4.2'></a>
+## 1.4.2 (2024-10-15)
+
+### Bug fixes
+
+- Bump `sphinxcontrib-mermaid` to >= 1, which fixes an incompatibility with sphinx==1.8.1, and allows us to unpin the version of mermaid JS.
+
 <a id='changelog-1.4.1'></a>
 ## 1.4.1 (2024-10-10)
 
