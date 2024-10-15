@@ -12,7 +12,7 @@ from docutils import nodes
 from docutils.parsers.rst import directives
 from sphinx.application import Sphinx
 from sphinx.directives.code import LiteralIncludeReader, container_wrapper
-from sphinx.util import logging, parselinenos
+from sphinx.util import logging, parselinenos  # type: ignore[attr-defined]
 from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
 from sphinx.util.typing import ExtensionMetadata
