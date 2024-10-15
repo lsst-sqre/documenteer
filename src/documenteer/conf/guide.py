@@ -103,7 +103,6 @@ __all__ = [
     "myst_enable_extensions",
     # MERMAID
     "mermaid_output_format",
-    "mermaid_version",
     # OPENGRAPH
     "ogp_site_url",
     "ogp_site_name",
@@ -397,10 +396,6 @@ myst_enable_extensions = [
 # The raw format renders the diagram client-side, and doesn't require a
 # Mermaid CLI installation
 mermaid_output_format = "raw"
-
-# Temporary workaround for not getting mermaid 10 successfully from unpkg
-# https://github.com/mgaitan/sphinxcontrib-mermaid/issues/110
-mermaid_version = "9.4.0"
 
 # ============================================================================
 # #OPENGRAPH OpenGraph diagram support
