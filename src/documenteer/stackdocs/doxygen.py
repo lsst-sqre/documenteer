@@ -1,5 +1,4 @@
-"""Configuration and execution of Doxygen at the stack level.
-"""
+"""Configuration and execution of Doxygen at the stack level."""
 
 __all__ = [
     "DoxygenConfiguration",
@@ -333,11 +332,7 @@ class DoxygenConfiguration:
                 self._render_path_list(lines, tag_name, value)
             elif tag_field.type == List[str]:
                 self._render_str_list(lines, tag_name, value)
-            elif (
-                tag_field.type == Path
-                or tag_field.type
-                == Optional[Path]  # type: ignore[comparison-overlap]
-            ):
+            elif tag_field.type == Path or tag_field.type == Optional[Path]:
                 self._render_path(lines, tag_name, value)
         return "\n".join(lines) + "\n"
 
