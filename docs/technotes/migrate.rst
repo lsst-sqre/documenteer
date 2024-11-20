@@ -134,7 +134,7 @@ You might also want to run the linter to check links and find common issues:
    make lint
 
 If you have any questions or issues about the build, you should still proceed with committing and creating a pull request (see next step).
-This way you can link to the repository when you reach out for help in `#dm-docs-support`_ on Slack.
+This way you can link to the repository when you reach out for help in `#square-docs-support`_ on Slack.
 
 Step 7. Commit the migration, pull request, and merge
 =====================================================
@@ -145,7 +145,7 @@ GitHub Actions will build the technote and publish a preview version that is lin
 
 If the build works, you can merge the pull request.
 
-If there are build errors, you can reach out to `#dm-docs-support`_ on Slack for help.
+If there are build errors, you can reach out to `#square-docs-support`_ on Slack for help.
 Include the repository URL and ideally a link to the pull request or GitHub Actions workflow run that failed.
 
 .. _technote-migration-detailed:
@@ -214,7 +214,7 @@ For most technotes, the :file:`conf.py` file should be a single line:
    from documenteer.conf.technote import *  # noqa: F401, F403
 
 If your :file:`conf.py` file has additional content, some of that configuration may be migrated to :file:`technote.toml`.
-Reach out to `#dm-docs-support`_ on Slack for advice.
+Reach out to `#square-docs-support`_ on Slack for advice.
 
 index.rst file (updated)
 ------------------------
@@ -416,7 +416,7 @@ The Python dependencies for your technote are listed in a :file:`requirements.tx
 
 .. note::
 
-   If your technote has additional dependencies listed, you can reach out to `#dm-docs-support`_ on Slack if you are unsure whether they are part of the Sphinx build process or separate packages needed for any custom document preprocessing.
+   If your technote has additional dependencies listed, you can reach out to `#square-docs-support`_ on Slack if you are unsure whether they are part of the Sphinx build process or separate packages needed for any custom document preprocessing.
 
 tox.ini file (added)
 --------------------
