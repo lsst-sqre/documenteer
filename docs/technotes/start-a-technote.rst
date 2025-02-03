@@ -15,7 +15,7 @@ If you don't have push access in a whole organization, you can alternatively ask
 Create a technote repository through Slack
 ==========================================
 
-1. In Slack, open a |dmw-sqrbot| and type:
+1. In Slack, open a |dmw-squarebot| and type:
 
 .. code-block:: text
 
