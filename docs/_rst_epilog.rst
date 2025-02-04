@@ -63,7 +63,7 @@
 .. _pipx: https://pipx.pypa.io
 .. _`LSSTC Slack Workspace`: https://lsstc.slack.com
 
-.. |dmw-squarebot| replace:: `direct message with @squarebot <https://rubin-obs.slack.com/archives/D07QDJW6VEY>`__
+.. |dmw-squarebot| replace:: `direct message with @squarebot <https://slack.com/app_redirect?app=A07PWG9UG9M&team=T02SVMGU4>`__
 
 .. Internal links
 
