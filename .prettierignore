@@ -2,6 +2,8 @@ demo/
 .tox
 *.md
 **/*.md
+**/*.yml
+**/*.yaml
 src/documenteer/templates/**/*.html
 src/documenteer/assets/static/styles
 src/documenteer/assets/static/scripts
