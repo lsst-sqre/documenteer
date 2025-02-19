@@ -67,8 +67,8 @@ html[data-theme='dark'] {
 
 :root {
   --pst-font-family-base: 'Source Sans Pro', var(--pst-font-family-base-system);
-  --pst-font-family-heading: 'Source Sans Pro',
-    var(--pst-font-family-base-system);
+  --pst-font-family-heading:
+    'Source Sans Pro', var(--pst-font-family-base-system);
 
   /* Base font size; increased for pydata-sphinx-theme default. */
   font-size: 18px;
