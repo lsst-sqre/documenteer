@@ -44,6 +44,17 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           tox-envs: 'lint'
           use-cache: false
+
+      - name: Report status
+        if: failure()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: "failure"
+          notification_title: "Periodic lint for {repo} failed"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK }}
+
   test:
     runs-on: ubuntu-latest
 
@@ -90,6 +101,16 @@ jobs:
           tox-envs: "typing-sphinx${{ matrix.sphinx-version }},py-test-sphinx${{ matrix.sphinx-version }},demo"
           use-cache: false
 
+      - name: Report status
+        if: failure()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: "failure"
+          notification_title: "Periodic test for {repo} failed"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK }}
+
   docs:
     runs-on: ubuntu-latest
 
@@ -104,6 +125,16 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           tox-envs: "docs,docs-lint"
           use-cache: false
+
+      - name: Report status
+        if: failure()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: "failure"
+          notification_title: "Periodic documentation test for {repo} failed"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK }}
 
   pypi:
     runs-on: ubuntu-latest
@@ -133,3 +164,13 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           upload: false
+
+      - name: Report status
+        if: failure()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: "failure"
+          notification_title: "Periodic packaging test for {repo} failed"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK }}
