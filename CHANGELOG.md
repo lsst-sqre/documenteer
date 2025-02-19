@@ -2,19 +2,26 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.4.3'></a>
+## 1.4.3 (2025-02-19)
+
+### Bug fixes
+
+- Pin Sphinx < 8.2 to avoid a bug/incompatibility with the `sphinxcontrib-bibtex` extension.
+
 <a id='changelog-1.4.2'></a>
 ## 1.4.2 (2024-10-15)
 
 ### Bug fixes
 
-- Bump `sphinxcontrib-mermaid` to >= 1, which fixes an incompatibility with sphinx==1.8.1, and allows us to unpin the version of mermaid JS.
+- Pin `sphinxcontrib-mermaid` to >= 1 to address an incompatibility with Sphinx==8.1.0. Also unpin the version of Mermaid itself.
 
 <a id='changelog-1.4.1'></a>
 ## 1.4.1 (2024-10-10)
 
 ### Bug fixes
 
-- Pin `sphinx` to < 8.1.0. [Sphinx 8.1.0](https://github.com/sphinx-doc/sphinx/compare/v8.0.2...v8.1.0) contains [a commit](https://github.com/sphinx-doc/sphinx/pull/12762/files#diff-a4c6bf1492ef480b94af82c988f64ca56fa256fab0ed043a5ad3d4043f89a645L14) that removes the `ExtensionError` export from the `sphinx.util` package. This currently breaks the [sphinxcontrib-mermaid](https://github.com/mgaitan/sphinxcontrib-mermaid) dependency.
+- Pin Sphinx to < 8.1.0. [Sphinx 8.1.0](https://github.com/sphinx-doc/sphinx/compare/v8.0.2...v8.1.0) contains [a commit](https://github.com/sphinx-doc/sphinx/pull/12762/files#diff-a4c6bf1492ef480b94af82c988f64ca56fa256fab0ed043a5ad3d4043f89a645L14) that removes the `ExtensionError` export from the `sphinx.util` package. This currently breaks the [sphinxcontrib-mermaid](https://github.com/mgaitan/sphinxcontrib-mermaid) dependency.
 
 <a id='changelog-1.4.0'></a>
 ## 1.4.0 (2024-07-11)
