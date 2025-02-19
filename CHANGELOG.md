@@ -9,6 +9,10 @@
 
 - Pin Sphinx < 8.2 to avoid a bug/incompatibility with the `sphinxcontrib-bibtex` extension.
 
+### Other changes
+
+- Prettier is now run directly through the tox lint environment rather than through pre-commit since the pre-commit plugin is deprecated and no longer operable.
+
 <a id='changelog-1.4.2'></a>
 ## 1.4.2 (2024-10-15)
 
