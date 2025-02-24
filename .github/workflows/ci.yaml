@@ -85,10 +85,8 @@ jobs:
           npm install
           npm run build
 
-      - name: Install graphviz
-        run: |
-          sudo apt-get update
-          sudo apt-get install graphviz
+      - name: Setup Graphviz
+        uses: ts-graphviz/setup-graphviz@v2
 
       - name: Run tox
         uses: lsst-sqre/run-tox@v1
@@ -104,8 +102,8 @@ jobs:
         with:
           fetch-depth: 0 # full history for setuptools_scm
 
-      - name: Install Graphviz
-        run: sudo apt-get install graphviz
+      - name: Setup Graphviz
+        uses: ts-graphviz/setup-graphviz@v2
 
       - name: Run tox
         uses: lsst-sqre/run-tox@v1
