@@ -105,6 +105,22 @@ jobs:
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v2
 
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'npm'
+          node-version-file: '.nvmrc'
+
+      - name: Authenticate GitHub Packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NPM_PKG_TOKEN}" > ~/.npmrc
+        env:
+          NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: npm install and build
+        run: |
+          npm install
+          npm run build
+
       - name: Run tox
         uses: lsst-sqre/run-tox@v1
         with:
@@ -134,6 +150,22 @@ jobs:
         with:
           fetch-depth: 0 # full history for setuptools_scm
 
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'npm'
+          node-version-file: '.nvmrc'
+
+      - name: Authenticate GitHub Packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NPM_PKG_TOKEN}" > ~/.npmrc
+        env:
+          NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: npm install and build
+        run: |
+          npm install
+          npm run build
+
       - name: Build and publish
         uses: lsst-sqre/build-and-publish-to-pypi@v2
         with:
@@ -160,6 +192,12 @@ jobs:
         with:
           cache: 'npm'
           node-version-file: '.nvmrc'
+
+      - name: Authenticate GitHub Packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NPM_PKG_TOKEN}" > ~/.npmrc
+        env:
+          NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: npm install and build
         run: |
