@@ -2,7 +2,13 @@
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 name = "documenteer"
 description = "Rubin Observatory / LSST Sphinx documentation tools, extensions, and configurations."
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = [
+    "LICENSE",
+    "licenses/astropy-helpers.txt",
+    "licenses/sphinx-issue.txt",
+    "licenses/sphinx.txt"
+]
 readme = "README.md"
 keywords = ["rubin", "lsst"]
 # https://pypi.org/classifiers/
@@ -11,19 +17,17 @@ classifiers = [
     "Environment :: Console",
     "Framework :: Sphinx :: Extension",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: POSIX",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Documentation",
     "Topic :: Documentation :: Sphinx",
     "Typing :: Typed",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dynamic = ["version"]
 dependencies = [
     "docutils>=0.20",  # solves an extra div bug with the bibliography directive
