@@ -76,7 +76,7 @@ class RemoteCodeBlock(SphinxDirective):
             # Customized for RemoteCodeBlock
             url = self.arguments[0]
             reader = RemoteCodeBlockReader(url, self.options, self.config)
-            text, lines = reader.read(location=location)
+            text, lines = reader.read()
 
             retnode = nodes.literal_block(text, text)
             set_source_info(self, retnode)
@@ -123,7 +123,9 @@ class RemoteCodeBlockReader(LiteralIncludeReader):
     """Reader for content used by `RemoteCodeBlock`."""
 
     def read_file(
-        self, url: str, location: tuple[str, int] | None = None
+        self,
+        url: str,
+        location: tuple[str, int] | None = None,
     ) -> list[str]:
         """Read content from the web by overriding
         `LiteralIncludeReader.read_file`.
