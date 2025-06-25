@@ -56,8 +56,10 @@ jobs:
         python-version:
           - '3.11'
           - '3.12'
+          - '3.13'
         sphinx-version:
           - '7'
+          - '8'
 
     steps:
       - uses: actions/checkout@v4
