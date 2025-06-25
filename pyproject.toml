@@ -66,7 +66,7 @@ guide = [
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
     "sphinx-copybutton",
-    "sphinx-prompt",
+    "sphinx-prompt>=1.10.0,<2",
     "sphinx-jinja>=2", # namespace changed in 2.0
     "myst-parser",
     "myst-nb",
@@ -87,7 +87,7 @@ pipelines = [
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
     "sphinx-copybutton",
-    "sphinx-prompt",
+    "sphinx-prompt>=1.10.0,<2",
     "sphinx-jinja>=2", # namespace changed in 2.0
     "myst-parser",
     "markdown-it-py[linkify]",
@@ -104,7 +104,7 @@ pipelines = [
 technote = [
     # Theme and extensions for technotes
     "technote>=0.9.0,<0.10.0",
-    "sphinx-prompt",
+    "sphinx-prompt>=1.10.0,<2",
     "sphinxcontrib-mermaid",
     "sphinx-diagrams",
     "sphinx_design",
