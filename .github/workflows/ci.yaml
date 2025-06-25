@@ -167,9 +167,8 @@ jobs:
           npm run build
 
       - name: Build and publish
-        uses: lsst-sqre/build-and-publish-to-pypi@v2
+        uses: lsst-sqre/build-and-publish-to-pypi@v3
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
           upload: "false"
 
   pypi-publish:
@@ -205,6 +204,4 @@ jobs:
           npm run build
 
       - name: Build and publish
-        uses: lsst-sqre/build-and-publish-to-pypi@v2
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+        uses: lsst-sqre/build-and-publish-to-pypi@v3
