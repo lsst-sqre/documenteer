@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.4.5'></a>
+## 1.4.5 (2025-06-25)
+
+### Other changes
+
+- Update to lsst-sqre/build-and-publish-to-pypi@v3 for publishing to PyPI.
+
 <a id='changelog-1.4.4'></a>
 ## 1.4.4 (2025-06-25)
 
