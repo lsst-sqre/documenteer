@@ -137,7 +137,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
     "sphinx.ext.ifconfig",
-    "sphinx-prompt",
+    "sphinx_prompt",
     "sphinx_jinja",
     "sphinxcontrib.redoc",
     "sphinxcontrib.youtube",
