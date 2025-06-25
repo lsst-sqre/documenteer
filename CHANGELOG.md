@@ -2,6 +2,17 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-1.4.4'></a>
+## 1.4.4 (2025-06-25)
+
+### Bug fixes
+
+- Fix the configuration of the `sphinx-prompt` extension to be `sphinx_prompt` in the `documenteer.conf.guide` configuration. Constrain the sphinx-prompt version to be `>1.10.0,<2.0.0` to avoid issues with the `sphinx_prompt` extension not being recognized.
+
+### Other changes
+
+- Add testing against Python 3.13 and Sphinx 8.
+
 <a id='changelog-1.4.3'></a>
 ## 1.4.3 (2025-02-19)
 
