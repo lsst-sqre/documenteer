@@ -65,27 +65,22 @@ html[data-theme='dark'] {
   --rsd-component-text-headline-color: #058b8c;
 }
 
-:root {
+html {
   --pst-font-family-base: 'Source Sans Pro', var(--pst-font-family-base-system);
   --pst-font-family-heading:
     'Source Sans Pro', var(--pst-font-family-base-system);
-
-  /* Base font size; increased for pydata-sphinx-theme default. */
-  font-size: 18px;
 }
 
 html[data-theme='light'] {
   /* Colours */
-  --pst-color-text-base: var(--rsd-component-text-color);
   --pst-color-primary: var(--rsd-color-primary-600);
-  --pst-color-link: var(--rsd-component-text-link-color);
-  --pst-color-link-hover: var(--rsd-component-text-link-hover-color);
+  --pst-color-secondary: var(--rsd-color-red-500);
 }
 
 html[data-theme='dark'] {
   /* Colours */
-  --pst-color-text-base: var(--rsd-component-text-color);
   --pst-color-primary: var(--rsd-color-primary-500);
+  --pst-color-secondary: var(--rsd-color-red-500);
 }
 
 html[data-theme='dark'] .table td,
@@ -95,8 +90,20 @@ html[data-theme='dark'] .table th {
 }
 
 body {
-  /* Override pydata-sphinx-theme */
+  /* Override pydata-sphinx-theme.
+   * The theme overrides are often need to be applied to the body rather than
+   * the root or html element to be more specific.
+   */
+
+  /* Base font size; increased for pydata-sphinx-theme default. */
+  font-size: 18px;
   line-height: 1.5;
+
+  /*
+   * These colours automatically switch in dark and light mode because
+   * of how the Rubin Style Dictionary variables are themed.
+   */
+  --pst-color-text-base: var(--rsd-component-text-color);
 }
 
 .navbar-nav i {
