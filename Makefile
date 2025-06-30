@@ -6,8 +6,8 @@ help:
 .PHONY: init
 init:
 	rm -rf .tox
-	pip install -e ".[dev,guide,technote,pipelines]"
-	pip install tox pre-commit scriv
+	pip install -e ".[technote,pipelines]" --group dev
+	pip install -U tox pre-commit scriv
 	pre-commit install
 
 .PHONY: clean

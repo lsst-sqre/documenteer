@@ -15,4 +15,4 @@
 
 ### Other changes
 
--
+- Switch to dependency groups for development dependencies in `pyproject.toml`. With this change, Documenteer no longer publishes a `dev` extra to PyPI.
