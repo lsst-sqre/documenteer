@@ -84,7 +84,8 @@ guide = [
     "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
     "sphinxext-rediraffe",
-    "sphinxcontrib-youtube"
+    "sphinxcontrib-youtube",
+    "sphinx-favicon"
 ]
 technote = [
     # Theme and extensions for technotes
