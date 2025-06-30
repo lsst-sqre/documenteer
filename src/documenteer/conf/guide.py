@@ -311,8 +311,8 @@ html_theme_options = {
         },
         {"rel": "icon", "href": "rubin-favicon.svg"},
     ],
-    "pygment_light_style": "xcode",
-    "pygment_dark_style": "github-dark",
+    "pygments_light_style": "xcode",
+    "pygments_dark_style": "github-dark",
 }
 
 if _conf.github_url:
