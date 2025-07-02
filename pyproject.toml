@@ -45,32 +45,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "twine",
-    # Documenteer's testing and deployment deps
-    "coverage[toml]",
-    "pytest",
-    "pytest-mock",
-    # Test depedendencies for analyzing HTML output
-    "lxml",
-    "cssselect",
-    "defusedxml",  # used by Sphinx but not declared as a dependency
-    # Extensions for documenteer's own docs
-    "sphinx-click",
-    "sphinxcontrib-autoprogram",
-    # Type stubs
-    "types-setuptools",
-    "types-requests",
-    "types-PyYAML",
-    "types-docutils",
-    "types-mock",
-    # Testing dependencies
-]
 guide = [
     # Theme and extensions for Rubin user guide projects
     "autodoc_pydantic",
     "sphinx_design",
-    "pydata-sphinx-theme>=0.10.0,<0.13.0",
+    "pydata-sphinx-theme>=0.16.1,<0.17.0",
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
     "sphinx-copybutton",
@@ -84,7 +63,8 @@ guide = [
     "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
     "sphinxext-rediraffe",
-    "sphinxcontrib-youtube"
+    "sphinxcontrib-youtube",
+    "sphinx-favicon"
 ]
 technote = [
     # Theme and extensions for technotes
@@ -95,6 +75,36 @@ technote = [
     "sphinx_design",
     "myst-nb",
     "sphinxcontrib-youtube"
+]
+
+[dependency-groups]
+test = [
+    "coverage[toml]",
+    "pytest",
+    "pytest-mock",
+    # Test depedendencies for analyzing HTML output
+    "lxml",
+    "cssselect",
+    "defusedxml",  # used by Sphinx but not declared as a dependency
+]
+typing = [
+    "mypy",
+    "types-setuptools",
+    "types-requests",
+    "types-PyYAML",
+    "types-docutils",
+    "types-mock",
+    {include-group = "test"},  # include test dependencies for type checking
+]
+docs = [
+    # Extensions for documenteer's own docs
+    "sphinx-click",
+    "sphinxcontrib-autoprogram",
+]
+dev = [
+    {include-group = "test"},  # include test dependencies
+    {include-group = "typing"},  # include type checking dependencies
+    {include-group = "docs"},  # include docs dependencies
 ]
 
 [project.urls]

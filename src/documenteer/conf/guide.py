@@ -81,6 +81,7 @@ __all__ = [
     "html_static_path",
     "html_css_files",
     "html_show_sourcelink",
+    "favicons",
     # API
     "automodapi_toctreedirnm",
     "always_document_param_types",
@@ -146,6 +147,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx_automodapi.automodapi",
     "sphinx_automodapi.smart_resolver",
+    "sphinx_favicon",
     "documenteer.ext.jira",
     "documenteer.ext.lsstdocushare",
     "documenteer.ext.mockcoderefs",
@@ -303,16 +305,8 @@ html_theme_options = {
         "image_dark": "rubin-titlebar-imagotype-dark.svg",
         "text": project,
     },
-    "favicons": [
-        {
-            "rel": "icon",
-            "sizes": "32x32",
-            "href": "rubin-favicon-transparent-32px.png",
-        },
-        {"rel": "icon", "href": "rubin-favicon.svg"},
-    ],
-    "pygment_light_style": "xcode",
-    "pygment_dark_style": "github-dark",
+    "pygments_light_style": "xcode",
+    "pygments_dark_style": "github-dark",
 }
 
 if _conf.github_url:
@@ -326,6 +320,21 @@ if _conf.github_url:
             "type": "fontawesome",
         }
     )
+
+favicons = [
+    {
+        "href": "rubin-favicon-transparent-32px.png",
+        "rel": "icon",
+        "sizes": "32x32",
+        "type": "image/png",
+    },
+    {
+        "href": "rubin-favicon.svg",
+        "rel": "icon",
+        "type": "image/svg+xml",
+    },
+]
+
 
 # Configure the "Edit this page" link
 _conf.set_edit_on_github(html_theme_options, html_context)
