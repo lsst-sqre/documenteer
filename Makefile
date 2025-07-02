@@ -2,6 +2,8 @@
 help:
 	@echo "Make command reference"
 	@echo "  make init ........ (initialize for development)"
+	@echo "  make clean ....... (clean up build artifacts)"
+	@echo "  make update-deps . (update dependencies and pre-commit hooks)"
 
 .PHONY: init
 init:
@@ -16,3 +18,8 @@ clean:
 	rm -rf docs/_build
 	rm -rf docs/dev/api/contents/*.rst
 	make -C demo/rst-technote clean
+
+.PHONY: update-deps
+update-deps:
+	uv pip install --upgrade pre-commit
+	pre-commit autoupdate
