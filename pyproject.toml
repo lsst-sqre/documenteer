@@ -5,9 +5,8 @@ description = "Rubin Observatory / LSST Sphinx documentation tools, extensions, 
 license = "MIT"
 license-files = [
     "LICENSE",
-    "licenses/astropy-helpers.txt",
-    "licenses/sphinx-issue.txt",
-    "licenses/sphinx.txt"
+    "licenses/README.md",
+    "licenses/*.txt",
 ]
 readme = "README.md"
 keywords = ["rubin", "lsst"]
