@@ -60,7 +60,6 @@ guide = [
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid>=1",
     "sphinxext-opengraph",
-    "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
     "sphinxext-rediraffe",
     "sphinxcontrib-youtube",

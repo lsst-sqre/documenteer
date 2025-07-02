@@ -112,7 +112,7 @@ __all__ = [
     "documenteer_openapi_generator",
     "documenteer_openapi_path",
     "redoc",
-    "redoc_uri",
+    "redoc_version",
     # Sphinx jinja
     "jinja_contexts",
     # Sphinx rediraffe
@@ -140,7 +140,6 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx_prompt",
     "sphinx_jinja",
-    "sphinxcontrib.redoc",
     "sphinxcontrib.youtube",
     "sphinxext.rediraffe",
     "sphinx.ext.napoleon",
@@ -153,6 +152,7 @@ extensions = [
     "documenteer.ext.mockcoderefs",
     "documenteer.ext.remotecodeblock",
     "documenteer.ext.openapi",
+    "documenteer.ext.redoc",
 ]
 _conf.append_extensions(extensions)
 
@@ -459,9 +459,11 @@ ogp_use_first_image = True
 
 # ============================================================================
 # #OPEN OpenAPI/Redoc support
-# https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 # documenteer.ext.openapi
+# documenteer.ext.redoc
 # ============================================================================
+
+redoc_version = "v2.5.0"
 
 if _conf.conf.project.openapi is not None:
     if _conf.conf.project.openapi.generator is not None:
@@ -475,23 +477,22 @@ if _conf.conf.project.openapi is not None:
     documenteer_openapi_path: str | None = (
         _conf.conf.project.openapi.openapi_path
     )
+    html_static_path.append(_conf.conf.project.openapi.openapi_path)
     redoc: list[Any] | None = [
         {
             "name": "REST API",
             "page": _conf.conf.project.openapi.doc_path,
-            "spec": _conf.conf.project.openapi.openapi_path,
-            "embed": True,
-            "opts": {"hide-hostname": True},
+            "spec_path": _conf.conf.project.openapi.openapi_path,
+            "opts": {
+                "hide-hostname": True,
+                "path-in-middle-panel": True,
+            },
         }
     ]
-    redoc_uri: str | None = (
-        "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
-    )
 else:
     documenteer_openapi_generator = None
     documenteer_openapi_path = None
     redoc = []
-    redoc_uri = None
 
 # ============================================================================
 # #JINJA Sphinx Jinja support
