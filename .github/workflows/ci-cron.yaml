@@ -45,6 +45,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           tox-envs: 'lint'
           use-cache: false
+          tox-plugins: tox-uv
 
       - name: Report status
         if: failure()
@@ -98,6 +99,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           tox-envs: "typing-sphinx${{ matrix.sphinx-version }},py-test-sphinx${{ matrix.sphinx-version }},demo"
           use-cache: false
+          tox-plugins: tox-uv
 
       - name: Report status
         if: failure()
@@ -142,6 +144,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           tox-envs: "docs,docs-lint"
           use-cache: false
+          tox-plugins: tox-uv
 
       - name: Report status
         if: failure()

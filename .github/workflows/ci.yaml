@@ -50,6 +50,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           tox-envs: 'lint'
+          tox-plugins: tox-uv
 
   test:
     runs-on: ubuntu-latest
@@ -92,6 +93,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           tox-envs: 'py-test-sphinx${{ matrix.sphinx-version }},typing-sphinx${{ matrix.sphinx-version }},demo'
+          tox-plugins: tox-uv
 
   docs:
     runs-on: ubuntu-latest
@@ -125,6 +127,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           tox-envs: 'docs,docs-lint'
+          tox-plugins: tox-uv
 
       # Only attempt documentation uploads for tagged releases and pull
       # requests from ticket branches in the same repository.  This avoids
