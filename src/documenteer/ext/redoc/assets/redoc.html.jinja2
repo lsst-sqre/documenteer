@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <title>{{ name }}</title>
+    <meta charset="{{ encoding | default('utf-8') }}"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { margin: 0; padding: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="redoc-container"></div>
+    <script type="application/json" id="openapi-spec">
+    {{ spec }}
+    </script>
+    <script src="https://cdn.redoc.ly/redoc/{{ redoc_version }}/bundles/redoc.standalone.js"> </script>
+    <script>
+        var spec = JSON.parse(document.getElementById("openapi-spec").innerHTML);
+        var options = {
+          {%- for key, value in opts.items() if value %}
+          {%- if value is sameas true %}
+          "{{ key }}": true
+          {%- elif value is sameas false %}
+          "{{ key }}": false
+          {%- elif value is iterable and value is not string %}
+          "{{ key }}": {{ value | tojson }}
+          {%- else %}
+          "{{ key }}": {{ value | tojson }}
+          {%- endif %}
+          {%- if not loop.last %},{% endif %}
+          {%- endfor %}
+        };
+        Redoc.init(spec, options, document.getElementById('redoc-container'));
+    </script>
+  </body>
+</html>

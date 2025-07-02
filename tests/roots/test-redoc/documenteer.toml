@@ -1,0 +1,10 @@
+[project]
+title = "Redoc Test"
+base_url = "https://example.lsst.io"
+
+[project.openapi]
+openapi_path = "_static/openapi.json"
+doc_path = "api"
+
+[sphinx.theme]
+show_github_edit_link = false
