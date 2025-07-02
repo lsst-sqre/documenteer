@@ -180,6 +180,7 @@ warn_redundant_casts = true
 warn_unreachable = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+exclude = ["tests/roots/.*"]
 
 [tool.ruff]
 extend = "ruff-shared.toml"
