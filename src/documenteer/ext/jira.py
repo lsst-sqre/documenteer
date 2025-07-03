@@ -10,6 +10,9 @@ from typing import Any
 from docutils import nodes, utils
 from docutils.parsers.rst.states import Inliner
 from sphinx.application import Sphinx
+from sphinx.util.typing import ExtensionMetadata
+
+from ..version import __version__
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -163,7 +166,7 @@ def jira_parens_role(
     )
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the Jira ticket reference roles."""
     app.add_config_value(
         "jira_uri_template",
@@ -173,3 +176,9 @@ def setup(app: Sphinx) -> None:
     app.add_role("jira", jira_role)
     app.add_role("jirab", jira_bracket_role)
     app.add_role("jirap", jira_parens_role)
+
+    return {
+        "version": __version__,
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }

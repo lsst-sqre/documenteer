@@ -7,12 +7,13 @@ directive.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Self
+from typing import Self
 
 import requests
 from pydantic import BaseModel, Field
 from sphinx.application import Sphinx
 from sphinx.config import Config
+from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
 
@@ -113,7 +114,7 @@ def cache_bibfiles(app: Sphinx, config: Config) -> None:
                 config["bibtex_bibfiles"].append(str(cached_path))
 
 
-def setup(app: Sphinx) -> dict[str, Any]:
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the ``documenteer.ext.autocppapi`` Sphinx extensions."""
     # Configuration values
     app.add_config_value("documenteer_bibfile_github_repos", "", "env", [list])
