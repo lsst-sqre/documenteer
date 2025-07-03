@@ -73,6 +73,9 @@ html_theme_options = {
     "logo_alt_text": "Rubin Observatory logo",
 }
 
+# Enable mermaid code fences as the Mermaid directive.
+myst_fence_as_directive = ["mermaid"]
+
 # Exclude non-index.ipynb Jupyter Notebooks
 extend_excludes_for_non_index_source(exclude_patterns, "ipynb")  # noqa: F405
 extend_excludes_for_non_index_source(exclude_patterns, "md")  # noqa: F405

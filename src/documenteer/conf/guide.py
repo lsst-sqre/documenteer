@@ -102,6 +102,7 @@ __all__ = [
     "napoleon_attr_annotations",
     # MYST
     "myst_enable_extensions",
+    "myst_fence_as_directive",
     # MERMAID
     "mermaid_output_format",
     # OPENGRAPH
@@ -446,6 +447,9 @@ myst_enable_extensions = [
 # The raw format renders the diagram client-side, and doesn't require a
 # Mermaid CLI installation
 mermaid_output_format = "raw"
+
+# Code fences that can be interpreted as directives
+myst_fence_as_directive = ["mermaid"]
 
 # ============================================================================
 # #OPENGRAPH OpenGraph diagram support
