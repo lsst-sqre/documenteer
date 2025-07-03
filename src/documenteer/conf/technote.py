@@ -1,8 +1,10 @@
 """Sphinx configuration for Rubin technotes."""
 
+import warnings
 from contextlib import suppress
 from pathlib import Path
 
+from sphinx.deprecation import RemovedInNextVersionWarning
 from technote.sphinxconf import *  # noqa: F403
 
 from documenteer.conf import (
@@ -10,6 +12,14 @@ from documenteer.conf import (
     extend_static_paths_with_asset_extension,
     get_asset_path,
     get_template_dir,
+)
+
+# Suppress warnings about deprecated features in future Sphinx versions.
+# This is noise for users because Documenteer itself constrains the Sphinx
+# version.
+warnings.filterwarnings(
+    "ignore",
+    category=RemovedInNextVersionWarning,
 )
 
 with suppress(ValueError):
@@ -21,6 +31,7 @@ with suppress(ValueError):
     # Remove myst-parser if added by technote.sphinxconf so we can
     # add myst-nb.
     extensions.remove("myst_parser")  # noqa: F405
+
 
 # Add the GitHub bibfile cache extension before sphinxcontrib-bibtex so
 # that it can add bibfiles to the sphinxcontrib-bibtex configuration.

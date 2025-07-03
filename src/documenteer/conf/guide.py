@@ -6,7 +6,10 @@ containing::
     from documenteer.conf.guide import *
 """
 
+import warnings
 from typing import Any
+
+from sphinx.deprecation import RemovedInNextVersionWarning
 
 from documenteer.conf import (
     DocumenteerConfig,
@@ -119,6 +122,14 @@ __all__ = [
     # Sphinx rediraffe
     "rediraffe_redirects",
 ]
+
+# Suppress warnings about deprecated features in future Sphinx versions.
+# This is noise for users because Documenteer itself constrains the Sphinx
+# version.
+warnings.filterwarnings(
+    "ignore",
+    category=RemovedInNextVersionWarning,
+)
 
 _conf = DocumenteerConfig.find_and_load()
 
