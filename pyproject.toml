@@ -5,9 +5,8 @@ description = "Rubin Observatory / LSST Sphinx documentation tools, extensions, 
 license = "MIT"
 license-files = [
     "LICENSE",
-    "licenses/astropy-helpers.txt",
-    "licenses/sphinx-issue.txt",
-    "licenses/sphinx.txt"
+    "licenses/README.md",
+    "licenses/*.txt",
 ]
 readme = "README.md"
 keywords = ["rubin", "lsst"]
@@ -36,8 +35,8 @@ dependencies = [
     "GitPython",
     "requests",
     "click",
-    "sphinxcontrib-bibtex>=2.0.0", # for pybtex extension
-    "setuptools", # for pkg_resources, used by pybtex
+    "sphinxcontrib-bibtex>=2.6.5", # drops setuptools hack
+    "pybtex>=0.25.0", # drops setuptools dependency
     "pydantic >= 2.0.0",
     "urllib3",
     "pylatexenc",
@@ -60,7 +59,6 @@ guide = [
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid>=1",
     "sphinxext-opengraph",
-    "sphinxcontrib-redoc",
     "sphinxcontrib-jquery",
     "sphinxext-rediraffe",
     "sphinxcontrib-youtube",
@@ -70,7 +68,7 @@ technote = [
     # Theme and extensions for technotes
     "technote>=0.9.0,<0.10.0",
     "sphinx-prompt",
-    "sphinxcontrib-mermaid",
+    "sphinxcontrib-mermaid>=1",
     "sphinx-diagrams",
     "sphinx_design",
     "myst-nb",
@@ -180,6 +178,7 @@ warn_redundant_casts = true
 warn_unreachable = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+exclude = ["tests/roots/.*"]
 
 [tool.ruff]
 extend = "ruff-shared.toml"

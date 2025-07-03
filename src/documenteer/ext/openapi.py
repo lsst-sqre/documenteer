@@ -11,10 +11,11 @@ from typing import Any
 from sphinx.application import Sphinx
 from sphinx.config import Config
 from sphinx.errors import SphinxError
+from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
 
-__all__ = ["setup", "generate_openapi_spec"]
+__all__ = ["generate_openapi_spec", "setup"]
 
 
 def generate_openapi_spec(app: Sphinx, config: Config) -> None:
@@ -75,7 +76,7 @@ def generate_openapi_spec(app: Sphinx, config: Config) -> None:
     openapi_spec_path.write_text(openapi_text)
 
 
-def setup(app: Sphinx) -> dict[str, Any]:
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the OpenAPI extension."""
     # Configuration values
 

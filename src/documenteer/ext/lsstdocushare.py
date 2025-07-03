@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING
 
 from docutils import nodes
 
+from ..version import __version__
+
 if TYPE_CHECKING:
     from docutils.nodes import Node, system_message
     from docutils.parsers.rst.states import Inliner
     from sphinx.application import Sphinx
+    from sphinx.util.typing import ExtensionMetadata
 
 
 def lsstio_doc_shortlink_role(
@@ -93,7 +96,7 @@ def lsst_doc_shortlink_titlecase_display_role(
     return [node], []
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the LSST DocuShare and ls.st reference roles."""
     # LSST Data Management
     app.add_role("ldm", lsst_doc_shortlink_role)
@@ -144,3 +147,9 @@ def setup(app: Sphinx) -> None:
     app.add_role("ittn", lsstio_doc_shortlink_role)
     # T&S Technical Note
     app.add_role("tstn", lsstio_doc_shortlink_role)
+
+    return {
+        "version": __version__,
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }
