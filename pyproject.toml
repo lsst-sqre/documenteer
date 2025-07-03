@@ -35,8 +35,8 @@ dependencies = [
     "GitPython",
     "requests",
     "click",
-    "sphinxcontrib-bibtex>=2.0.0", # for pybtex extension
-    "setuptools", # for pkg_resources, used by pybtex
+    "sphinxcontrib-bibtex>=2.6.5", # drops setuptools hack
+    "pybtex>=0.25.0", # drops setuptools dependency
     "pydantic >= 2.0.0",
     "urllib3",
     "pylatexenc",
