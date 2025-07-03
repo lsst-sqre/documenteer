@@ -68,7 +68,7 @@ technote = [
     # Theme and extensions for technotes
     "technote>=0.9.0,<0.10.0",
     "sphinx-prompt",
-    "sphinxcontrib-mermaid",
+    "sphinxcontrib-mermaid>=1",
     "sphinx-diagrams",
     "sphinx_design",
     "myst-nb",
