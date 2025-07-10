@@ -2,167 +2,101 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import requests
-import yaml
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, HttpUrl
 
-from .latex import Latex
+__all__ = ["AuthorDb", "Author", "Affiliation", "Address"]
 
 
-class AuthorDbAuthor(BaseModel):
-    """Model for an author entry in author.yaml file."""
+class Address(BaseModel):
+    """An address for an affiliation."""
 
-    name: str = Field(description="Author's family name")
+    street: str | None = Field(
+        default=None, description="Street address of the affiliation."
+    )
 
-    initials: str = Field(description="Author's given name")
+    city: str | None = Field(
+        default=None, description="City/town of the affiliation."
+    )
 
-    affil: list[str] = Field(default_factory=list, description="Affiliations")
+    state: str | None = Field(
+        default=None, description="State or province of the affiliation."
+    )
 
-    orcid: str | None = Field(
+    postal_code: str | None = Field(
+        default=None, description="Postal code of the affiliation."
+    )
+
+    country: str | None = Field(
+        default=None, description="Country of the affiliation."
+    )
+
+
+class Affiliation(BaseModel):
+    """An affiliation."""
+
+    name: str = Field(description="Name of the affiliation.")
+
+    department: str | None = Field(
+        default=None, description="Department within the organization."
+    )
+
+    internal_id: str = Field(
+        description="Internal ID of the affiliation.",
+    )
+
+    ror: HttpUrl | None = Field(
         default=None,
-        description="Author's ORCiD identifier (optional)",
+        description="ROR URL of the affiliation.",
+    )
+
+    address: Address | None = Field(
+        default=None, description="Address of the affiliation."
     )
 
 
-class AuthorDbAuthors(RootModel):
-    """Model for the authors mapping in authordb.yaml file."""
+class Author(BaseModel):
+    """An author."""
 
-    root: dict[str, AuthorDbAuthor]
-
-    def __getitem__(self, author_id: str) -> AuthorDbAuthor:
-        """Get an author entry by ID."""
-        return self.root[author_id]
-
-
-class AuthorDbYaml(BaseModel):
-    """Model for the authordb.yaml file in lsst/lsst-texmf."""
-
-    affiliations: dict[str, str] = Field(
-        description=(
-            "Mapping of affiliation IDs to affiliation names. Affiliations "
-            "are their name, a comma, and thier address."
-        )
+    internal_id: str = Field(
+        description="Internal ID of the author.",
     )
 
-    authors: AuthorDbAuthors = Field(
-        description="Mapping of author IDs to author information"
+    family_name: str = Field(description="Family name of the author.")
+
+    given_name: str | None = Field(
+        description="Given name of the author.",
     )
 
+    orcid: HttpUrl | None = Field(
+        default=None,
+        description="ORCID of the author (URL), or null if not available.",
+    )
 
-@dataclass
-class AffiliationInfo:
-    """Consolidated affiliation information."""
+    notes: list[str] = Field(
+        default_factory=list,
+        description="Notes about the author.",
+    )
 
-    id: str
-    name: str
-    address: str | None = None
-
-    @classmethod
-    def create_from_db(
-        cls, affiliation_id: str, affiliation: str
-    ) -> AffiliationInfo:
-        """Create an AffiliationInfo from the affiliation key value paid in
-        authordb.yaml.
-
-        The ``affiliation`` string is composed of the affiliation name, a
-        comma, and the affiliation address.
-        """
-        # Parse the affiliation string
-        parts = affiliation.split(",")
-
-        affiliation_name = Latex(parts[0]).to_text()
-
-        if len(parts) > 1:
-            address_parts = [p.strip() for p in parts[1:]]
-            affiliation_address = ", ".join(address_parts)
-            affiliation_address = Latex(affiliation_address).to_text()
-        else:
-            affiliation_address = None
-
-        return cls(
-            id=affiliation_id,
-            name=affiliation_name,
-            address=affiliation_address,
-        )
-
-
-@dataclass
-class AuthorInfo:
-    """Consolidated author information."""
-
-    author_id: str
-    given_name: str
-    family_name: str
-    orcid: str | None
-    affiliations: list[AffiliationInfo]
-
-    @classmethod
-    def create_from_db(
-        cls,
-        author_id: str,
-        db_author: AuthorDbAuthor,
-        db_affils: dict[str, str],
-    ) -> AuthorInfo:
-        """Create an AuthorInfo from an AuthorDbAuthor and affiliations."""
-        # Transform orcid path to a full orcid.org URL
-        if db_author.orcid:
-            if db_author.orcid.startswith("http"):
-                orcid = db_author.orcid
-            else:
-                orcid = f"https://orcid.org/{db_author.orcid}"
-        else:
-            orcid = None
-
-        affiliations: list[AffiliationInfo] = []
-        for affiliation_id in db_author.affil:
-            affiliation = db_affils[affiliation_id]
-            affiliations.append(
-                AffiliationInfo.create_from_db(affiliation_id, affiliation)
-            )
-
-        # Convert LaTeX to text
-        given_name = Latex(db_author.initials).to_text()
-        family_name = Latex(db_author.name).to_text()
-
-        return cls(
-            author_id=author_id,
-            given_name=given_name,
-            family_name=family_name,
-            orcid=orcid,
-            affiliations=affiliations,
-        )
+    affiliations: list[Affiliation] = Field(
+        default_factory=list,
+        description="The author's affiliations.",
+    )
 
 
 class AuthorDb:
-    """An interface for the lsst/lsst-texmf authordb.yaml file content."""
+    """An interface to Ook's author API."""
 
-    def __init__(self, data: AuthorDbYaml) -> None:
-        """Initialize the interface."""
-        self._data = data
+    def __init__(self) -> None: ...
 
-    @classmethod
-    def from_yaml(cls, yaml_data: str) -> AuthorDb:
-        """Create an AuthorDb from a string of YAML data."""
-        return cls(AuthorDbYaml.model_validate(yaml.safe_load(yaml_data)))
-
-    @classmethod
-    def download(cls) -> AuthorDb:
-        """Download a authordb.yaml from GitHub."""
-        url = (
-            "https://raw.githubusercontent.com/lsst/lsst-texmf"
-            "/main/etc/authordb.yaml"
-        )
-        r = requests.get(url, timeout=10.0)
-        r.raise_for_status()
-        yaml_data = r.text
-        return cls.from_yaml(yaml_data)
-
-    def get_author(self, author_id: str) -> AuthorInfo:
+    def get_author(self, author_id: str) -> Author:
         """Get an author entry by ID."""
-        db_author = self._data.authors[author_id]
-        db_affiliations = {
-            k: self._data.affiliations[k] for k in db_author.affil
-        }
-        return AuthorInfo.create_from_db(author_id, db_author, db_affiliations)
+        url = f"https://roundtable.lsst.cloud/ook/authors/{author_id}"
+        try:
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            raise ValueError(
+                f"Failed to fetch author {author_id} from {url}"
+            ) from e
+        return Author.model_validate_json(r.text)
