@@ -7,4 +7,3 @@ Python API
 
    documenteer.conf
    documenteer.ext
-   documenteer.requestsutils

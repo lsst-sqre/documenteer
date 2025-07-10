@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 
 __all__ = [
-    "get_package_version_str",
     "PackageNotFoundError",
     "Semver",
     "get_package_version_semver",
+    "get_package_version_str",
 ]
 
 SEMVER_PATTERN = re.compile(

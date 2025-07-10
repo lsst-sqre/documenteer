@@ -17,7 +17,7 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
 from sphinx.util.typing import ExtensionMetadata
 
-from ..requestsutils import requests_retry_session
+from .._requestsutils import requests_retry_session
 from ..version import __version__
 
 logger = logging.getLogger(__name__)
