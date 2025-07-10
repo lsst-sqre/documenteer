@@ -2,6 +2,119 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-2.0.0'></a>
+## 2.0.0 (2025-07-10)
+
+### Backwards-incompatible changes
+
+- All Science Pipelines-related tooling and Sphinx extensions have been removed from Documenteer and moved to a new Science Pipelines package called `sphinxutils` (https://github.com/lsst-dm/sphinxutils). Removed components include:
+
+  - `documenteer.stackdocs`
+  - Configurations `documenteer.conf.pipelines` and `documenteer.conf.pipelinespkg`
+  - CLI commands `stack-docs` and `package-docs`
+  - Sphinx extensions:
+    - `documenteer.ext.lssttasks`
+    - `documenteer.ext.packagetoctree`
+    - `documenteer.ext.autocppapi`
+    - `documenteer.ext.autodocreset`
+
+- Dropped support for Python 3.11. Python 3.12 or later is now required.
+
+- Removed `documenteer.requestutils`, `documenteer.packagemetadata`, and `documenteer.utils` from the public API.
+
+### New features
+
+- User guide configuration improvements:
+
+  - New custom automodapi templates for Pydantic BaseModels and exceptions. The exception template ensures that inherited members of exceptions are documented. The Pydantic BaseModel template ensures that inherited members from the `BaseModel` class itself are _not_ documented. These templates were originally developed as part of [Gafaelfawr](https://github.com/lsst-sqre/gafaelfawr). Now users of the user guide configuration benefit from these templates without any additional configuration.
+
+  - The `[guide]` installation extra and `documenteer.conf.guide` configuration now include `autodoc_pydantic` for improved documentation of Pydantic models in Python API references.
+
+  - The `documenteer.conf.guide` configuration now ignores common Sphinx warnings when including references to projects that don't use Sphinx/Intersphinx for their documentation, including Pydantic and FastAPI.
+
+  - Updated to pydata-sphinx-theme 0.16.
+
+  - Added [sphinx-favicon](https://sphinx-favicon.readthedocs.io/en/stable/index.html) for managing favicons in user guides.
+
+  - For embedding a redoc page for API documentation, Documenteer now provides its own `documenteer.ext.redoc` extension. This replaces the previous `sphinxcontrib.redoc` extension, which is not being actively maintained. This new extension is automatically configured through `documenteer.conf.guide`, and therefore should not require any changes for most user guide projects. `documenteer.ext.redoc` drops support for referencing an OpenAPI specification file from a web URL. FastAPI projects can use `documenteer.ext.openapi` to generate an OpenAPI specification file from the FastAPI app.
+
+- In Markdown content for technotes and guides, Mermaid diagrams can now be written in code fences using the `mermaid` language tag. This is also supported in GitHub's Markdown renderer. The traditional method of using the `mermaid` directive syntax is still supported.
+
+- Documenteer's `technote` and `guide` configurations now ignore pending Sphinx API deprecation warnings by default. This is to prevent the warnings from cluttering the build output, and are only useful for the Documenteer developers since the Sphinx version is constrained by Documenteer.
+
+- The `documenteer` `add-authors` and `sync-authors` CLI commands now use the Ook web API to get author information, rather than directly reading `authordb.yaml` from lsst/lsst-texmf.
+
+- The entire `documenteer` code base is now type annotated.
+
+### Bug fixes
+
+- Updated `sphinxcontrib-mermaid` to >= 1, which fixes an incompatibility with Sphinx 8.1.0 and allows unpinning the Mermaid JS version.
+
+- Pinned Sphinx < 8.2 to avoid a bug/incompatibility with the `sphinxcontrib-bibtex` extension.
+
+- Documenteer's Sphinx extensions now provide proper extension metadata to support version-based cache busting and parallel builds.
+
+### Other changes
+
+- The code base is now linted and formatted with ruff.
+
+- Added testing against Sphinx 8 and Python 3.13 in GitHub Actions.
+
+- Updated the technote creation documentation to reference `@Squarebot`, updated from `sqrbot-jr`.
+
+- Removed the pre-commit hook for prettier and now run prettier directly from the tox lint environment. This change is necessary because the prettier hook for pre-commit is no longer supported.
+
+- Adopted [ts-graphviz/setup-graphviz](https://github.com/ts-graphviz/setup-graphviz) for installing Graphviz in GitHub Actions CI workflows.
+
+- Updated how license information is encoded in `pyproject.toml`.
+
+- Switched to dependency groups for development dependencies in `pyproject.toml`. With this change, Documenteer no longer publishes a `dev` extra to PyPI.
+
+- Documenteer no longer depends on setuptools as a runtime dependency thanks to pybtex version 0.25 and `documenteer.ext.redoc`.
+
+<a id='changelog-1.4.5'></a>
+## 1.4.5 (2025-06-25)
+
+### Other changes
+
+- Update to lsst-sqre/build-and-publish-to-pypi@v3 for publishing to PyPI.
+
+<a id='changelog-1.4.4'></a>
+## 1.4.4 (2025-06-25)
+
+### Bug fixes
+
+- Fix the configuration of the `sphinx-prompt` extension to be `sphinx_prompt` in the `documenteer.conf.guide` configuration. Constrain the sphinx-prompt version to be `>1.10.0,<2.0.0` to avoid issues with the `sphinx_prompt` extension not being recognized.
+
+### Other changes
+
+- Add testing against Python 3.13 and Sphinx 8.
+
+<a id='changelog-1.4.3'></a>
+## 1.4.3 (2025-02-19)
+
+### Bug fixes
+
+- Pin Sphinx < 8.2 to avoid a bug/incompatibility with the `sphinxcontrib-bibtex` extension.
+
+### Other changes
+
+- Prettier is now run directly through the tox lint environment rather than through pre-commit since the pre-commit plugin is deprecated and no longer operable.
+
+<a id='changelog-1.4.2'></a>
+## 1.4.2 (2024-10-15)
+
+### Bug fixes
+
+- Pin `sphinxcontrib-mermaid` to >= 1 to address an incompatibility with Sphinx==8.1.0. Also unpin the version of Mermaid itself.
+
+<a id='changelog-1.4.1'></a>
+## 1.4.1 (2024-10-10)
+
+### Bug fixes
+
+- Pin Sphinx to < 8.1.0. [Sphinx 8.1.0](https://github.com/sphinx-doc/sphinx/compare/v8.0.2...v8.1.0) contains [a commit](https://github.com/sphinx-doc/sphinx/pull/12762/files#diff-a4c6bf1492ef480b94af82c988f64ca56fa256fab0ed043a5ad3d4043f89a645L14) that removes the `ExtensionError` export from the `sphinx.util` package. This currently breaks the [sphinxcontrib-mermaid](https://github.com/mgaitan/sphinxcontrib-mermaid) dependency.
+
 <a id='changelog-1.4.0'></a>
 ## 1.4.0 (2024-07-11)
 
