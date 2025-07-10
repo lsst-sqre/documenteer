@@ -5,24 +5,60 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-import pytest
+import pytest_responses  # noqa: F401
 import yaml
+from responses import RequestsMock
 
 from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.storage.authordb import AuthorDb
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
 
-@pytest.fixture
-def author_db_yaml() -> str:
-    """Return the path to a sample authordb.yaml file."""
-    return (
-        Path(__file__).parent.parent / "data" / "authordb.yaml"
-    ).read_text()
-
-
-def test_migration(tmp_path: Path, author_db_yaml: str) -> None:
+def test_migration(tmp_path: Path, responses: RequestsMock) -> None:
     """Test migrating a technote."""
+    response_data = """
+{
+    "affiliations": [
+        {
+            "address": {
+                "city": "Ontario",
+                "country": "Canada",
+                "postal_code": null,
+                "state": null,
+                "street": "Penetanguishene"
+            },
+            "department": null,
+            "internal_id": "JSickCodes",
+            "name": "J.Sick Codes Inc.",
+            "ror": null
+        },
+        {
+            "address": {
+                "city": "Tucson",
+                "country": "USA",
+                "postal_code": "85719",
+                "state": "AZ",
+                "street": "950 N. Cherry Ave."
+            },
+            "department": null,
+            "internal_id": "RubinObs",
+            "name": "Vera C. Rubin Observatory Project Office",
+            "ror": "https://ror.org/048g3cy84"
+        }
+    ],
+    "family_name": "Sick",
+    "given_name": "Jonathan",
+    "internal_id": "sickj",
+    "notes": [],
+    "orcid": "https://orcid.org/0000-0003-3001-676X"
+}
+"""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=response_data,
+        content_type="application/json",
+        status=200,
+    )
     metadata = {
         "series": "SQR",
         "serial_number": "065",
@@ -55,19 +91,14 @@ Hello
     content_path = tmp_path / "index.rst"
     content_path.write_text(content)
 
-    author_db = AuthorDb.from_yaml(author_db_yaml)
+    author_db = AuthorDb()
     service = TechnoteMigrationService(tmp_path, author_db)
     service.migrate(author_ids=["sickj"])
 
     toml_path = tmp_path / "technote.toml"
     assert toml_path.exists()
-    print(toml_path.read_text())
 
     toml_file = TechnoteTomlFile.open(toml_path)
-    assert cast(str, toml_file.technote_table["id"]) == "SQR-065"
-    assert cast(str, toml_file.technote_table["series_id"]) == "SQR"
+    assert cast("str", toml_file.technote_table["id"]) == "SQR-065"
+    assert cast("str", toml_file.technote_table["series_id"]) == "SQR"
     assert toml_file.author_ids == ["sickj"]
-
-    print(content_path.read_text())
-
-    # assert False

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from documenteer.storage.authordb import AuthorDb, AuthorInfo
+from documenteer.storage.authordb import Author, AuthorDb
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
 
@@ -21,31 +21,21 @@ class TechnoteAuthorService:
         """Write the technote.toml file."""
         self.toml_file.save(path)
 
-    def add_author_by_id(self, author_id: str) -> AuthorInfo:
+    def add_author_by_id(self, author_id: str) -> Author:
         """Add an author to the technote.toml file."""
-        try:
-            author = self.author_db.get_author(author_id)
-        except KeyError as e:
-            raise ValueError(
-                f"Author {author_id} not found in authordb.yaml"
-            ) from e
+        author = self.author_db.get_author(author_id)
 
         self.toml_file.upsert_author(author)
 
         return author
 
-    def sync_authors(self) -> list[AuthorInfo]:
+    def sync_authors(self) -> list[Author]:
         """Synchronize author info from authordb.yaml."""
-        updated_authors: list[AuthorInfo] = []
+        updated_authors: list[Author] = []
 
         for author_id in self.toml_file.author_ids:
-            try:
-                author = self.author_db.get_author(author_id)
-                updated_authors.append(author)
-            except KeyError as e:
-                raise ValueError(
-                    f"Author {author_id} not found in authordb.yaml"
-                ) from e
+            author = self.author_db.get_author(author_id)
+            updated_authors.append(author)
             self.toml_file.upsert_author(author)
 
         return updated_authors

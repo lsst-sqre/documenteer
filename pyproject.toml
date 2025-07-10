@@ -80,6 +80,7 @@ test = [
     "coverage[toml]",
     "pytest",
     "pytest-mock",
+    "pytest-responses",
     # Test depedendencies for analyzing HTML output
     "lxml",
     "cssselect",
@@ -220,9 +221,6 @@ extend-ignore = [
     "S701",
     "INP001",
     "D100"
-]
-"src/documenteer/cli.py" = [
-    "T201",  # CLI scripts can print
 ]
 
 [tool.ruff.lint.isort]

@@ -97,11 +97,11 @@ def technote_add_author(author_id: str, technote_toml: str) -> None:
     """
     toml_path = Path(technote_toml)
     toml_file = TechnoteTomlFile.open(toml_path)
-    author_db = AuthorDb.download()
+    author_db = AuthorDb()
 
     service = TechnoteAuthorService(toml_file, author_db)
     author = service.add_author_by_id(author_id)
-    print(
+    click.echo(
         f"Added author {author.given_name} {author.family_name} to {toml_path}"
     )
     service.write_toml(toml_path)
@@ -120,19 +120,22 @@ def technote_sync_authors(technote_toml: str) -> None:
     """Sync author info from authordb.yaml to technote.toml."""
     toml_path = Path(technote_toml)
     toml_file = TechnoteTomlFile.open(toml_path)
-    author_db = AuthorDb.download()
+    author_db = AuthorDb()
 
     service = TechnoteAuthorService(toml_file, author_db)
     updated_authors = service.sync_authors()
     service.write_toml(toml_path)
 
     if len(updated_authors) == 0:
-        print("No authors to update")
+        click.echo("No authors to update")
         return
     else:
-        print(f"Synchronized authors to {toml_path}:")
+        click.echo(f"Synchronized authors to {toml_path}:")
         for a in updated_authors:
-            print(f"- {a.given_name} {a.family_name} ({a.author_id})")
+            click.echo(
+                f"- {a.given_name if a.given_name else ''} {a.family_name} "
+                f"({a.internal_id})"
+            )
 
 
 @technote.command(name="migrate")
@@ -177,7 +180,7 @@ def technote_migrate(
     The `-a/--author-id` options are author IDs in the Rubin author database.
     See https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
     """
-    author_db = AuthorDb.download()
+    author_db = AuthorDb()
     migration_service = TechnoteMigrationService(Path(root_dir), author_db)
     migration_service.migrate(author_ids=author_ids)
 

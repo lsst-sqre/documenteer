@@ -7,7 +7,7 @@ from typing import Self, cast
 
 import tomlkit
 
-from .authordb import AffiliationInfo, AuthorInfo
+from .authordb import Affiliation, Author
 
 __all__ = ["TechnoteTomlFile"]
 
@@ -79,7 +79,7 @@ class TechnoteTomlFile:
             a["internal_id"] for a in self.authors_aot if "internal_id" in a
         ]
 
-    def upsert_author(self, author: AuthorInfo) -> None:
+    def upsert_author(self, author: Author) -> None:
         """Append an author to the technote.toml file, or update in place."""
         # Check if the author already exists
         author_exists = False
@@ -87,7 +87,7 @@ class TechnoteTomlFile:
         for existing_author in self.authors_aot:
             if (
                 "internal_id" in existing_author
-                and existing_author["internal_id"] == author.author_id
+                and existing_author["internal_id"] == author.internal_id
             ):
                 author_exists = True
                 # Write over the existing author
@@ -101,23 +101,23 @@ class TechnoteTomlFile:
             self.authors_aot.append(t)
 
     def _update_author(
-        self, table: tomlkit.items.Table, author: AuthorInfo
+        self, table: tomlkit.items.Table, author: Author
     ) -> None:
-        """Update a toml author table with the AuthorInfo data."""
+        """Update a toml author table with the Author data."""
         name_table = tomlkit.inline_table()
         name_table["given"] = author.given_name
         name_table["family"] = author.family_name
         table["name"] = name_table
-        table["internal_id"] = author.author_id
+        table["internal_id"] = author.internal_id
         if author.orcid is not None:
-            table["orcid"] = author.orcid
+            table["orcid"] = str(author.orcid)
 
         if "affiliations" not in table:
             table.add("affiliations", tomlkit.aot())
         affiliations_aot = cast(tomlkit.items.AoT, table["affiliations"])
         existing_affiliation_ids = [a["internal_id"] for a in affiliations_aot]
         for affiliation in author.affiliations:
-            if affiliation.id not in existing_affiliation_ids:
+            if affiliation.internal_id not in existing_affiliation_ids:
                 # Add a new affiliation
                 new_affiliation_table = tomlkit.table()
                 self._update_affiliation(new_affiliation_table, affiliation)
@@ -125,13 +125,13 @@ class TechnoteTomlFile:
             else:
                 # Update existing affiliation
                 for t in affiliations_aot:
-                    if t["internal_id"] == affiliation.id:
+                    if t["internal_id"] == affiliation.internal_id:
                         self._update_affiliation(t, affiliation)
                         break
 
     def _update_affiliation(
-        self, t: tomlkit.items.Table, affiliation_info: AffiliationInfo
+        self, t: tomlkit.items.Table, affiliation_info: Affiliation
     ) -> None:
         t["name"] = affiliation_info.name
-        t["internal_id"] = affiliation_info.id
-        t["address"] = affiliation_info.address
+        t["internal_id"] = affiliation_info.internal_id
+        t["ror"] = str(affiliation_info.ror)
