@@ -9,7 +9,6 @@ from documenteer.storage.authordb import AuthorDb
 
 
 def test_from_yaml(responses: RequestsMock) -> None:
-    # Assert that the AuthorDb object is created correctly
     response_data = """
 {
     "affiliations": [

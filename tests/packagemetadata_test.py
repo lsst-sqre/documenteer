@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from documenteer.packagemetadata import Semver, get_package_version_semver
+from documenteer._packagemetadata import Semver, get_package_version_semver
 
 
 def test_semver_parse() -> None:
