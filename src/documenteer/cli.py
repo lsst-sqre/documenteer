@@ -101,7 +101,7 @@ def technote_add_author(author_id: str, technote_toml: str) -> None:
 
     service = TechnoteAuthorService(toml_file, author_db)
     author = service.add_author_by_id(author_id)
-    print(
+    click.echo(
         f"Added author {author.given_name} {author.family_name} to {toml_path}"
     )
     service.write_toml(toml_path)
@@ -127,12 +127,12 @@ def technote_sync_authors(technote_toml: str) -> None:
     service.write_toml(toml_path)
 
     if len(updated_authors) == 0:
-        print("No authors to update")
+        click.echo("No authors to update")
         return
     else:
-        print(f"Synchronized authors to {toml_path}:")
+        click.echo(f"Synchronized authors to {toml_path}:")
         for a in updated_authors:
-            print(
+            click.echo(
                 f"- {a.given_name if a.given_name else ''} {a.family_name} "
                 f"({a.internal_id})"
             )

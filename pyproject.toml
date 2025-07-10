@@ -222,9 +222,6 @@ extend-ignore = [
     "INP001",
     "D100"
 ]
-"src/documenteer/cli.py" = [
-    "T201",  # CLI scripts can print
-]
 
 [tool.ruff.lint.isort]
 known-first-party = ["documenteer", "tests"]
