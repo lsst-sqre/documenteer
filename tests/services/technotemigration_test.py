@@ -97,13 +97,8 @@ Hello
 
     toml_path = tmp_path / "technote.toml"
     assert toml_path.exists()
-    print(toml_path.read_text())
 
     toml_file = TechnoteTomlFile.open(toml_path)
-    assert cast(str, toml_file.technote_table["id"]) == "SQR-065"
-    assert cast(str, toml_file.technote_table["series_id"]) == "SQR"
+    assert cast("str", toml_file.technote_table["id"]) == "SQR-065"
+    assert cast("str", toml_file.technote_table["series_id"]) == "SQR"
     assert toml_file.author_ids == ["sickj"]
-
-    print(content_path.read_text())
-
-    # assert False

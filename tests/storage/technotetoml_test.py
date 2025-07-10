@@ -103,23 +103,23 @@ def test_append_author(responses: RequestsMock) -> None:
 
     authors_aot = technote.authors_aot
     a = authors_aot[0]
-    name = cast(tomlkit.items.Table, a["name"])
-    assert cast(str, name["given"]) == "Jonathan"
-    assert cast(str, name["family"]) == "Sick"
-    assert cast(str, a["internal_id"]) == "sickj"
-    assert cast(str, a["orcid"]) == "https://orcid.org/0000-0003-3001-676X"
-    affiliations_aot = cast(tomlkit.items.AoT, a["affiliations"])
-    assert cast(str, affiliations_aot[1]["internal_id"]) == "RubinObs"
+    name = cast("tomlkit.items.Table", a["name"])
+    assert cast("str", name["given"]) == "Jonathan"
+    assert cast("str", name["family"]) == "Sick"
+    assert cast("str", a["internal_id"]) == "sickj"
+    assert cast("str", a["orcid"]) == "https://orcid.org/0000-0003-3001-676X"
+    affiliations_aot = cast("tomlkit.items.AoT", a["affiliations"])
+    assert cast("str", affiliations_aot[1]["internal_id"]) == "RubinObs"
 
     # Modify that author and re-append. It should be modified since author_id
     # matches
     author.given_name = "Jon"
     technote.upsert_author(author)
-    name = cast(tomlkit.items.Table, authors_aot[0]["name"])
-    assert cast(str, name["given"]) == "Jon"
+    name = cast("tomlkit.items.Table", authors_aot[0]["name"])
+    assert cast("str", name["given"]) == "Jon"
 
     # Append a different author
     author2 = author_db.get_author("economouf")
     technote.upsert_author(author2)
-    name = cast(tomlkit.items.Table, authors_aot[1]["name"])
-    assert cast(str, name["given"]) == "Frossie"
+    name = cast("tomlkit.items.Table", authors_aot[1]["name"])
+    assert cast("str", name["given"]) == "Frossie"
