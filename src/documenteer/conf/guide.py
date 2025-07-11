@@ -16,6 +16,10 @@ from documenteer.conf import (
     get_asset_path,
     get_template_dir,
 )
+from documenteer.conf._utils import (
+    get_common_nitpick_ignore,
+    get_common_nitpick_ignore_regex,
+)
 
 # This configuration is broken down into these sections:
 #
@@ -215,52 +219,10 @@ default_role = "py:obj"
 nitpicky = _conf.nitpicky
 
 # Warnings to ignore
-nitpick_ignore: list[tuple[str, str]] = [
-    # Ignore missing cross-references for modules that don't provide
-    # intersphinx.  The documentation itself should use double-quotes instead
-    # of single-quotes to not generate a reference, but automatic references
-    # are generated from the type signatures and can't be avoided.
-    ("py:class", "fastapi.applications.FastAPI"),
-    ("py:class", "fastapi.datastructures.DefaultPlaceholder"),
-    ("py:class", "fastapi.exceptions.HTTPException"),
-    ("py:class", "fastapi.params.Depends"),
-    ("py:class", "fastapi.routing.APIRoute"),
-    ("py:class", "httpx.AsyncClient"),
-    ("py:exc", "fastapi.HTTPException"),
-    ("py:exc", "fastapi.exceptions.RequestValidationError"),
-    ("py:exc", "httpx.HTTPError"),
-    ("py:obj", "ConfigDict"),
-    ("py:obj", "fastapi.routing.APIRoute"),
-    ("py:class", "kubernetes_asyncio.client.api_client.ApiClient"),
-    ("py:class", "pydantic.main.BaseModel"),
-    ("py:class", "pydantic.networks.AnyHttpUrl"),
-    ("py:class", "pydantic.networks.IPvAnyNetwork"),
-    ("py:class", "pydantic.types.SecretStr"),
-    ("py:class", "pydantic.utils.Representation"),
-    ("py:class", "pydantic_core._pydantic_core.Url"),
-    ("py:class", "pydantic_core._pydantic_core.ValidationError"),
-    ("py:class", "pydantic_settings.main.BaseSettings"),
-    ("py:class", "pydantic_settings.sources.CliSettingsSource"),
-    ("py:obj", "safir.pydantic.validate_exactly_one_of.<locals>.validator"),
-    ("py:class", "starlette.datastructures.URL"),
-    ("py:class", "starlette.middleware.base.BaseHTTPMiddleware"),
-    ("py:class", "starlette.requests.Request"),
-    ("py:class", "starlette.responses.Response"),
-    ("py:class", "starlette.routing.Route"),
-    ("py:class", "starlette.routing.BaseRoute"),
-    ("py:exc", "starlette.exceptions.HTTPException"),
-    # asyncio.Lock is documented, and that's what all the code references, but
-    # the combination of Sphinx extensions we're using confuse themselves and
-    # there doesn't seem to be any way to fix this.
-    ("py:class", "asyncio.locks.Lock"),
-]
+nitpick_ignore = get_common_nitpick_ignore()
 _conf.append_nitpick_ignore(nitpick_ignore)
 
-nitpick_ignore_regex: list[tuple[str, str]] = [
-    ("py:class", r"kubernetes_asyncio\.client\.models\..*"),
-    # Bug in autodoc_pydantic.
-    ("py:obj", r".*\.all fields"),
-]
+nitpick_ignore_regex = get_common_nitpick_ignore_regex()
 _conf.append_nitpick_ignore_regex(nitpick_ignore_regex)
 
 # A list of paths that contain extra templates (or templates that overwrite

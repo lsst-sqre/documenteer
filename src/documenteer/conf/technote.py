@@ -14,6 +14,8 @@ from documenteer.conf import (
     get_template_dir,
 )
 
+from ._utils import get_common_nitpick_ignore, get_common_nitpick_ignore_regex
+
 # Suppress warnings about deprecated features in future Sphinx versions.
 # This is noise for users because Documenteer itself constrains the Sphinx
 # version.
@@ -119,3 +121,6 @@ if _id is not None:
     html_context["editions_url"] = (  # noqa: F405
         f"https://{_id.lower()}.lsst.io/v/"
     )
+
+nitpick_ignore_regex.extend(get_common_nitpick_ignore_regex())  # noqa: F405
+nitpick_ignore.extend(get_common_nitpick_ignore())  # noqa: F405
