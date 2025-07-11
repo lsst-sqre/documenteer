@@ -8,14 +8,16 @@ from git import Repo
 from sphinx.errors import ConfigError
 
 __all__ = [
-    "get_asset_path",
-    "extend_static_paths_with_asset_extension",
-    "get_template_dir",
     "GitRepository",
+    "extend_static_paths_with_asset_extension",
+    "get_asset_path",
+    "get_common_nitpick_ignore",
+    "get_common_nitpick_ignore_regex",
+    "get_template_dir",
 ]
 
 
-def _get_assert_dir() -> Path:
+def _get_assets_directory() -> Path:
     """Get the absolute path to the Documenteer assets directory."""
     return Path(__file__).parent.joinpath("../assets")
 
@@ -44,7 +46,7 @@ def get_asset_path(name: str) -> str:
            get_asset_path("rubin-titlebar-imagotype-light.svg"),
        ]
     """
-    asset_path = _get_assert_dir().joinpath(name).resolve()
+    asset_path = _get_assets_directory().joinpath(name).resolve()
     if not asset_path.exists():
         raise ConfigError(
             f"Documenteer asset {name!r} does not exist.\n"
@@ -60,7 +62,7 @@ def extend_static_paths_with_asset_extension(
     """Extend a Sphinx ``html_static_path`` configuration list with the
     files of a given extension in Documenteer's assets directory.
     """
-    asset_dir = _get_assert_dir()
+    asset_dir = _get_assets_directory()
     new_paths = [str(p) for p in asset_dir.glob(f"*.{extension}")]
     html_static_path.extend(new_paths)
 
@@ -144,3 +146,69 @@ def extend_excludes_for_non_index_source(
     for p in cwd.glob(f"**/*.{extension}"):
         if p.name != f"index.{extension}":
             exclude_patterns.append(str(p.relative_to(cwd)))  # noqa: PERF401
+
+
+def get_common_nitpick_ignore() -> list[tuple[str, str]]:
+    """Get a list of common nitpick ignore tuples for Sphinx.
+
+    This is useful for ignoring common warnings that are not relevant to
+    the documentation project.
+
+    Returns
+    -------
+    list[tuple[str, str]]
+        A list of tuples where each tuple contains the domain and the target
+        to ignore.
+    """
+    return [
+        # Ignore missing cross-references for modules that don't provide
+        # intersphinx.  The documentation itself should use double-quotes
+        # instead of single-quotes to not generate a reference, but automatic
+        # references are generated from the type signatures and can't be
+        # avoided.
+        ("py:obj", "ConfigDict"),
+        (
+            "py:obj",
+            "safir.pydantic.validate_exactly_one_of.<locals>.validator",
+        ),
+        # asyncio.Lock is documented, and that's what all the code references,
+        # but the combination of Sphinx extensions we're using confuse
+        # themselves and there doesn't seem to be any way to fix this.
+        ("py:class", "asyncio.locks.Lock"),
+        ("py:class", "pathlib._local.Path"),
+    ]
+
+
+def get_common_nitpick_ignore_regex() -> list[tuple[str, str]]:
+    """Get a list of common nitpick ignore regex tuples for Sphinx.
+
+    This is useful for ignoring common warnings that are not relevant to
+    the documentation project.
+
+    Returns
+    -------
+    list[tuple[str, str]]
+        A list of tuples where each tuple contains the domain and the target
+        to ignore.
+    """
+    # These packages aren't documented with Sphinx, so we can't link to them
+    # with intersphinx.
+    packages = [
+        "fastapi",
+        "httpx",
+        "kubernetes_asyncio",
+        "pydantic",
+        "pydantic_settings",
+        "starlette",
+    ]
+    patterns = [("py:*", rf"{package}(?:\..*)?") for package in packages]
+
+    # Additional patterns that are common to ignore.
+    patterns.extend(
+        [
+            # Bug in sphinx.ext.autodoc for pydantic models.
+            ("py:*", r".*\.all fields"),
+        ]
+    )
+
+    return patterns
