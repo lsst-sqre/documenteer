@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-def _get_assert_dir() -> Path:
+def _get_assets_directory() -> Path:
     """Get the absolute path to the Documenteer assets directory."""
     return Path(__file__).parent.joinpath("../assets")
 
@@ -46,7 +46,7 @@ def get_asset_path(name: str) -> str:
            get_asset_path("rubin-titlebar-imagotype-light.svg"),
        ]
     """
-    asset_path = _get_assert_dir().joinpath(name).resolve()
+    asset_path = _get_assets_directory().joinpath(name).resolve()
     if not asset_path.exists():
         raise ConfigError(
             f"Documenteer asset {name!r} does not exist.\n"
@@ -62,7 +62,7 @@ def extend_static_paths_with_asset_extension(
     """Extend a Sphinx ``html_static_path`` configuration list with the
     files of a given extension in Documenteer's assets directory.
     """
-    asset_dir = _get_assert_dir()
+    asset_dir = _get_assets_directory()
     new_paths = [str(p) for p in asset_dir.glob(f"*.{extension}")]
     html_static_path.extend(new_paths)
 
