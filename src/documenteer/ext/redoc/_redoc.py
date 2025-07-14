@@ -78,6 +78,10 @@ def render(
     app: Sphinx,
 ) -> Generator[tuple[str, dict[str, Any], jinja2.Template], None, None]:
     """Render Redoc pages in the html-collect-pages event."""
+    # If no redoc configuration is provided, return early
+    if not app.config.redoc:
+        return
+
     try:
         # Parse and validate the configuration using Pydantic
         config_items = RedocConfig.parse_config_list(app.config.redoc)
