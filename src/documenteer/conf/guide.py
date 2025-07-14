@@ -89,6 +89,9 @@ __all__ = [
     "html_css_files",
     "html_show_sourcelink",
     "favicons",
+    "sitemap_url_scheme",
+    "sitemap_show_lastmod",
+    "sitemap_excludes",
     # API
     "automodapi_toctreedirnm",
     "always_document_param_types",
@@ -163,6 +166,7 @@ extensions = [
     "sphinx_automodapi.automodapi",
     "sphinx_automodapi.smart_resolver",
     "sphinx_favicon",
+    "sphinx_sitemap",
     "documenteer.ext.jira",
     "documenteer.ext.lsstdocushare",
     "documenteer.ext.mockcoderefs",
@@ -345,6 +349,13 @@ html_css_files = ["rubin-pydata-theme.css"]
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False
+
+# Sitemap generation
+sitemap_url_scheme = "{link}"
+sitemap_show_lastmod = True
+sitemap_excludes = [
+    "search.html",
+]
 
 # ============================================================================
 # #API API reference configurations

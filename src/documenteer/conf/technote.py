@@ -52,6 +52,7 @@ extensions.extend(  # noqa: F405
         "sphinx_prompt",
         "sphinx_design",
         "sphinxcontrib.youtube",
+        "sphinx_sitemap",
     ]
 )
 
@@ -124,3 +125,14 @@ if _id is not None:
 
 nitpick_ignore_regex.extend(get_common_nitpick_ignore_regex())  # noqa: F405
 nitpick_ignore.extend(get_common_nitpick_ignore())  # noqa: F405
+
+# Configure sitemap.xml
+sitemap_url_scheme = "{link}"
+sitemap_show_lastmod = True
+sitemap_excludes = [
+    # These auto-generated pages aren't relevant in technotes, which are
+    # meant to be single-page documents.
+    "search.html",
+    "genindex.html",
+    "py-modindex.html",
+]
