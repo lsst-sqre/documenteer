@@ -167,6 +167,7 @@ extensions = [
     "sphinx_automodapi.smart_resolver",
     "sphinx_favicon",
     "sphinx_sitemap",
+    "documenteer.ext.robots",
     "documenteer.ext.jira",
     "documenteer.ext.lsstdocushare",
     "documenteer.ext.mockcoderefs",
