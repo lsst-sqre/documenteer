@@ -286,6 +286,10 @@ html_theme_options = {
     },
     "pygments_light_style": "xcode",
     "pygments_dark_style": "github-dark",
+    "analytics": {
+        "plausible_analytics_domain": "lsst.io",
+        "plausible_analytics_url": "https://plausible.io/js/script.file-downloads.hash.outbound-links.js",
+    },
 }
 
 if _conf.github_url:
