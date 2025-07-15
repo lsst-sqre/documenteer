@@ -62,7 +62,8 @@ guide = [
     "sphinxcontrib-jquery",
     "sphinxext-rediraffe",
     "sphinxcontrib-youtube",
-    "sphinx-favicon"
+    "sphinx-favicon",
+    "sphinx-sitemap",
 ]
 technote = [
     # Theme and extensions for technotes
@@ -72,7 +73,8 @@ technote = [
     "sphinx-diagrams",
     "sphinx_design",
     "myst-nb",
-    "sphinxcontrib-youtube"
+    "sphinxcontrib-youtube",
+    "sphinx-sitemap",
 ]
 
 [dependency-groups]

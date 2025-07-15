@@ -6,18 +6,17 @@ APIs while waiting for the API reference itself to be added.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from docutils import nodes
 from docutils.parsers.rst.states import Inliner
 from sphinx.application import Sphinx
+from sphinx.util.logging import getLogger
 from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
 
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
+log = getLogger(__name__)
 
 
 def mock_code_ref_role(

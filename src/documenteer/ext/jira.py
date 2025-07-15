@@ -4,18 +4,17 @@ This module is heavily influenced by sphinx-issue (Steven Loria). See
 /licenses/sphinx-issue.txt for licensing information.
 """
 
-import logging
 from typing import Any
 
 from docutils import nodes, utils
 from docutils.parsers.rst.states import Inliner
 from sphinx.application import Sphinx
+from sphinx.util.logging import getLogger
 from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
 
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
+log = getLogger(__name__)
 
 
 def _make_ticket_node(
