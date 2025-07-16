@@ -2,6 +2,23 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-2.1.0'></a>
+## 2.1.0 (2025-07-16)
+
+### New features
+
+- Improved and extended the nitpick ignore configurations for both user guides and technotes. The new configuration engine uses a common set of utility functions to generate the ignore patterns. Additionally, Documenteer makes better use of regex patterns to ignore linking issues to APIs that are not documented with Sphinx, such as `fastapi`, `httpx`, and `pydantic`. This should reduce the number of nitpick warnings in user guides and technotes, and generally reduce the need for manual nitpick ignores in projects.
+
+- Added [`sphinx-sitemap`](https://sphinx-sitemap.readthedocs.io/en/latest/index.html) for generating sitemaps in Rubin user guides and technotes. This will improve search engine and LLM/agent indexing of documentation. In user guides, the sitemap is linked in the HTML `head` for better discoverability.
+- A new extension, `documenteer.ext.robots`, helps you generate a `robots.txt` file to inform web crawlers about access to documentation sites. In this initial version, the `robots.txt` file is generated when a `sitemap.xml` file is available in order to link to that sitemap. The extension won't overwrite an existing `robots.txt` file.
+- Documenteer's Sphinx extensions (`documenteer.ext.*`) now use Sphinx's built-in logging system, `sphinx.util.logging`, instead of the standard Python logging module.
+
+- Rubin user guides (`documenteer.conf.guide`) now include Plausible.io analytics integration for privacy-preserving website analytics. The Plausible domain is configured by default to `lsst.io`, which is the common tracking domain for all Rubin Observatory technical documentation.
+
+### Bug fixes
+
+- The Redoc site extension (`documenteer.ext.redoc`) now skips rendering early if the OpenAPI configuration is an empty list to avoid unnecessary processing.
+
 <a id='changelog-2.0.0'></a>
 ## 2.0.0 (2025-07-10)
 
