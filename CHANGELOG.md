@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-2.1.1'></a>
+## 2.1.1 (2025-07-17)
+
+### Bug fixes
+
+- When adding or updating authors in `technote.toml`, Documenteer avoids setting null values. TOML represents null values as absent keys, but previous versions of Documenteer included null `ror` values.
+
 <a id='changelog-2.1.0'></a>
 ## 2.1.0 (2025-07-16)
 
