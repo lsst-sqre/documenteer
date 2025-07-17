@@ -14,7 +14,9 @@ from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
 
-log = getLogger(__name__)
+__all__ = ["setup"]
+
+logger = getLogger(__name__)
 
 
 def _make_ticket_node(

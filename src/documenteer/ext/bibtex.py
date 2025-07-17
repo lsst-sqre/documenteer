@@ -1,7 +1,5 @@
 """Support for Rubin BibTeX files for pybtex/sphinxcontrib.bibtex."""
 
-__all__ = ("LsstBibtexStyle", "setup")
-
 import pybtex.style.formatting.plain
 from pybtex.database import Entry
 from pybtex.plugin import register_plugin
@@ -20,6 +18,8 @@ from sphinx.application import Sphinx
 from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
+
+__all__ = ["setup"]
 
 
 class LsstBibtexStyle(pybtex.style.formatting.plain.Style):

@@ -99,7 +99,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:
 
     Returns
     -------
-    ExtensionMetadata
+    sphinx.util.typing.ExtensionMetadata
         Extension metadata for Sphinx.
     """
     # Connect to the build-finished event

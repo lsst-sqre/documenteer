@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata
 
+__all__ = ["setup"]
+
 
 def lsstio_doc_shortlink_role(
     name: str,

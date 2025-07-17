@@ -20,6 +20,8 @@ from sphinx.util.typing import ExtensionMetadata
 from .._requestsutils import requests_retry_session
 from ..version import __version__
 
+__all__ = ["setup"]
+
 logger = logging.getLogger(__name__)
 
 

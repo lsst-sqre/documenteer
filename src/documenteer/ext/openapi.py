@@ -15,7 +15,7 @@ from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
 
-__all__ = ["generate_openapi_spec", "setup"]
+__all__ = ["setup"]
 
 
 def generate_openapi_spec(app: Sphinx, config: Config) -> None:
