@@ -105,17 +105,26 @@ class TechnoteTomlFile:
     ) -> None:
         """Update a toml author table with the Author data."""
         name_table = tomlkit.inline_table()
-        name_table["given"] = author.given_name
-        name_table["family"] = author.family_name
+        if author.given_name is not None:
+            name_table["given"] = author.given_name
+        if author.family_name is not None:
+            name_table["family"] = author.family_name
+
         table["name"] = name_table
+
         table["internal_id"] = author.internal_id
+
         if author.orcid is not None:
             table["orcid"] = str(author.orcid)
 
         if "affiliations" not in table:
             table.add("affiliations", tomlkit.aot())
         affiliations_aot = cast(tomlkit.items.AoT, table["affiliations"])
-        existing_affiliation_ids = [a["internal_id"] for a in affiliations_aot]
+
+        existing_affiliation_ids = [
+            a["internal_id"] for a in affiliations_aot if "internal_id" in a
+        ]
+
         for affiliation in author.affiliations:
             if affiliation.internal_id not in existing_affiliation_ids:
                 # Add a new affiliation
@@ -134,4 +143,5 @@ class TechnoteTomlFile:
     ) -> None:
         t["name"] = affiliation_info.name
         t["internal_id"] = affiliation_info.internal_id
-        t["ror"] = str(affiliation_info.ror)
+        if affiliation_info.ror is not None:
+            t["ror"] = str(affiliation_info.ror)
