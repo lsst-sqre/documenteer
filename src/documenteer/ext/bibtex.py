@@ -2,6 +2,8 @@
 
 __all__ = ["setup"]
 
+import typing
+
 import pybtex.style.formatting.plain
 from pybtex.database import Entry, Person
 from pybtex.plugin import register_plugin
@@ -51,6 +53,53 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
     """Bibtex style that understands ``docushare`` fields in LSST
     bibliographies.
     """
+
+    # Allows a mapping of journal or series name found in the bibtex file
+    # to a more usable name for the Sphinx output. In particular ADS returns
+    # bib entries that assume latex commands exist to convert from \apj
+    # to ApJ or Astrophys. J as needed (allowing each style to decide how
+    # to report journal names).
+    bib_name_to_usable_name: typing.ClassVar = {
+        r"\aap": "A&A",
+        r"\aaps": "A&AS",
+        r"\aj": "AJ",
+        r"\ao": "Appl. Opt.",
+        r"\apj": "ApJ",
+        r"\apjl": "ApJL",
+        r"\apjs": "ApJS",
+        r"\araa": "ARA&A",
+        r"\icarus": "Icarus",
+        r"\mnras": "MNRAS",
+        r"\nat": "Nature",
+        r"\pasa": "PASA",
+        r"\pasj": "PASJ",
+        r"\pasp": "PASP",
+        r"\physrep": "Phys. Rep.",
+        r"\prd": "Phys. Rev. D.",
+        r"\procspie": "Proc. SPIE",
+        "Society of Photo-Optical Instrumentation Engineers (SPIE) Conference"
+        " Series": "Proc. SPIE",
+    }
+
+    def _rewrite_field(self, e: Entry, field: str) -> None:
+        """Rewrite the field contents based on the bib name map."""
+        if field in e.fields:
+            bib_name = e.fields[field]
+            if modified_name := self.bib_name_to_usable_name.get(bib_name):
+                e.fields[field] = modified_name
+
+    def get_article_template(self, e: Entry) -> Node:
+        # Fix up the journal name before rendering.
+        # In particular journal entries from ADS tend to use \apj style
+        # latex commands which need expanding.
+        self._rewrite_field(e, "journal")
+        return super().get_article_template(e)
+
+    def get_inproceedings_template(self, e: Entry) -> Node:
+        # Potentially modify the series string before formatting it.
+        self._rewrite_field(e, "series")
+        self._rewrite_field(e, "booktitle")
+        return super().get_inproceedings_template(e)
 
     def format_docushare(self, e: Entry) -> str:
         default_url = join["https://ls.st/", field("handle", raw=True)]
