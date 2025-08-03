@@ -60,6 +60,7 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
     # to ApJ or Astrophys. J as needed (allowing each style to decide how
     # to report journal names).
     bib_name_to_usable_name: typing.ClassVar = {
+        r"\actaa": "Acta Astron.",
         r"\aap": "A&A",
         r"\aaps": "A&AS",
         r"\aj": "AJ",
@@ -67,8 +68,10 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
         r"\apj": "ApJ",
         r"\apjl": "ApJL",
         r"\apjs": "ApJS",
+        r"\apss": "Ap&SS",
         r"\araa": "ARA&A",
         r"\icarus": "Icarus",
+        r"\memsai": "Mem. Soc. Ast. Italiana",
         r"\mnras": "MNRAS",
         r"\nat": "Nature",
         r"\pasa": "PASA",
