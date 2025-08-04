@@ -50,8 +50,10 @@ def truncated_names(
 
 
 class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
-    """Bibtex style that understands ``docushare`` fields in LSST
-    bibliographies.
+    """Bibtex style used for Rubin tech notes.
+
+    * Limits the number of authors for large author lists.
+    * Handles LaTeX journal macros.
     """
 
     # Allows a mapping of journal or series name found in the bibtex file
