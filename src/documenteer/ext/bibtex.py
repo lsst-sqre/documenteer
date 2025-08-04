@@ -1,7 +1,5 @@
 """Support for Rubin BibTeX files for pybtex/sphinxcontrib.bibtex."""
 
-__all__ = ["setup"]
-
 import typing
 
 import pybtex.style.formatting.plain
@@ -25,6 +23,8 @@ from sphinx.application import Sphinx
 from sphinx.util.typing import ExtensionMetadata
 
 from ..version import __version__
+
+__all__ = ["setup"]
 
 
 @node
