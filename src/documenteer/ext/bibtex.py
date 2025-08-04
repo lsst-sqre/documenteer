@@ -61,7 +61,7 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
     # bib entries that assume latex commands exist to convert from \apj
     # to ApJ or Astrophys. J as needed (allowing each style to decide how
     # to report journal names).
-    bib_name_to_usable_name: typing.ClassVar = {
+    bib_to_display_name: typing.ClassVar = {
         r"\actaa": "Acta Astron.",
         r"\aap": "A&A",
         r"\aaps": "A&AS",
@@ -90,7 +90,7 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
         """Rewrite the field contents based on the bib name map."""
         if field in e.fields:
             bib_name = e.fields[field]
-            if modified_name := self.bib_name_to_usable_name.get(bib_name):
+            if modified_name := self.bib_to_display_name.get(bib_name):
                 e.fields[field] = modified_name
 
     def get_article_template(self, e: Entry) -> Node:
