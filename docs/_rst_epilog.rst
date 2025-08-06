@@ -62,6 +62,7 @@
 .. _`authordb.yaml`: https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
 .. _pipx: https://pipx.pypa.io
 .. _`LSSTC Slack Workspace`: https://lsstc.slack.com
+.. _`uv`: https://docs.astral.sh/uv/
 
 .. |dmw-squarebot| replace:: `direct message with @squarebot <https://slack.com/app_redirect?app=A07PWG9UG9M&team=T02SVMGU4>`__
 
