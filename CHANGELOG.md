@@ -2,6 +2,22 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-2.2.0'></a>
+## 2.2.0 (2025-08-06)
+
+### New features
+
+- Updated the `documenteer technote migrate` command to use Documenteer 2.0 for new technotes.
+- Technote migration documentation now uses uv/uvx for running migration tools.
+- Improved the formatting for reference section in technotes with the Rubin BibTeX style:
+
+  - If an entry has more than 7 authors, the first three authors are listed, followed by "and others."
+  - LaTeX macros for journals are now converted to their expected names in the bibliography.
+
+### Other changes
+
+- Cleanup the API documentation for cleaner documentation builds.
+
 <a id='changelog-2.1.1'></a>
 ## 2.1.1 (2025-07-17)
 

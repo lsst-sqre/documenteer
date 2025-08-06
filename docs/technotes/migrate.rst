@@ -5,7 +5,7 @@ Migrate legacy reStructuredText/Sphinx technical notes
 ######################################################
 
 Introduced in December 2023, Rubin Observatory has a new technical note format for Markdown and reStructuredText documents.
-This update provides many `new features <https://community.lsst.org/t/the-next-generation-of-rubin-observatory-technotes-with-documenteer-1-0/8166>`__ included a responsive and branded page design, Markdown support, improved build configuration, automated bibliography management, and citation-ready metadata.
+This update provides many `new features <https://community.lsst.org/t/the-next-generation-of-rubin-observatory-technotes-with-documenteer-1-0/8166>`__ including a responsive and branded page design, Markdown support, improved build configuration, automated bibliography management, and citation-ready metadata.
 
 This page shows how to migrate your existing technotes with a command-line tool that largely automates the process.
 This page also provides file-by-file notes in case you need to revise the migration.
@@ -16,39 +16,17 @@ This page also provides file-by-file notes in case you need to revise the migrat
 
    LaTeX-format technotes are unaffected by this migration.
 
-Step 1. Install pipx
-====================
+Use the migration tool
+======================
 
-The migration tool needs **Python 3.11 or later**.
-You can verify this by running ``python --version`` from your shell.
+Documenteer provides a command-line tool, :command:`documenteer technote migrate`, to migrate legacy technotes to the new format.
+The migration tool requires:
 
-This official migration procedure uses the pipx_ tool to install and run the migration tool in an isolated Python environment.
-You can verify that pipx_ is installed by running ``pipx --version`` from your shell and checking for a version number.
+- Python 3.12 or later
+- The :command:`uvx` command from the `uv`_ package
 
-If you don't have the :command:`pipx` command-line tool already, you can install ``pipx`` several ways:
-
-.. tab-set::
-
-   .. tab-item:: pip
-
-      .. prompt:: bash
-
-         python -m pip install pipx
-
-   .. tab-item:: conda-forge
-
-      .. prompt:: bash
-
-         conda install -c conda-forge pipx
-
-   .. tab-item:: homebrew
-
-      .. prompt:: bash
-
-         brew install pipx
-
-Step 2. Clone your technote and create a branch
-===============================================
+Step 1. Clone your technote and create a branch
+-----------------------------------------------
 
 Since the migration is performed locally, you need to clone the repository:
 
@@ -60,12 +38,12 @@ Then create a branch for the migration (see the `Developer Guide <https://develo
 
 .. code-block:: bash
 
-   git switch -c {...}
+   git switch -c technote-migration
 
 Working from a branch allows you to create a pull request to verify the migration before merging it into the main branch.
 
-Step 3. Look up author IDs
-==========================
+Step 2. Look up author IDs
+--------------------------
 
 The migration tool needs the IDs of the technote's authors to fully configure the technote's metadata.
 
@@ -74,15 +52,39 @@ For example, ``sickj`` is the ID for Jonathan Sick.
 
 .. _technote-migration-tool:
 
-Step 4. Run the migration tool
-==============================
+Step 3. Run the migration tool
+------------------------------
 
 From the root of the cloned technote repository, run the migration tool, listing any identified authors that are relevant to your technote:
 
 .. code-block:: bash
    :caption: Set author IDs with the -a option
 
-   pipx run documenteer technote migrate -a sickj -a economouf
+   uvx documenteer technote migrate -a sickj -a economouf
+
+.. dropdown:: Details for installing uv/uvx...
+
+   The migration tool needs **Python 3.12 or later**.
+   You can verify this by running ``python --version`` from your shell.
+
+   This official migration procedure uses the :command:`uvx` command from uv_ to install and run the migration tool in an isolated Python environment.
+
+   If you don't have the :command:`uvx` command-line tool already, you can install ``uv`` several ways:
+
+   .. tab-set::
+
+      .. tab-item:: pip
+
+         .. prompt:: bash
+
+            python -m pip install uv
+
+      .. tab-item:: homebrew
+
+         .. prompt:: bash
+
+            brew install uv
+
 
 When the migration runs, it shows a summary of the files changed and deleted.
 Use ``git diff`` to review the changes in case you need to make tweaks before committing.
@@ -91,22 +93,21 @@ If you want to learn more about the changes made by the migration tool, you can 
 
 .. _technote-migration-markdown:
 
-Step 5 (optional). Migrate to Markdown
-======================================
+Step 4 (optional). Migrate to Markdown
+--------------------------------------
 
 The new technote format supports Markdown as well as reStructuredText.
 If you wish to use Markdown, you can use MyST Parser's migration tool:
 
 .. prompt:: bash
 
-   pipx install "rst-to-myst[sphinx]"
-   rst2myst convert index.rst
+   uvx --from "rst-to-myst[sphinx]" rst2myst convert index.rst
 
 The Markdown flavor used by the new technote format is MyST Markdown, which is a superset of CommonMark Markdown with support for Sphinx roles and directives.
 See the `MyST Parser documentation <https://myst-parser.readthedocs.io/en/latest/syntax/roles-and-directives.html#roles-directives>`__ for more information.
 
-Step 6 (optional). Build the technote locally
-=============================================
+Step 5 (optional). Build the technote locally
+---------------------------------------------
 
 You can build the technote locally to verify that the migrated technote compiles successfully.
 
@@ -136,8 +137,8 @@ You might also want to run the linter to check links and find common issues:
 If you have any questions or issues about the build, you should still proceed with committing and creating a pull request (see next step).
 This way you can link to the repository when you reach out for help in `#square-docs-support`_ on Slack.
 
-Step 7. Commit the migration, pull request, and merge
-=====================================================
+Step 6. Commit the migration, pull request, and merge
+-----------------------------------------------------
 
 At this point, you should have a working technote in the new format.
 If you haven't already, commit your work, push your branch to the GitHub repository, and open a pull request.
@@ -224,26 +225,6 @@ The new technote format requires some changes to this file: the title is now par
 
 Additionally, the new technote format supports Markdown as well as reStructuredText.
 See :ref:`migrate to Markdown <technote-migration-markdown>` to learn how to switch to Markdown.
-
-.. tip::
-
-   Besides these changes, your technote can also be written in Markdown (:file:`index.md`).
-   If you wish to switch from ReStructuredText to Markdown, you can use MyST Parser's migration tool:
-
-   .. prompt:: bash
-
-      pipx install "rst-to-myst[sphinx]"
-      rst2myst convert index.rst
-
-   This procedure uses pipx_ to install the ``rst-to-myst`` tool in an isolated Python environment (you might have already installed pipx_ to run the :ref:`main migration tool <technote-migration-tool>`).
-
-   Finally, delete the original :file:`index.rst` file and edit :file:`index.md` to fix any formatting issues.
-
-   .. prompt:: bash
-
-      git rm index.rst
-      git add index.md
-      git commit -m "Switch to Markdown format"
 
 Title
 ~~~~~
@@ -402,7 +383,7 @@ To start, add a :file:`.pre-commit-config.yaml` file:
 
 .. tip::
 
-   You can add additional pre-commit hooks to this file to suite your needs.
+   You can add additional pre-commit hooks to this file to suit your needs.
    See Pre-commit's `directory of available hooks <https://pre-commit.com/hooks.html>`__ for ideas.
 
 requirements.txt file (updated)
