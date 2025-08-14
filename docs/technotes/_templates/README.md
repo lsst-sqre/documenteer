@@ -16,7 +16,7 @@ A short description of this document.
 
 ## Build this technical note
 
-You can clone this repository and build the technote locally if your system has Python 3.11 or later:
+You can clone this repository and build the technote locally if your system has Python 3.12 or later:
 
 ```bash
 git clone https://github.com/lsst/example-000
