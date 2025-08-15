@@ -18,6 +18,7 @@ from pybtex.style.template import (
     optional_field,
     sentence,
     tag,
+    words,
 )
 from sphinx.application import Sphinx
 from sphinx.util.typing import ExtensionMetadata
@@ -99,6 +100,28 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
         # latex commands which need expanding.
         self._rewrite_field(e, "journal")
         return super().get_article_template(e)
+
+    def format_ascl(self, e: Entry) -> Node:
+        # based on urlbst format.doi
+        url = join["https://ascl.net/", field("eid", raw=True)]
+        return href(url)[join["ascl:", field("eid", raw=True)]]
+
+    def get_software_template(self, e: Entry) -> Node:
+        if "eid" in e.fields and "ascl:" in e.fields["eid"]:
+            date = words[optional_field("month"), field("year")]
+            e.fields["eid"] = e.fields["eid"].removeprefix("ascl:")
+            return toplevel[
+                optional[sentence[self.format_names("author")]],
+                optional[self.format_title(e, "title")],
+                sentence[
+                    optional[field("howpublished")],
+                    optional[date],
+                ],
+                sentence[optional_field("note")],
+                self.format_ascl(e),
+            ]
+        # If not an ASCL entry, use the default software template.
+        return super().get_software_template(e)
 
     def get_inproceedings_template(self, e: Entry) -> Node:
         # Potentially modify the series string before formatting it.
