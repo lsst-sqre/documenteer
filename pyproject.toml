@@ -30,7 +30,7 @@ requires-python = ">=3.12"
 dynamic = ["version"]
 dependencies = [
     "docutils>=0.20",  # solves an extra div bug with the bibliography directive
-    "Sphinx>=7,<8.2",  # Consistent docutils constraint
+    "Sphinx>=7,<8.3",  # Consistent docutils constraint
     "PyYAML",
     "GitPython",
     "requests",
