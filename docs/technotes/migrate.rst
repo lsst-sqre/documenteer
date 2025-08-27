@@ -235,6 +235,7 @@ Add the title to the top of the content:
 .. tab-set::
 
    .. tab-item:: rst
+      :sync: rst
 
       .. code-block:: rst
          :caption: index.rst
@@ -246,6 +247,7 @@ Add the title to the top of the content:
          [... content below ...]
 
    .. tab-item:: md
+      :sync: md
 
       .. code-block:: md
          :caption: index.md
@@ -268,6 +270,7 @@ The new technote format uses an ``abstract`` directive to mark up the abstract/s
 .. tab-set::
 
    .. tab-item:: rst
+      :sync: rst
 
       .. code-block:: rst
          :caption: index.rst
@@ -287,6 +290,7 @@ The new technote format uses an ``abstract`` directive to mark up the abstract/s
          [... content below ...]
 
    .. tab-item:: md
+      :sync: md
 
       .. code-block:: md
          :caption: index.md
@@ -311,6 +315,7 @@ In the new technote format, this section is simplified:
 .. tab-set::
 
    .. tab-item:: rst
+      :sync: rst
 
       .. code-block:: rst
          :caption: index.rst
@@ -323,6 +328,7 @@ In the new technote format, this section is simplified:
          .. bibliography::
 
    .. tab-item:: md
+      :sync: md
 
       .. code-block:: md
          :caption: index.md
@@ -476,12 +482,14 @@ Here is a suggested README template for technotes in the new format:
 .. tab-set::
 
    .. tab-item:: rst
+      :sync: rst
 
       .. literalinclude:: _templates/README.rst
          :language: rst
          :caption: README.rst
 
    .. tab-item:: md
+      :sync: md
 
       .. literalinclude:: _templates/README.md
          :language: md
