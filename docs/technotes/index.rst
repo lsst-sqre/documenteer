@@ -28,6 +28,7 @@ Documenteer provides centralized configuration and tooling for technotes.
    :maxdepth: 2
    :caption: Content & design
 
+   references
    wide-content
 
 .. toctree::

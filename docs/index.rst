@@ -56,15 +56,15 @@ Installation
 
       .. code-block:: sh
 
-         conda install documenteer
+         conda install lsst-documenteer
 
-      To use Documenteer's configurations for specific Rubin documentation use cases, you'll need to install Documenteer with specific "extras" to bring in the necessary dependencies.
-
-      To install Documenteer for technote projects:
+      For user guide projects:
 
       .. code-block:: sh
 
-         conda-install lsst-documenteer-technote
+         conda-install lsst-documenteer-guide
+
+      *Conda distributions aren't available for technote projects at this time.*
 
 Project guides
 ==============

@@ -34,7 +34,7 @@ Because of that, you don't need to rely on a specific Rubin Conda environment to
 .. important::
 
    Tox and pre-commit generally use the Python that they were installed with.
-   Documenteer requires Python 3.11 or later.
+   Documenteer requires Python 3.12 or later.
    To check what version of Python you have, run:
 
    .. prompt:: bash

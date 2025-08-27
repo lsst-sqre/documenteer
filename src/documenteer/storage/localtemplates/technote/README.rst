@@ -22,7 +22,7 @@
 Build this technical note
 =========================
 
-You can clone this repository and build the technote locally if your system has Python 3.11 or later:
+You can clone this repository and build the technote locally if your system has Python 3.12 or later:
 
 .. code-block:: bash
 

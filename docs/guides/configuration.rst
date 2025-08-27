@@ -18,10 +18,13 @@ How you do this depends on your project's packaging structure:
       .. code-block:: toml
          :caption: pyproject.toml
 
-         [project.optional-dependencies]
-         dev = [
+         [dependency-groups]
+         docs = [
              "documenteer[guide]"
          ]
+
+      Dependency groups are a way organize development dependencies and are supported by `uv <https://docs.astral.sh/uv/concepts/projects/dependencies/#development-dependencies>`__.
+      Dependency groups are preferred over earlier methods of specifying optional dependencies because they are not published as installable dependencies from PyPI.
 
    .. tab-item:: requirements.txt
 
