@@ -202,13 +202,13 @@ def get_common_nitpick_ignore_regex() -> list[tuple[str, str]]:
         "pydantic_settings",
         "starlette",
     ]
-    patterns = [("py:*", rf"{package}(?:\..*)?") for package in packages]
+    patterns = [("py:.*", rf"{package}(?:\..*)?") for package in packages]
 
     # Additional patterns that are common to ignore.
     patterns.extend(
         [
             # Bug in sphinx.ext.autodoc for pydantic models.
-            ("py:*", r".*\.all fields"),
+            ("py:.*", r".*\.all fields"),
         ]
     )
 
