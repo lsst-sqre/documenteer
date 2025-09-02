@@ -209,6 +209,8 @@ def get_common_nitpick_ignore_regex() -> list[tuple[str, str]]:
         [
             # Bug in sphinx.ext.autodoc for pydantic models.
             ("py:.*", r".*\.all fields"),
+            # Sphinx bug handling the type keyword
+            ("py:.*", r".*\.TypeAliasType"),
         ]
     )
 
