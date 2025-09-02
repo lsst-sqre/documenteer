@@ -171,10 +171,11 @@ def get_common_nitpick_ignore() -> list[tuple[str, str]]:
             "py:obj",
             "safir.pydantic.validate_exactly_one_of.<locals>.validator",
         ),
-        # asyncio.Lock is documented, and that's what all the code references,
-        # but the combination of Sphinx extensions we're using confuse
-        # themselves and there doesn't seem to be any way to fix this.
+        # asyncio.Lock and asyncio.Event are documented but the combination of
+        # Sphinx extensions we're using confuse themselves and there doesn't
+        # seem to be any way to fix this.
         ("py:class", "asyncio.locks.Lock"),
+        ("py:class", "asyncio.locks.Event"),
         ("py:class", "pathlib._local.Path"),
     ]
 
