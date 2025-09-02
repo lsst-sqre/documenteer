@@ -200,6 +200,7 @@ def get_common_nitpick_ignore_regex() -> list[tuple[str, str]]:
         "kubernetes_asyncio",
         "pydantic",
         "pydantic_settings",
+        "sentry_sdk",
         "starlette",
     ]
     patterns = [("py:.*", rf"{package}(?:\..*)?") for package in packages]
