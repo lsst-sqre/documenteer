@@ -2,6 +2,28 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-2.3.0'></a>
+## 2.3.0 (2025-09-03)
+
+### New features
+
+- Improved configuration defaults for `documenteer.conf.guide` and `documenteer.conf.technote`:
+
+  - Add `sentry_sdk` to default non-intersphinx packages
+  - Ignore `TypeAliasType` due to sphinx bug
+  - Ignore `asyncio.Event`, it has the same problem as `asyncio.Lock`
+
+- [ASCL](https://ascl.net) identifiers in bibliography entries are now hyperlinked.
+
+### Bug fixes
+
+- Vendored `parse_line_num_spec` from Sphinx to accommodate differences between Sphinx 7 and 8.
+- Fix `nitpick_ignore_regex` regexes, they weren't being applied due to a missing `.`
+
+### Other changes
+
+- Added documentation on creating bibliographies in technotes.
+
 <a id='changelog-2.2.0'></a>
 ## 2.2.0 (2025-08-06)
 
