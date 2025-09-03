@@ -171,10 +171,11 @@ def get_common_nitpick_ignore() -> list[tuple[str, str]]:
             "py:obj",
             "safir.pydantic.validate_exactly_one_of.<locals>.validator",
         ),
-        # asyncio.Lock is documented, and that's what all the code references,
-        # but the combination of Sphinx extensions we're using confuse
-        # themselves and there doesn't seem to be any way to fix this.
+        # asyncio.Lock and asyncio.Event are documented but the combination of
+        # Sphinx extensions we're using confuse themselves and there doesn't
+        # seem to be any way to fix this.
         ("py:class", "asyncio.locks.Lock"),
+        ("py:class", "asyncio.locks.Event"),
         ("py:class", "pathlib._local.Path"),
     ]
 
@@ -199,15 +200,18 @@ def get_common_nitpick_ignore_regex() -> list[tuple[str, str]]:
         "kubernetes_asyncio",
         "pydantic",
         "pydantic_settings",
+        "sentry_sdk",
         "starlette",
     ]
-    patterns = [("py:*", rf"{package}(?:\..*)?") for package in packages]
+    patterns = [("py:.*", rf"{package}(?:\..*)?") for package in packages]
 
     # Additional patterns that are common to ignore.
     patterns.extend(
         [
             # Bug in sphinx.ext.autodoc for pydantic models.
-            ("py:*", r".*\.all fields"),
+            ("py:.*", r".*\.all fields"),
+            # Sphinx bug handling the type keyword
+            ("py:.*", r".*\.TypeAliasType"),
         ]
     )
 
