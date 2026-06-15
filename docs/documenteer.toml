@@ -45,7 +45,8 @@ technote = "https://technote.lsst.io/"
 [sphinx.linkcheck]
 ignore = [
     "https://mermaid-js.github.io",
-    "https://rubin-obs.slack.com"
+    "https://rubin-obs.slack.com",
+    "https://slack.com/app_redirect",
 ]
 
 [sphinx.redirects]
