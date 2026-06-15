@@ -81,6 +81,7 @@ __all__ = [
     "html_theme",
     "html_context",
     "html_theme_options",
+    "documenteer_last_modified_enabled",
     "html_sidebars",
     "html_title",
     "html_short_title",
@@ -168,6 +169,7 @@ extensions = [
     "sphinx_favicon",
     "sphinx_sitemap",
     "documenteer.ext.robots",
+    "documenteer.ext.lastmodified",
     "documenteer.ext.jira",
     "documenteer.ext.lsstdocushare",
     "documenteer.ext.mockcoderefs",
@@ -291,6 +293,14 @@ html_theme_options = {
         "plausible_analytics_url": "https://plausible.io/js/script.file-downloads.hash.outbound-links.js",
     },
 }
+
+# Show a "Last updated on <date>." footer timestamp on each page, derived from
+# Git commit history by documenteer.ext.lastmodified. When enabled, add
+# pydata-sphinx-theme's built-in "last-updated" component to the footer's
+# center slot (which is empty by default).
+documenteer_last_modified_enabled = _conf.show_last_updated
+if documenteer_last_modified_enabled:
+    html_theme_options["footer_center"] = ["last-updated"]
 
 if _conf.github_url:
     if not isinstance(html_theme_options["icon_links"], list):

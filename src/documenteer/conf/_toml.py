@@ -198,6 +198,14 @@ class ThemeModel(BaseModel):
         ),
     )
 
+    show_last_updated: bool = Field(
+        True,
+        description=(
+            "Show a 'Last updated' footer timestamp derived from Git commit "
+            "dates if True"
+        ),
+    )
+
 
 class SphinxModel(BaseModel):
     """Model for Sphinx configurations in documenteer.toml."""
@@ -565,3 +573,13 @@ class DocumenteerConfig:
             return self.conf.sphinx.theme.header_links_before_dropdown
         else:
             return 5
+
+    @property
+    def show_last_updated(self) -> bool:
+        """Whether to show a "Last updated" footer timestamp derived from Git
+        commit dates.
+        """
+        if self.conf.sphinx:
+            return self.conf.sphinx.theme.show_last_updated
+        else:
+            return True

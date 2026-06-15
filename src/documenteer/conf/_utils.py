@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 
 from git import Repo
@@ -107,6 +109,10 @@ class GitRepository:
 
     def __init__(self, dirname: Path) -> None:
         self._repo = Repo(dirname, search_parent_directories=True)
+        # Cache of the last-modified datetime for each absolute path so that
+        # shared dependencies (e.g. included files) are only resolved once per
+        # build, rather than once per referencing page.
+        self._last_modified_cache: dict[str, datetime | None] = {}
 
     @property
     def working_tree_dir(self) -> Path:
@@ -115,6 +121,70 @@ class GitRepository:
         if path is None:
             raise RuntimeError("Git repository is not available.")
         return Path(path)
+
+    @property
+    def is_shallow(self) -> bool:
+        """Whether the repository is a shallow clone.
+
+        A shallow clone (such as one produced by ``actions/checkout`` without
+        ``fetch-depth: 0``) does not contain the full commit history, so
+        commit-date lookups are unreliable.
+        """
+        result = self._repo.git.rev_parse("--is-shallow-repository")
+        return result.strip() == "true"
+
+    def compute_last_modified(
+        self, paths: Sequence[Path | str]
+    ) -> datetime | None:
+        """Compute the most-recent commit datetime across a set of paths.
+
+        Parameters
+        ----------
+        paths
+            Paths to consider. Typically a page's source file together with
+            any files it pulls in via ``include``/``literalinclude``.
+
+        Returns
+        -------
+        datetime.datetime or None
+            The most recent commit datetime (timezone-aware) across all of the
+            tracked ``paths``. Paths that are untracked (e.g. new or
+            uncommitted files), or that lie outside the Git working tree, are
+            ignored. Returns `None` if none of the paths are tracked in the
+            repository.
+        """
+        working_tree_dir = self.working_tree_dir.resolve()
+        datetimes: list[datetime] = []
+        for path in paths:
+            abs_path = Path(path).resolve()
+
+            # Defensively skip paths that aren't inside the working tree; Git
+            # cannot report history for them.
+            if not abs_path.is_relative_to(working_tree_dir):
+                continue
+
+            key = str(abs_path)
+            if key in self._last_modified_cache:
+                cached = self._last_modified_cache[key]
+            else:
+                cached = self._get_path_last_modified(abs_path)
+                self._last_modified_cache[key] = cached
+
+            if cached is not None:
+                datetimes.append(cached)
+
+        if not datetimes:
+            return None
+        return max(datetimes)
+
+    def _get_path_last_modified(self, path: Path) -> datetime | None:
+        """Get the datetime of the most recent commit touching a single path,
+        or `None` if the path isn't tracked.
+        """
+        commits = list(self._repo.iter_commits(paths=str(path), max_count=1))
+        if not commits:
+            return None
+        return commits[0].committed_datetime
 
 
 def extend_excludes_for_non_index_source(

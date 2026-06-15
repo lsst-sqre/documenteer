@@ -426,6 +426,42 @@ This configuration requires information about the GitHub repository from these o
 - :ref:`project.github_url <guide-project-github-url>`
 - :ref:`project.github_default_branch <guide-project-github-default-branch>`
 
+.. _guide-project-show-last-updated:
+
+show_last_updated
+-----------------
+
+|optional|
+
+Default is ``true``, so that each page shows a "Last updated on <date>." timestamp in its footer.
+
+The date is computed from the page's **Git commit history**, not the filesystem modification time (which is meaningless in CI).
+It is the most recent commit date across the page's own source file *and* any files the page pulls in with ``include`` or ``literalinclude`` directives, so editing an included snippet updates every page that uses it.
+Because the date is the last *commit* date, uncommitted local edits don't change it; a page whose source has never been committed shows no timestamp.
+
+Set this to ``false`` to hide the footer timestamp:
+
+.. code-block:: toml
+   :caption: documenteer.toml
+
+   [sphinx.theme]
+   show_last_updated = false
+
+.. important::
+
+   Because the date comes from the Git history, your CI build must check out the **full** commit history.
+   With `actions/checkout <https://github.com/actions/checkout>`__, set ``fetch-depth: 0``:
+
+   .. code-block:: yaml
+      :caption: .github/workflows/ci.yaml
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+   A shallow clone (the default) only fetches the most recent commit, so every page would otherwise report the same, incorrect date.
+   To avoid publishing misleading data, Documenteer detects a shallow clone, **omits the "Last updated" timestamp from every page**, and emits a single build warning telling you to set ``fetch-depth: 0``.
+
 [sphinx.intersphinx]
 ====================
 
