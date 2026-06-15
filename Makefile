@@ -9,7 +9,7 @@ help:
 init:
 	rm -rf .tox
 	uv pip install --upgrade pre-commit tox tox-uv scriv
-	uv pip install -e ".[technote,pipelines]" --group dev
+	uv pip install -e ".[technote,guide]" --group dev
 	pre-commit install
 
 .PHONY: clean
