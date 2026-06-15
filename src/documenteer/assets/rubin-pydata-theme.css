@@ -111,9 +111,23 @@ body {
 }
 
 /* "Last updated" timestamp at the bottom of the article body
- * (documenteer.ext.lastmodified -> pydata "last-updated" component). */
+ * (documenteer.ext.lastmodified -> pydata "last-updated" component).
+ * Left-aligned, muted, with breathing room above and below so it reads as
+ * page metadata between the body and the prev/next navigation. */
 .bd-footer-article .last-updated {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
   text-align: left;
   font-size: 0.875em;
   color: var(--pst-color-text-muted);
+}
+
+/* Indent the footer so the timestamp lines up with the article body text.
+ * pydata-sphinx-theme only indents the article (.bd-article) by 2rem at
+ * >=1200px, so match that breakpoint to avoid over-indenting on narrow
+ * screens, where the body has no extra indent. */
+@media (min-width: 1200px) {
+  .bd-footer-article {
+    padding-left: 2rem;
+  }
 }
