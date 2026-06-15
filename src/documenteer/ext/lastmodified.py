@@ -5,7 +5,8 @@ For each HTML output page, this extension computes the most recent commit
 datetime across the page's source file *and* any files that the page pulls in
 via ``include``/``literalinclude`` directives. That datetime is formatted and
 stored in the page's ``last_updated`` template context variable, which the
-pydata-sphinx-theme renders in its ``last-updated`` footer component.
+pydata-sphinx-theme renders at the bottom of the article body via its
+``last-updated`` component.
 
 Using Git commit dates (rather than filesystem modification times) means the
 timestamps are meaningful in CI builds, where checkouts have arbitrary mtimes.

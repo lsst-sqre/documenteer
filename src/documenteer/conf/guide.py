@@ -294,13 +294,14 @@ html_theme_options = {
     },
 }
 
-# Show a "Last updated on <date>." footer timestamp on each page, derived from
-# Git commit history by documenteer.ext.lastmodified. When enabled, add
-# pydata-sphinx-theme's built-in "last-updated" component to the footer's
-# center slot (which is empty by default).
+# Show a "Last updated on <date>." timestamp at the bottom of each page's
+# article body, derived from Git commit history by
+# documenteer.ext.lastmodified. When enabled, add pydata-sphinx-theme's
+# built-in "last-updated" component to the article footer slot (which is empty
+# by default).
 documenteer_last_modified_enabled = _conf.show_last_updated
 if documenteer_last_modified_enabled:
-    html_theme_options["footer_center"] = ["last-updated"]
+    html_theme_options["article_footer_items"] = ["last-updated"]
 
 if _conf.github_url:
     if not isinstance(html_theme_options["icon_links"], list):

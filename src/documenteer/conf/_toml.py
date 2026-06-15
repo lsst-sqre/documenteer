@@ -201,8 +201,8 @@ class ThemeModel(BaseModel):
     show_last_updated: bool = Field(
         True,
         description=(
-            "Show a 'Last updated' footer timestamp derived from Git commit "
-            "dates if True"
+            "Show a 'Last updated' timestamp at the bottom of each page "
+            "derived from Git commit dates if True"
         ),
     )
 
@@ -576,8 +576,8 @@ class DocumenteerConfig:
 
     @property
     def show_last_updated(self) -> bool:
-        """Whether to show a "Last updated" footer timestamp derived from Git
-        commit dates.
+        """Whether to show a "Last updated" timestamp at the bottom of each
+        page derived from Git commit dates.
         """
         if self.conf.sphinx:
             return self.conf.sphinx.theme.show_last_updated

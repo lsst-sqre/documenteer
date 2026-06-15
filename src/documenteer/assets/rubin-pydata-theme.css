@@ -109,3 +109,11 @@ body {
 .navbar-nav i {
   font-size: var(--pst-font-size-icon);
 }
+
+/* "Last updated" timestamp at the bottom of the article body
+ * (documenteer.ext.lastmodified -> pydata "last-updated" component). */
+.bd-footer-article .last-updated {
+  text-align: left;
+  font-size: 0.875em;
+  color: var(--pst-color-text-muted);
+}

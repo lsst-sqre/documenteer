@@ -13,7 +13,7 @@ from sphinx.testing.util import SphinxTestApp
 FIXED_DATE = datetime(2024, 6, 1, tzinfo=UTC)
 EXPECTED = "Jun 01, 2024"
 
-# Whether pydata-sphinx-theme is importable. The end-to-end footer test must
+# Whether pydata-sphinx-theme is importable. The end-to-end render test must
 # be skipped *before* the ``app`` fixture is built, because building with
 # ``html_theme = "pydata_sphinx_theme"`` would otherwise error during fixture
 # setup when the theme isn't installed.
@@ -141,11 +141,11 @@ def test_last_updated_suppressed_for_shallow_clone(app: SphinxTestApp) -> None:
     srcdir="lastmodified-pydata",
     confoverrides={
         "html_theme": "pydata_sphinx_theme",
-        "html_theme_options": {"footer_center": ["last-updated"]},
+        "html_theme_options": {"article_footer_items": ["last-updated"]},
     },
 )
-def test_last_updated_rendered_in_pydata_footer(app: SphinxTestApp) -> None:
-    """End-to-end: the date appears in the rendered pydata footer."""
+def test_last_updated_rendered_in_pydata_article(app: SphinxTestApp) -> None:
+    """End-to-end: the date appears at the bottom of the rendered article."""
     mock_repo = _mock_git_repository()
     with patch(
         "documenteer.ext.lastmodified.GitRepository", return_value=mock_repo

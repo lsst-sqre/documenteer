@@ -433,13 +433,13 @@ show_last_updated
 
 |optional|
 
-Default is ``true``, so that each page shows a "Last updated on <date>." timestamp in its footer.
+Default is ``true``, so that each page shows a "Last updated on <date>." timestamp at the bottom of each page.
 
 The date is computed from the page's **Git commit history**, not the filesystem modification time (which is meaningless in CI).
 It is the most recent commit date across the page's own source file *and* any files the page pulls in with ``include`` or ``literalinclude`` directives, so editing an included snippet updates every page that uses it.
 Because the date is the last *commit* date, uncommitted local edits don't change it; a page whose source has never been committed shows no timestamp.
 
-Set this to ``false`` to hide the footer timestamp:
+Set this to ``false`` to hide the timestamp:
 
 .. code-block:: toml
    :caption: documenteer.toml
