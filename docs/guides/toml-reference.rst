@@ -435,6 +435,11 @@ show_last_updated
 
 Default is ``true``, so that each page shows a "Last updated on <date>." timestamp at the bottom of each page.
 
+.. seealso::
+
+   :doc:`/sphinx-extensions/last-updated` for how the date is computed and the extension's
+   Sphinx configuration values.
+
 The date is computed from the page's **Git commit history**, not the filesystem modification time (which is meaningless in CI).
 It is the most recent commit date across the page's own source file *and* any files the page pulls in with ``include`` or ``literalinclude`` directives, so editing an included snippet updates every page that uses it.
 Because the date is the last *commit* date, uncommitted local edits don't change it; a page whose source has never been committed shows no timestamp.
