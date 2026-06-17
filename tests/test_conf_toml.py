@@ -76,6 +76,23 @@ disable_primary_sidebars = [
 ]
 """
 
+EXAMPLE_NO_LAST_UPDATED = """
+
+[project]
+title = "Documenteer"
+copyright = "2022 AURA"
+
+[sphinx.theme]
+show_last_updated = false
+"""
+
+EXAMPLE_NO_SPHINX = """
+
+[project]
+title = "Documenteer"
+copyright = "2022 AURA"
+"""
+
 
 def test_load() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
@@ -162,3 +179,16 @@ def test_disable_primary_sidebars() -> None:
     html_sidebars: dict[str, list[str]] = {}
     config.disable_primary_sidebars(html_sidebars)
     assert html_sidebars == {"index": [], "changelog": []}
+
+
+def test_show_last_updated_default() -> None:
+    """show_last_updated defaults to True when not configured."""
+    assert DocumenteerConfig.load(EXAMPLE).show_last_updated is True
+    # Also defaults to True when there's no [sphinx] table at all.
+    assert DocumenteerConfig.load(EXAMPLE_NO_SPHINX).show_last_updated is True
+
+
+def test_show_last_updated_disabled() -> None:
+    """show_last_updated reflects sphinx.theme.show_last_updated = false."""
+    config = DocumenteerConfig.load(EXAMPLE_NO_LAST_UPDATED)
+    assert config.show_last_updated is False

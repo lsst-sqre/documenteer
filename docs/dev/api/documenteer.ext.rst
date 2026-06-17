@@ -11,6 +11,9 @@ documenteer.ext
 .. automodapi:: documenteer.ext.jira
    :no-inheritance-diagram:
 
+.. automodapi:: documenteer.ext.lastmodified
+   :no-inheritance-diagram:
+
 .. automodapi:: documenteer.ext.lsstdocushare
    :no-inheritance-diagram:
 

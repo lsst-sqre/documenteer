@@ -81,12 +81,15 @@ __all__ = [
     "html_theme",
     "html_context",
     "html_theme_options",
+    "documenteer_last_modified_enabled",
+    "git_last_updated_metatags",
     "html_sidebars",
     "html_title",
     "html_short_title",
     "html_baseurl",
     "html_static_path",
     "html_css_files",
+    "html_js_files",
     "html_show_sourcelink",
     "favicons",
     "sitemap_url_scheme",
@@ -168,6 +171,7 @@ extensions = [
     "sphinx_favicon",
     "sphinx_sitemap",
     "documenteer.ext.robots",
+    "documenteer.ext.lastmodified",
     "documenteer.ext.jira",
     "documenteer.ext.lsstdocushare",
     "documenteer.ext.mockcoderefs",
@@ -292,6 +296,20 @@ html_theme_options = {
     },
 }
 
+# Show a "Last updated on <date>." timestamp at the bottom of each page's
+# article body, derived from Git commit history by
+# documenteer.ext.lastmodified. When enabled, add pydata-sphinx-theme's
+# built-in "last-updated" component to the article footer slot (which is empty
+# by default).
+documenteer_last_modified_enabled = _conf.show_last_updated
+if documenteer_last_modified_enabled:
+    html_theme_options["article_footer_items"] = ["last-updated"]
+
+# documenteer.ext.lastmodified now emits article:modified_time itself, so
+# turn off the duplicate tag from sphinx-last-updated-by-git (auto-loaded by
+# sphinx-sitemap, which still uses it for sitemap <lastmod>).
+git_last_updated_metatags = False
+
 if _conf.github_url:
     if not isinstance(html_theme_options["icon_links"], list):
         raise TypeError("icon_links must be a list")
@@ -351,6 +369,14 @@ html_static_path: list[str] = [
 ]
 
 html_css_files = ["rubin-pydata-theme.css"]
+
+# The lastmodified extension renders the per-page "last modified" footer date
+# as a <time> element; rubin-last-modified.js localizes it to the reader's
+# timezone. Only ship the script when the feature is enabled.
+html_js_files: list[str] = []
+if documenteer_last_modified_enabled:
+    html_static_path.append(get_asset_path("rubin-last-modified.js"))
+    html_js_files.append("rubin-last-modified.js")
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

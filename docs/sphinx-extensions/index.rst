@@ -19,3 +19,10 @@ Sphinx extensions
 
    remote-code-block
    openapi
+
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+   :caption: Page metadata
+
+   last-updated
