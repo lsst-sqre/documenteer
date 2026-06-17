@@ -1,0 +1,14 @@
+{# Override of pydata-sphinx-theme's last-updated component.
+   Renders documenteer.ext.lastmodified's per-page Git commit date as a
+   localizable <time> element: the datetime attribute carries the canonical
+   UTC ISO 8601 timestamp; the visible text is the UTC date (YYYY-MM-DD) as a
+   no-JavaScript fallback, which rubin-last-modified.js rewrites to the
+   reader's local date. #}
+{%- if documenteer_last_modified_iso -%}
+<p class="last-updated">
+  This page was last modified on
+  <time datetime="{{ documenteer_last_modified_iso|e }}"
+        class="documenteer-last-modified"
+        data-documenteer-last-modified>{{ documenteer_last_modified_date|e }}</time>.
+</p>
+{%- endif -%}

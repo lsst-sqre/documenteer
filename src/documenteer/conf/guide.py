@@ -89,6 +89,7 @@ __all__ = [
     "html_baseurl",
     "html_static_path",
     "html_css_files",
+    "html_js_files",
     "html_show_sourcelink",
     "favicons",
     "sitemap_url_scheme",
@@ -368,6 +369,14 @@ html_static_path: list[str] = [
 ]
 
 html_css_files = ["rubin-pydata-theme.css"]
+
+# The lastmodified extension renders the per-page "last modified" footer date
+# as a <time> element; rubin-last-modified.js localizes it to the reader's
+# timezone. Only ship the script when the feature is enabled.
+html_js_files: list[str] = []
+if documenteer_last_modified_enabled:
+    html_static_path.append(get_asset_path("rubin-last-modified.js"))
+    html_js_files.append("rubin-last-modified.js")
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

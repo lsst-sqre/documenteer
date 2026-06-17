@@ -4,10 +4,30 @@
 "Last updated" page timestamps
 ##############################
 
-Documenteer's ``documenteer.ext.lastmodified`` extension adds a "Last updated on <date>." timestamp to the bottom of each page's article body.
+Documenteer's ``documenteer.ext.lastmodified`` extension adds a "This page was last modified on <date>." timestamp to the bottom of each page's article body.
 The date is derived from the page's **Git commit history** rather than the filesystem modification time, which is meaningless in CI where checkouts have arbitrary timestamps.
-The extension is theme-agnostic: it stores the formatted date in each page's ``last_updated`` template context variable, which pydata-sphinx-theme renders through its built-in ``last-updated`` component.
+In the user-guide preset the footer date is rendered to the **reader's** local timezone (see `Reader-localized footer date`_).
 It is also the single source of truth for the page's last-modified date in the HTML ``<head>``, where it emits the same Git date as Open Graph, Dublin Core, and Schema.org metadata (see `HTML metadata`_).
+
+The extension exposes the date to the page template in three forms:
+
+- ``last_updated`` — the date formatted with :ref:`documenteer_last_modified_date_format <documenteer-last-modified-date-format-conf>` in the commit's own timezone offset. Sphinx emits this as the ``docbuild:last-update`` meta tag, and it is the value any theme-agnostic ``last-updated`` rendering uses.
+- ``documenteer_last_modified_iso`` — the canonical UTC ISO 8601 timestamp (for example ``2024-06-01T00:00:00+00:00``).
+- ``documenteer_last_modified_date`` — the UTC date as ``YYYY-MM-DD`` (for example ``2024-06-01``).
+
+Reader-localized footer date
+============================
+
+In the user-guide preset, Documenteer overrides pydata-sphinx-theme's ``last-updated`` component to render the footer date as a ``<time>`` element:
+
+.. code-block:: html
+
+   <time datetime="2024-06-01T00:00:00+00:00">2024-06-01</time>
+
+The ``datetime`` attribute carries the canonical UTC ISO 8601 timestamp, and the visible text is the UTC date as ``YYYY-MM-DD``.
+A small bundled script (``rubin-last-modified.js``) then rewrites the visible text to the **reader's** local date in a long-month style, for example "June 1, 2024".
+This matters because a UTC date can fall on a different calendar day than the reader's local date; localizing in the browser shows each reader the correct day.
+With JavaScript disabled the element keeps its ``YYYY-MM-DD`` UTC fallback text.
 
 .. tip::
 
@@ -104,9 +124,12 @@ In the user-guide preset this is set automatically from the :ref:`show_last_upda
 documenteer\_last\_modified\_date\_format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``strftime``-style format string for the date.
+The ``strftime``-style format string for the ``last_updated`` value.
 Defaults to ``"%b %d, %Y"`` (for example, ``Jun 16, 2026``).
 The date is formatted with Sphinx's date machinery, so it respects the build's ``language`` setting.
+
+This format governs the ``last_updated`` context value — the ``docbuild:last-update`` meta tag and any theme-agnostic ``last-updated`` rendering — **not** the visible footer date in the user-guide preset.
+That footer date is rendered from the UTC ISO timestamp and localized to the reader's timezone by JavaScript (see `Reader-localized footer date`_), so it is not affected by this setting.
 
 .. code-block:: python
    :caption: conf.py
