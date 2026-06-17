@@ -35,6 +35,9 @@ Besides the visible footer timestamp, the extension writes the **same Git commit
 - ``<meta name="dcterms.modified">`` — the `Dublin Core <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/#modified>`__ modification date.
 - A `Schema.org <https://schema.org/dateModified>`__ ``dateModified`` field inside a JSON-LD ``<script type="application/ld+json">`` block (typed as ``WebPage``).
 
+These three head signals are expressed in **UTC** (ISO 8601, ``+00:00``), so the metadata is identical regardless of the committer's timezone — a locally-authored commit and its UTC-recorded squash-merge produce the same value.
+The visible footer date, by contrast, reflects the commit's own offset.
+
 In addition, pydata-sphinx-theme renders a ``<meta name="docbuild:last-update">`` tag from the same ``last_updated`` context value.
 
 .. note::

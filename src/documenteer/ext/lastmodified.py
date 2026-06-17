@@ -26,7 +26,7 @@ timestamps are meaningful in CI builds, where checkouts have arbitrary mtimes.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import git
@@ -206,6 +206,13 @@ class LastModified:
           keeps this a plain freshness statement without triggering the
           "missing field" validation noise that an ``Article`` would.
 
+        The ISO value is normalized to UTC (``+00:00``), independent of the
+        committer's timezone offset, so these machine-readable freshness
+        signals are byte-for-byte identical no matter who authored the commit
+        (a local commit and its UTC-recorded squash-merge agree). This
+        deliberately diverges from the human-readable footer date, which keeps
+        the commit's own offset.
+
         Parameters
         ----------
         context
@@ -214,7 +221,9 @@ class LastModified:
         date
             The timezone-aware last-modified datetime.
         """
-        iso = date.isoformat()
+        # Normalize to UTC so the machine-readable metadata is canonical and
+        # contributor-independent, not tied to the committer's local offset.
+        iso = date.astimezone(UTC).isoformat()
         metatags = context.get("metatags", "")
 
         metatags += (

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +15,14 @@ EXPECTED = "Jun 01, 2024"
 # The ISO 8601 form of FIXED_DATE, as emitted into the page metadata.
 EXPECTED_ISO = "2024-06-01T00:00:00+00:00"
 
+# A commit datetime in a non-UTC offset that also crosses a day boundary when
+# normalized to UTC: 22:00 on Jun 01 at -07:00 is 05:00 on Jun 02 in UTC.
+OFFSET_DATE = datetime(2024, 6, 1, 22, 0, tzinfo=timezone(timedelta(hours=-7)))
+# The footer date keeps the commit's own offset (still Jun 01 locally).
+OFFSET_EXPECTED = "Jun 01, 2024"
+# The head metadata is normalized to UTC, shifting to the next day.
+OFFSET_EXPECTED_ISO = "2024-06-02T05:00:00+00:00"
+
 # Whether pydata-sphinx-theme is importable. The end-to-end render test must
 # be skipped *before* the ``app`` fixture is built, because building with
 # ``html_theme = "pydata_sphinx_theme"`` would otherwise error during fixture
@@ -22,11 +30,11 @@ EXPECTED_ISO = "2024-06-01T00:00:00+00:00"
 _HAS_PYDATA = importlib.util.find_spec("pydata_sphinx_theme") is not None
 
 
-def _mock_git_repository() -> MagicMock:
+def _mock_git_repository(date: datetime = FIXED_DATE) -> MagicMock:
     """Build a mock GitRepository that always reports a fixed commit date."""
     mock_repo = MagicMock()
     mock_repo.is_shallow = False
-    mock_repo.compute_last_modified.return_value = FIXED_DATE
+    mock_repo.compute_last_modified.return_value = date
     return mock_repo
 
 
@@ -105,6 +113,37 @@ def test_last_modified_metatags_on_content_pages(app: SphinxTestApp) -> None:
     )
     assert '<script type="application/ld+json">' in metatags
     assert f'"dateModified": "{EXPECTED_ISO}"' in metatags
+
+
+@pytest.mark.sphinx(
+    "html", testroot="lastmodified", srcdir="lastmodified-metatags-utc"
+)
+def test_last_modified_metatags_utc_normalized(app: SphinxTestApp) -> None:
+    """Head metadata is normalized to UTC; the footer keeps the commit offset.
+
+    A commit recorded at a non-UTC offset (here ``-07:00``) is emitted into the
+    HTML ``<head>`` as a UTC (``+00:00``) ISO 8601 string, so the machine
+    signals are contributor-independent. Because this commit's local time is
+    late in the day, the UTC value rolls over to the next day -- yet the
+    human-readable footer date stays on the commit's own (earlier) day.
+    """
+    mock_repo = _mock_git_repository(OFFSET_DATE)
+    captured = _build_and_capture(app, mock_repo)
+
+    metatags = captured["index"]["metatags"]
+    assert (
+        f'<meta property="article:modified_time" '
+        f'content="{OFFSET_EXPECTED_ISO}" />' in metatags
+    )
+    assert (
+        f'<meta name="dcterms.modified" content="{OFFSET_EXPECTED_ISO}" />'
+        in metatags
+    )
+    assert f'"dateModified": "{OFFSET_EXPECTED_ISO}"' in metatags
+
+    # The visible footer date keeps the commit's own offset (the head-only
+    # scope of the UTC normalization).
+    assert captured["index"]["last_updated"] == OFFSET_EXPECTED
 
 
 @pytest.mark.sphinx(
