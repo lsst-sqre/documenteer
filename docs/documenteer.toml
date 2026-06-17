@@ -47,6 +47,9 @@ ignore = [
     "https://mermaid-js.github.io",
     "https://rubin-obs.slack.com",
     "https://slack.com/app_redirect",
+    # github.dev redirects to the vscode.dev SPA, which doesn't finish
+    # loading within linkcheck's timeout and reports a false-positive timeout.
+    "https://github.dev",
 ]
 
 [sphinx.redirects]

@@ -32,7 +32,7 @@ HTML metadata
 Besides the visible footer timestamp, the extension writes the **same Git commit date** into the page's HTML ``<head>`` as three machine-readable signals, so that downstream consumers all agree:
 
 - ``<meta property="article:modified_time">`` — the `Open Graph <https://ogp.me/>`__ property used by social-media link previews.
-- ``<meta name="dcterms.modified">`` — the `Dublin Core <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/#http://purl.org/dc/terms/modified>`__ modification date.
+- ``<meta name="dcterms.modified">`` — the `Dublin Core <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/#modified>`__ modification date.
 - A `Schema.org <https://schema.org/dateModified>`__ ``dateModified`` field inside a JSON-LD ``<script type="application/ld+json">`` block (typed as ``WebPage``).
 
 In addition, pydata-sphinx-theme renders a ``<meta name="docbuild:last-update">`` tag from the same ``last_updated`` context value.
