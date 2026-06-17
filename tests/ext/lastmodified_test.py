@@ -12,6 +12,8 @@ from sphinx.testing.util import SphinxTestApp
 
 FIXED_DATE = datetime(2024, 6, 1, tzinfo=UTC)
 EXPECTED = "Jun 01, 2024"
+# The ISO 8601 form of FIXED_DATE, as emitted into the page metadata.
+EXPECTED_ISO = "2024-06-01T00:00:00+00:00"
 
 # Whether pydata-sphinx-theme is importable. The end-to-end render test must
 # be skipped *before* the ``app`` fixture is built, because building with
@@ -33,20 +35,30 @@ def _build_and_capture(
 ) -> dict[str, dict]:
     """Build the app with GitRepository mocked, capturing each page's context.
 
-    The probe handler is connected after the extension's handler, so it
-    observes the ``last_updated`` value that the extension set (if any).
+    The probe handler is connected at a higher priority than the extension's
+    handler (which runs at priority 600), so it observes the ``last_updated``
+    value and ``metatags`` that the extension set (if any).
     """
     captured: dict[str, dict] = {}
 
     def probe(app, pagename, templatename, context, doctree):
         captured[pagename] = dict(context)
 
-    app.connect("html-page-context", probe)
+    app.connect("html-page-context", probe, priority=700)
     with patch(
         "documenteer.ext.lastmodified.GitRepository", return_value=mock_repo
     ):
         app.build()
     return captured
+
+
+def _has_modified_metatags(context: dict) -> bool:
+    """Whether a captured context carries any last-modified metadata.
+
+    The extension only ever emits these tags together, so the Open Graph tag
+    is a sufficient sentinel for the whole set.
+    """
+    return "article:modified_time" in context.get("metatags", "")
 
 
 @pytest.mark.sphinx(
@@ -71,6 +83,31 @@ def test_last_updated_on_content_pages(app: SphinxTestApp) -> None:
 
 
 @pytest.mark.sphinx(
+    "html", testroot="lastmodified", srcdir="lastmodified-metatags"
+)
+def test_last_modified_metatags_on_content_pages(app: SphinxTestApp) -> None:
+    """Content pages emit Open Graph, Dublin Core, and JSON-LD metadata.
+
+    All three signals carry the same ISO 8601 Git commit date, making the
+    extension the single source of truth for the page's last-modified date.
+    """
+    mock_repo = _mock_git_repository()
+    captured = _build_and_capture(app, mock_repo)
+
+    metatags = captured["index"]["metatags"]
+    assert (
+        f'<meta property="article:modified_time" content="{EXPECTED_ISO}" />'
+        in metatags
+    )
+    assert (
+        f'<meta name="dcterms.modified" content="{EXPECTED_ISO}" />'
+        in metatags
+    )
+    assert '<script type="application/ld+json">' in metatags
+    assert f'"dateModified": "{EXPECTED_ISO}"' in metatags
+
+
+@pytest.mark.sphinx(
     "html", testroot="lastmodified", srcdir="lastmodified-special"
 )
 def test_last_updated_none_on_special_pages(app: SphinxTestApp) -> None:
@@ -86,6 +123,10 @@ def test_last_updated_none_on_special_pages(app: SphinxTestApp) -> None:
 
     assert captured["genindex"]["last_updated"] is None
     assert captured["search"]["last_updated"] is None
+
+    # Sourceless pages also get no last-modified metadata.
+    assert not _has_modified_metatags(captured["genindex"])
+    assert not _has_modified_metatags(captured["search"])
 
 
 @pytest.mark.sphinx(
@@ -107,6 +148,10 @@ def test_last_updated_disabled(app: SphinxTestApp) -> None:
     assert captured["page2"]["last_updated"] is None
     mock_repo.compute_last_modified.assert_not_called()
 
+    # No last-modified metadata is emitted when the feature is disabled.
+    assert not _has_modified_metatags(captured["index"])
+    assert not _has_modified_metatags(captured["page2"])
+
 
 @pytest.mark.sphinx(
     "html", testroot="lastmodified", srcdir="lastmodified-shallow"
@@ -125,6 +170,10 @@ def test_last_updated_suppressed_for_shallow_clone(app: SphinxTestApp) -> None:
     assert captured["index"]["last_updated"] is None
     assert captured["page2"]["last_updated"] is None
     mock_repo.compute_last_modified.assert_not_called()
+
+    # Misleading metadata is suppressed along with the visible timestamp.
+    assert not _has_modified_metatags(captured["index"])
+    assert not _has_modified_metatags(captured["page2"])
 
     # The user is warned exactly once about the shallow clone.
     warnings = app.warning.getvalue()
@@ -154,3 +203,8 @@ def test_last_updated_rendered_in_pydata_article(app: SphinxTestApp) -> None:
 
     html = (app.outdir / "index.html").read_text()
     assert EXPECTED in html
+    # The machine-readable Open Graph tag is rendered into the page <head>.
+    assert (
+        f'<meta property="article:modified_time" content="{EXPECTED_ISO}" />'
+        in html
+    )

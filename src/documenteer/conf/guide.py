@@ -82,6 +82,7 @@ __all__ = [
     "html_context",
     "html_theme_options",
     "documenteer_last_modified_enabled",
+    "git_last_updated_metatags",
     "html_sidebars",
     "html_title",
     "html_short_title",
@@ -302,6 +303,11 @@ html_theme_options = {
 documenteer_last_modified_enabled = _conf.show_last_updated
 if documenteer_last_modified_enabled:
     html_theme_options["article_footer_items"] = ["last-updated"]
+
+# documenteer.ext.lastmodified now emits article:modified_time itself, so
+# turn off the duplicate tag from sphinx-last-updated-by-git (auto-loaded by
+# sphinx-sitemap, which still uses it for sitemap <lastmod>).
+git_last_updated_metatags = False
 
 if _conf.github_url:
     if not isinstance(html_theme_options["icon_links"], list):

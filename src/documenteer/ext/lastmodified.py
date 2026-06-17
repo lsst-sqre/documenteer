@@ -8,6 +8,11 @@ stored in the page's ``last_updated`` template context variable, which the
 pydata-sphinx-theme renders at the bottom of the article body via its
 ``last-updated`` component.
 
+The same datetime is also emitted into the page ``<head>`` as machine-readable
+metadata -- ``article:modified_time`` (Open Graph), ``dcterms.modified``
+(Dublin Core), and a Schema.org ``dateModified`` (JSON-LD) -- so that this
+extension is the single source of truth for the page's last-modified date.
+
 Using Git commit dates (rather than filesystem modification times) means the
 timestamps are meaningful in CI builds, where checkouts have arbitrary mtimes.
 
@@ -20,6 +25,8 @@ timestamps are meaningful in CI builds, where checkouts have arbitrary mtimes.
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
 from pathlib import Path
 
 import git
@@ -90,8 +97,10 @@ class LastModified:
                 return None
         return self._repo
 
-    def get_last_modified(self, app: Sphinx, pagename: str) -> str | None:
-        """Compute the formatted "last updated" date for a page.
+    def get_last_modified_datetime(
+        self, app: Sphinx, pagename: str
+    ) -> datetime | None:
+        """Compute the most recent Git commit datetime for a page.
 
         Parameters
         ----------
@@ -102,9 +111,11 @@ class LastModified:
 
         Returns
         -------
-        str or None
-            The formatted date, or `None` if there's no Git repository or none
-            of the page's source/dependency files are tracked.
+        datetime.datetime or None
+            The timezone-aware datetime of the most recent commit touching the
+            page's own source file or any of its ``include``/``literalinclude``
+            dependencies, or `None` if there's no Git repository or none of
+            those files are tracked.
         """
         repo = self._get_repository(app)
         if repo is None:
@@ -122,21 +133,7 @@ class LastModified:
         dependencies = app.env.dependencies.get(pagename, set())
         paths: list[Path] = [source, *(srcdir / dep for dep in dependencies)]
 
-        date = repo.compute_last_modified(paths)
-        if date is None:
-            return None
-
-        fmt = app.config.documenteer_last_modified_date_format
-        # Don't pass ``local_time``: it was only added to format_date() in
-        # Sphinx 8 (where it defaults to False), and Sphinx 7 formats the date
-        # as given. Relying on the default keeps output reproducible (the
-        # commit datetime is used as-is, not converted to the builder's local
-        # timezone) and compatible across both Sphinx versions.
-        return format_date(
-            fmt,
-            date=date,
-            language=app.config.language,
-        )
+        return repo.compute_last_modified(paths)
 
     def add_last_modified(
         self,
@@ -146,10 +143,14 @@ class LastModified:
         context: dict,
         doctree: object | None,
     ) -> None:
-        """Populate the ``last_updated`` template context for a page.
+        """Populate the last-modified context and metadata for a page.
 
         This is the ``html-page-context`` event handler. It runs once per
-        output page, immediately before the page is rendered.
+        output page, immediately before the page is rendered. It sets the
+        ``last_updated`` context value (rendered in the article footer and
+        emitted by pydata-sphinx-theme as the ``docbuild:last-update`` meta
+        tag) and appends machine-readable last-modified metadata to the page's
+        ``<head>``.
 
         Parameters
         ----------
@@ -173,9 +174,73 @@ class LastModified:
         if not app.config.documenteer_last_modified_enabled:
             return
 
-        formatted = self.get_last_modified(app, pagename)
-        if formatted is not None:
-            context["last_updated"] = formatted
+        date = self.get_last_modified_datetime(app, pagename)
+        if date is None:
+            return
+
+        fmt = app.config.documenteer_last_modified_date_format
+        # Don't pass ``local_time``: it was only added to format_date() in
+        # Sphinx 8 (where it defaults to False), and Sphinx 7 formats the date
+        # as given. Relying on the default keeps output reproducible (the
+        # commit datetime is used as-is, not converted to the builder's local
+        # timezone) and compatible across both Sphinx versions.
+        context["last_updated"] = format_date(
+            fmt,
+            date=date,
+            language=app.config.language,
+        )
+
+        self._add_metadata(context, date)
+
+    @staticmethod
+    def _add_metadata(context: dict, date: datetime) -> None:
+        """Append machine-readable last-modified metadata to the page head.
+
+        Emits the page's Git commit date through three complementary channels,
+        all carrying the same ISO 8601 value, so that social-card scrapers,
+        Dublin Core harvesters, and Schema.org/JSON-LD crawlers agree:
+
+        - ``article:modified_time`` -- Open Graph.
+        - ``dcterms.modified`` -- Dublin Core.
+        - Schema.org ``dateModified`` on a ``WebPage`` -- JSON-LD. ``WebPage``
+          keeps this a plain freshness statement without triggering the
+          "missing field" validation noise that an ``Article`` would.
+
+        Parameters
+        ----------
+        context
+            The template context, modified in place. Its ``metatags`` string
+            is extended with the new tags.
+        date
+            The timezone-aware last-modified datetime.
+        """
+        iso = date.isoformat()
+        metatags = context.get("metatags", "")
+
+        metatags += (
+            f'\n<meta property="article:modified_time" content="{iso}" />'
+            f'\n<meta name="dcterms.modified" content="{iso}" />'
+        )
+
+        json_ld: dict[str, str] = {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "dateModified": iso,
+        }
+        # Guides set html_baseurl, so pageurl is usually available; tie the
+        # statement to the page's canonical URL when it is.
+        pageurl = context.get("pageurl")
+        if pageurl:
+            json_ld["@id"] = pageurl
+            json_ld["url"] = pageurl
+        # Escape ``<`` so a value can never terminate the <script> element
+        # early (defense against early-script-termination injection).
+        serialized = json.dumps(json_ld).replace("<", "\\u003c")
+        metatags += (
+            f'\n<script type="application/ld+json">{serialized}</script>'
+        )
+
+        context["metatags"] = metatags
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:
@@ -190,7 +255,14 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     # A single instance carries the cached Git repository across all pages in
     # a build.
     last_modified = LastModified()
-    app.connect("html-page-context", last_modified.add_last_modified)
+    # Connect with an explicit later priority (the default is 500; higher
+    # numbers run later) so this handler deterministically wins over
+    # sphinx_last_updated_by_git's html-page-context handler -- which also
+    # writes ``last_updated`` -- regardless of the order the extensions appear
+    # in the extensions list. The last writer wins, and we want it to be us.
+    app.connect(
+        "html-page-context", last_modified.add_last_modified, priority=600
+    )
 
     return {
         "version": __version__,
