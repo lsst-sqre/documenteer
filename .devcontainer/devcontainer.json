@@ -1,0 +1,24 @@
+{
+  "name": "documenteer",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    // Node for the webpack asset build (package.json / webpack.config.js).
+    // Pinned to 18 to match .nvmrc.
+    "ghcr.io/devcontainers/features/node:1": { "version": "18" }
+  },
+  // 1. uv sync --all-extras == `.[technote,guide]` + the dev group
+  //    (test/typing/docs), matching `make init`.
+  // 2. Map the GH_TOKEN secret into ~/.npmrc so npm can read
+  //    @lsst-sqre/rubin-style-dictionary from GitHub Packages (.npmrc points
+  //    @lsst-sqre at npm.pkg.github.com). Guarded so a missing token doesn't
+  //    write a broken auth line.
+  // 3. Build the Rubin CSS/JS assets via webpack.
+  "postCreateCommand": "uv sync --all-extras && if [ -n \"$GH_TOKEN\" ]; then echo \"//npm.pkg.github.com/:_authToken=$GH_TOKEN\" >> ~/.npmrc; fi && npm install && npm run build",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"]
+    }
+  }
+}
