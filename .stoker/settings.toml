@@ -1,0 +1,5 @@
+[profile]
+source = "github.com/lsst-sqre/rubin-stoker//profile@main"
+
+[sandbox]
+repo = "lsst-sqre/documenteer"

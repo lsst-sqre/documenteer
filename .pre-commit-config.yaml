@@ -6,6 +6,8 @@ repos:
         exclude: ^src/documenteer/storage/localtemplates/technote/ci\.yaml
       - id: check-toml
       - id: check-json
+        # .devcontainer files are JSONC (comments + trailing commas)
+        exclude: ^\.devcontainer/
       - id: trailing-whitespace
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks-markup
