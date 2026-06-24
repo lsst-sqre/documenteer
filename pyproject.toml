@@ -78,6 +78,15 @@ technote = [
 ]
 
 [dependency-groups]
+nox = [
+    "nox",
+    "nox-uv>=0.6.1",
+]
+lint = [
+    "pre-commit",
+    "pre-commit-uv",
+    "ruff",
+]
 test = [
     "coverage[toml]",
     "pytest",
@@ -130,6 +139,7 @@ exclude = '''
     \.eggs
   | \.git
   | \.mypy_cache
+  | \.nox
   | \.tox
   | \.venv
   | _build
@@ -147,7 +157,7 @@ branch = true
 source = ["documenteer"]
 
 [tool.coverage.paths]
-source = ["src", ".tox/*/site-packages"]
+source = ["src", ".nox/*/lib/python*/site-packages", ".tox/*/site-packages"]
 
 [tool.coverage.report]
 show_missing = true
