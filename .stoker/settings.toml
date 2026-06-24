@@ -3,3 +3,17 @@ source = "github.com/lsst-sqre/rubin-stoker//profile@main"
 
 [sandbox]
 repo = "lsst-sqre/documenteer"
+
+[sandbox.env]
+# Classic GitHub PAT (read:packages) for npm auth to GitHub Packages. The
+# derived devcontainer's containerEnv maps ${localEnv:NPM_PKG_TOKEN}, so stoker
+# surfaces this at bring-up to postCreateCommand's `npm install` (which fetches
+# the private @lsst-sqre/rubin-style-dictionary) as well as to exec-time agent
+# commands. Resolved from the npm_pkg_token secret binding.
+NPM_PKG_TOKEN = "$secret:npm_pkg_token"
+
+[secrets_required.npm_pkg_token]
+description = "Classic GitHub PAT with the read:packages scope for npm auth to GitHub Packages; npm.pkg.github.com rejects fine-grained tokens, so this is separate from gh_token"
+example = "op://Private/GitHub Packages Read/credential"
+optional = false
+format = "string"

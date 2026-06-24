@@ -31,6 +31,9 @@ To develop Documenteer, create a virtual environment with your method of choice 
    cd documenteer
    make init
 
+A complete environment also needs the compiled web assets (see :doc:`theme-assets`).
+Because the asset build pulls the private ``@lsst-sqre/rubin-style-dictionary`` package from GitHub Packages, you must first :ref:`authenticate npm to GitHub Packages <theme-assets-github-packages>` with a classic ``read:packages`` personal access token.
+
 .. _dev-pre-commit:
 
 Code formatting and linting with pre-commit
