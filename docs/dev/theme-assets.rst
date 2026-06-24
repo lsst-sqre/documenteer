@@ -21,14 +21,39 @@ The repository's ``.npmrc`` points the ``@lsst-sqre`` scope at ``https://npm.pkg
 GitHub Packages' npm registry **only accepts a classic personal access token (PAT)**; fine-grained tokens are rejected with a ``403`` ``permission_denied`` ("token does not match expected scopes") error.
 Create a classic PAT with **only** the ``read:packages`` scope at https://github.com/settings/tokens, and — because ``lsst-sqre`` enforces SAML single sign-on — authorize the token for the ``lsst-sqre`` organization.
 
-To build the assets outside a dev container, add the token to your user ``~/.npmrc``:
+Outside a dev container
+-----------------------
+
+To build the assets directly on your machine, add the token to your user ``~/.npmrc``:
 
 .. code-block:: ini
 
    //npm.pkg.github.com/:_authToken=<your classic read:packages PAT>
 
 The dev container and GitHub Codespaces configurations instead read the token from a ``NPM_PKG_TOKEN`` environment variable and write that same ``~/.npmrc`` line automatically during ``postCreateCommand``.
-In a Codespace, provide the token as a `Codespaces secret`_ named ``NPM_PKG_TOKEN``; the token that Codespaces provisions automatically is scoped to this repository and cannot read a package published from another repository.
+A local (Docker Desktop) dev container inherits ``NPM_PKG_TOKEN`` from the shell that launches it, so export it before opening the container.
+
+In GitHub Codespaces
+--------------------
+
+Codespaces does not have access to your local environment, so it cannot inherit ``NPM_PKG_TOKEN`` from your shell.
+The token that Codespaces provisions automatically (``GITHUB_TOKEN``) can't be used either: it is scoped to this repository and cannot read ``@lsst-sqre/rubin-style-dictionary``, which is published from a different repository.
+
+Instead, provide the token as a **personal** (account-level) `Codespaces secret`_, so it is private to *your* codespaces and is not shared on the repository:
+
+#. Create a classic ``read:packages`` PAT as described above (authorized for ``lsst-sqre`` SSO).
+#. Go to https://github.com/settings/codespaces → :guilabel:`Codespaces secrets` → :guilabel:`New secret`.
+#. Name it ``NPM_PKG_TOKEN``, paste the token, and grant it access to the ``lsst-sqre/documenteer`` repository.
+
+Or, equivalently, with the GitHub CLI:
+
+.. code-block:: sh
+
+   gh secret set NPM_PKG_TOKEN --user --app codespaces --repos lsst-sqre/documenteer
+
+Each developer sets their own secret; nothing needs to be configured on the repository itself.
+The next codespace you create on this repository will pick up the token and authenticate ``npm install`` during ``postCreateCommand``.
+(An existing codespace needs to be rebuilt to pick up a newly-added secret.)
 
 .. _Codespaces secret: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-your-account-specific-secrets-for-github-codespaces
 
