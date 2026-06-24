@@ -4,9 +4,14 @@
 # sandbox build are identical.
 FROM mcr.microsoft.com/devcontainers/python:1-3.13-bookworm
 
+# The Microsoft base image ships a Yarn apt source whose signing key has
+# rotated, so `apt-get update` aborts on it (NO_PUBKEY 62D54FD4003F6525). We
+# use npm, not Yarn, so drop the source before updating.
+#
 # graphviz provides `dot`, used by sphinx-diagrams when building the docs and
 # demo technotes (docs/guides/diagrams.rst, demo/rst-technote/diagram.py).
-RUN apt-get update \
+RUN rm -f /etc/apt/sources.list.d/yarn.list \
+    && apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y --no-install-recommends graphviz \
     && apt-get clean \
