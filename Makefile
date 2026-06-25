@@ -7,19 +7,17 @@ help:
 
 .PHONY: init
 init:
-	rm -rf .tox
-	uv pip install --upgrade pre-commit tox tox-uv scriv
-	uv pip install -e ".[technote,guide]" --group dev
-	pre-commit install
+	uv sync --extra technote --extra guide --group dev --group nox --group lint
+	uv run pre-commit install
 
 .PHONY: clean
 clean:
-	rm -rf .tox
+	rm -rf .nox
 	rm -rf docs/_build
 	rm -rf docs/dev/api/contents/*.rst
 	make -C demo/rst-technote clean
 
 .PHONY: update-deps
 update-deps:
-	uv pip install --upgrade pre-commit
-	pre-commit autoupdate
+	uv lock --upgrade
+	uv run --only-group=lint pre-commit autoupdate

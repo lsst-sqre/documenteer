@@ -13,23 +13,25 @@ Documenteer is a Python package that provides Sphinx documentation tools, extens
 ### Setup and Installation
 ```bash
 make init                    # Initialize development environment
-pip install -e ".[technote,guide]" --group dev  # Install with all extras
+uv sync --extra technote --extra guide --group dev --group nox --group lint  # Install with all extras
 ```
+
+Tasks are run with [nox](https://nox.thea.codes/) (via [nox-uv](https://github.com/cthoyt/nox-uv)). Invoke nox through uv so the runner is provisioned automatically: `uv run --only-group=nox nox -s <session>`. The `test` and `typing` sessions are parametrized over Sphinx versions, e.g. `nox -s "test(sphinx='8')"`.
 
 ### Testing and Quality Assurance
 ```bash
-tox -e py-test-sphinx8      # Run tests with Sphinx 8.x
-tox -e coverage-report      # Generate coverage report
-tox -e typing-sphinx8       # Run mypy type checking
-tox -e lint                 # Run linting (pre-commit hooks + prettier)
-tox -e demo                 # Build demo technote projects (end-to-end test)
-tox -e packaging            # Check PyPI packaging
+nox -s "test(sphinx='8')"   # Run tests with Sphinx 8.x (also '7' or 'dev')
+nox -s coverage-report      # Generate coverage report
+nox -s "typing(sphinx='8')" # Run mypy type checking
+nox -s lint                 # Run linting (pre-commit hooks + prettier)
+nox -s demo                 # Build demo technote projects (end-to-end test)
+nox -s packaging            # Check PyPI packaging
 ```
 
 ### Documentation
 ```bash
-tox -e docs                 # Build documentation
-tox -e docs-lint            # Check documentation links
+nox -s docs                 # Build documentation
+nox -s docs-linkcheck       # Check documentation links
 ```
 
 ### Cleanup
@@ -76,7 +78,7 @@ make clean                  # Remove build artifacts
 
 ### Testing Strategy
 
-- Uses tox for multi-environment testing across Sphinx versions
+- Uses nox (nox-uv) for multi-environment testing across Sphinx versions
 - Sphinx test roots in `tests/roots/` for extension testing
 - Coverage reporting with branch coverage
 - Type checking with mypy

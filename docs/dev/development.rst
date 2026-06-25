@@ -46,57 +46,69 @@ If pre-commit "fails" because the black_ or isort_ code formatters changed the s
 
 To learn more about the pre-commit configuration, see the ``.pre-commit-config.yaml`` file in the repository.
 
-.. _dev-tox:
+.. _dev-nox:
 
-Running tests via tox
+Running tests via nox
 =====================
 
-The best way to run tests is through tox, which is pre-installed through the ``make init`` command:
+Development tasks are run through nox_ (via `nox-uv`_), which is provisioned by the ``make init`` command.
+Run nox through uv so the runner and its environments are managed for you:
 
 .. code-block:: sh
 
-   tox
+   uv run --only-group=nox nox
 
-There are multiple test environments, the default environments include:
+Running ``nox`` with no arguments runs the default sessions (lint, typing, the Sphinx 7 and 8 test runs, and a docs build).
+The available sessions are:
 
-.. list-table:: Default tox environments
+.. list-table:: nox sessions
    :widths: 40 60
    :header-rows: 1
 
-   * - Enviroment
+   * - Session
      - Description
-   * - ``py37-test-sphinxlatest``
-     - Run tests in Python 3.7 with latest release of Sphinx
-   * - ``py38-test-sphinxlatest``
-     - Run tests in Python 3.8 with latest release of Sphinx
-   * - ``typing-sphinxlatest``
-     - Run mypy (type annotations checker) against latest release of Sphinx
+   * - ``test``
+     - Run the test suite with pytest. Parametrized over Sphinx versions (``7``, ``8``, ``dev``). Coverage is opt-in (see below).
+   * - ``typing``
+     - Run mypy (type annotations checker). Parametrized over Sphinx versions (``7``, ``8``, ``dev``).
    * - ``lint``
-     - Run linters, such as flake8 and Sphinx linkcheck.
+     - Run the pre-commit hooks and format the web assets with prettier.
    * - ``coverage-report``
-     - Aggregates unit test coverage reports from individual "test" runs and displays a report.
+     - Aggregate unit test coverage reports from the ``test`` sessions and display a report. Runs automatically after the ``test`` sessions when ``DOCUMENTEER_COVERAGE`` is set.
+   * - ``docs`` / ``docs-linkcheck``
+     - Build the documentation and check its links.
+   * - ``demo``
+     - Build the demo technote projects as an end-to-end test.
+   * - ``packaging``
+     - Build the PyPI package and check it with twine.
 
-It is also possible to run individual tox environments, for example:
+By default the ``test`` session runs without coverage instrumentation.
+To collect coverage and print a combined report across the test sessions, set ``DOCUMENTEER_COVERAGE``, e.g. ``DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox``.
+
+It is also possible to run individual sessions, for example:
 
 .. code-block:: sh
 
-   tox -e typing-sphinxlatest
+   uv run --only-group=nox nox -s lint
 
-Additional tox environments are available for testing against different versions of Sphinx.
-For example, to test against Sphinx 2.3.x, run:
+The ``test`` and ``typing`` sessions are parametrized over Sphinx versions.
+Select a specific version with the parametrized session name, for example to type-check against Sphinx 8:
 
 .. code-block:: sh
 
-   tox -e py37-test-sphinx23
+   uv run --only-group=nox nox -s "typing(sphinx='8')"
 
-To learn more about the available tox environments, review the :file:`tox.ini` file in the code repository.
+To learn more about the available sessions, run ``nox -l`` or review the :file:`noxfile.py` file in the code repository.
+
+.. _nox: https://nox.thea.codes/
+.. _nox-uv: https://github.com/dantebben/nox-uv
 
 .. _dev-run-tests:
 
 Running tests through pytest
 ============================
 
-Although tox is the recommended method for running tests, it is still possible to run tests directly through pytest_:
+Although nox is the recommended method for running tests, it is still possible to run tests directly through pytest_:
 
 .. code-block:: sh
 
@@ -115,7 +127,7 @@ Documentation is built with Sphinx_:
 
 .. code-block:: sh
 
-   tox -e docs
+   uv run --only-group=nox nox -s docs
 
 The HTML output is located in the :file:`docs/_build/html` directory.
 
@@ -123,7 +135,7 @@ To check links:
 
 .. code-block:: sh
 
-   tox -e docs-lint
+   uv run --only-group=nox nox -s docs-linkcheck
 
 .. _dev-change-log:
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import requests
 from pydantic import BaseModel, Field, HttpUrl
 
-__all__ = ["AuthorDb", "Author", "Affiliation", "Address"]
+__all__ = ["Address", "Affiliation", "Author", "AuthorDb"]
 
 
 class Address(BaseModel):

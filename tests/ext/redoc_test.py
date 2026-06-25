@@ -37,9 +37,9 @@ def test_redoc(app: SphinxTestApp) -> None:
     assert len(spec_scripts) == 1, "OpenAPI spec script should be present"
 
     spec_script = spec_scripts[0]
-    assert (
-        spec_script.get("type") == "application/json"
-    ), "Spec script should have JSON content type"
+    assert spec_script.get("type") == "application/json", (
+        "Spec script should have JSON content type"
+    )
 
     # Parse the JSON content in the script tag
     spec_content = spec_script.text_content().strip()
@@ -47,15 +47,15 @@ def test_redoc(app: SphinxTestApp) -> None:
 
     spec_data = json.loads(spec_content)
     assert spec_data.get("openapi") == "3.1.0", "Should contain OpenAPI 3.1.0"
-    assert (
-        spec_data.get("info", {}).get("title") == "Times Square"
-    ), "Should contain Times Square title"
+    assert spec_data.get("info", {}).get("title") == "Times Square", (
+        "Should contain Times Square title"
+    )
 
     # Check that we have the redoc container div instead of redoc element
     redoc_containers = doc.cssselect("div#redoc-container")
-    assert (
-        len(redoc_containers) == 1
-    ), "Should have exactly one redoc container"
+    assert len(redoc_containers) == 1, (
+        "Should have exactly one redoc container"
+    )
 
     # Check that the JavaScript initialization script exists
     init_scripts = doc.cssselect("script:not([src]):not([id])")
@@ -74,12 +74,12 @@ def test_redoc(app: SphinxTestApp) -> None:
     script_content = init_script.text_content()
 
     # Check that the script contains the expected configuration options
-    assert (
-        "hide-hostname" in script_content
-    ), "hide-hostname should be in options"
-    assert (
-        "path-in-middle-panel" in script_content
-    ), "path-in-middle-panel should be in options"
+    assert "hide-hostname" in script_content, (
+        "hide-hostname should be in options"
+    )
+    assert "path-in-middle-panel" in script_content, (
+        "path-in-middle-panel should be in options"
+    )
 
     # Check that Redoc.init is called with the right parameters
     assert (
