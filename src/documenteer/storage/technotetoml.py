@@ -58,14 +58,14 @@ class TechnoteTomlFile:
         """The technote table."""
         if "technote" not in self._doc:
             self._doc["technote"] = tomlkit.table()
-        return cast(tomlkit.items.Table, self._doc["technote"])
+        return cast("tomlkit.items.Table", self._doc["technote"])
 
     @property
     def authors_aot(self) -> tomlkit.items.AoT:
         """The authors array of tables."""
         if "authors" not in self.technote_table:
             self.technote_table["authors"] = tomlkit.aot()
-        return cast(tomlkit.items.AoT, self.technote_table["authors"])
+        return cast("tomlkit.items.AoT", self.technote_table["authors"])
 
     @property
     def author_ids(self) -> list[str]:
@@ -119,7 +119,7 @@ class TechnoteTomlFile:
 
         if "affiliations" not in table:
             table.add("affiliations", tomlkit.aot())
-        affiliations_aot = cast(tomlkit.items.AoT, table["affiliations"])
+        affiliations_aot = cast("tomlkit.items.AoT", table["affiliations"])
 
         existing_affiliation_ids = [
             a["internal_id"] for a in affiliations_aot if "internal_id" in a

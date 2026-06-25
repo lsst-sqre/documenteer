@@ -133,8 +133,7 @@ def technote_sync_authors(technote_toml: str) -> None:
         click.echo(f"Synchronized authors to {toml_path}:")
         for a in updated_authors:
             click.echo(
-                f"- {a.given_name if a.given_name else ''} {a.family_name} "
-                f"({a.internal_id})"
+                f"- {a.given_name or ''} {a.family_name} ({a.internal_id})"
             )
 
 

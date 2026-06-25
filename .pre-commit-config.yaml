@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
         exclude: ^src/documenteer/storage/localtemplates/technote/ci\.yaml
@@ -10,22 +10,16 @@ repos:
         exclude: ^\.devcontainer/
       - id: trailing-whitespace
 
-  - repo: https://github.com/Lucas-C/pre-commit-hooks-markup
-    rev: v1.0.1
-    hooks:
-      - id: rst-linter
-        files: (README\.rst)|(CHANGELOG\.rst)
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.1
+    rev: v0.15.19
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
   - repo: https://github.com/adamchainz/blacken-docs
-    rev: 1.18.0
+    rev: 1.20.0
     hooks:
       - id: blacken-docs
-        additional_dependencies: [black==24.4.2]
+        additional_dependencies: [black==25.1.0]
         args: [-l, '79', -t, py312]

@@ -42,7 +42,7 @@ def truncated_names(
 
     # If there are more than 7 authors we return the first 3.
     if len(persons) > 7:
-        persons = persons[:3] + [Person("others")]
+        persons = [*persons[:3], Person("others")]
     style = context["style"]
     formatted_names = [
         style.format_name(person, style.abbreviate_names) for person in persons

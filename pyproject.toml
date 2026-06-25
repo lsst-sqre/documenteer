@@ -232,6 +232,15 @@ extend-ignore = [
     "INP001",
     "D100"
 ]
+"src/documenteer/conf/guide.py" = [
+    "RUF022",  # __all__ is intentionally ordered as declared, with sections
+]
+"src/documenteer/ext/jira.py" = [
+    "FBT001",  # docutils role callbacks have a fixed positional signature
+]
+"src/documenteer/ext/mockcoderefs.py" = [
+    "FBT001",  # docutils role callbacks have a fixed positional signature
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["documenteer", "tests"]

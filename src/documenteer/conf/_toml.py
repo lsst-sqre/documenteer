@@ -30,13 +30,13 @@ from ._utils import GitRepository
 __all__ = [
     "ConfigRoot",
     "DocumenteerConfig",
-    "ProjectModel",
-    "PythonPackageModel",
-    "OpenApiDocsModel",
-    "OpenApiGeneratorModel",
-    "SphinxModel",
     "IntersphinxModel",
     "LinkCheckModel",
+    "OpenApiDocsModel",
+    "OpenApiGeneratorModel",
+    "ProjectModel",
+    "PythonPackageModel",
+    "SphinxModel",
     "ThemeModel",
 ]
 
@@ -268,13 +268,11 @@ class SphinxModel(BaseModel):
         default_factory=list,
     )
 
-    theme: ThemeModel = Field(default_factory=lambda: ThemeModel())
+    theme: ThemeModel = Field(default_factory=ThemeModel)
 
-    intersphinx: IntersphinxModel = Field(
-        default_factory=lambda: IntersphinxModel()
-    )
+    intersphinx: IntersphinxModel = Field(default_factory=IntersphinxModel)
 
-    linkcheck: LinkCheckModel = Field(default_factory=lambda: LinkCheckModel())
+    linkcheck: LinkCheckModel = Field(default_factory=LinkCheckModel)
 
     redirects: dict[str, str] = Field(
         description=(
@@ -312,7 +310,7 @@ class DocumenteerConfig:
             conf = ConfigRoot.model_validate(tomllib.loads(toml_content))
         except ValidationError as e:
             message = (
-                f"Syntax or validation issue in documenteer.toml:\n\n" f"{e!s}"
+                f"Syntax or validation issue in documenteer.toml:\n\n{e!s}"
             )
             raise ConfigError(message) from e
         return cls(conf)
@@ -425,7 +423,7 @@ class DocumenteerConfig:
 
     def _get_pyproject_metadata(self, package_name: str) -> Message:
         if sys.version_info >= (3, 10) or sys.version_info < (3, 8):
-            pkg_metadata = cast(Message, metadata(package_name))
+            pkg_metadata = cast("Message", metadata(package_name))
         else:
             pkg_metadata = metadata(package_name)
         return pkg_metadata
