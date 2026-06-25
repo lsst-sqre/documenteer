@@ -34,17 +34,17 @@ To develop Documenteer, create a virtual environment with your method of choice 
 A complete environment also needs the compiled web assets (see :doc:`theme-assets`).
 Because the asset build pulls the private ``@lsst-sqre/rubin-style-dictionary`` package from GitHub Packages, you must first :ref:`authenticate npm to GitHub Packages <theme-assets-github-packages>` with a classic ``read:packages`` personal access token.
 
-.. _dev-pre-commit:
+.. _dev-prek:
 
-Code formatting and linting with pre-commit
-===========================================
+Code formatting and linting with prek
+=====================================
 
-Documenteer uses `pre-commit`_ to automatically and consistently format and lint the codebase on each commit.
-By running ``make init``, pre-commit is already installed in your environment.
+Documenteer uses `prek`_ (a drop-in, config-compatible replacement for pre-commit) to automatically and consistently format and lint the codebase on each commit.
+By running ``make init``, prek is already installed in your environment.
 
-If pre-commit "fails" because the black_ or isort_ code formatters changed the source, simply ``git add`` the changes and try the commit again.
+If prek "fails" because the black_ or isort_ code formatters changed the source, simply ``git add`` the changes and try the commit again.
 
-To learn more about the pre-commit configuration, see the ``.pre-commit-config.yaml`` file in the repository.
+To learn more about the hook configuration, see the ``.pre-commit-config.yaml`` file in the repository (prek reads the same configuration format as pre-commit).
 
 .. _dev-nox:
 
@@ -72,7 +72,7 @@ The available sessions are:
    * - ``typing``
      - Run mypy (type annotations checker). Parametrized over Sphinx versions (``7``, ``8``, ``dev``).
    * - ``lint``
-     - Run the pre-commit hooks and format the web assets with prettier.
+     - Run the prek hooks (including the prettier web-asset hook).
    * - ``coverage-report``
      - Aggregate unit test coverage reports from the ``test`` sessions and display a report. Runs automatically after the ``test`` sessions when ``DOCUMENTEER_COVERAGE`` is set.
    * - ``docs`` / ``docs-linkcheck``

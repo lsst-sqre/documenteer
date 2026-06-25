@@ -44,6 +44,7 @@
 .. _isort: https://pycqa.github.io/isort/
 .. _numpydoc: https://numpydoc.readthedocs.io/en/latest/index.html
 .. _pre-commit: https://pre-commit.com
+.. _prek: https://prek.j178.dev
 .. _pytest: https://pytest.org
 .. _toctree: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree
 .. _linkcheck: https://www.sphinx-doc.org/en/master/usage/configuration.html?#options-for-the-linkcheck-builder

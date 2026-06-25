@@ -23,7 +23,7 @@ Tasks are run with [nox](https://nox.thea.codes/) (via [nox-uv](https://github.c
 nox -s "test(sphinx='8')"   # Run tests with Sphinx 8.x (also '7' or 'dev')
 nox -s coverage-report      # Generate coverage report
 nox -s "typing(sphinx='8')" # Run mypy type checking
-nox -s lint                 # Run linting (pre-commit hooks + prettier)
+nox -s lint                 # Run linting (prek hooks, incl. prettier)
 nox -s demo                 # Build demo technote projects (end-to-end test)
 nox -s packaging            # Check PyPI packaging
 ```
