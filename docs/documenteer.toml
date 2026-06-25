@@ -17,7 +17,6 @@ disable_primary_sidebars = ["index", "changelog"]
 rst_epilog_file = "_rst_epilog.rst"
 nitpicky = true
 nitpick_ignore = [
-  ["py:class", "pybtex.style.formatting.plain.Style"],
   ["py:obj", "sphinx_automodapi.automodapi"],
 ]
 nitpick_ignore_regex = [
@@ -37,7 +36,6 @@ header_links_before_dropdown = 5
 python = "https://docs.python.org/3/"
 requests = "https://requests.readthedocs.io/en/latest/"
 developer = "https://developer.lsst.io/"
-pybtex = "https://docs.pybtex.org/"
 sphinx = "https://www.sphinx-doc.org/en/master/"
 sphinxcontrib-bibtex = "https://sphinxcontrib-bibtex.readthedocs.io/en/latest/"
 technote = "https://technote.lsst.io/"
