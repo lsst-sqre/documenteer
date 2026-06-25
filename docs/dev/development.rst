@@ -68,19 +68,22 @@ The available sessions are:
    * - Session
      - Description
    * - ``test``
-     - Run the test suite under coverage. Parametrized over Sphinx versions (``7``, ``8``, ``dev``).
+     - Run the test suite with pytest. Parametrized over Sphinx versions (``7``, ``8``, ``dev``). Coverage is opt-in (see below).
    * - ``typing``
      - Run mypy (type annotations checker). Parametrized over Sphinx versions (``7``, ``8``, ``dev``).
    * - ``lint``
      - Run the pre-commit hooks and format the web assets with prettier.
    * - ``coverage-report``
-     - Aggregate unit test coverage reports from the ``test`` sessions and display a report.
+     - Aggregate unit test coverage reports from the ``test`` sessions and display a report. Runs automatically after the ``test`` sessions when ``DOCUMENTEER_COVERAGE`` is set.
    * - ``docs`` / ``docs-linkcheck``
      - Build the documentation and check its links.
    * - ``demo``
      - Build the demo technote projects as an end-to-end test.
    * - ``packaging``
      - Build the PyPI package and check it with twine.
+
+By default the ``test`` session runs without coverage instrumentation.
+To collect coverage and print a combined report across the test sessions, set ``DOCUMENTEER_COVERAGE``, e.g. ``DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox``.
 
 It is also possible to run individual sessions, for example:
 

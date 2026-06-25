@@ -19,6 +19,17 @@ so their session names carry the parameter, e.g. `test(sphinx='8')`.
 - `focused_test`: `uv run --only-group=nox nox -s "test(sphinx='8')" -- -k <test_name>` (posargs after `--` pass through to pytest, so you can also use `uv run --only-group=nox nox -s "test(sphinx='8')" -- tests/foo_test.py::test_bar`)
 - `complete_test`: `uv run --only-group=nox nox -s "test(sphinx='7')" "test(sphinx='8')"`
 
+## Coverage
+
+Coverage is opt-in. The `test` session runs plain pytest by default, so no
+`.coverage*` files are written during normal validation. To collect coverage
+and print a combined report across the test sessions, set the
+`DOCUMENTEER_COVERAGE` environment variable, e.g.
+`DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox -s "test(sphinx='7')" "test(sphinx='8')"`.
+The `coverage-report` session (combine + report) is triggered automatically
+via `session.notify` when `DOCUMENTEER_COVERAGE` is set, and can also be run
+directly to re-display the last combined report.
+
 ## Lint
 
 - `lint_touched`: `uv run --only-group=lint pre-commit run --files {files}`

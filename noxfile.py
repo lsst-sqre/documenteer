@@ -1,5 +1,6 @@
 """nox build configuration for Documenteer."""
 
+import os
 import shutil
 from pathlib import Path
 
@@ -59,9 +60,17 @@ def lint(session: nox.Session) -> None:
 @session(uv_groups=["test"], uv_extras=_EXTRAS)
 @nox.parametrize("sphinx", ["7", "8", "dev"])
 def test(session: nox.Session, sphinx: str) -> None:
-    """Run the test suite with pytest under coverage."""
+    """Run the test suite with pytest.
+
+    Coverage is opt-in: set the ``DOCUMENTEER_COVERAGE`` environment variable
+    to run under coverage and emit a combined report after the test sessions.
+    """
     _override_sphinx(session, sphinx)
-    session.run("coverage", "run", "-m", "pytest", *session.posargs)
+    if os.environ.get("DOCUMENTEER_COVERAGE"):
+        session.run("coverage", "run", "-m", "pytest", *session.posargs)
+        session.notify("coverage-report")
+    else:
+        session.run("pytest", *session.posargs)
 
 
 @session(uv_groups=["typing"], uv_extras=_EXTRAS)
@@ -76,8 +85,14 @@ def typing(session: nox.Session, sphinx: str) -> None:
     name="coverage-report", uv_only_groups=["test"], uv_no_install_project=True
 )
 def coverage_report(session: nox.Session) -> None:
-    """Combine and report coverage from the test sessions."""
-    session.run("coverage", "combine")
+    """Combine and report coverage from the test sessions.
+
+    Triggered automatically after the ``test`` sessions when
+    ``DOCUMENTEER_COVERAGE`` is set; may also be run directly to re-display the
+    most recent combined report.
+    """
+    if list(Path.cwd().glob(".coverage.*")):
+        session.run("coverage", "combine")
     session.run("coverage", "report")
 
 
