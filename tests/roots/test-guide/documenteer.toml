@@ -1,0 +1,11 @@
+[project]
+title = "Guide Build Smoke Test"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[sphinx.theme]
+# This test root is not its own Git repository, so the "Edit on GitHub" button
+# (which resolves the doc path against a Git working tree) is disabled. The
+# github_url above still drives the GitHub icon_links entry, which is what the
+# smoke test exercises.
+show_github_edit_link = false

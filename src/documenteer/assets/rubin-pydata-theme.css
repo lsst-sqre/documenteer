@@ -106,10 +106,6 @@ body {
   --pst-color-text-base: var(--rsd-component-text-color);
 }
 
-.navbar-nav i {
-  font-size: var(--pst-font-size-icon);
-}
-
 /* "Last updated" timestamp at the bottom of the article body
  * (documenteer.ext.lastmodified -> pydata "last-updated" component).
  * Left-aligned, muted, with breathing room above and below so it reads as
