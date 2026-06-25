@@ -6,6 +6,7 @@ from __future__ import annotations
 
 __all__ = ["setup"]
 
+import os
 from typing import ClassVar
 
 from docutils import nodes
@@ -161,13 +162,13 @@ class RemoteCodeBlockReader(LiteralIncludeReader):
 
     def read_file(
         self,
-        url: str,
+        url: str | os.PathLike[str],
         location: tuple[str, int] | None = None,
     ) -> list[str]:
         """Read content from the web by overriding
         `LiteralIncludeReader.read_file`.
         """
-        response = requests_retry_session().get(url, timeout=10.0)
+        response = requests_retry_session().get(os.fspath(url), timeout=10.0)
         response.raise_for_status()
         text = response.text
         if "tab-width" in self.options:
