@@ -32,7 +32,7 @@ directly to re-display the last combined report.
 
 ## Lint
 
-- `lint_touched`: `uv run --only-group=lint pre-commit run --files {files}`
+- `lint_touched`: `uv run --only-group=lint prek run --files {files}`
 - `lint_all`: `uv run --only-group=nox nox -s lint`
 
 ## Typing

@@ -50,11 +50,8 @@ def _override_sphinx(session: nox.Session, sphinx: str) -> None:
 
 @session(uv_only_groups=["lint"], uv_no_install_project=True)
 def lint(session: nox.Session) -> None:
-    """Run pre-commit hooks and format web assets with prettier."""
-    session.run("pre-commit", "run", "--all-files", *session.posargs)
-    session.run(
-        "npx", "prettier", "**/*.{css,scss,js}", "--write", external=True
-    )
+    """Run the prek hooks (incl. the prettier web-asset hook)."""
+    session.run("prek", "run", "--all-files", *session.posargs)
 
 
 @session(uv_groups=["test"], uv_extras=_EXTRAS)

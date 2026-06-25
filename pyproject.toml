@@ -83,9 +83,9 @@ nox = [
     "nox-uv>=0.6.1",
 ]
 lint = [
-    "pre-commit",
-    "pre-commit-uv",
+    "prek",
     "ruff",
+    "uv",
 ]
 test = [
     "coverage[toml]",
