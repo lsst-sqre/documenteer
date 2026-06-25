@@ -61,8 +61,8 @@ jobs:
           - "3.12"
           - "3.13"
         sphinx-version:
-          - "7"
           - "8"
+          - "9"
           - "dev"
 
     steps:

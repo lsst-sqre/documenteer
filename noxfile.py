@@ -7,14 +7,14 @@ from pathlib import Path
 import nox
 from nox_uv import session
 
-# Default sessions (run when nox is invoked without -s). This mirrors the old
-# default tox envlist: lint, the Sphinx 7/8 test runs, Sphinx 8 typing, and a
-# docs build. The Sphinx "dev" runs are opt-in, as they were under tox.
+# Default sessions (run when nox is invoked without -s): lint, the Sphinx 8/9
+# test runs, Sphinx 8 typing, and a docs build. The Sphinx "dev" runs are
+# opt-in.
 nox.options.sessions = [
     "lint",
     "typing(sphinx='8')",
-    "test(sphinx='7')",
     "test(sphinx='8')",
+    "test(sphinx='9')",
     "docs",
 ]
 
@@ -32,8 +32,8 @@ _DEMOS = ["rst-technote", "md-technote", "ipynb-technote"]
 # Map each Sphinx parametrize ID to the pip requirement that overrides the
 # Sphinx version resolved from uv.lock in the session environment.
 _SPHINX_SPECS = {
-    "7": "sphinx==7.*",
     "8": "sphinx==8.*",
+    "9": "sphinx==9.*",
     "dev": "git+https://github.com/sphinx-doc/sphinx.git#egg=sphinx",
 }
 
@@ -55,7 +55,7 @@ def lint(session: nox.Session) -> None:
 
 
 @session(uv_groups=["test"], uv_extras=_EXTRAS)
-@nox.parametrize("sphinx", ["7", "8", "dev"])
+@nox.parametrize("sphinx", ["8", "9", "dev"])
 def test(session: nox.Session, sphinx: str) -> None:
     """Run the test suite with pytest.
 
@@ -71,7 +71,7 @@ def test(session: nox.Session, sphinx: str) -> None:
 
 
 @session(uv_groups=["typing"], uv_extras=_EXTRAS)
-@nox.parametrize("sphinx", ["7", "8", "dev"])
+@nox.parametrize("sphinx", ["8", "9", "dev"])
 def typing(session: nox.Session, sphinx: str) -> None:
     """Check type annotations with mypy."""
     _override_sphinx(session, sphinx)

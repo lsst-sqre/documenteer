@@ -30,12 +30,12 @@ requires-python = ">=3.12"
 dynamic = ["version"]
 dependencies = [
     "docutils>=0.20",  # solves an extra div bug with the bibliography directive
-    "Sphinx>=7,<8.2",  # Consistent docutils constraint
+    "Sphinx>=8,<10",  # Sphinx 8 and 9 (SPEC 0 support window)
     "PyYAML",
     "GitPython",
     "requests",
     "click",
-    "sphinxcontrib-bibtex>=2.6.5", # drops setuptools hack
+    "sphinxcontrib-bibtex>=2.7.0", # Sphinx>=7.4, clears the <8.2 bibtex gate
     "pybtex>=0.25.0", # drops setuptools dependency
     "pydantic >= 2.0.0",
     "urllib3",
@@ -47,15 +47,15 @@ dependencies = [
 guide = [
     # Theme and extensions for Rubin user guide projects
     "autodoc_pydantic",
-    "sphinx_design",
-    "pydata-sphinx-theme>=0.16.1,<0.17.0",
+    "sphinx_design>=0.7.0",
+    "pydata-sphinx-theme>=0.19,<0.20",
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
     "sphinx-copybutton",
     "sphinx-prompt",
     "sphinx-jinja>=2", # namespace changed in 2.0
-    "myst-parser",
-    "myst-nb",
+    "myst-parser>=4.0.0", # 4.0 is the first release supporting Sphinx 8
+    "myst-nb>=1.1.0",
     "markdown-it-py[linkify]",
     "sphinxcontrib-mermaid>=1",
     "sphinxext-opengraph",
@@ -67,12 +67,12 @@ guide = [
 ]
 technote = [
     # Theme and extensions for technotes
-    "technote>=0.9.0,<0.10.0",
+    "technote>=0.9.1,<0.10.0",
     "sphinx-prompt",
     "sphinxcontrib-mermaid>=1",
     "sphinx-diagrams",
-    "sphinx_design",
-    "myst-nb",
+    "sphinx_design>=0.7.0",
+    "myst-nb>=1.1.0",
     "sphinxcontrib-youtube",
     "sphinx-sitemap",
 ]

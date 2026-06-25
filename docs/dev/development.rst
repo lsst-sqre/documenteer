@@ -58,7 +58,7 @@ Run nox through uv so the runner and its environments are managed for you:
 
    uv run --only-group=nox nox
 
-Running ``nox`` with no arguments runs the default sessions (lint, typing, the Sphinx 7 and 8 test runs, and a docs build).
+Running ``nox`` with no arguments runs the default sessions (lint, typing, the Sphinx 8 and 9 test runs, and a docs build).
 The available sessions are:
 
 .. list-table:: nox sessions
@@ -68,9 +68,9 @@ The available sessions are:
    * - Session
      - Description
    * - ``test``
-     - Run the test suite with pytest. Parametrized over Sphinx versions (``7``, ``8``, ``dev``). Coverage is opt-in (see below).
+     - Run the test suite with pytest. Parametrized over Sphinx versions (``8``, ``9``, ``dev``). Coverage is opt-in (see below).
    * - ``typing``
-     - Run mypy (type annotations checker). Parametrized over Sphinx versions (``7``, ``8``, ``dev``).
+     - Run mypy (type annotations checker). Parametrized over Sphinx versions (``8``, ``9``, ``dev``).
    * - ``lint``
      - Run the prek hooks (including the prettier web-asset hook).
    * - ``coverage-report``

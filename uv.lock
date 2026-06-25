@@ -638,21 +638,21 @@ requires-dist = [
     { name = "docutils", specifier = ">=0.20" },
     { name = "gitpython" },
     { name = "markdown-it-py", extras = ["linkify"], marker = "extra == 'guide'" },
-    { name = "myst-nb", marker = "extra == 'guide'" },
-    { name = "myst-nb", marker = "extra == 'technote'" },
-    { name = "myst-parser", marker = "extra == 'guide'" },
+    { name = "myst-nb", marker = "extra == 'guide'", specifier = ">=1.1.0" },
+    { name = "myst-nb", marker = "extra == 'technote'", specifier = ">=1.1.0" },
+    { name = "myst-parser", marker = "extra == 'guide'", specifier = ">=4.0.0" },
     { name = "pybtex", specifier = ">=0.25.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pydata-sphinx-theme", marker = "extra == 'guide'", specifier = ">=0.16.1,<0.17.0" },
+    { name = "pydata-sphinx-theme", marker = "extra == 'guide'", specifier = ">=0.19,<0.20" },
     { name = "pylatexenc" },
     { name = "pyyaml" },
     { name = "requests" },
-    { name = "sphinx", specifier = ">=7,<8.2" },
+    { name = "sphinx", specifier = ">=8,<10" },
     { name = "sphinx-autodoc-typehints", marker = "extra == 'guide'" },
     { name = "sphinx-automodapi", marker = "extra == 'guide'" },
     { name = "sphinx-copybutton", marker = "extra == 'guide'" },
-    { name = "sphinx-design", marker = "extra == 'guide'" },
-    { name = "sphinx-design", marker = "extra == 'technote'" },
+    { name = "sphinx-design", marker = "extra == 'guide'", specifier = ">=0.7.0" },
+    { name = "sphinx-design", marker = "extra == 'technote'", specifier = ">=0.7.0" },
     { name = "sphinx-diagrams", marker = "extra == 'technote'" },
     { name = "sphinx-favicon", marker = "extra == 'guide'" },
     { name = "sphinx-jinja", marker = "extra == 'guide'", specifier = ">=2" },
@@ -660,7 +660,7 @@ requires-dist = [
     { name = "sphinx-prompt", marker = "extra == 'technote'" },
     { name = "sphinx-sitemap", marker = "extra == 'guide'" },
     { name = "sphinx-sitemap", marker = "extra == 'technote'" },
-    { name = "sphinxcontrib-bibtex", specifier = ">=2.6.5" },
+    { name = "sphinxcontrib-bibtex", specifier = ">=2.7.0" },
     { name = "sphinxcontrib-jquery", marker = "extra == 'guide'" },
     { name = "sphinxcontrib-mermaid", marker = "extra == 'guide'", specifier = ">=1" },
     { name = "sphinxcontrib-mermaid", marker = "extra == 'technote'", specifier = ">=1" },
@@ -668,7 +668,7 @@ requires-dist = [
     { name = "sphinxcontrib-youtube", marker = "extra == 'technote'" },
     { name = "sphinxext-opengraph", marker = "extra == 'guide'" },
     { name = "sphinxext-rediraffe", marker = "extra == 'guide'" },
-    { name = "technote", marker = "extra == 'technote'", specifier = ">=0.9.0,<0.10.0" },
+    { name = "technote", marker = "extra == 'technote'", specifier = ">=0.9.1,<0.10.0" },
     { name = "tomlkit" },
     { name = "urllib3" },
 ]
@@ -1826,7 +1826,7 @@ wheels = [
 
 [[package]]
 name = "pydata-sphinx-theme"
-version = "0.16.1"
+version = "0.19.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accessible-pygments" },
@@ -1837,9 +1837,9 @@ dependencies = [
     { name = "sphinx" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/20/bb50f9de3a6de69e6abd6b087b52fa2418a0418b19597601605f855ad044/pydata_sphinx_theme-0.16.1.tar.gz", hash = "sha256:a08b7f0b7f70387219dc659bff0893a7554d5eb39b59d3b8ef37b8401b7642d7", size = 2412693, upload-time = "2024-12-17T10:53:39.537Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/7e/e3defb93f30557ae825a3b3fbc2c6728301e5e9505a85e00d8503345c42c/pydata_sphinx_theme-0.19.0.tar.gz", hash = "sha256:148ba092bd6937b3321385dc482cc69a29ad2ede36547b4f010ade782bc6a062", size = 5004933, upload-time = "2026-06-15T09:31:02.268Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/0d/8ba33fa83a7dcde13eb3c1c2a0c1cc29950a048bfed6d9b0d8b6bd710b4c/pydata_sphinx_theme-0.16.1-py3-none-any.whl", hash = "sha256:225331e8ac4b32682c18fcac5a57a6f717c4e632cea5dd0e247b55155faeccde", size = 6723264, upload-time = "2024-12-17T10:53:35.645Z" },
+    { url = "https://files.pythonhosted.org/packages/54/77/bdb5a4c0e8e33c08f31fd175a5af0bc5e29f1b43ffa9e963f4c4f9bfbc97/pydata_sphinx_theme-0.19.0-py3-none-any.whl", hash = "sha256:5d7dfe3beb0facc88b5d78ff4a4c948f214cc0e03aae27e7fc58286e963b588b", size = 6201132, upload-time = "2026-06-15T09:30:59.966Z" },
 ]
 
 [[package]]
