@@ -27,7 +27,11 @@ __all__ = ["setup"]
 logger = logging.getLogger(__name__)
 
 
-# Vendored from sphinx to accomodate differences between Sphinx 7 and 8
+# Vendored from sphinx because this helper has no stable public import
+# location across the supported Sphinx 8-9 window: Sphinx 8.0 only exposes it
+# as the legacy ``sphinx.util.parselinenos``, and the
+# ``sphinx.directives.code.parse_line_num_spec`` name only appears in Sphinx
+# 8.1+. Vendoring keeps a single code path without version-conditional imports.
 # Copyright the Sphinx team.
 # See licenses/sphinx.txt
 def parse_line_num_spec(spec: str, total: int) -> list[int]:
