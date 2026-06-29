@@ -70,7 +70,10 @@ technote = [
     "technote>=0.9.1,<0.10.0",
     "sphinx-prompt",
     "sphinxcontrib-mermaid>=1",
-    "sphinx-diagrams",
+    # The `diagrams` (mingrammer) package backs documenteer.ext.diagrams, our
+    # vendored replacement for the unmaintained sphinx-diagrams extension. The
+    # demos and the extension import `diagrams.*` directly.
+    "diagrams>=0.24",
     "sphinx_design>=0.7.0",
     "myst-nb>=1.1.0",
     "sphinxcontrib-youtube",
@@ -129,6 +132,13 @@ requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = 'setuptools.build_meta'
 
 [tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+# Ship both top-level packages: the main `documenteer` package and the
+# `sphinx_diagrams` back-compat shim. Without an explicit discovery block,
+# auto-discovery finds only `documenteer`.
+where = ["src"]
+include = ["documenteer*", "sphinx_diagrams*"]
 
 [tool.black]
 # Black configuration is maintained for blacken-docs

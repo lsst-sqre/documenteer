@@ -44,9 +44,9 @@ These extensions are included and pre-configured in all technotes:
    Mermaid is a diagrams-as-code tool that allows you to create flowcharts, sequence diagrams, entity relationship diagrams, and more.
    See the Mermaid_ documentation for more information, and see the `sphinxcontrib-mermaid`_ documentation for Sphinx-specific usage.
 
-`sphinx-diagrams`_
-   The Diagrams extension allows you to make architectural diagrams from code.
-   This extension is particularly useful for describing Kubernetes application deployments.
+``documenteer.ext.diagrams``
+   This extension renders Diagrams_ (diagrams as code) into architectural diagrams.
+   It is particularly useful for describing Kubernetes application deployments.
 
 .. _technote-adding-extensions:
 

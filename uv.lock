@@ -565,9 +565,9 @@ guide = [
     { name = "sphinxext-rediraffe" },
 ]
 technote = [
+    { name = "diagrams" },
     { name = "myst-nb" },
     { name = "sphinx-design" },
-    { name = "sphinx-diagrams" },
     { name = "sphinx-prompt" },
     { name = "sphinx-sitemap" },
     { name = "sphinxcontrib-mermaid" },
@@ -635,6 +635,7 @@ typing = [
 requires-dist = [
     { name = "autodoc-pydantic", marker = "extra == 'guide'" },
     { name = "click" },
+    { name = "diagrams", marker = "extra == 'technote'", specifier = ">=0.24" },
     { name = "docutils", specifier = ">=0.20" },
     { name = "gitpython" },
     { name = "markdown-it-py", extras = ["linkify"], marker = "extra == 'guide'" },
@@ -653,7 +654,6 @@ requires-dist = [
     { name = "sphinx-copybutton", marker = "extra == 'guide'" },
     { name = "sphinx-design", marker = "extra == 'guide'", specifier = ">=0.7.0" },
     { name = "sphinx-design", marker = "extra == 'technote'", specifier = ">=0.7.0" },
-    { name = "sphinx-diagrams", marker = "extra == 'technote'" },
     { name = "sphinx-favicon", marker = "extra == 'guide'" },
     { name = "sphinx-jinja", marker = "extra == 'guide'", specifier = ">=2" },
     { name = "sphinx-prompt", marker = "extra == 'guide'" },
@@ -2344,18 +2344,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/13/7b/804f311da4663a4aecc6cf7abd83443f3d4ded970826d0c958edc77d4527/sphinx_design-0.7.0.tar.gz", hash = "sha256:d2a3f5b19c24b916adb52f97c5f00efab4009ca337812001109084a740ec9b7a", size = 2203582, upload-time = "2026-01-19T13:12:53.297Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/30/cf/45dd359f6ca0c3762ce0490f681da242f0530c49c81050c035c016bfdd3a/sphinx_design-0.7.0-py3-none-any.whl", hash = "sha256:f82bf179951d58f55dca78ab3706aeafa496b741a91b1911d371441127d64282", size = 2220350, upload-time = "2026-01-19T13:12:51.077Z" },
-]
-
-[[package]]
-name = "sphinx-diagrams"
-version = "0.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "diagrams" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/68/41/e5e874e12f09ea002eee1498cab5fccfd9c6a3348cd3bba82819310d8335/sphinx-diagrams-0.4.0.tar.gz", hash = "sha256:3cf2e0179bdd9ccdb28164fcfcae9b167999a1abe40e159e0c26a225490074d1", size = 5878, upload-time = "2021-08-17T21:00:46.363Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/a3/22ae4cac618ed0b8d5447dcb67e833bd27a37c958be0540cce5fd34f42e2/sphinx_diagrams-0.4.0-py3-none-any.whl", hash = "sha256:4860291cb04d6361f898d20ba28dca7345f757cdc240caf144c8bf20c73067a0", size = 5961, upload-time = "2021-08-17T21:00:47.598Z" },
 ]
 
 [[package]]

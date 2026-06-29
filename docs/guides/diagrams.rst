@@ -103,15 +103,15 @@ Diagrams for architectural diagrams
 ===================================
 
 Mermaid_ does not have support for architectural diagrams (that is, diagrams showing the infrastructure and services in a deployment).
-For this application the Diagrams_ package, with the sphinx-diagrams_ extension, is ideal.
+For this application the Diagrams_ package, rendered through Documenteer's bundled ``documenteer.ext.diagrams`` extension, is ideal.
 
 Installation and set up
 -----------------------
 
-sphinx-diagrams_ is not part of the standard Documenteer configuration for Rubin user guides.
-You'll need to install and configure it:
+The ``documenteer.ext.diagrams`` extension ships with Documenteer, but it is not enabled by default for Rubin user guides.
+You'll need to install the Diagrams_ package and enable the extension:
 
-1. Add the ``sphinx-diagrams`` Python dependency to your project's development/documentation requirements.
+1. Add the ``diagrams`` Python package to your project's development/documentation requirements.
 
 2. Ensure that ``graphviz`` is available in the build environment.
    If you are using GitHub Actions with an Ubuntu runner, this can be done with an apt installation:
@@ -125,14 +125,14 @@ You'll need to install and configure it:
 
    If you are using tox_, you may need to add ``graphviz`` to the documentation environment's ``allowlist_externals`` configuration.
 
-3. Add ``"sphinx_diagrams"`` to the extensions list in |documenteer.toml|:
+3. Add ``"documenteer.ext.diagrams"`` to the extensions list in |documenteer.toml|:
 
    .. code-block:: toml
       :caption: documenteer.toml
 
       [sphinx]
       extensions = [
-        "sphinx_diagrams"
+        "documenteer.ext.diagrams"
       ]
 
 Basic syntax
