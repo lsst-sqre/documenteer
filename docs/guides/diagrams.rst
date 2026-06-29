@@ -152,3 +152,21 @@ Referencing a Python module is recommended to take advantage of syntax highlight
 
       ```diagrams diagram.py
       ```
+
+Choosing the output format
+--------------------------
+
+By default, diagrams are rendered as PNG images.
+You can switch the whole project to scalable SVG output by setting the ``diagrams_output_format`` configuration value in your :file:`conf.py`:
+
+.. code-block:: python
+   :caption: conf.py
+
+   diagrams_output_format = "svg"
+
+The accepted values are ``"png"`` (the default) and ``"svg"``.
+SVG output is self-contained: the provider node icons (which the Diagrams_ package references by absolute filesystem path) are embedded into the SVG as base64 ``data:`` URIs, so the diagrams render correctly once your documentation is deployed.
+
+.. note::
+
+   LaTeX/PDF builds always use PNG, regardless of ``diagrams_output_format``, because ``pdflatex`` cannot embed SVG images.

@@ -1,10 +1,12 @@
 """``diagrams`` directive for rendering architectural "diagrams as code".
 
 This extension renders `Diagrams <https://diagrams.mingrammer.com/>`__ source
-code (Python scripts that build a ``diagrams.Diagram``) into PNG images during
-the Sphinx build. It provides the ``diagrams`` directive (both inline and
-external-file forms) and the `SphinxDiagram` context manager used by diagram
-source scripts.
+code (Python scripts that build a ``diagrams.Diagram``) into PNG or SVG images
+during the Sphinx build. The output format is chosen project-wide with the
+``diagrams_output_format`` config value (``"png"`` by default, or ``"svg"`` for
+self-contained vector output in HTML). It provides the ``diagrams`` directive
+(both inline and external-file forms) and the `SphinxDiagram` context manager
+used by diagram source scripts.
 """
 
 from __future__ import annotations
@@ -18,8 +20,10 @@ from __future__ import annotations
 # uses), so editing a diagram produces a new filename and re-renders it instead
 # of serving a stale cached image.
 # See licenses/sphinx-diagrams.txt
+import base64
 import os
 import posixpath
+import re
 import subprocess
 import sys
 from hashlib import sha1
@@ -30,7 +34,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from docutils import nodes
 from docutils.parsers.rst import directives
-from sphinx.errors import SphinxError
+from sphinx.errors import ConfigError, SphinxError
 from sphinx.locale import __
 from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective, SphinxTranslator
@@ -41,17 +45,44 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from sphinx.application import Sphinx
+    from sphinx.config import Config
     from sphinx.util.typing import ExtensionMetadata
 
 __all__ = ["SphinxDiagram", "setup"]
 
 logger = logging.getLogger(__name__)
 
+#: Output formats supported by the ``diagrams_output_format`` config value.
+_VALID_OUTPUT_FORMATS = frozenset({"png", "svg"})
+
+#: Regex matching an ``href``/``xlink:href`` attribute and its value.
+_HREF_RE = re.compile(r'((?:xlink:)?href)="([^"]+)"')
+
+#: MIME types for the image suffixes the diagrams library references in SVGs.
+_MIME_BY_SUFFIX = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+}
+
 
 class DiagramsError(SphinxError):
     """Error raised when a diagram fails to render."""
 
     category = "Diagrams error"
+
+
+def _validate_config(app: Sphinx, config: Config) -> None:
+    """Validate the ``diagrams_output_format`` config value once per build."""
+    outformat = config.diagrams_output_format
+    if outformat not in _VALID_OUTPUT_FORMATS:
+        raise ConfigError(
+            __("diagrams_output_format must be one of {}, got {!r}.").format(
+                sorted(_VALID_OUTPUT_FORMATS), outformat
+            )
+        )
 
 
 def _align_option(argument: str) -> str:
@@ -138,17 +169,20 @@ def render_diagrams(
     code: str,
     options: dict[str, Any],
     prefix: str = "diagrams",
+    outformat: str = "png",
 ) -> tuple[str | None, str | None]:
-    """Render diagram source code into a PNG file.
+    """Render diagram source code into an image file.
 
     The output filename embeds a SHA-1 hash of the diagram source, so editing a
     diagram produces a new filename and re-renders the image instead of reusing
-    a stale cached file. Returns a ``(relative_uri, absolute_path)`` tuple for
-    the rendered image, or ``(None, None)`` when the diagram could not be
+    a stale cached file. ``outformat`` selects the image format (``"png"`` or
+    ``"svg"``); png and svg renders differ by file extension so they never
+    collide on the same hash. Returns a ``(relative_uri, absolute_path)`` tuple
+    for the rendered image, or ``(None, None)`` when the diagram could not be
     rendered because Python could not be run.
     """
     hashkey = sha1(code.encode("utf-8"), usedforsecurity=False).hexdigest()
-    fname = f"{prefix}-{hashkey}.png"
+    fname = f"{prefix}-{hashkey}.{outformat}"
     relfn = posixpath.join(self.builder.imgpath, fname)
     image_dir = Path(self.builder.outdir) / self.builder.imagedir
     output_filename = image_dir / fname
@@ -162,9 +196,15 @@ def render_diagrams(
     # The diagram source is a Python script that builds a ``diagrams.Diagram``
     # through ``SphinxDiagram``. Run it with the image directory as the working
     # directory; the first positional argument tells ``SphinxDiagram`` the
-    # filename stem to write, and the second disables the diagrams library's
-    # "open the rendered image" behavior.
-    python_args = [sys.executable, "-", output_filename.stem, "false"]
+    # filename stem to write, the second disables the diagrams library's "open
+    # the rendered image" behavior, and the third selects the output format.
+    python_args = [
+        sys.executable,
+        "-",
+        output_filename.stem,
+        "false",
+        outformat,
+    ]
 
     try:
         completed = subprocess.run(
@@ -202,7 +242,43 @@ def render_diagrams(
                 completed.stdout.decode("utf-8", "replace"),
             )
         )
+
+    if outformat == "svg":
+        # graphviz references provider node icons by absolute filesystem path
+        # in SVG output, which breaks once the SVG is deployed. Inline the
+        # icons so the written file (which is also the on-disk cache) is
+        # self-contained.
+        _inline_svg_images(output_filename)
+
     return relfn, str(output_filename)
+
+
+def _inline_svg_images(svg_path: Path) -> None:
+    """Embed externally referenced icon images into an SVG as data URIs.
+
+    The diagrams library references provider node icons by absolute filesystem
+    path; graphviz copies those into ``<image xlink:href=...>`` for SVG output,
+    so icons break once the SVG is deployed. Rewrite each local file reference
+    as a base64 ``data:`` URI so the SVG is self-contained.
+    """
+    svg_text = svg_path.read_text(encoding="utf-8")
+
+    def _replace(match: re.Match[str]) -> str:
+        attr, ref = match.group(1), match.group(2)
+        if ref.startswith(("data:", "http:", "https:", "#")):
+            return match.group(0)
+        ref_path = Path(ref)
+        if not ref_path.is_absolute():
+            ref_path = svg_path.parent / ref_path
+        if not ref_path.is_file():
+            return match.group(0)
+        mime = _MIME_BY_SUFFIX.get(ref_path.suffix.lower(), "image/png")
+        encoded = base64.b64encode(ref_path.read_bytes()).decode("ascii")
+        return f'{attr}="data:{mime};base64,{encoded}"'
+
+    new_text = _HREF_RE.sub(_replace, svg_text)
+    if new_text != svg_text:
+        svg_path.write_text(new_text, encoding="utf-8")
 
 
 def render_html(
@@ -213,8 +289,9 @@ def render_html(
     prefix: str = "diagrams",
 ) -> None:
     """Render a ``diagrams`` node into HTML."""
+    outformat = self.builder.config.diagrams_output_format
     try:
-        fname, _outfn = render_diagrams(self, code, options, prefix)
+        fname, _outfn = render_diagrams(self, code, options, prefix, outformat)
     except DiagramsError as exc:
         logger.warning(__("diagrams code %r: %s"), code, exc)
         raise nodes.SkipNode from exc
@@ -251,8 +328,12 @@ def render_latex(
     prefix: str = "diagrams",
 ) -> None:
     """Render a ``diagrams`` node into LaTeX."""
+    # pdflatex's \sphinxincludegraphics cannot embed SVG, so always render PNG
+    # for LaTeX output regardless of the project's diagrams_output_format.
     try:
-        fname, _outfn = render_diagrams(self, code, options, prefix)
+        fname, _outfn = render_diagrams(
+            self, code, options, prefix, outformat="png"
+        )
     except DiagramsError as exc:
         logger.warning(__("diagrams code %r: %s"), code, exc)
         raise nodes.SkipNode from exc
@@ -299,6 +380,11 @@ def setup(app: Sphinx) -> ExtensionMetadata:
         latex=(latex_visit_diagrams, None),
     )
     app.add_directive("diagrams", Diagrams)
+    # Rebuild trigger "env": switching the format re-processes docs containing
+    # diagrams so they pick up the new image extension. Old-format image files
+    # are left as harmless orphans (same as the existing source-edit behavior).
+    app.add_config_value("diagrams_output_format", "png", "env", str)
+    app.connect("config-inited", _validate_config)
     return {
         "version": __version__,
         "parallel_read_safe": True,
@@ -326,6 +412,9 @@ class SphinxDiagram:
             argv = sys.argv
         filename = argv[1] if len(argv) >= 2 else Path(argv[0]).stem
         show = argv[2].lower() == "true" if len(argv) >= 3 else True
+        # The 4th argument carries the extension's chosen output format. Guard
+        # on its presence so standalone/legacy invocations stay on PNG.
+        outformat = argv[3] if len(argv) >= 4 else "png"
 
         title = kwargs.pop("title", None)
         if title is None:
@@ -336,6 +425,12 @@ class SphinxDiagram:
                 .replace("  ", " ")
                 .title()
             )
+
+        # The extension asserts that an exact ``<stem>.<format>`` file exists
+        # afterwards, so the extension-driven format must win over any
+        # ``outformat=`` a user diagram script passes.
+        kwargs.pop("outformat", None)
+        kwargs["outformat"] = outformat
 
         self.diagram = Diagram(title, show=show, filename=filename, **kwargs)
 
