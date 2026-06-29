@@ -7,11 +7,12 @@ from __future__ import annotations
 __all__ = ["setup"]
 
 import os
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from docutils import nodes
 from docutils.parsers.rst import directives
 from sphinx.application import Sphinx
+from sphinx.config import Config
 from sphinx.directives.code import LiteralIncludeReader, container_wrapper
 from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective
@@ -160,15 +161,28 @@ class RemoteCodeBlock(SphinxDirective):
 class RemoteCodeBlockReader(LiteralIncludeReader):
     """Reader for content used by `RemoteCodeBlock`."""
 
+    def __init__(
+        self,
+        filename: str | os.PathLike[str],
+        options: dict[str, Any],
+        config: Config,
+    ) -> None:
+        # Sphinx's LiteralIncludeReader stores the argument as a path
+        # (``_StrPath``), which collapses the ``//`` in a URL down to ``/``
+        # (e.g. ``https://host`` becomes ``https:/host``). Preserve the
+        # original URL so it can still be fetched over HTTP.
+        self.url = os.fspath(filename)
+        super().__init__(filename, options, config)
+
     def read_file(
         self,
-        url: str | os.PathLike[str],
+        filename: str | os.PathLike[str],
         location: tuple[str, int] | None = None,
     ) -> list[str]:
         """Read content from the web by overriding
         `LiteralIncludeReader.read_file`.
         """
-        response = requests_retry_session().get(os.fspath(url), timeout=10.0)
+        response = requests_retry_session().get(self.url, timeout=10.0)
         response.raise_for_status()
         text = response.text
         if "tab-width" in self.options:
