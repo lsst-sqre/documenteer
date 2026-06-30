@@ -107,6 +107,33 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+      # Stage the demo technote builds into a flat layout so reviewers get
+      # demo-artifact/<name>/index.html instead of digging through _build/html.
+      # Guarded so partial/missing HTML (sphinx-build runs with --keep-going)
+      # under `if: always()` never hard-fails the job.
+      - name: Stage demo builds for upload
+        if: always() && matrix.python-version == env.PYTHON_VERSION && matrix.sphinx-version == '9'
+        run: |
+          for d in rst-technote md-technote ipynb-technote; do
+            if [ -d "demo/$d/_build/html" ]; then
+              mkdir -p "demo-artifact/$d"
+              cp -r "demo/$d/_build/html/." "demo-artifact/$d/"
+            fi
+          done
+
+      # Upload the rendered demo technotes for review from the Actions UI.
+      # Only the canonical cell (3.13 x current stable Sphinx) uploads, to keep
+      # the artifact list clean. NOTE: bump the sphinx-version check when the
+      # matrix's current stable Sphinx moves past '9'.
+      - name: Upload demo builds
+        if: always() && matrix.python-version == env.PYTHON_VERSION && matrix.sphinx-version == '9'
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-technotes-sphinx${{ matrix.sphinx-version }}
+          path: demo-artifact
+          if-no-files-found: warn
+          retention-days: 7
+
   coverage-combine:
     runs-on: ubuntu-latest
     needs: [test]
