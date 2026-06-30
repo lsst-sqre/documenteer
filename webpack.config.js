@@ -54,7 +54,18 @@ module.exports = {
           MiniCssExtractPlugin.loader,
           { loader: 'css-loader', options: { sourceMap: true } },
           { loader: 'postcss-loader', options: { sourceMap: true } },
-          { loader: 'sass-loader', options: { sourceMap: true } },
+          {
+            loader: 'sass-loader',
+            options: {
+              sourceMap: true,
+              // Use the modern Dart Sass compiler API. sass-loader removed the
+              // legacy Dart Sass JS API in v16, so pin the implementation to
+              // the `sass` (Dart Sass) package and opt into the shared
+              // modern-compiler API explicitly.
+              implementation: require('sass'),
+              api: 'modern-compiler',
+            },
+          },
         ],
       },
     ],
