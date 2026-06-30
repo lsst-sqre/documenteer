@@ -35,9 +35,9 @@ jobs:
         env:
           NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: npm install and build
+      - name: npm ci and build
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Install uv
@@ -77,9 +77,9 @@ jobs:
         env:
           NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: npm install and build
+      - name: npm ci and build
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Setup Graphviz
@@ -162,9 +162,9 @@ jobs:
         env:
           NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: npm install and build
+      - name: npm ci and build
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Install uv
@@ -209,9 +209,9 @@ jobs:
         env:
           NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: npm install and build
+      - name: npm ci and build
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Build and publish
@@ -246,9 +246,9 @@ jobs:
         env:
           NPM_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: npm install and build
+      - name: npm ci and build
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Build and publish
