@@ -5,5 +5,6 @@ See ../LICENSE for Documenteer's main license information.
 
 - sphinx.txt — https://www.sphinx-doc.org
 - sphinx-issue.txt — https://github.com/sloria/sphinx-issues
+- sphinx-diagrams.txt — https://github.com/j-martin/sphinx-diagrams
 - astropy-helpers - https://github.com/astropy/astropy-helpers
 - sphinxcontrib-redoc - https://sphinxcontrib-redoc.readthedocs.io/

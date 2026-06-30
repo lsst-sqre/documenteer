@@ -44,9 +44,22 @@ These extensions are included and pre-configured in all technotes:
    Mermaid is a diagrams-as-code tool that allows you to create flowcharts, sequence diagrams, entity relationship diagrams, and more.
    See the Mermaid_ documentation for more information, and see the `sphinxcontrib-mermaid`_ documentation for Sphinx-specific usage.
 
-`sphinx-diagrams`_
-   The Diagrams extension allows you to make architectural diagrams from code.
-   This extension is particularly useful for describing Kubernetes application deployments.
+``documenteer.ext.diagrams``
+   This extension renders Diagrams_ (diagrams as code) into architectural diagrams.
+   It is particularly useful for describing Kubernetes application deployments.
+
+   By default, diagrams are rendered as PNG images.
+   To render scalable SVG output instead, set the ``diagrams_output_format`` configuration value (to ``"svg"``; the default is ``"png"``) in your :file:`conf.py`, the same way you would set ``mermaid_version``:
+
+   .. code-block:: python
+      :caption: conf.py
+
+      from documenteer.conf.technote import *  # noqa: F401, F403
+
+      diagrams_output_format = "svg"
+
+   SVG output is self-contained because the provider node icons are embedded as base64 ``data:`` URIs.
+   LaTeX/PDF builds always use PNG, since ``pdflatex`` cannot embed SVG images.
 
 .. _technote-adding-extensions:
 

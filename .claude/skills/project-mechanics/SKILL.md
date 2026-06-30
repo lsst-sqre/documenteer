@@ -11,13 +11,15 @@ of each phase and use the named commands verbatim.
 
 Tasks run through nox (via nox-uv). Invoke nox through uv so the runner
 group is provisioned automatically: `uv run --only-group=nox nox ...`.
-The `test` and `typing` sessions are parametrized over Sphinx versions,
-so their session names carry the parameter, e.g. `test(sphinx='8')`.
+The `test`, `typing`, and `demo` sessions are parametrized over both
+Python (3.12, 3.13) and Sphinx (8, 9, dev), so their session IDs carry
+both factors, e.g. `test-3.13(sphinx='8')`. uv furnishes the requested
+interpreter on demand. Run `nox -l` to confirm the exact IDs.
 
 ## Test commands
 
-- `focused_test`: `uv run --only-group=nox nox -s "test(sphinx='8')" -- -k <test_name>` (posargs after `--` pass through to pytest, so you can also use `uv run --only-group=nox nox -s "test(sphinx='8')" -- tests/foo_test.py::test_bar`)
-- `complete_test`: `uv run --only-group=nox nox -s "test(sphinx='7')" "test(sphinx='8')"`
+- `focused_test`: `uv run --only-group=nox nox -s "test-3.13(sphinx='8')" -- -k <test_name>` (posargs after `--` pass through to pytest, so you can also use `uv run --only-group=nox nox -s "test-3.13(sphinx='8')" -- tests/foo_test.py::test_bar`)
+- `complete_test`: `uv run --only-group=nox nox -s "test-3.13(sphinx='8')" "test-3.13(sphinx='9')"`
 
 ## Coverage
 
@@ -25,10 +27,13 @@ Coverage is opt-in. The `test` session runs plain pytest by default, so no
 `.coverage*` files are written during normal validation. To collect coverage
 and print a combined report across the test sessions, set the
 `DOCUMENTEER_COVERAGE` environment variable, e.g.
-`DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox -s "test(sphinx='7')" "test(sphinx='8')"`.
+`DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox -s "test-3.13(sphinx='8')" "test-3.13(sphinx='9')"`.
 The `coverage-report` session (combine + report) is triggered automatically
 via `session.notify` when `DOCUMENTEER_COVERAGE` is set, and can also be run
-directly to re-display the last combined report.
+directly to re-display the last combined report. CI instead sets
+`DOCUMENTEER_COVERAGE_NO_COMBINE` in each matrix cell to skip the
+per-invocation combine and upload raw `.coverage.*` data for a central
+`coverage-combine` job; that flag is CI-only and not needed for local runs.
 
 ## Lint
 
@@ -37,18 +42,19 @@ directly to re-display the last combined report.
 
 ## Typing
 
-- `typing`: `uv run --only-group=nox nox -s "typing(sphinx='8')"`
+- `typing`: `uv run --only-group=nox nox -s "typing-3.13(sphinx='8')"`
 
 ## Final validation
 
 End-of-task validation runs `uv run --only-group=nox nox -s
-"test(sphinx='7')" "test(sphinx='8')"` + `uv run --only-group=nox nox -s
-lint` + `uv run --only-group=nox nox -s "typing(sphinx='8')"` in that
-order, in the foreground, plus `uv run --only-group=nox nox -s demo`
-(end-to-end rst/md/ipynb demo technote builds) and `uv run
---only-group=nox nox -s docs` (Documenteer's own Sphinx docs build).
+"test-3.13(sphinx='8')" "test-3.13(sphinx='9')"` + `uv run --only-group=nox nox -s
+lint` + `uv run --only-group=nox nox -s "typing-3.13(sphinx='8')"` in that
+order, in the foreground, plus `uv run --only-group=nox nox -s
+"demo-3.13(sphinx='9')"` (end-to-end rst/md/ipynb demo technote builds)
+and `uv run --only-group=nox nox -s docs` (Documenteer's own Sphinx docs
+build).
 
-The full Python × Sphinx matrix (3.12/3.13 × Sphinx 7/8), `nox -s
+The full Python × Sphinx matrix (3.12/3.13 × Sphinx 8/9), `nox -s
 docs-linkcheck` (linkcheck), and `nox -s packaging` (build + twine
 check) are CI's responsibility, not the in-iteration gate.
 

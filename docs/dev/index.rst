@@ -8,6 +8,7 @@ Development
 
    development
    release
+   dependency-policy
 
 .. toctree::
    :maxdepth: 2

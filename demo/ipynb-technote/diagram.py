@@ -1,7 +1,7 @@
 from diagrams.k8s.clusterconfig import HPA
 from diagrams.k8s.compute import Deployment, Pod, ReplicaSet
 from diagrams.k8s.network import Ingress, Service
-from sphinx_diagrams import SphinxDiagram
+from documenteer.ext.diagrams import SphinxDiagram
 
 with SphinxDiagram(title="GKE"):
     net = Ingress("domain.com") >> Service("svc")

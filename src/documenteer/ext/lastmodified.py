@@ -291,11 +291,10 @@ class LastModified:
             return
 
         fmt = app.config.documenteer_last_modified_date_format
-        # Don't pass ``local_time``: it was only added to format_date() in
-        # Sphinx 8 (where it defaults to False), and Sphinx 7 formats the date
-        # as given. Relying on the default keeps output reproducible (the
-        # commit datetime is used as-is, not converted to the builder's local
-        # timezone) and compatible across both Sphinx versions.
+        # Rely on format_date()'s ``local_time=False`` default so the commit
+        # datetime is rendered as-is rather than converted to the builder's
+        # local timezone. This keeps the output reproducible across build
+        # hosts.
         context["last_updated"] = format_date(
             fmt,
             date=date,
