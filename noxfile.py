@@ -8,8 +8,8 @@ import nox
 from nox_uv import session
 
 # Default sessions (run when nox is invoked without -s) stay lean: lint, the
-# Sphinx 8/9 test runs on the latest supported Python, Sphinx 8 typing, and a
-# docs build. The full Python x Sphinx grid (and the Sphinx "dev" runs) are
+# Sphinx 8/9 test runs on Python 3.13, Sphinx 8 typing, and a docs build. The
+# full Python x Sphinx grid (3.12-3.14, including the Sphinx "dev" runs) is
 # opt-in via ``nox -s test`` / ``nox -s typing``.
 nox.options.sessions = [
     "lint",
@@ -55,7 +55,9 @@ def lint(session: nox.Session) -> None:
     session.run("prek", "run", "--all-files", *session.posargs)
 
 
-@session(python=["3.12", "3.13"], uv_groups=["test"], uv_extras=_EXTRAS)
+@session(
+    python=["3.12", "3.13", "3.14"], uv_groups=["test"], uv_extras=_EXTRAS
+)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def test(session: nox.Session, sphinx: str) -> None:
     """Run the test suite with pytest.
@@ -75,7 +77,9 @@ def test(session: nox.Session, sphinx: str) -> None:
         session.run("pytest", *session.posargs)
 
 
-@session(python=["3.12", "3.13"], uv_groups=["typing"], uv_extras=_EXTRAS)
+@session(
+    python=["3.12", "3.13", "3.14"], uv_groups=["typing"], uv_extras=_EXTRAS
+)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def typing(session: nox.Session, sphinx: str) -> None:
     """Check type annotations with mypy."""
@@ -114,7 +118,9 @@ def docs_linkcheck(session: nox.Session) -> None:
     session.run("make", "-C", "docs", "linkcheck", external=True)
 
 
-@session(python=["3.12", "3.13"], uv_groups=["test"], uv_extras=_EXTRAS)
+@session(
+    python=["3.12", "3.13", "3.14"], uv_groups=["test"], uv_extras=_EXTRAS
+)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def demo(session: nox.Session, sphinx: str) -> None:
     """Build the demo technote projects as an end-to-end smoke test.
