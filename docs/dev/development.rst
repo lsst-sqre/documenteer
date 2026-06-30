@@ -58,7 +58,7 @@ Run nox through uv so the runner and its environments are managed for you:
 
    uv run --only-group=nox nox
 
-Running ``nox`` with no arguments runs the default sessions (lint, typing, the Sphinx 8 and 9 test runs, and a docs build).
+Running ``nox`` with no arguments runs a lean default set: lint, typing and the Sphinx 8 and 9 test runs on the latest supported Python (3.13), and a docs build.
 The available sessions are:
 
 .. list-table:: nox sessions
@@ -68,22 +68,23 @@ The available sessions are:
    * - Session
      - Description
    * - ``test``
-     - Run the test suite with pytest. Parametrized over Sphinx versions (``8``, ``9``, ``dev``). Coverage is opt-in (see below).
+     - Run the test suite with pytest. Parametrized over Python (``3.12``, ``3.13``) and Sphinx versions (``8``, ``9``, ``dev``). Coverage is opt-in (see below).
    * - ``typing``
-     - Run mypy (type annotations checker). Parametrized over Sphinx versions (``8``, ``9``, ``dev``).
+     - Run mypy (type annotations checker). Parametrized over Python (``3.12``, ``3.13``) and Sphinx versions (``8``, ``9``, ``dev``).
    * - ``lint``
      - Run the prek hooks (including the prettier web-asset hook).
    * - ``coverage-report``
-     - Aggregate unit test coverage reports from the ``test`` sessions and display a report. Runs automatically after the ``test`` sessions when ``DOCUMENTEER_COVERAGE`` is set.
+     - Aggregate unit test coverage reports from the ``test`` sessions and display a report. Runs automatically after the ``test`` sessions when ``DOCUMENTEER_COVERAGE`` is set (unless ``DOCUMENTEER_COVERAGE_NO_COMBINE`` is also set).
    * - ``docs`` / ``docs-linkcheck``
      - Build the documentation and check its links.
    * - ``demo``
-     - Build the demo technote projects as an end-to-end test.
+     - Build the demo technote projects as an end-to-end smoke test. Parametrized over Python (``3.12``, ``3.13``) and Sphinx versions (``8``, ``9``, ``dev``).
    * - ``packaging``
      - Build the PyPI package and check it with twine.
 
 By default the ``test`` session runs without coverage instrumentation.
-To collect coverage and print a combined report across the test sessions, set ``DOCUMENTEER_COVERAGE``, e.g. ``DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox``.
+To collect coverage and print a combined report across the test sessions, set ``DOCUMENTEER_COVERAGE``, e.g. ``DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox -s test``.
+In CI each matrix cell additionally sets ``DOCUMENTEER_COVERAGE_NO_COMBINE`` so it skips the per-invocation combine and uploads its raw ``.coverage.*`` data; a central ``coverage-combine`` job then merges coverage once across the whole Python × Sphinx matrix.
 
 It is also possible to run individual sessions, for example:
 
@@ -91,12 +92,19 @@ It is also possible to run individual sessions, for example:
 
    uv run --only-group=nox nox -s lint
 
-The ``test`` and ``typing`` sessions are parametrized over Sphinx versions.
-Select a specific version with the parametrized session name, for example to type-check against Sphinx 8:
+The ``test``, ``typing``, and ``demo`` sessions are parametrized over both Python and Sphinx versions, so their session IDs carry both factors.
+uv furnishes the requested interpreter on demand.
+Select a specific cell with the full session ID, for example to type-check against Python 3.13 and Sphinx 8:
 
 .. code-block:: sh
 
-   uv run --only-group=nox nox -s "typing(sphinx='8')"
+   uv run --only-group=nox nox -s "typing-3.13(sphinx='8')"
+
+Run the full Python × Sphinx grid for a session by naming it without a parameter, for example all the test cells:
+
+.. code-block:: sh
+
+   uv run --only-group=nox nox -s test
 
 To learn more about the available sessions, run ``nox -l`` or review the :file:`noxfile.py` file in the code repository.
 

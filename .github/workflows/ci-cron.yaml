@@ -93,12 +93,10 @@ jobs:
 
       - name: Run nox
         run: >
-          uv run --only-group=nox nox -P $UV_PYTHON
-          -s "typing(sphinx='${{ matrix.sphinx-version }}')"
-          "test(sphinx='${{ matrix.sphinx-version }}')"
-          demo
-        env:
-          UV_PYTHON: ${{ matrix.python-version }}
+          uv run --only-group=nox nox
+          -s "test-${{ matrix.python-version }}(sphinx='${{ matrix.sphinx-version }}')"
+          "typing-${{ matrix.python-version }}(sphinx='${{ matrix.sphinx-version }}')"
+          "demo-${{ matrix.python-version }}(sphinx='${{ matrix.sphinx-version }}')"
 
       - name: Report status
         if: failure()

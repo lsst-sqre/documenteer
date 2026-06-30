@@ -7,14 +7,15 @@ from pathlib import Path
 import nox
 from nox_uv import session
 
-# Default sessions (run when nox is invoked without -s): lint, the Sphinx 8/9
-# test runs, Sphinx 8 typing, and a docs build. The Sphinx "dev" runs are
-# opt-in.
+# Default sessions (run when nox is invoked without -s) stay lean: lint, the
+# Sphinx 8/9 test runs on the latest supported Python, Sphinx 8 typing, and a
+# docs build. The full Python x Sphinx grid (and the Sphinx "dev" runs) are
+# opt-in via ``nox -s test`` / ``nox -s typing``.
 nox.options.sessions = [
     "lint",
-    "typing(sphinx='8')",
-    "test(sphinx='8')",
-    "test(sphinx='9')",
+    "typing-3.13(sphinx='8')",
+    "test-3.13(sphinx='8')",
+    "test-3.13(sphinx='9')",
     "docs",
 ]
 
@@ -54,23 +55,27 @@ def lint(session: nox.Session) -> None:
     session.run("prek", "run", "--all-files", *session.posargs)
 
 
-@session(uv_groups=["test"], uv_extras=_EXTRAS)
+@session(python=["3.12", "3.13"], uv_groups=["test"], uv_extras=_EXTRAS)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def test(session: nox.Session, sphinx: str) -> None:
     """Run the test suite with pytest.
 
     Coverage is opt-in: set the ``DOCUMENTEER_COVERAGE`` environment variable
     to run under coverage and emit a combined report after the test sessions.
+    In CI, where each matrix cell uploads its raw ``.coverage.*`` for a central
+    combine job, also set ``DOCUMENTEER_COVERAGE_NO_COMBINE`` to skip the
+    per-invocation combine and preserve the un-combined data files.
     """
     _override_sphinx(session, sphinx)
     if os.environ.get("DOCUMENTEER_COVERAGE"):
         session.run("coverage", "run", "-m", "pytest", *session.posargs)
-        session.notify("coverage-report")
+        if not os.environ.get("DOCUMENTEER_COVERAGE_NO_COMBINE"):
+            session.notify("coverage-report")
     else:
         session.run("pytest", *session.posargs)
 
 
-@session(uv_groups=["typing"], uv_extras=_EXTRAS)
+@session(python=["3.12", "3.13"], uv_groups=["typing"], uv_extras=_EXTRAS)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def typing(session: nox.Session, sphinx: str) -> None:
     """Check type annotations with mypy."""
@@ -109,9 +114,15 @@ def docs_linkcheck(session: nox.Session) -> None:
     session.run("make", "-C", "docs", "linkcheck", external=True)
 
 
-@session(uv_groups=["test"], uv_extras=_EXTRAS)
-def demo(session: nox.Session) -> None:
-    """Build the demo technote projects as an end-to-end test."""
+@session(python=["3.12", "3.13"], uv_groups=["test"], uv_extras=_EXTRAS)
+@nox.parametrize("sphinx", ["8", "9", "dev"])
+def demo(session: nox.Session, sphinx: str) -> None:
+    """Build the demo technote projects as an end-to-end smoke test.
+
+    Parametrized over Python and Sphinx like ``test``/``typing`` so the demo
+    build is exercised across the full matrix in CI.
+    """
+    _override_sphinx(session, sphinx)
     for demo_name in _DEMOS:
         build_dir = Path("demo") / demo_name / "_build"
         if build_dir.exists():

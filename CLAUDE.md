@@ -16,17 +16,20 @@ make init                    # Initialize development environment
 uv sync --extra technote --extra guide --group dev --group nox --group lint  # Install with all extras
 ```
 
-Tasks are run with [nox](https://nox.thea.codes/) (via [nox-uv](https://github.com/cthoyt/nox-uv)). Invoke nox through uv so the runner is provisioned automatically: `uv run --only-group=nox nox -s <session>`. The `test` and `typing` sessions are parametrized over Sphinx versions, e.g. `nox -s "test(sphinx='8')"`.
+Tasks are run with [nox](https://nox.thea.codes/) (via [nox-uv](https://github.com/cthoyt/nox-uv)). Invoke nox through uv so the runner is provisioned automatically: `uv run --only-group=nox nox -s <session>`. The `test`, `typing`, and `demo` sessions are parametrized over both Python (3.12, 3.13) and Sphinx (8, 9, dev), so their session IDs carry both factors, e.g. `nox -s "test-3.13(sphinx='8')"`. uv furnishes the requested interpreter on demand. Bare `nox` runs a lean default set (3.13 × Sphinx 8/9); run `nox -l` to see the exact IDs.
 
 ### Testing and Quality Assurance
 ```bash
-nox -s "test(sphinx='8')"   # Run tests with Sphinx 8.x (also '9' or 'dev')
-nox -s coverage-report      # Generate coverage report
-nox -s "typing(sphinx='8')" # Run mypy type checking
-nox -s lint                 # Run linting (prek hooks, incl. prettier)
-nox -s demo                 # Build demo technote projects (end-to-end test)
-nox -s packaging            # Check PyPI packaging
+nox -s "test-3.13(sphinx='8')"   # Run tests on Python 3.13 with Sphinx 8.x (sphinx also '9'/'dev'; python also '3.12')
+nox -s test                      # Run the full Python × Sphinx grid
+nox -s coverage-report           # Generate coverage report
+nox -s "typing-3.13(sphinx='8')" # Run mypy type checking
+nox -s lint                      # Run linting (prek hooks, incl. prettier)
+nox -s "demo-3.13(sphinx='9')"   # Demo technote build (e2e smoke test; full grid via 'nox -s demo')
+nox -s packaging                 # Check PyPI packaging
 ```
+
+Coverage is opt-in via `DOCUMENTEER_COVERAGE=1`, which runs the test suite under `coverage` and auto-combines a report. CI sets `DOCUMENTEER_COVERAGE_NO_COMBINE=1` in each matrix cell so it uploads raw `.coverage.*` data for a central `coverage-combine` job to merge once across the whole matrix.
 
 ### Documentation
 ```bash

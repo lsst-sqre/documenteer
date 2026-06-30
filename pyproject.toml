@@ -164,6 +164,7 @@ exclude = '''
 [tool.coverage.run]
 parallel = true
 branch = true
+relative_files = true
 source = ["documenteer"]
 
 [tool.coverage.paths]
