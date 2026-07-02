@@ -67,6 +67,7 @@ make clean                  # Remove build artifacts
 - `technote add-author`: Add authors to technote.toml from authordb
 - `technote sync-authors`: Sync author info from central database
 - `technote migrate`: Migrate legacy technotes to modern format
+- `technote validate`: Validate a technote's metadata, structure, and content (stable TN0xx/TN1xx/TN2xx check codes)
 
 **Services** (`src/documenteer/services/`):
 - `technoteauthor.py`: Author management for technotes
