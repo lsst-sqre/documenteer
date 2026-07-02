@@ -163,6 +163,25 @@ name.given = "Jonathan"
     assert findings[0].severity is Severity.error
 
 
+def test_missing_toml_reports_tn004(tmp_path: Path) -> None:
+    """A directory with no technote.toml yields a single TN004 error."""
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN004"]
+    assert findings[0].severity is Severity.error
+
+
+def test_malformed_toml_reports_tn005(tmp_path: Path) -> None:
+    """A syntactically broken technote.toml yields a single TN005 error."""
+    (tmp_path / "technote.toml").write_text("[technote\nid = ")
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN005"]
+    assert findings[0].severity is Severity.error
+
+
 def test_author_record_malformed_reports_tn102(
     tmp_path: Path, responses: RequestsMock
 ) -> None:

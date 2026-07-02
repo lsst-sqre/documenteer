@@ -211,13 +211,20 @@ def technote_migrate(
     help="Promote warnings to errors",
 )
 def technote_validate(root_dir: str, *, strict: bool) -> None:
-    """Validate a technote's metadata.
+    """Validate a technote's metadata and structure.
 
-    Checks that technote.toml conforms to the schema and that every author
-    has a resolvable internal_id in the Rubin author database. Each finding
-    is reported with a stable code (for example ``[TN101]``); the command
-    exits non-zero when any error remains. Use ``--strict`` to promote
-    warnings to errors.
+    This runs three groups of checks and reports each finding with a stable,
+    linter-style code (for example ``[TN101]``). Structural checks (``TN0xx``)
+    confirm that technote.toml exists, is valid TOML, and conforms to the
+    technote schema, and that requirements.txt declares documenteer[technote]
+    without pinning Sphinx separately. Metadata checks (``TN1xx``) confirm that
+    every author declares an internal_id that resolves in the Rubin author
+    database. Content checks (``TN2xx``) confirm that the content declares a
+    non-empty abstract using the abstract directive rather than an ordinary
+    section heading.
+
+    The command exits non-zero when any error remains. Use ``--strict`` to
+    promote warnings to errors.
     """
     author_db = AuthorDb()
     context = ValidationContext.from_dir(Path(root_dir), author_db)
