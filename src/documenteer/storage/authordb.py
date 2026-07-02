@@ -5,7 +5,32 @@ from __future__ import annotations
 import requests
 from pydantic import BaseModel, Field, HttpUrl
 
-__all__ = ["Address", "Affiliation", "Author", "AuthorDb"]
+__all__ = [
+    "Address",
+    "Affiliation",
+    "Author",
+    "AuthorDb",
+    "AuthorDbUnreachableError",
+    "AuthorNotFoundError",
+]
+
+
+class AuthorNotFoundError(ValueError):
+    """Raised when an author ID is not present in the author database.
+
+    This corresponds to an HTTP 404 response from the author API, as opposed
+    to a transport failure (an unreachable database), which is signalled with
+    an `AuthorDbUnreachableError`.
+    """
+
+
+class AuthorDbUnreachableError(ValueError):
+    """Raised when the author database cannot be reached for resolution.
+
+    This corresponds to a transport failure — a connection error, timeout,
+    or a non-404 HTTP error (for example a 5xx) — as opposed to a definitive
+    404 not-found response, which is signalled with an `AuthorNotFoundError`.
+    """
 
 
 class Address(BaseModel):
@@ -95,8 +120,16 @@ class AuthorDb:
         try:
             r = requests.get(url, timeout=10)
             r.raise_for_status()
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                raise AuthorNotFoundError(
+                    f"Author {author_id} not found in the author database"
+                ) from e
+            raise AuthorDbUnreachableError(
+                f"Failed to fetch author {author_id} from {url}"
+            ) from e
         except requests.RequestException as e:
-            raise ValueError(
+            raise AuthorDbUnreachableError(
                 f"Failed to fetch author {author_id} from {url}"
             ) from e
         return Author.model_validate_json(r.text)
