@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import re
+import string
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -22,6 +25,7 @@ __all__ = [
     "TechnoteValidationService",
     "ValidationContext",
     "ValidationFinding",
+    "check_abstract",
 ]
 
 
@@ -73,6 +77,21 @@ CHECKS: dict[str, Check] = {
         name="authordb-reachable",
         description="The author database is reachable for resolution.",
         severity=Severity.warning,
+    ),
+    "TN201": Check(
+        code="TN201",
+        name="abstract-present",
+        description="The content declares a non-empty abstract directive.",
+        severity=Severity.error,
+    ),
+    "TN202": Check(
+        code="TN202",
+        name="abstract-uses-directive",
+        description=(
+            "The abstract uses the abstract directive rather than an "
+            "ordinary section heading."
+        ),
+        severity=Severity.error,
     ),
 }
 
@@ -184,6 +203,7 @@ class TechnoteValidationService:
             return findings
 
         findings.extend(self._check_author_internal_ids(parsed))
+        findings.extend(check_abstract(self._context))
         return findings
 
     def _check_author_internal_ids(
@@ -231,3 +251,201 @@ class TechnoteValidationService:
                     )
                 )
         return findings
+
+
+# The reStructuredText abstract directive: ``.. abstract::``.
+_RST_ABSTRACT_DIRECTIVE = re.compile(r"^\s*\.\.\s+abstract::\s*$")
+# A reStructuredText title line reading exactly "Abstract" (case-insensitive).
+_RST_ABSTRACT_TITLE = re.compile(r"^\s*abstract\s*$", re.IGNORECASE)
+# MyST abstract directives: ```` ```{abstract} ```` and ``:::{abstract}``.
+_MYST_BACKTICK_ABSTRACT = re.compile(r"^\s*`{3,}\{abstract\}\s*$")
+_MYST_COLON_ABSTRACT = re.compile(r"^\s*:{3,}\{abstract\}\s*$")
+# Closing fences for the corresponding MyST directives.
+_BACKTICK_FENCE = re.compile(r"^\s*`{3,}\s*$")
+_COLON_FENCE = re.compile(r"^\s*:{3,}\s*$")
+# A Markdown ATX heading reading exactly "Abstract" (case-insensitive).
+_MD_ABSTRACT_HEADING = re.compile(r"^\s*#{1,6}\s+abstract\s*$", re.IGNORECASE)
+# A Markdown Setext heading underline: a line of only ``=`` or only ``-``.
+_MD_SETEXT_UNDERLINE = re.compile(r"^\s*(=+|-+)\s*$")
+# A MyST/rST directive *option* line, e.g. ``:class: dropdown``. These are
+# directive configuration, not body content, so an options-only abstract is
+# still empty.
+_DIRECTIVE_OPTION_LINE = re.compile(r"^\s*:[\w-]+:")
+
+
+def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
+    """Statically check that the technote content declares an abstract.
+
+    Locates ``index.{rst,md,ipynb}`` via the context's content path and
+    scans its source (no Sphinx build) for a non-empty abstract directive.
+    Three outcomes are distinguished (TN2xx content checks):
+
+    - A non-empty abstract *directive* (rST ``.. abstract::``; MyST
+      ```` ```{abstract} ```` or ``:::{abstract}``; ``.ipynb`` markdown
+      cells) → no findings.
+    - No directive but an ordinary ``Abstract`` section heading → a TN202
+      finding pointing authors to the format's abstract directive.
+    - Neither → a TN201 finding: no abstract found.
+
+    The suggested-directive text in the TN201/TN202 messages is format-aware:
+    reStructuredText content is pointed at ``.. abstract::`` and MyST/notebook
+    content at the ```` ```{abstract} ```` fenced directive.
+    """
+    content_path = context.content_path
+    if content_path is None:
+        return [
+            ValidationFinding.from_check(
+                "TN201",
+                "No abstract found: the technote has no "
+                "index.{rst,md,ipynb} content file to scan.",
+            )
+        ]
+
+    suffix = content_path.suffix.lower()
+    if suffix == ".ipynb":
+        text = _read_notebook_markdown(content_path)
+        is_rst = False
+    else:
+        text = content_path.read_text(encoding="utf-8")
+        is_rst = suffix == ".rst"
+
+    if is_rst:
+        has_directive = _has_rst_abstract_directive(text)
+        has_heading = _has_rst_abstract_heading(text)
+        directive_hint = ".. abstract::"
+    else:
+        has_directive = _has_myst_abstract_directive(text)
+        has_heading = _has_markdown_abstract_heading(text)
+        directive_hint = "```{abstract}```"
+
+    if has_directive:
+        return []
+    if has_heading:
+        return [
+            ValidationFinding.from_check(
+                "TN202",
+                f"{content_path.name} declares its abstract as an ordinary "
+                f"'Abstract' section heading. Use the {directive_hint} "
+                f"directive instead so the abstract is captured in the "
+                f"technote metadata.",
+            )
+        ]
+    return [
+        ValidationFinding.from_check(
+            "TN201",
+            f"No abstract found in {content_path.name}. Add a non-empty "
+            f"{directive_hint} directive so the abstract is captured in the "
+            f"technote metadata.",
+        )
+    ]
+
+
+def _read_notebook_markdown(path: Path) -> str:
+    """Concatenate the source of every markdown cell in a notebook."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    parts: list[str] = []
+    for cell in data.get("cells", []):
+        if cell.get("cell_type") != "markdown":
+            continue
+        source = cell.get("source", "")
+        if isinstance(source, list):
+            parts.append("".join(source))
+        else:
+            parts.append(source)
+    return "\n\n".join(parts)
+
+
+def _has_rst_abstract_directive(text: str) -> bool:
+    """Whether the text has a non-empty ``.. abstract::`` directive."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not _RST_ABSTRACT_DIRECTIVE.match(line):
+            continue
+        marker_indent = len(line) - len(line.lstrip())
+        # The directive body is the indented block that follows. An indented,
+        # non-blank line that is not an option line counts as content, making
+        # the directive non-empty. Option lines (``:class: dropdown``) are
+        # directive configuration, so an options-only directive stays empty.
+        for body_line in lines[i + 1 :]:
+            if body_line.strip() == "":
+                continue
+            indent = len(body_line) - len(body_line.lstrip())
+            if indent <= marker_indent:
+                break
+            if _DIRECTIVE_OPTION_LINE.match(body_line):
+                continue
+            return True
+    return False
+
+
+def _has_myst_abstract_directive(text: str) -> bool:
+    """Whether the text has a non-empty MyST abstract directive."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if _MYST_BACKTICK_ABSTRACT.match(line):
+            if _myst_fence_has_body(lines, i, _BACKTICK_FENCE):
+                return True
+        elif _MYST_COLON_ABSTRACT.match(line):
+            if _myst_fence_has_body(lines, i, _COLON_FENCE):
+                return True
+    return False
+
+
+def _myst_fence_has_body(
+    lines: list[str], open_index: int, closer: re.Pattern[str]
+) -> bool:
+    """Whether a MyST fenced directive has non-blank body before it closes.
+
+    Option lines (``:class: dropdown``) are directive configuration rather
+    than body content, so a directive containing only options is still empty.
+    """
+    for line in lines[open_index + 1 :]:
+        if closer.match(line):
+            return False
+        if _DIRECTIVE_OPTION_LINE.match(line):
+            continue
+        if line.strip():
+            return True
+    return False
+
+
+def _has_rst_abstract_heading(text: str) -> bool:
+    """Whether the text has an ``Abstract`` reStructuredText section title."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not _RST_ABSTRACT_TITLE.match(line):
+            continue
+        title_len = len(line.strip())
+        if i + 1 < len(lines) and _is_rst_adornment(lines[i + 1], title_len):
+            return True
+    return False
+
+
+def _is_rst_adornment(line: str, min_length: int) -> bool:
+    """Whether a line is a reStructuredText title adornment underline."""
+    stripped = line.rstrip()
+    if len(stripped) < min_length or not stripped:
+        return False
+    char = stripped[0]
+    if char not in string.punctuation:
+        return False
+    return all(c == char for c in stripped)
+
+
+def _has_markdown_abstract_heading(text: str) -> bool:
+    """Whether the text has a Markdown ``Abstract`` heading.
+
+    Detects both ATX headings (``## Abstract``) and Setext headings (an
+    ``Abstract`` line underlined by ``===`` or ``---``).
+    """
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if _MD_ABSTRACT_HEADING.match(line):
+            return True
+        if (
+            _RST_ABSTRACT_TITLE.match(line)
+            and i + 1 < len(lines)
+            and _MD_SETEXT_UNDERLINE.match(lines[i + 1])
+        ):
+            return True
+    return False
