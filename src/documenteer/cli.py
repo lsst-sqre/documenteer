@@ -8,6 +8,12 @@ import click
 
 from documenteer.services.technoteauthor import TechnoteAuthorService
 from documenteer.services.technotemigration import TechnoteMigrationService
+from documenteer.services.technotevalidation import (
+    Severity,
+    TechnoteValidationService,
+    ValidationContext,
+    ValidationFinding,
+)
 from documenteer.storage.authordb import AuthorDb
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
@@ -185,3 +191,56 @@ def technote_migrate(
 
     if auto_delete or click.confirm("Delete deprecated files?"):
         migration_service.delete_deprecated_files()
+
+
+@technote.command(name="validate")
+@click.option(
+    "--dir",
+    "-d",
+    "root_dir",
+    type=click.Path(exists=True),
+    default=".",
+    help="Path to technote directory",
+)
+@click.option(
+    "--strict",
+    "-s",
+    "strict",
+    is_flag=True,
+    default=False,
+    help="Promote warnings to errors",
+)
+def technote_validate(root_dir: str, *, strict: bool) -> None:
+    """Validate a technote's metadata.
+
+    Checks that technote.toml conforms to the schema and that every author
+    has a resolvable internal_id in the Rubin author database. Each finding
+    is reported with a stable code (for example ``[TN101]``); the command
+    exits non-zero when any error remains. Use ``--strict`` to promote
+    warnings to errors.
+    """
+    author_db = AuthorDb()
+    context = ValidationContext.from_dir(Path(root_dir), author_db)
+    service = TechnoteValidationService(context, author_db)
+    findings = service.validate()
+
+    # Split into errors and warnings; --strict promotes warnings to errors.
+    errors: list[ValidationFinding] = []
+    warnings: list[ValidationFinding] = []
+    for finding in findings:
+        if strict or finding.severity is Severity.error:
+            errors.append(finding)
+        else:
+            warnings.append(finding)
+
+    # Report errors first, then warnings; each prefixed with its code.
+    for finding in (*errors, *warnings):
+        click.echo(f"[{finding.code}] {finding.message}")
+
+    if not errors and not warnings:
+        click.echo("✅ Technote validation passed with no issues.")
+        return
+
+    click.echo(f"Found {len(errors)} error(s) and {len(warnings)} warning(s).")
+    if errors:
+        raise SystemExit(1)

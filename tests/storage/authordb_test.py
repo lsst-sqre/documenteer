@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 import pytest_responses  # noqa: F401
+import requests
 from responses import RequestsMock
 
-from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.authordb import AuthorDb, AuthorNotFoundError
 
 
 def test_from_yaml(responses: RequestsMock) -> None:
@@ -62,3 +64,43 @@ def test_from_yaml(responses: RequestsMock) -> None:
     assert author.affiliations[0].internal_id == "JSickCodes"
     assert author.affiliations[0].name == "J.Sick Codes Inc."
     assert str(author.affiliations[1].ror) == "https://ror.org/048g3cy84"
+
+
+def test_get_author_not_found(responses: RequestsMock) -> None:
+    """A 404 response raises ``AuthorNotFoundError``."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/nobody",
+        body="Not found",
+        status=404,
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(AuthorNotFoundError):
+        author_db.get_author("nobody")
+
+
+def test_get_author_transport_error(responses: RequestsMock) -> None:
+    """A transport failure raises a plain ``ValueError``, not a not-found."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=requests.ConnectionError("connection refused"),
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(ValueError, match="Failed to fetch author") as exc_info:
+        author_db.get_author("sickj")
+    assert not isinstance(exc_info.value, AuthorNotFoundError)
+
+
+def test_get_author_server_error(responses: RequestsMock) -> None:
+    """A non-404 HTTP error is a transport error, not a not-found."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body="Internal server error",
+        status=500,
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(ValueError, match="Failed to fetch author") as exc_info:
+        author_db.get_author("sickj")
+    assert not isinstance(exc_info.value, AuthorNotFoundError)
