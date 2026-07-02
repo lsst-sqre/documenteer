@@ -95,6 +95,10 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Content
      - The abstract uses the abstract directive rather than an ordinary ``Abstract`` section heading.
      - Error
+   * - ``TN203``
+     - Content
+     - The content file can be parsed to scan for an abstract (an :file:`index.ipynb` notebook is valid JSON).
+     - Error
 
 .. note::
 

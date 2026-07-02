@@ -123,6 +123,12 @@ CHECKS: dict[str, Check] = {
         ),
         severity=Severity.error,
     ),
+    "TN203": Check(
+        code="TN203",
+        name="content-file-parseable",
+        description="The content file can be parsed to scan for an abstract.",
+        severity=Severity.error,
+    ),
 }
 
 
@@ -341,7 +347,7 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
 
     Locates ``index.{rst,md,ipynb}`` via the context's content path and
     scans its source (no Sphinx build) for a non-empty abstract directive.
-    Three outcomes are distinguished (TN2xx content checks):
+    Four outcomes are distinguished (TN2xx content checks):
 
     - A non-empty abstract *directive* (rST ``.. abstract::``; MyST
       ```` ```{abstract} ```` or ``:::{abstract}``; ``.ipynb`` markdown
@@ -349,6 +355,8 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
     - No directive but an ordinary ``Abstract`` section heading → a TN202
       finding pointing authors to the format's abstract directive.
     - Neither → a TN201 finding: no abstract found.
+    - A ``.ipynb`` file that is not valid JSON → a TN203 finding: the content
+      file could not be parsed to scan for an abstract.
 
     The suggested-directive text in the TN201/TN202 messages is format-aware:
     reStructuredText content is pointed at ``.. abstract::`` and MyST/notebook
@@ -366,7 +374,16 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
 
     suffix = content_path.suffix.lower()
     if suffix == ".ipynb":
-        text = _read_notebook_markdown(content_path)
+        try:
+            text = _read_notebook_markdown(content_path)
+        except json.JSONDecodeError as e:
+            return [
+                ValidationFinding.from_check(
+                    "TN203",
+                    f"{content_path.name} could not be parsed as a notebook "
+                    f"(invalid JSON): {e}",
+                )
+            ]
         is_rst = False
     else:
         text = content_path.read_text(encoding="utf-8")
@@ -479,7 +496,14 @@ def _parse_requirements(text: str) -> list[Requirement]:
 
 
 def _read_notebook_markdown(path: Path) -> str:
-    """Concatenate the source of every markdown cell in a notebook."""
+    """Concatenate the source of every markdown cell in a notebook.
+
+    Raises
+    ------
+    json.JSONDecodeError
+        If the notebook file is not valid JSON. Callers translate this into a
+        TN203 finding rather than letting it propagate as a traceback.
+    """
     data = json.loads(path.read_text(encoding="utf-8"))
     parts: list[str] = []
     for cell in data.get("cells", []):

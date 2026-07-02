@@ -121,3 +121,25 @@ def test_validate_malformed_toml_reports_tn005(tmp_path: Path) -> None:
     assert "[TN005]" in result.output
     # A coded finding, not a traceback from an uncaught TOMLDecodeError.
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_validate_corrupt_notebook_reports_tn203(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A corrupt index.ipynb exits 1 with a TN203 finding, not a traceback."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    (tmp_path / "technote.toml").write_text(VALID_TOML)
+    (tmp_path / "index.ipynb").write_text("{ not valid json")
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "validate", "-d", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "[TN203]" in result.output
+    # A coded finding, not a traceback from an uncaught JSONDecodeError.
+    assert result.exception is None or isinstance(result.exception, SystemExit)
