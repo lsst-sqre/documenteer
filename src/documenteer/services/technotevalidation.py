@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 from pydantic import ValidationError
 from technote.sources.tomlsettings import TechnoteToml
 
@@ -26,6 +28,7 @@ __all__ = [
     "ValidationContext",
     "ValidationFinding",
     "check_abstract",
+    "check_requirements",
 ]
 
 
@@ -59,6 +62,20 @@ CHECKS: dict[str, Check] = {
         name="schema-conformance",
         description="technote.toml conforms to the technote schema.",
         severity=Severity.error,
+    ),
+    "TN002": Check(
+        code="TN002",
+        name="requirements-declare-documenteer-technote",
+        description=(
+            "requirements.txt declares documenteer with the [technote] extra."
+        ),
+        severity=Severity.warning,
+    ),
+    "TN003": Check(
+        code="TN003",
+        name="requirements-no-separate-sphinx-pin",
+        description="requirements.txt does not pin Sphinx separately.",
+        severity=Severity.warning,
     ),
     "TN101": Check(
         code="TN101",
@@ -131,6 +148,7 @@ class ValidationContext:
         toml_text: str,
         content_path: Path | None,
         requirements_path: Path | None,
+        requirements_text: str | None,
         author_db: AuthorDb,
     ) -> None:
         self.root_dir = root_dir
@@ -138,6 +156,7 @@ class ValidationContext:
         self.toml_text = toml_text
         self.content_path = content_path
         self.requirements_path = requirements_path
+        self.requirements_text = requirements_text
         self.author_db = author_db
 
     @classmethod
@@ -155,9 +174,12 @@ class ValidationContext:
                 content_path = candidate
                 break
 
-        requirements_path: Path | None = root_dir / "requirements.txt"
-        if requirements_path is not None and not requirements_path.exists():
-            requirements_path = None
+        requirements_file = root_dir / "requirements.txt"
+        requirements_path: Path | None = None
+        requirements_text: str | None = None
+        if requirements_file.exists():
+            requirements_path = requirements_file
+            requirements_text = requirements_file.read_text(encoding="utf-8")
 
         return cls(
             root_dir=root_dir,
@@ -165,6 +187,7 @@ class ValidationContext:
             toml_text=toml_text,
             content_path=content_path,
             requirements_path=requirements_path,
+            requirements_text=requirements_text,
             author_db=author_db,
         )
 
@@ -204,6 +227,7 @@ class TechnoteValidationService:
 
         findings.extend(self._check_author_internal_ids(parsed))
         findings.extend(check_abstract(self._context))
+        findings.extend(check_requirements(self._context))
         return findings
 
     def _check_author_internal_ids(
@@ -338,6 +362,81 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
             f"technote metadata.",
         )
     ]
+
+
+def check_requirements(context: ValidationContext) -> list[ValidationFinding]:
+    """Statically check the technote's ``requirements.txt`` (TN002/TN003).
+
+    Parses ``ValidationContext.requirements_text`` with
+    `packaging.requirements.Requirement` and emits structural findings:
+
+    - TN002 (warning) if ``documenteer`` is absent or is declared without
+      the ``[technote]`` extra — the technote build needs
+      ``documenteer[technote]`` to pull in the technote theme and config.
+    - TN003 (warning) if ``sphinx`` is declared as its own requirement.
+      ``documenteer[technote]`` already constrains Sphinx to a supported
+      range, so pinning it separately risks drifting out of that window.
+
+    A missing ``requirements.txt`` (no ``requirements_text``) is treated as
+    an empty file, so ``documenteer`` is absent and TN002 fires.
+    """
+    findings: list[ValidationFinding] = []
+    requirements = _parse_requirements(context.requirements_text or "")
+
+    documenteer_reqs = [
+        req
+        for req in requirements
+        if canonicalize_name(req.name) == "documenteer"
+    ]
+    # Aggregate extras across *every* documenteer line, so a bare
+    # ``documenteer`` followed by ``documenteer[technote]`` still counts the
+    # technote extra as declared.
+    extras = {
+        extra.lower() for req in documenteer_reqs for extra in req.extras
+    }
+    if not documenteer_reqs or "technote" not in extras:
+        findings.append(
+            ValidationFinding.from_check(
+                "TN002",
+                "requirements.txt should declare 'documenteer[technote]' so "
+                "the technote theme and Sphinx configuration are installed.",
+            )
+        )
+
+    if any(canonicalize_name(req.name) == "sphinx" for req in requirements):
+        findings.append(
+            ValidationFinding.from_check(
+                "TN003",
+                "requirements.txt pins 'sphinx' separately. Remove it and "
+                "rely on the Sphinx version constrained by "
+                "'documenteer[technote]' to avoid version drift.",
+            )
+        )
+
+    return findings
+
+
+def _parse_requirements(text: str) -> list[Requirement]:
+    """Parse the parseable requirement lines from ``requirements.txt`` text.
+
+    Blank lines, comments, and pip option lines (for example ``-r`` or
+    ``--index-url``) are skipped, as are lines that are not valid PEP 508
+    requirements (for example editable VCS or URL installs).
+    """
+    requirements: list[Requirement] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("#", "-")):
+            continue
+        # Drop an inline comment (a '#' preceded by whitespace) before parsing.
+        line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
+        if not line:
+            continue
+        try:
+            requirements.append(Requirement(line))
+        except InvalidRequirement:
+            continue
+    return requirements
 
 
 def _read_notebook_markdown(path: Path) -> str:
