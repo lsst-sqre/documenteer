@@ -42,6 +42,7 @@ dependencies = [
     "urllib3",
     "pylatexenc",
     "tomlkit",
+    "packaging",  # parse requirements.txt in technote validation
 ]
 
 [project.optional-dependencies]

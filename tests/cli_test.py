@@ -53,10 +53,42 @@ def test_validate_success(tmp_path: Path, responses: RequestsMock) -> None:
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
 
     runner = CliRunner()
     result = runner.invoke(main, ["technote", "validate", "-d", str(tmp_path)])
     assert result.exit_code == 0, result.output
+
+
+def test_validate_requirements_drift_strict(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Requirements drift warns (exit 0) but is fatal under --strict."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    (tmp_path / "technote.toml").write_text(VALID_TOML)
+    (tmp_path / "index.rst").write_text(
+        "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
+    )
+    # documenteer[technote] absent and sphinx pinned separately.
+    (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "validate", "-d", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "[TN002]" in result.output
+    assert "[TN003]" in result.output
+
+    strict = runner.invoke(
+        main, ["technote", "validate", "-d", str(tmp_path), "--strict"]
+    )
+    assert strict.exit_code == 1, strict.output
+    assert "[TN002]" in strict.output
+    assert "[TN003]" in strict.output
 
 
 def test_validate_missing_internal_id(tmp_path: Path) -> None:

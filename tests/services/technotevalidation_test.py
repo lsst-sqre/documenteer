@@ -14,6 +14,7 @@ from documenteer.services.technotevalidation import (
     TechnoteValidationService,
     ValidationContext,
     check_abstract,
+    check_requirements,
 )
 from documenteer.storage.authordb import AuthorDb
 
@@ -32,14 +33,16 @@ AUTHOR_JSON = """
 def _write_technote(tmp_path: Path, toml_content: str) -> ValidationContext:
     """Write a technote.toml into ``tmp_path`` and build a context.
 
-    Also writes an ``index.rst`` with a well-formed abstract so the
-    content-group abstract check (TN201/TN202) stays silent and these
-    metadata-focused tests observe only author/schema findings.
+    Also writes an ``index.rst`` with a well-formed abstract and a sane
+    ``requirements.txt`` so the content-group abstract check (TN201/TN202)
+    and the structural requirements check (TN002/TN003) stay silent and
+    these metadata-focused tests observe only author/schema findings.
     """
     (tmp_path / "technote.toml").write_text(toml_content)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
     return ValidationContext.from_dir(tmp_path, AuthorDb())
 
 
@@ -163,9 +166,15 @@ name.given = "Jonathan"
 def _context_with_content(
     tmp_path: Path, filename: str, content: str
 ) -> ValidationContext:
-    """Write a minimal technote.toml plus a content file, build a context."""
+    """Write a minimal technote.toml plus a content file, build a context.
+
+    Also writes a sane ``requirements.txt`` so the structural requirements
+    check (TN002/TN003) stays silent for content-focused tests that route
+    through the full ``validate()`` aggregation.
+    """
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
     (tmp_path / filename).write_text(content)
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
     return ValidationContext.from_dir(tmp_path, AuthorDb())
 
 
@@ -352,3 +361,104 @@ def test_abstract_finding_surfaces_through_validate(tmp_path: Path) -> None:
     )
     service = TechnoteValidationService(context, context.author_db)
     assert [f.code for f in service.validate()] == ["TN201"]
+
+
+def _context_with_requirements(
+    tmp_path: Path, requirements_text: str
+) -> ValidationContext:
+    """Write a minimal technote.toml plus a requirements.txt, build a context.
+
+    ``check_requirements`` reads only ``requirements_text``, so no content
+    file is needed for these structural tests.
+    """
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "requirements.txt").write_text(requirements_text)
+    return ValidationContext.from_dir(tmp_path, AuthorDb())
+
+
+def test_sane_requirements_pass(tmp_path: Path) -> None:
+    """documenteer[technote] with no separate sphinx pin has no findings."""
+    context = _context_with_requirements(tmp_path, "documenteer[technote]\n")
+    assert check_requirements(context) == []
+
+
+def test_sane_requirements_with_floor_pin_pass(tmp_path: Path) -> None:
+    """A version specifier on documenteer[technote] still passes."""
+    context = _context_with_requirements(
+        tmp_path,
+        "# Project requirements\ndocumenteer[technote]>=1.0.0\n",
+    )
+    assert check_requirements(context) == []
+
+
+def test_missing_documenteer_reports_tn002(tmp_path: Path) -> None:
+    """requirements.txt without documenteer yields a TN002 warning."""
+    context = _context_with_requirements(tmp_path, "sphinx-prompt\n")
+    findings = check_requirements(context)
+    assert [f.code for f in findings] == ["TN002"]
+    assert findings[0].severity is Severity.warning
+
+
+def test_documenteer_without_technote_extra_reports_tn002(
+    tmp_path: Path,
+) -> None:
+    """Documenteer declared without the [technote] extra yields TN002."""
+    context = _context_with_requirements(tmp_path, "documenteer\n")
+    findings = check_requirements(context)
+    assert [f.code for f in findings] == ["TN002"]
+    assert findings[0].severity is Severity.warning
+
+
+def test_documenteer_with_other_extra_reports_tn002(tmp_path: Path) -> None:
+    """Documenteer with only a non-technote extra still yields TN002."""
+    context = _context_with_requirements(tmp_path, "documenteer[guide]\n")
+    assert [f.code for f in check_requirements(context)] == ["TN002"]
+
+
+def test_missing_requirements_file_reports_tn002(tmp_path: Path) -> None:
+    """A technote directory with no requirements.txt yields TN002."""
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    assert [f.code for f in check_requirements(context)] == ["TN002"]
+
+
+def test_sphinx_pinned_separately_reports_tn003(tmp_path: Path) -> None:
+    """A separate sphinx requirement yields a TN003 warning."""
+    context = _context_with_requirements(
+        tmp_path, "documenteer[technote]\nsphinx==8.1.0\n"
+    )
+    findings = check_requirements(context)
+    assert [f.code for f in findings] == ["TN003"]
+    assert findings[0].severity is Severity.warning
+
+
+def test_sphinx_declared_without_version_reports_tn003(tmp_path: Path) -> None:
+    """An unversioned separate sphinx requirement still yields TN003."""
+    context = _context_with_requirements(
+        tmp_path, "documenteer[technote]\nSphinx\n"
+    )
+    assert [f.code for f in check_requirements(context)] == ["TN003"]
+
+
+def test_requirements_drift_reports_both_warnings(tmp_path: Path) -> None:
+    """Missing documenteer[technote] and a separate sphinx pin both fire."""
+    context = _context_with_requirements(tmp_path, "sphinx==8.1.0\n")
+    findings = check_requirements(context)
+    assert [f.code for f in findings] == ["TN002", "TN003"]
+    assert all(f.severity is Severity.warning for f in findings)
+
+
+def test_requirements_findings_surface_through_validate(
+    tmp_path: Path,
+) -> None:
+    """check_requirements' warnings are aggregated by the service."""
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "index.rst").write_text(RST_WITH_ABSTRACT)
+    (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context, context.author_db)
+    findings = service.validate()
+    # Warnings only (no author or abstract errors), so --strict would
+    # promote exactly these to make the run fatal.
+    assert [f.code for f in findings] == ["TN002", "TN003"]
+    assert all(f.severity is Severity.warning for f in findings)
