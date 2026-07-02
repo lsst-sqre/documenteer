@@ -99,3 +99,25 @@ def test_validate_missing_internal_id(tmp_path: Path) -> None:
     result = runner.invoke(main, ["technote", "validate", "-d", str(tmp_path)])
     assert result.exit_code == 1
     assert "[TN101]" in result.output
+
+
+def test_validate_missing_toml_reports_tn004(tmp_path: Path) -> None:
+    """A directory with no technote.toml exits 1 with a TN004 finding."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "validate", "-d", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "[TN004]" in result.output
+    # A coded finding, not a traceback from an uncaught exception.
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_validate_malformed_toml_reports_tn005(tmp_path: Path) -> None:
+    """A syntactically broken technote.toml exits 1 with a TN005 finding."""
+    (tmp_path / "technote.toml").write_text("[technote\nid = ")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "validate", "-d", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "[TN005]" in result.output
+    # A coded finding, not a traceback from an uncaught TOMLDecodeError.
+    assert result.exception is None or isinstance(result.exception, SystemExit)

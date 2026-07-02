@@ -67,6 +67,14 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Structural
      - :file:`requirements.txt` does not pin Sphinx as a separate requirement (``documenteer[technote]`` already constrains it).
      - Warning
+   * - ``TN004``
+     - Structural
+     - :file:`technote.toml` exists in the technote directory. A missing file short-circuits the remaining checks (like ``TN001``).
+     - Error
+   * - ``TN005``
+     - Structural
+     - :file:`technote.toml` is syntactically valid TOML. A syntax error short-circuits the remaining checks (like ``TN001``).
+     - Error
    * - ``TN101``
      - Metadata
      - Every author declares an ``internal_id``.

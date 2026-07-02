@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import string
+import tomllib
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -77,6 +78,18 @@ CHECKS: dict[str, Check] = {
         description="requirements.txt does not pin Sphinx separately.",
         severity=Severity.warning,
     ),
+    "TN004": Check(
+        code="TN004",
+        name="technote-toml-present",
+        description="technote.toml exists in the technote directory.",
+        severity=Severity.error,
+    ),
+    "TN005": Check(
+        code="TN005",
+        name="technote-toml-valid-toml",
+        description="technote.toml is syntactically valid TOML.",
+        severity=Severity.error,
+    ),
     "TN101": Check(
         code="TN101",
         name="author-internal-id-present",
@@ -133,9 +146,11 @@ class ValidationContext:
 
     Discovers a technote's ``technote.toml``, content file, and
     ``requirements.txt`` within a directory and holds the `AuthorDb` used to
-    resolve author identifiers. The ``technote.toml`` *text* is read eagerly;
-    parsing into a `TechnoteToml` model is deferred to `parse_toml` so the
-    schema-conformance check (TN001) can report a failure as a finding.
+    resolve author identifiers. The ``technote.toml`` *text* is read eagerly
+    when the file exists (``toml_text`` is ``None`` when it is missing, so the
+    structural check TN004 can report it); parsing into a `TechnoteToml` model
+    is deferred to `parse_toml` so the syntax check (TN005) and the
+    schema-conformance check (TN001) can each report a failure as a finding.
     """
 
     _CONTENT_FILENAMES = ("index.rst", "index.md", "index.ipynb")
@@ -145,7 +160,7 @@ class ValidationContext:
         *,
         root_dir: Path,
         toml_path: Path,
-        toml_text: str,
+        toml_text: str | None,
         content_path: Path | None,
         requirements_path: Path | None,
         requirements_text: str | None,
@@ -165,7 +180,9 @@ class ValidationContext:
     ) -> ValidationContext:
         """Build a context from a technote directory."""
         toml_path = root_dir / "technote.toml"
-        toml_text = toml_path.read_text()
+        toml_text: str | None = None
+        if toml_path.exists():
+            toml_text = toml_path.read_text(encoding="utf-8")
 
         content_path: Path | None = None
         for filename in cls._CONTENT_FILENAMES:
@@ -196,9 +213,14 @@ class ValidationContext:
 
         Raises
         ------
+        tomllib.TOMLDecodeError
+            If the ``technote.toml`` is not syntactically valid TOML.
         pydantic.ValidationError
-            If the ``technote.toml`` does not conform to the schema.
+            If the ``technote.toml`` is valid TOML but does not conform to the
+            schema.
         """
+        if self.toml_text is None:
+            raise RuntimeError("technote.toml text was not read")
         return TechnoteToml.parse_toml(self.toml_text)
 
 
@@ -212,18 +234,35 @@ class TechnoteValidationService:
         """Run the registered checks and aggregate their findings."""
         findings: list[ValidationFinding] = []
 
-        # TN001 — schema conformance. A schema failure short-circuits the
+        # TN004 — technote.toml must exist. A missing file short-circuits the
+        # remaining checks because they all read the parsed metadata.
+        if self._context.toml_text is None:
+            return [
+                ValidationFinding.from_check(
+                    "TN004",
+                    f"technote.toml not found in {self._context.root_dir}.",
+                )
+            ]
+
+        # TN005/TN001 — the technote.toml must be valid TOML (TN005) and then
+        # conform to the schema (TN001). Either failure short-circuits the
         # remaining checks because they operate on the parsed model.
         try:
             parsed = self._context.parse_toml()
+        except tomllib.TOMLDecodeError as e:
+            return [
+                ValidationFinding.from_check(
+                    "TN005",
+                    f"technote.toml is not valid TOML: {e}",
+                )
+            ]
         except ValidationError as e:
-            findings.append(
+            return [
                 ValidationFinding.from_check(
                     "TN001",
                     f"technote.toml does not conform to the schema: {e}",
                 )
-            )
-            return findings
+            ]
 
         findings.extend(self._check_author_internal_ids(parsed))
         findings.extend(check_abstract(self._context))
