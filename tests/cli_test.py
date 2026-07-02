@@ -42,7 +42,7 @@ name.family = "Sick"
 
 
 def test_validate_success(tmp_path: Path, responses: RequestsMock) -> None:
-    """A valid technote with a resolvable author exits 0."""
+    """A valid technote with a resolvable author and abstract exits 0."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/sickj",
         body=AUTHOR_JSON,
@@ -50,6 +50,9 @@ def test_validate_success(tmp_path: Path, responses: RequestsMock) -> None:
         status=200,
     )
     (tmp_path / "technote.toml").write_text(VALID_TOML)
+    (tmp_path / "index.rst").write_text(
+        "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
+    )
 
     runner = CliRunner()
     result = runner.invoke(main, ["technote", "validate", "-d", str(tmp_path)])
