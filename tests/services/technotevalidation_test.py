@@ -405,6 +405,14 @@ def test_abstract_heading_ipynb_reports_tn202(tmp_path: Path) -> None:
     assert ".. abstract::" not in findings[0].message
 
 
+def test_corrupt_notebook_reports_tn203(tmp_path: Path) -> None:
+    """A content notebook that is not valid JSON yields a TN203 error."""
+    context = _context_with_content(tmp_path, "index.ipynb", "{ not json")
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN203"]
+    assert findings[0].severity is Severity.error
+
+
 def test_myst_options_only_abstract_reports_tn201(tmp_path: Path) -> None:
     """A MyST abstract directive with only options is treated as empty."""
     content = (
