@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest_responses  # noqa: F401
@@ -12,6 +13,7 @@ from documenteer.services.technotevalidation import (
     Severity,
     TechnoteValidationService,
     ValidationContext,
+    check_abstract,
 )
 from documenteer.storage.authordb import AuthorDb
 
@@ -28,8 +30,16 @@ AUTHOR_JSON = """
 
 
 def _write_technote(tmp_path: Path, toml_content: str) -> ValidationContext:
-    """Write a technote.toml into ``tmp_path`` and build a context."""
+    """Write a technote.toml into ``tmp_path`` and build a context.
+
+    Also writes an ``index.rst`` with a well-formed abstract so the
+    content-group abstract check (TN201/TN202) stays silent and these
+    metadata-focused tests observe only author/schema findings.
+    """
     (tmp_path / "technote.toml").write_text(toml_content)
+    (tmp_path / "index.rst").write_text(
+        "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
+    )
     return ValidationContext.from_dir(tmp_path, AuthorDb())
 
 
@@ -148,3 +158,197 @@ name.given = "Jonathan"
     findings = service.validate()
     assert [f.code for f in findings] == ["TN001"]
     assert findings[0].severity is Severity.error
+
+
+def _context_with_content(
+    tmp_path: Path, filename: str, content: str
+) -> ValidationContext:
+    """Write a minimal technote.toml plus a content file, build a context."""
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / filename).write_text(content)
+    return ValidationContext.from_dir(tmp_path, AuthorDb())
+
+
+def _ipynb(*markdown_sources: str) -> str:
+    """Serialize markdown cell sources into ``.ipynb`` JSON text."""
+    cells = [
+        {"cell_type": "markdown", "metadata": {}, "source": source}
+        for source in markdown_sources
+    ]
+    return json.dumps(
+        {"cells": cells, "metadata": {}, "nbformat": 4, "nbformat_minor": 5}
+    )
+
+
+RST_WITH_ABSTRACT = """\
+#############
+Demo technote
+#############
+
+.. abstract::
+
+   A technote is a web-native single page document.
+
+Introduction
+============
+
+Body text.
+"""
+
+MD_WITH_ABSTRACT = """\
+# Demo technote
+
+```{abstract}
+A technote is a web-native single page document.
+```
+
+## Introduction
+
+Body text.
+"""
+
+MD_WITH_COLON_ABSTRACT = """\
+# Demo technote
+
+:::{abstract}
+A technote is a web-native single page document.
+:::
+
+## Introduction
+
+Body text.
+"""
+
+
+def test_abstract_directive_rst_passes(tmp_path: Path) -> None:
+    """A non-empty ``.. abstract::`` directive in index.rst passes."""
+    context = _context_with_content(tmp_path, "index.rst", RST_WITH_ABSTRACT)
+    assert check_abstract(context) == []
+
+
+def test_abstract_directive_md_passes(tmp_path: Path) -> None:
+    """A non-empty ```` ```{abstract} ```` fence in index.md passes."""
+    context = _context_with_content(tmp_path, "index.md", MD_WITH_ABSTRACT)
+    assert check_abstract(context) == []
+
+
+def test_abstract_colon_directive_md_passes(tmp_path: Path) -> None:
+    """A non-empty ``:::{abstract}`` fence in index.md passes."""
+    context = _context_with_content(
+        tmp_path, "index.md", MD_WITH_COLON_ABSTRACT
+    )
+    assert check_abstract(context) == []
+
+
+def test_abstract_directive_ipynb_passes(tmp_path: Path) -> None:
+    """A non-empty abstract directive in an index.ipynb cell passes."""
+    content = _ipynb(
+        "# Demo technote\n"
+        "\n"
+        "```{abstract}\n"
+        "A technote is a web-native single page document.\n"
+        "```",
+        "## Introduction\n\nBody text.",
+    )
+    context = _context_with_content(tmp_path, "index.ipynb", content)
+    assert check_abstract(context) == []
+
+
+def test_empty_abstract_directive_reports_tn201(tmp_path: Path) -> None:
+    """An abstract directive with no body is not a passing abstract."""
+    content = "# Demo technote\n\n```{abstract}\n```\n\n## Introduction\n"
+    context = _context_with_content(tmp_path, "index.md", content)
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN201"]
+
+
+def test_no_abstract_reports_tn201(tmp_path: Path) -> None:
+    """Content with neither a directive nor a heading yields TN201."""
+    content = """\
+#############
+Demo technote
+#############
+
+Introduction
+============
+
+Body text.
+"""
+    context = _context_with_content(tmp_path, "index.rst", content)
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN201"]
+    assert findings[0].severity is Severity.error
+
+
+def test_missing_content_file_reports_tn201(tmp_path: Path) -> None:
+    """A technote directory with no index file yields TN201."""
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    assert [f.code for f in check_abstract(context)] == ["TN201"]
+
+
+def test_abstract_heading_rst_reports_tn202(tmp_path: Path) -> None:
+    """An ``Abstract`` section heading in index.rst yields TN202."""
+    content = """\
+#############
+Demo technote
+#############
+
+Abstract
+========
+
+A technote is a web-native single page document.
+
+Introduction
+============
+
+Body text.
+"""
+    context = _context_with_content(tmp_path, "index.rst", content)
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN202"]
+    assert findings[0].severity is Severity.error
+    assert ".. abstract::" in findings[0].message
+
+
+def test_abstract_heading_md_reports_tn202(tmp_path: Path) -> None:
+    """A Markdown ``## Abstract`` heading in index.md yields TN202."""
+    content = """\
+# Demo technote
+
+## Abstract
+
+A technote is a web-native single page document.
+
+## Introduction
+
+Body text.
+"""
+    context = _context_with_content(tmp_path, "index.md", content)
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN202"]
+    assert ".. abstract::" in findings[0].message
+
+
+def test_abstract_heading_ipynb_reports_tn202(tmp_path: Path) -> None:
+    """A ``## Abstract`` heading in an index.ipynb cell yields TN202."""
+    content = _ipynb(
+        "# Demo technote",
+        "## Abstract\n\nA technote is a web-native single page document.",
+        "## Introduction\n\nBody text.",
+    )
+    context = _context_with_content(tmp_path, "index.ipynb", content)
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN202"]
+    assert ".. abstract::" in findings[0].message
+
+
+def test_abstract_finding_surfaces_through_validate(tmp_path: Path) -> None:
+    """check_abstract's findings are aggregated by the service."""
+    context = _context_with_content(
+        tmp_path,
+        "index.rst",
+        "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n",
+    )
+    service = TechnoteValidationService(context, context.author_db)
+    assert [f.code for f in service.validate()] == ["TN201"]
