@@ -192,3 +192,61 @@ def test_show_last_updated_disabled() -> None:
     """show_last_updated reflects sphinx.theme.show_last_updated = false."""
     config = DocumenteerConfig.load(EXAMPLE_NO_LAST_UPDATED)
     assert config.show_last_updated is False
+
+
+EXAMPLE_LINKCHECK_SERVICE = """
+
+[project]
+title = "Documenteer"
+base_url = "https://documenteer.lsst.io"
+
+[sphinx.linkcheck]
+use_service = false
+service_url = "https://roundtable-dev.lsst.cloud/ook"
+poll_budget = 60
+strict = true
+slug = "custom-slug"
+"""
+
+
+def test_linkcheck_service_defaults() -> None:
+    """The link-check service settings have production-ready defaults,
+    even without a [sphinx] table.
+    """
+    for example in (EXAMPLE, EXAMPLE_NO_SPHINX):
+        config = DocumenteerConfig.load(example)
+        assert config.linkcheck_use_service is True
+        assert (
+            config.linkcheck_service_url == "https://roundtable.lsst.cloud/ook"
+        )
+        assert config.linkcheck_poll_budget == 300
+        assert config.linkcheck_strict is False
+
+
+def test_linkcheck_service_settings() -> None:
+    """[sphinx.linkcheck] settings override the service defaults."""
+    config = DocumenteerConfig.load(EXAMPLE_LINKCHECK_SERVICE)
+    assert config.linkcheck_use_service is False
+    assert (
+        config.linkcheck_service_url == "https://roundtable-dev.lsst.cloud/ook"
+    )
+    assert config.linkcheck_poll_budget == 60
+    assert config.linkcheck_strict is True
+
+
+def test_linkcheck_slug_derived_from_base_url() -> None:
+    """The LTD slug is derived from the base_url subdomain."""
+    config = DocumenteerConfig.load(EXAMPLE)
+    assert config.linkcheck_ltd_slug == "documenteer"
+
+
+def test_linkcheck_slug_override() -> None:
+    """[sphinx.linkcheck] slug overrides the derived slug."""
+    config = DocumenteerConfig.load(EXAMPLE_LINKCHECK_SERVICE)
+    assert config.linkcheck_ltd_slug == "custom-slug"
+
+
+def test_linkcheck_slug_no_base_url() -> None:
+    """Without a base URL or override, the derived slug is None."""
+    config = DocumenteerConfig.load(EXAMPLE_NO_SPHINX)
+    assert config.linkcheck_ltd_slug is None

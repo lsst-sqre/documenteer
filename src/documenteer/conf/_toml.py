@@ -25,6 +25,7 @@ from pydantic import (
 )
 from sphinx.errors import ConfigError
 
+from ..storage.linkcheckclient import DEFAULT_BASE_URL as OOK_DEFAULT_BASE_URL
 from ._utils import GitRepository
 
 __all__ = [
@@ -180,6 +181,46 @@ class LinkCheckModel(BaseModel):
     ignore: list[str] = Field(
         description="Regular expressions of URLs to skip checking links",
         default_factory=list,
+    )
+
+    use_service: bool = Field(
+        True,
+        description=(
+            "Check links with Ook's link-check service instead of Sphinx's "
+            "built-in linkcheck builder."
+        ),
+    )
+
+    service_url: HttpUrl = Field(
+        HttpUrl(OOK_DEFAULT_BASE_URL),
+        description=(
+            "Base URL of the Ook API that hosts the link-check service."
+        ),
+    )
+
+    poll_budget: int = Field(
+        300,
+        description=(
+            "Maximum time (seconds) to wait for link-check results from "
+            "the service."
+        ),
+    )
+
+    strict: bool = Field(
+        False,
+        description=(
+            "Fail the build when the link-check service is unavailable "
+            "instead of degrading to a warning."
+        ),
+    )
+
+    slug: str | None = Field(
+        None,
+        description=(
+            "LSST the Docs project slug override for the link-check "
+            "service. By default the slug is derived from the subdomain of "
+            "project.base_url."
+        ),
     )
 
 
@@ -469,6 +510,61 @@ class DocumenteerConfig:
         """
         if self.conf.sphinx and self.conf.sphinx.linkcheck:
             link_patterns.extend(self.conf.sphinx.linkcheck.ignore)
+
+    @property
+    def _linkcheck(self) -> LinkCheckModel:
+        """The linkcheck configuration model, or its defaults if the
+        [sphinx] table is not set.
+        """
+        if self.conf.sphinx:
+            return self.conf.sphinx.linkcheck
+        return LinkCheckModel()
+
+    @property
+    def linkcheck_use_service(self) -> bool:
+        """Whether to check links with Ook's link-check service instead of
+        Sphinx's built-in linkcheck builder.
+        """
+        return self._linkcheck.use_service
+
+    @property
+    def linkcheck_service_url(self) -> str:
+        """Base URL of the Ook API that hosts the link-check service
+        (without a trailing slash).
+        """
+        return str(self._linkcheck.service_url).rstrip("/")
+
+    @property
+    def linkcheck_poll_budget(self) -> int:
+        """Maximum time (seconds) to wait for link-check results from the
+        service.
+        """
+        return self._linkcheck.poll_budget
+
+    @property
+    def linkcheck_strict(self) -> bool:
+        """Whether link-check service degradation fails the build."""
+        return self._linkcheck.strict
+
+    @property
+    def linkcheck_ltd_slug(self) -> str | None:
+        """The LSST the Docs project slug for the link-check service.
+
+        The slug is the ``[sphinx.linkcheck] slug`` override if set;
+        otherwise it is derived from the subdomain of the project's base
+        URL (e.g. ``https://example.lsst.io`` yields ``example``). `None`
+        if neither is available.
+        """
+        if self._linkcheck.slug:
+            return self._linkcheck.slug
+        base_url = self.base_url
+        if not base_url:
+            return None
+        hostname = urlparse(base_url).hostname
+        if not hostname:
+            return None
+        subdomain = hostname.split(".")[0]
+        return subdomain or None
 
     def append_nitpick_ignore(
         self, nitpick_ignore: list[tuple[str, str]]
