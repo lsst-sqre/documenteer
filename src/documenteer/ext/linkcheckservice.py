@@ -10,8 +10,10 @@ third-party outages.
 
 from __future__ import annotations
 
+import json
 import os
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sphinx.builders.linkcheck import CheckExternalLinksBuilder
@@ -19,6 +21,7 @@ from sphinx.util import logging
 
 from ..storage.linkcheckclient import (
     DEFAULT_BASE_URL,
+    CheckedUrl,
     CheckRunStatus,
     CheckUrlStatus,
     LinkCheck,
@@ -36,12 +39,17 @@ if TYPE_CHECKING:
 
 __all__ = [
     "DEFAULT_BRANCH_FLAG_ENV_VAR",
+    "JSON_ARTIFACT_NAME",
     "ServiceLinkCheckBuilder",
     "resolve_default_branch_flag",
     "setup",
 ]
 
 logger = logging.getLogger(__name__)
+
+JSON_ARTIFACT_NAME = "linkcheck.json"
+"""File name of the machine-readable results artifact, written to the
+build output directory."""
 
 DEFAULT_BRANCH_FLAG_ENV_VAR = "DOCUMENTEER_LINKCHECK_DEFAULT_BRANCH"
 """Environment variable that overrides default-branch build detection.
@@ -158,12 +166,73 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         return urls
 
     def _report(self, check: LinkCheck) -> None:
-        """Print a summary of the completed link check."""
+        """Report the completed link check and set the exit status.
+
+        Prints the summary counts by status and a detail line for every
+        link that needs attention. ``broken`` links fail the build with a
+        nonzero exit status; ``redirected``, ``failing``, and
+        ``unsupported`` links produce warnings only.
+        """
+        pages = {
+            uri: [hyperlink.docname]
+            for uri, hyperlink in self.hyperlinks.items()
+        }
+        artifact_path = self._write_json_artifact(check, pages)
+
         logger.info("")
         logger.info("Link check complete (Ook check id: %d)", check.id)
         for status in CheckUrlStatus:
             count = getattr(check.summary, status.value)
             logger.info("%11s: %d", status.value, count)
+
+        for result in check.urls:
+            if result.status in (CheckUrlStatus.ok, CheckUrlStatus.pending):
+                continue
+            logger.warning(self._describe_result(result, pages))
+
+        logger.info("The full results are in %s", artifact_path)
+
+        if check.summary.broken > 0:
+            # Builder.app was renamed to Builder._app in Sphinx 9 (the
+            # public accessor is deprecated there but is all Sphinx 8 has).
+            sphinx_app = getattr(self, "_app", None) or self.app
+            sphinx_app.statuscode = 1
+
+    def _write_json_artifact(
+        self, check: LinkCheck, pages: Mapping[str, list[str]]
+    ) -> Path:
+        """Write the machine-readable results artifact to the build
+        output directory.
+
+        The artifact holds the full check from the service, with each
+        per-URL result annotated with the pages the URL occurs on.
+        """
+        data = check.model_dump(mode="json")
+        for url_data in data["urls"]:
+            url_data["pages"] = pages.get(url_data["url"], [])
+        artifact_path = Path(self.outdir) / JSON_ARTIFACT_NAME
+        artifact_path.write_text(
+            json.dumps(data, indent=2) + "\n", encoding="utf-8"
+        )
+        return artifact_path
+
+    @staticmethod
+    def _describe_result(
+        result: CheckedUrl, pages: Mapping[str, list[str]]
+    ) -> str:
+        """Format the detail report line for one checked URL."""
+        page_list = ", ".join(pages.get(result.url, [])) or "unknown"
+        parts = [f"{result.status.value}: {result.url} (page: {page_list})"]
+        if result.status_code is not None:
+            parts.append(f"HTTP {result.status_code}")
+        if result.redirect_url:
+            redirect = f"redirects to {result.redirect_url}"
+            if result.redirect_status_code is not None:
+                redirect += f" (HTTP {result.redirect_status_code})"
+            parts.append(redirect)
+        if result.error:
+            parts.append(result.error)
+        return " - ".join(parts)
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:
