@@ -246,6 +246,16 @@ class LinkCheckClient:
         """
         url = f"{self._base_url}/linkcheck/checks"
         r = self._request("POST", url, json_payload=request.model_dump())
+        # The service accepts the submission asynchronously (HTTP 202)
+        # with an empty body, returning the check's URL in the Location
+        # header rather than the check itself.
+        location = r.headers.get("Location")
+        if not location:
+            raise LinkCheckServiceError(
+                f"The link-check service at {url} did not return a "
+                "Location header for the submitted check."
+            )
+        r = self._request("GET", location)
         return LinkCheck.model_validate_json(r.text)
 
     def get_check(self, check_id: int) -> LinkCheck:

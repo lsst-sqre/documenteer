@@ -15,6 +15,7 @@ from documenteer.storage.linkcheckclient import (
     CheckUrlStatus,
     LinkCheckClient,
     LinkCheckRequest,
+    LinkCheckServiceError,
     LinkCheckTimeoutError,
     LinkCheckUnauthorizedError,
     LinkCheckUnreachableError,
@@ -62,15 +63,19 @@ def make_check_payload(
 
 
 def test_submit_check(responses: RequestsMock, monkeypatch: Any) -> None:
-    """The client POSTs the submission with bearer auth and parses the
-    LinkCheck response.
+    """The client POSTs the submission with bearer auth, follows the
+    Location header returned by the async 202 response, and parses the
+    LinkCheck fetched from there.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
+    check_url = f"{BASE_URL}/linkcheck/checks/42"
     responses.post(
         f"{BASE_URL}/linkcheck/checks",
-        json=make_check_payload(),
-        status=201,
+        body="",
+        status=202,
+        headers={"Location": check_url},
     )
+    responses.get(check_url, json=make_check_payload(), status=200)
 
     client = LinkCheckClient()
     request = LinkCheckRequest(
@@ -96,6 +101,28 @@ def test_submit_check(responses: RequestsMock, monkeypatch: Any) -> None:
         "default_branch": True,
         "urls": [{"url": "https://example.com/page", "paths": ["index"]}],
     }
+
+    poll_request = responses.calls[1].request
+    assert poll_request.headers["Authorization"] == "Bearer test-token"
+
+
+def test_submit_check_missing_location(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 202 response without a Location header raises a service error."""
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.post(
+        f"{BASE_URL}/linkcheck/checks",
+        body="",
+        status=202,
+    )
+
+    client = LinkCheckClient()
+    request = LinkCheckRequest(
+        ltd_slug="example", default_branch=True, urls=[]
+    )
+    with pytest.raises(LinkCheckServiceError, match="Location header"):
+        client.submit_check(request)
 
 
 def test_get_check(responses: RequestsMock, monkeypatch: Any) -> None:

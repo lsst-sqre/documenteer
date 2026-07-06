@@ -54,6 +54,27 @@ def _check_response(urls: list[dict], *, check_id: int = 7) -> dict:
     }
 
 
+def _mock_submit_check(
+    responses: RequestsMock, urls: list[dict], *, check_id: int = 7
+) -> None:
+    """Register mocked responses for the async submit-then-poll flow:
+    a 202 with a Location header, followed by a completed check at that
+    location.
+    """
+    check_url = f"{OOK_BASE_URL}/linkcheck/checks/{check_id}"
+    responses.post(
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        body="",
+        status=202,
+        headers={"Location": check_url},
+    )
+    responses.get(
+        check_url,
+        json=_check_response(urls, check_id=check_id),
+        status=200,
+    )
+
+
 def test_default_branch_flag_push_to_default() -> None:
     """A GitHub Actions push to the default branch is a default-branch
     build.
@@ -140,19 +161,15 @@ def test_guide_linkcheck_happy_path(
             "https://example.org/resource",
         )
     ]
-    responses.post(
-        f"{OOK_BASE_URL}/linkcheck/checks",
-        json=_check_response(checked_urls),
-        status=201,
-    )
+    _mock_submit_check(responses, checked_urls)
 
     app.build()
 
     # The happy path exits 0.
     assert app.statuscode == 0
 
-    # A single submission was made, with bearer auth from OOK_TOKEN.
-    assert len(responses.calls) == 1
+    # A submission and a poll were made, with bearer auth from OOK_TOKEN.
+    assert len(responses.calls) == 2
     api_request = responses.calls[0].request
     assert api_request.headers["Authorization"] == "Bearer test-token"
 
@@ -195,20 +212,17 @@ def test_broken_link_fails_build(
     the summary lists it with its page and HTTP status.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    responses.post(
-        f"{OOK_BASE_URL}/linkcheck/checks",
-        json=_check_response(
-            [
-                _checked_url(
-                    "https://example.com/page",
-                    status="broken",
-                    status_code=404,
-                    error="404 Not Found",
-                ),
-                _checked_url("https://www.lsst.io/"),
-            ]
-        ),
-        status=201,
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="broken",
+                status_code=404,
+                error="404 Not Found",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
     )
 
     app.build()
@@ -242,31 +256,28 @@ def test_warning_statuses_pass_build(
     and the build exits 0; redirect locations appear in the summary.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    responses.post(
-        f"{OOK_BASE_URL}/linkcheck/checks",
-        json=_check_response(
-            [
-                _checked_url(
-                    "https://example.com/page",
-                    status="redirected",
-                    status_code=200,
-                    redirect_status_code=301,
-                    redirect_url="https://example.com/new-page",
-                ),
-                _checked_url(
-                    "https://www.lsst.io/",
-                    status="failing",
-                    status_code=503,
-                    error="503 Service Unavailable",
-                ),
-                _checked_url(
-                    "https://example.org/resource",
-                    status="unsupported",
-                    checked_at=None,
-                ),
-            ]
-        ),
-        status=201,
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="redirected",
+                status_code=200,
+                redirect_status_code=301,
+                redirect_url="https://example.com/new-page",
+            ),
+            _checked_url(
+                "https://www.lsst.io/",
+                status="failing",
+                status_code=503,
+                error="503 Service Unavailable",
+            ),
+            _checked_url(
+                "https://example.org/resource",
+                status="unsupported",
+                checked_at=None,
+            ),
+        ],
     )
 
     app.build()
@@ -312,27 +323,24 @@ def test_json_artifact(
     written to the build output directory.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    responses.post(
-        f"{OOK_BASE_URL}/linkcheck/checks",
-        json=_check_response(
-            [
-                _checked_url(
-                    "https://example.com/page",
-                    status="redirected",
-                    status_code=200,
-                    redirect_status_code=301,
-                    redirect_url="https://example.com/new-page",
-                ),
-                _checked_url(
-                    "https://www.lsst.io/",
-                    status="broken",
-                    status_code=404,
-                    error="404 Not Found",
-                ),
-                _checked_url("https://example.org/resource"),
-            ]
-        ),
-        status=201,
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="redirected",
+                status_code=200,
+                redirect_status_code=301,
+                redirect_url="https://example.com/new-page",
+            ),
+            _checked_url(
+                "https://www.lsst.io/",
+                status="broken",
+                status_code=404,
+                error="404 Not Found",
+            ),
+            _checked_url("https://example.org/resource"),
+        ],
     )
 
     app.build()
