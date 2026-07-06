@@ -201,6 +201,7 @@ jobs:
         run: uv run --only-group=nox nox -P $UV_PYTHON -s docs docs-linkcheck
         env:
           UV_PYTHON: ${{ env.PYTHON_VERSION }}
+          OOK_TOKEN: ${{ secrets.OOK_TOKEN }}
 
       # Only attempt documentation uploads for tagged releases and pull
       # requests from ticket branches in the same repository.  This avoids
