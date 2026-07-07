@@ -27,6 +27,7 @@ from ..storage.linkcheckclient import (
     LinkCheck,
     LinkCheckClient,
     LinkCheckRequest,
+    LinkCheckServiceError,
     SubmittedUrl,
 )
 from ..version import __version__
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from sphinx.application import Sphinx
+    from sphinx.config import Config
     from sphinx.util.typing import ExtensionMetadata
 
 __all__ = [
@@ -146,13 +148,42 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         # submission and its body already holds the full results; a 202
         # response's body is the pending check, polled at the Location
         # header (or its self_url) until complete.
-        check, poll_url = client.submit_check(request)
-        if check.status is not CheckRunStatus.complete:
-            check = client.poll_check(
-                poll_url,
-                budget=self.config.documenteer_linkcheck_poll_budget,
-            )
+        try:
+            check, poll_url = client.submit_check(request)
+            if check.status is not CheckRunStatus.complete:
+                check = client.poll_check(
+                    poll_url,
+                    budget=self.config.documenteer_linkcheck_poll_budget,
+                )
+        except LinkCheckServiceError as e:
+            self._handle_service_error(e)
+            return
         self._report(check)
+
+    def _handle_service_error(self, error: LinkCheckServiceError) -> None:
+        """Handle a link-check service problem (unreachable service,
+        missing/rejected token, or an exhausted polling budget).
+
+        By default the build degrades gracefully: a warning is emitted
+        and the build continues with a zero exit status, so documentation
+        builds do not fail on a transient service problem. With
+        ``[sphinx.linkcheck] strict = true`` in ``documenteer.toml`` the
+        same conditions fail the build instead.
+        """
+        if self.config.documenteer_linkcheck_strict:
+            logger.warning(
+                "Link check failed: %s The build fails because "
+                "[sphinx.linkcheck] strict = true in documenteer.toml.",
+                error,
+            )
+            self._set_failure_status()
+        else:
+            logger.warning(
+                "Link check skipped: %s The build continues; set "
+                "[sphinx.linkcheck] strict = true in documenteer.toml to "
+                "fail the build on link-check service problems instead.",
+                error,
+            )
 
     def _collect_submission_urls(self) -> list[SubmittedUrl]:
         """Build the URL submission list from the collected hyperlinks.
@@ -200,10 +231,14 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         logger.info("The full results are in %s", artifact_path)
 
         if check.summary.broken > 0:
-            # Builder.app was renamed to Builder._app in Sphinx 9 (the
-            # public accessor is deprecated there but is all Sphinx 8 has).
-            sphinx_app = getattr(self, "_app", None) or self.app
-            sphinx_app.statuscode = 1
+            self._set_failure_status()
+
+    def _set_failure_status(self) -> None:
+        """Fail the build with a nonzero exit status."""
+        # Builder.app was renamed to Builder._app in Sphinx 9 (the
+        # public accessor is deprecated there but is all Sphinx 8 has).
+        sphinx_app = getattr(self, "_app", None) or self.app
+        sphinx_app.statuscode = 1
 
     def _write_json_artifact(
         self, check: LinkCheck, pages: Mapping[str, list[str]]
@@ -242,6 +277,26 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         return " - ".join(parts)
 
 
+def _apply_builder_override(app: Sphinx, config: Config) -> None:
+    """Override Sphinx's built-in linkcheck builder with the
+    service-backed builder, unless disabled.
+
+    The override decision needs the resolved configuration, so it runs on
+    ``config-inited`` (which Sphinx emits after extension setup but
+    before the builder is instantiated). With ``[sphinx.linkcheck]
+    use_service = false`` in ``documenteer.toml`` the override is not
+    applied and Sphinx's built-in ``linkcheck`` builder runs as-is — the
+    escape hatch for projects that want in-process link checking.
+    """
+    if not config.documenteer_linkcheck_use_service:
+        return
+    # The built-in HyperlinkCollector post-transform and linkcheck_*
+    # config values are registered by the sphinx.builders.linkcheck
+    # built-in extension and continue to apply to this builder (the
+    # collector keys on the "linkcheck" builder name).
+    app.add_builder(ServiceLinkCheckBuilder, override=True)
+
+
 def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the linkcheckservice extension.
 
@@ -255,12 +310,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     sphinx.util.typing.ExtensionMetadata
         Extension metadata for Sphinx.
     """
-    # Override Sphinx's built-in linkcheck builder. The built-in
-    # HyperlinkCollector post-transform and linkcheck_* config values are
-    # registered by the sphinx.builders.linkcheck built-in extension and
-    # continue to apply to this builder (the collector keys on the
-    # "linkcheck" builder name).
-    app.add_builder(ServiceLinkCheckBuilder, override=True)
+    app.connect("config-inited", _apply_builder_override)
 
     app.add_config_value("documenteer_linkcheck_use_service", True, "")
     app.add_config_value(

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 import pytest_responses  # noqa: F401
 from responses import RequestsMock
+from sphinx.builders.linkcheck import CheckExternalLinksBuilder
 from sphinx.testing.util import SphinxTestApp
 
 from documenteer.ext.linkcheckservice import resolve_default_branch_flag
@@ -378,6 +379,250 @@ def test_warning_statuses_pass_build(
     assert "unsupported: https://example.org/resource (page: index)" in (
         warning_output
     )
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-unreachable",
+)
+def test_unreachable_service_degrades(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """An unreachable Ook service degrades gracefully by default: the
+    build warns that the link check was skipped and exits 0.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # No mocked responses are registered, so the submission raises a
+    # connection error (the responses mock also blocks real network
+    # access, standing in for an unreachable service).
+
+    app.build()
+
+    assert app.statuscode == 0
+    warning_output = app.warning.getvalue()
+    assert "Link check skipped" in warning_output
+    assert "Could not reach the Ook link-check service" in warning_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-no-token",
+)
+def test_missing_token_degrades(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A missing OOK_TOKEN (e.g. a fork's PR build, where secrets are
+    unavailable) degrades gracefully by default: the build warns that the
+    link check was skipped and exits 0, without contacting the service.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+
+    app.build()
+
+    assert app.statuscode == 0
+    warning_output = app.warning.getvalue()
+    assert "Link check skipped" in warning_output
+    assert "No Ook API token is available" in warning_output
+    assert "OOK_TOKEN" in warning_output
+
+    # The service is never contacted without a token.
+    assert len(responses.calls) == 0
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-poll-budget",
+    confoverrides={"documenteer_linkcheck_poll_budget": 0},
+)
+def test_poll_budget_exhaustion_degrades(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A check that does not complete within the polling budget degrades
+    gracefully by default: the build warns that the link check was
+    skipped and exits 0.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    check_url = f"{OOK_BASE_URL}/linkcheck/checks/7"
+    pending_urls = [
+        _checked_url(
+            "https://example.com/page",
+            status="pending",
+            status_code=None,
+            checked_at=None,
+        )
+    ]
+    responses.post(
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        json=_check_response(pending_urls, status="pending"),
+        status=202,
+        headers={"Location": check_url},
+    )
+    # The check never completes: every poll returns the pending check.
+    responses.get(
+        check_url,
+        json=_check_response(pending_urls, status="pending"),
+        status=200,
+    )
+
+    app.build()
+
+    assert app.statuscode == 0
+    warning_output = app.warning.getvalue()
+    assert "Link check skipped" in warning_output
+    assert "did not complete" in warning_output
+    assert "polling budget" in warning_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-strict-unreachable",
+    confoverrides={"documenteer_linkcheck_strict": True},
+)
+def test_unreachable_service_strict_fails(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """With [sphinx.linkcheck] strict = true, an unreachable Ook service
+    fails the build with a nonzero exit instead of degrading.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # No mocked responses are registered, so the submission raises a
+    # connection error (the responses mock also blocks real network
+    # access, standing in for an unreachable service).
+
+    app.build()
+
+    assert app.statuscode == 1
+    warning_output = app.warning.getvalue()
+    assert "Link check failed" in warning_output
+    assert "Could not reach the Ook link-check service" in warning_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-strict-no-token",
+    confoverrides={"documenteer_linkcheck_strict": True},
+)
+def test_missing_token_strict_fails(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """With [sphinx.linkcheck] strict = true, a missing OOK_TOKEN fails
+    the build with a nonzero exit instead of degrading.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+
+    app.build()
+
+    assert app.statuscode == 1
+    warning_output = app.warning.getvalue()
+    assert "Link check failed" in warning_output
+    assert "No Ook API token is available" in warning_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-strict-poll-budget",
+    confoverrides={
+        "documenteer_linkcheck_strict": True,
+        "documenteer_linkcheck_poll_budget": 0,
+    },
+)
+def test_poll_budget_exhaustion_strict_fails(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """With [sphinx.linkcheck] strict = true, poll-budget exhaustion
+    fails the build with a nonzero exit instead of degrading.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    check_url = f"{OOK_BASE_URL}/linkcheck/checks/7"
+    pending_urls = [
+        _checked_url(
+            "https://example.com/page",
+            status="pending",
+            status_code=None,
+            checked_at=None,
+        )
+    ]
+    responses.post(
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        json=_check_response(pending_urls, status="pending"),
+        status=202,
+        headers={"Location": check_url},
+    )
+    # The check never completes: every poll returns the pending check.
+    responses.get(
+        check_url,
+        json=_check_response(pending_urls, status="pending"),
+        status=200,
+    )
+
+    app.build()
+
+    assert app.statuscode == 1
+    warning_output = app.warning.getvalue()
+    assert "Link check failed" in warning_output
+    assert "did not complete" in warning_output
+    assert "polling budget" in warning_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-escape-hatch",
+    confoverrides={"documenteer_linkcheck_use_service": False},
+)
+def test_use_service_false_restores_builtin_builder(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """With [sphinx.linkcheck] use_service = false, the service builder
+    override is not applied and Sphinx's built-in linkcheck builder runs:
+    links are checked in-process and the Ook service is never contacted.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+
+    # The override fell through to the stock builder, not the
+    # service-backed subclass.
+    assert type(app.builder) is CheckExternalLinksBuilder
+
+    # The responses mock intercepts the in-process link checks, so no
+    # real network access happens during the build.
+    app.build()
+
+    # The Ook service was never contacted.
+    assert not any(
+        (call.request.url or "").startswith(OOK_BASE_URL)
+        for call in responses.calls
+    )
+
+    # The stock builder wrote its own report, not the service artifact.
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
 
 
 @pytest.mark.skipif(
