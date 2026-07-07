@@ -232,7 +232,12 @@ def test_guide_linkcheck_happy_path(
 
     # A summary is printed.
     status_output = app.status.getvalue()
-    assert "Link check complete (Ook check id: 7)" in status_output
+    assert (
+        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/7"
+        in status_output
+    )
+    # The check runtime is reported in seconds (fixture: 12:00:00 -> 12:00:05).
+    assert "runtime: 5.0 s" in status_output
     assert "ok: 3" in status_output
 
 
@@ -358,7 +363,10 @@ def test_technote_linkcheck_happy_path(
 
     # A summary is printed.
     status_output = app.status.getvalue()
-    assert "Link check complete (Ook check id: 7)" in status_output
+    assert (
+        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/7"
+        in status_output
+    )
     assert "ok: 2" in status_output
 
 
@@ -435,7 +443,10 @@ def test_submission_completed_at_200(
 
     # The results from the POST body are reported.
     status_output = app.status.getvalue()
-    assert "Link check complete (Ook check id: 7)" in status_output
+    assert (
+        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/7"
+        in status_output
+    )
     assert "ok: 3" in status_output
 
 

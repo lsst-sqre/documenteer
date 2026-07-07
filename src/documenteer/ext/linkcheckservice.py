@@ -248,7 +248,12 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         artifact_path = self._write_json_artifact(check, pages)
 
         logger.info("")
-        logger.info("Link check complete (Ook check id: %d)", check.id)
+        logger.info("Link check complete: %s", check.self_url)
+        if check.date_completed is not None:
+            runtime = (
+                check.date_completed - check.date_created
+            ).total_seconds()
+            logger.info("%11s: %.1f s", "runtime", runtime)
         for status in CheckUrlStatus:
             count = getattr(check.summary, status.value)
             logger.info("%11s: %d", status.value, count)
