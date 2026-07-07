@@ -491,11 +491,12 @@ def test_broken_link_fails_build(
     testroot="linkcheck-service",
     srcdir="linkcheck-service-warnings",
 )
-def test_warning_statuses_pass_build(
+def test_non_broken_statuses_pass_build(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """Redirected, failing, and unsupported links produce warnings only
-    and the build exits 0; redirect locations appear in the summary.
+    """Redirected, failing, and unsupported links are reported at info
+    level (not warnings) and the build exits 0; the detail lines appear
+    in the summary output, not the warning stream.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _mock_submit_check(
@@ -524,29 +525,129 @@ def test_warning_statuses_pass_build(
 
     app.build()
 
-    # Warning-only statuses do not fail the build.
+    # Non-broken statuses do not fail the build.
     assert app.statuscode == 0
 
-    # The status counts cover each warning-only status.
+    # The status counts cover each non-broken status.
     status_output = app.status.getvalue()
     assert "redirected: 1" in status_output
     assert "failing: 1" in status_output
     assert "unsupported: 1" in status_output
 
-    # Each link needing attention is warned about, with its page, HTTP
-    # status, and redirect location where applicable.
-    warning_output = app.warning.getvalue()
+    # Each link needing attention is reported at info level (in the status
+    # stream), with its page, HTTP status, and redirect location where
+    # applicable.
     assert (
-        "redirected: https://example.com/page (page: index)" in warning_output
+        "redirected: https://example.com/page (page: index)" in status_output
     )
     assert "redirects to https://example.com/new-page (HTTP 301)" in (
-        warning_output
+        status_output
     )
-    assert "failing: https://www.lsst.io/ (page: index)" in warning_output
-    assert "HTTP 503" in warning_output
-    assert "503 Service Unavailable" in warning_output
+    assert "failing: https://www.lsst.io/ (page: index)" in status_output
+    assert "HTTP 503" in status_output
+    assert "503 Service Unavailable" in status_output
     assert "unsupported: https://example.org/resource (page: index)" in (
-        warning_output
+        status_output
+    )
+
+    # None of the non-broken detail lines are emitted as warnings, so a
+    # warnings-as-errors (-W) build would not fail on them.
+    warning_output = app.warning.getvalue()
+    assert "redirected:" not in warning_output
+    assert "failing:" not in warning_output
+    assert "unsupported:" not in warning_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-warningiserror",
+    warningiserror=True,
+    # The test root is not a Git repository, so sphinx-last-updated-by-git
+    # warns; suppress it to isolate link-check reporting under -W.
+    confoverrides={"suppress_warnings": ["git"]},
+)
+def test_non_broken_statuses_pass_warningiserror(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """With warnings-as-errors (Sphinx's ``-W``), a check that reports
+    only redirected and unsupported links (no broken) still exits 0,
+    because those statuses are reported at info level rather than as
+    warnings.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="redirected",
+                status_code=200,
+                redirect_status_code=301,
+                redirect_url="https://example.com/new-page",
+            ),
+            _checked_url("https://www.lsst.io/"),
+            _checked_url(
+                "https://example.org/resource",
+                status="unsupported",
+                checked_at=None,
+            ),
+        ],
+    )
+
+    # Under warningiserror, any logger.warning would raise SphinxWarning;
+    # info-level reporting keeps the build green.
+    app.build()
+
+    assert app.statuscode == 0
+    status_output = app.status.getvalue()
+    assert "redirected: 1" in status_output
+    assert "unsupported: 1" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-warningiserror-broken",
+    warningiserror=True,
+    # The test root is not a Git repository, so sphinx-last-updated-by-git
+    # warns; suppress it so only the broken-link warning can raise under -W.
+    confoverrides={"suppress_warnings": ["git"]},
+)
+def test_broken_fails_warningiserror(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A broken link still fails the build under warnings-as-errors: the
+    broken result is reported as a warning and sets a nonzero exit status.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="broken",
+                status_code=404,
+                error="404 Not Found",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+
+    app.build()
+
+    # Broken links fail the build under -W, both via _set_failure_status
+    # and because the broken result is reported as a warning.
+    assert app.statuscode == 1
+    assert (
+        "broken: https://example.com/page (page: index)"
+        in app.warning.getvalue()
     )
 
 

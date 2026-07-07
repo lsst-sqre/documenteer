@@ -237,8 +237,9 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
 
         Prints the summary counts by status and a detail line for every
         link that needs attention. ``broken`` links fail the build with a
-        nonzero exit status; ``redirected``, ``failing``, and
-        ``unsupported`` links produce warnings only.
+        nonzero exit status and are reported as warnings; ``redirected``,
+        ``failing``, and ``unsupported`` links are reported at info level
+        so a warnings-as-errors (``-W``) build does not fail on them.
         """
         pages = {
             uri: [hyperlink.docname]
@@ -255,7 +256,18 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         for result in check.urls:
             if result.status in (CheckUrlStatus.ok, CheckUrlStatus.pending):
                 continue
-            logger.warning(self._describe_result(result, pages))
+            message = self._describe_result(result, pages)
+            # Only ``broken`` links fail the build (via the statuscode set
+            # below), so they are reported as warnings. ``redirected``,
+            # ``failing``, and ``unsupported`` links are reported at info
+            # level so a warnings-as-errors (``-W``) build does not fail on
+            # them. This mirrors Sphinx's built-in linkcheck, which fails
+            # via a nonzero statuscode for broken links and logs redirects
+            # at info level by default.
+            if result.status is CheckUrlStatus.broken:
+                logger.warning(message)
+            else:
+                logger.info(message)
 
         logger.info("The full results are in %s", artifact_path)
 
