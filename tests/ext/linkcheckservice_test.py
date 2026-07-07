@@ -980,3 +980,99 @@ def test_json_artifact(
 
     # The status output points at the artifact.
     assert "linkcheck.json" in app.status.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service-multipage",
+    srcdir="linkcheck-service-multipage",
+)
+def test_multipage_url_submits_all_pages(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A URL referenced from multiple pages is submitted with every
+    referencing docname in ``origin_paths`` (deduplicated, sorted), not
+    just the first occurrence Sphinx's built-in collector records.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # Ook returns the canonical (fragment-stripped) URL for the fragment
+    # link, mirroring the real service.
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url("https://example.com/shared"),
+            _checked_url("https://example.com/guide"),
+            _checked_url("https://example.org/only-a"),
+        ],
+    )
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    api_request = responses.calls[0].request
+    assert api_request.body is not None
+    payload = json.loads(api_request.body)
+    submitted = {url["url"]: url["origin_paths"] for url in payload["urls"]}
+
+    # The shared URL, referenced from both pages, is submitted with both
+    # docnames in sorted order.
+    assert submitted["https://example.com/shared"] == ["page-a", "page-b"]
+    # A URL with a fragment is submitted verbatim (fragment retained) and
+    # still carries every referencing page.
+    assert submitted["https://example.com/guide#intro"] == [
+        "page-a",
+        "page-b",
+    ]
+    # A single-page URL still lists just its one page.
+    assert submitted["https://example.org/only-a"] == ["page-a"]
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service-multipage",
+    srcdir="linkcheck-service-multipage-artifact",
+)
+def test_multipage_url_artifact_pages(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The JSON artifact lists every referencing page for each URL, and the
+    per-URL join resolves even when Ook returns the canonical
+    (fragment-stripped) URL rather than the submitted fragment URL.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url("https://example.com/shared"),
+            # Ook returns the fragment-stripped canonical URL for the
+            # submitted https://example.com/guide#intro.
+            _checked_url("https://example.com/guide"),
+            _checked_url("https://example.org/only-a"),
+        ],
+    )
+
+    app.build()
+
+    data = json.loads((Path(app.outdir) / "linkcheck.json").read_text())
+    results = {url["url"]: url for url in data["urls"]}
+
+    # A URL referenced from both pages lists both, sorted.
+    assert results["https://example.com/shared"]["pages"] == [
+        "page-a",
+        "page-b",
+    ]
+    # The canonical URL Ook returns still resolves to every referencing
+    # page despite the submitted URL carrying a #fragment.
+    assert results["https://example.com/guide"]["pages"] == [
+        "page-a",
+        "page-b",
+    ]
+    # A single-page URL lists just its one page.
+    assert results["https://example.org/only-a"]["pages"] == ["page-a"]

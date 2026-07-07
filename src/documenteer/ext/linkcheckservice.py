@@ -16,7 +16,10 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sphinx.builders.linkcheck import CheckExternalLinksBuilder
+from sphinx.builders.linkcheck import (
+    CheckExternalLinksBuilder,
+    HyperlinkCollector,
+)
 from sphinx.util import logging
 
 from ..storage.linkcheckclient import (
@@ -35,6 +38,7 @@ from ..version import __version__
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from docutils import nodes
     from sphinx.application import Sphinx
     from sphinx.config import Config
     from sphinx.util.typing import ExtensionMetadata
@@ -42,6 +46,7 @@ if TYPE_CHECKING:
 __all__ = [
     "DEFAULT_BRANCH_FLAG_ENV_VAR",
     "JSON_ARTIFACT_NAME",
+    "ReferencingPagesCollector",
     "ServiceLinkCheckBuilder",
     "resolve_default_branch_flag",
     "setup",
@@ -122,6 +127,57 @@ def _is_checkable_uri(uri: str) -> bool:
     return uri.startswith(("http:", "https:"))
 
 
+class ReferencingPagesCollector(HyperlinkCollector):
+    """Collect every docname that references each hyperlink URI.
+
+    Sphinx's built-in `~sphinx.builders.linkcheck.HyperlinkCollector`
+    keeps only the *first* occurrence's docname per URI (``if uri not in
+    hyperlinks``), so a URL referenced from several pages is checked with
+    only one referencing page. This post-transform runs alongside the
+    built-in collector — same ``builders`` gate and ``default_priority``,
+    and it reuses the built-in ``run`` and ``find_uri`` so the collected
+    URI set matches the builder's ``hyperlinks`` exactly — but overrides
+    ``_add_uri`` to accumulate the *complete* set of referencing docnames
+    onto the builder's ``_referencing_pages`` mapping.
+    """
+
+    def _add_uri(self, uri: str, node: nodes.Element) -> None:
+        # node is required by the overridden signature but unused here:
+        # unlike the built-in we track referencing pages, not line
+        # numbers.
+        env = self.env
+        # Reach the builder the way the version-appropriate built-in
+        # collector does: env._app.builder (Sphinx 9), falling back to
+        # env.app.builder (Sphinx 8). Avoids SphinxTransform.app, which is
+        # deprecated in Sphinx 9.
+        app = getattr(env, "_app", None) or env.app
+        builder = app.builder
+        if not isinstance(builder, ServiceLinkCheckBuilder):
+            # The built-in linkcheck builder (documenteer_linkcheck_use_service
+            # = false) has no _referencing_pages mapping and ignores it.
+            return
+        # Mirror the built-in's linkcheck-process-uri transform so our keys
+        # match the builder's ``hyperlinks`` keys even when a handler
+        # rewrites URIs.
+        newuri = env.events.emit_firstresult("linkcheck-process-uri", uri)
+        if newuri:
+            uri = newuri
+        # _referencing_pages is this collector's designated hand-off slot
+        # on the service builder (peers in this module); the write goes
+        # nowhere else.
+        builder._referencing_pages.setdefault(uri, set()).add(  # noqa: SLF001
+            self._current_docname()
+        )
+
+    def _current_docname(self) -> str:
+        # BuildEnvironment.docname (Sphinx 8) became
+        # current_document.docname (Sphinx 9); support both.
+        current_document = getattr(self.env, "current_document", None)
+        if current_document is not None:
+            return current_document.docname
+        return self.env.docname
+
+
 class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
     """A linkcheck builder that checks links with Ook's link-check service.
 
@@ -134,6 +190,17 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
 
     name = "linkcheck"
     epilog = ""
+
+    #: URI to the complete set of docnames that reference it, populated by
+    #: `ReferencingPagesCollector` during the write phase.
+    _referencing_pages: dict[str, set[str]]
+
+    def init(self) -> None:
+        """Initialize the builder, adding the referencing-pages mapping the
+        `ReferencingPagesCollector` post-transform populates.
+        """
+        super().init()
+        self._referencing_pages = {}
 
     def finish(self) -> None:
         """Submit the collected hyperlinks to the link-check service and
@@ -210,26 +277,65 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
                 error,
             )
 
+    def _referencing_page_sets(self) -> dict[str, set[str]]:
+        """Map each collected hyperlink URI to the complete set of docnames
+        that reference it.
+
+        The `ReferencingPagesCollector` post-transform accumulates the full
+        set of referencing pages per URI; the builder's ``hyperlinks`` (from
+        the built-in collector) is the source of truth for *which* URIs were
+        collected. Every collected URI gets an entry, falling back to the
+        built-in first-occurrence docname if the collector recorded nothing
+        for it.
+        """
+        return {
+            uri: set(self._referencing_pages.get(uri) or {hyperlink.docname})
+            for uri, hyperlink in self.hyperlinks.items()
+        }
+
+    @staticmethod
+    def _canonical_url(url: str) -> str:
+        """Return the canonical URL Ook keys results on.
+
+        Ook reports each result under its fragment-stripped URL
+        (`CheckedUrl.url`), so keys in the reporting/artifact page map are
+        normalized the same way for the per-URL join to resolve.
+        """
+        return url.split("#", 1)[0]
+
+    def _canonical_page_map(self) -> dict[str, list[str]]:
+        """Map each canonical (fragment-stripped) URL to the sorted set of
+        docnames that reference it.
+
+        Keyed to match the URLs Ook returns in its results, so both the
+        JSON artifact and the report detail lines resolve their pages even
+        when several ``#fragment`` variants of a URL collapse to one
+        canonical result.
+        """
+        merged: dict[str, set[str]] = {}
+        for uri, docnames in self._referencing_page_sets().items():
+            merged.setdefault(self._canonical_url(uri), set()).update(docnames)
+        return {url: sorted(docnames) for url, docnames in merged.items()}
+
     def _collect_submission_urls(self) -> list[SubmittedUrl]:
         """Build the URL submission list from the collected hyperlinks.
 
-        URIs that Sphinx's built-in linkcheck builder never checks are
-        filtered out (see `_is_checkable_uri`), and the ``linkcheck_ignore``
-        patterns are applied client-side, so neither non-checkable nor
-        ignored URLs are ever submitted to the service.
+        Each URL is submitted with every page that references it (sorted for
+        a deterministic payload). URIs that Sphinx's built-in linkcheck
+        builder never checks are filtered out (see `_is_checkable_uri`), and
+        the ``linkcheck_ignore`` patterns are applied client-side, so neither
+        non-checkable nor ignored URLs are ever submitted to the service.
         """
         ignore_patterns = [
             re.compile(pattern) for pattern in self.config.linkcheck_ignore
         ]
         urls: list[SubmittedUrl] = []
-        for uri, hyperlink in self.hyperlinks.items():
+        for uri, docnames in self._referencing_page_sets().items():
             if not _is_checkable_uri(uri):
                 continue
             if any(pattern.match(uri) for pattern in ignore_patterns):
                 continue
-            urls.append(
-                SubmittedUrl(url=uri, origin_paths=[hyperlink.docname])
-            )
+            urls.append(SubmittedUrl(url=uri, origin_paths=sorted(docnames)))
         return urls
 
     def _report(self, check: LinkCheck) -> None:
@@ -241,10 +347,7 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         ``failing``, and ``unsupported`` links are reported at info level
         so a warnings-as-errors (``-W``) build does not fail on them.
         """
-        pages = {
-            uri: [hyperlink.docname]
-            for uri, hyperlink in self.hyperlinks.items()
-        }
+        pages = self._canonical_page_map()
         artifact_path = self._write_json_artifact(check, pages)
 
         logger.info("")
@@ -357,6 +460,10 @@ def setup(app: Sphinx) -> ExtensionMetadata:
         Extension metadata for Sphinx.
     """
     app.connect("config-inited", _apply_builder_override)
+
+    # Runs alongside the built-in HyperlinkCollector (both gated to the
+    # "linkcheck" builder) to record every page each URL is referenced from.
+    app.add_post_transform(ReferencingPagesCollector)
 
     app.add_config_value("documenteer_linkcheck_use_service", True, "")
     app.add_config_value(
