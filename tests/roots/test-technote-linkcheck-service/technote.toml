@@ -1,0 +1,13 @@
+[technote]
+id = "SQR-000"
+series_id = "SQR"
+canonical_url = "https://SQR-000.lsst.io/"
+github_url = "https://github.com/lsst-sqre/sqr-000"
+github_default_branch = "master"
+
+[technote.sphinx.linkcheck]
+ignore = ["https://ls.st/"]
+
+[[technote.authors]]
+name.given = "Test"
+name.family = "Author"

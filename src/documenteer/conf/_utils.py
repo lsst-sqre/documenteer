@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from git import Repo
 from sphinx.errors import ConfigError
@@ -15,8 +16,60 @@ __all__ = [
     "get_asset_path",
     "get_common_nitpick_ignore",
     "get_common_nitpick_ignore_regex",
+    "get_technote_origin_base_url",
     "get_template_dir",
+    "normalize_origin_base_url",
 ]
+
+
+def normalize_origin_base_url(url: str) -> str:
+    """Normalize an origin base URL the way the Ook link-check service
+    does: lowercase the host and strip any trailing slash (queries and
+    fragments are dropped).
+    """
+    parts = urlsplit(url)
+    return urlunsplit(
+        (
+            parts.scheme.lower(),
+            parts.netloc.lower(),
+            parts.path.rstrip("/"),
+            "",
+            "",
+        )
+    )
+
+
+def get_technote_origin_base_url(
+    *, canonical_url: str | None, technote_id: str | None
+) -> str | None:
+    """Derive the origin base URL of a technote for the Ook link-check
+    service.
+
+    Parameters
+    ----------
+    canonical_url
+        The technote's canonical URL, from the ``[technote]
+        canonical_url`` setting in ``technote.toml``, if set.
+    technote_id
+        The technote's handle (e.g. ``SQR-000``), from the
+        ``[technote] id`` setting in ``technote.toml``, if set.
+
+    Returns
+    -------
+    str or None
+        The origin base URL, normalized the way the Ook link-check
+        service normalizes origins (lowercased host, trailing slash
+        stripped). The canonical URL is preferred; without one the
+        origin is derived from the handle as
+        ``https://<handle>.lsst.io``. `None` if neither is available.
+    """
+    if canonical_url:
+        return normalize_origin_base_url(canonical_url)
+    if technote_id:
+        return normalize_origin_base_url(
+            f"https://{technote_id.lower()}.lsst.io"
+        )
+    return None
 
 
 def _get_assets_directory() -> Path:

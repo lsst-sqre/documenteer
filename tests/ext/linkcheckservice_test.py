@@ -19,6 +19,11 @@ from documenteer.ext.linkcheckservice import resolve_default_branch_flag
 # builds the full user-guide stack (``from documenteer.conf.guide import *``).
 _HAS_GUIDE_DEPS = importlib.util.find_spec("pydata_sphinx_theme") is not None
 
+# Whether the technote preset's dependencies are importable; the technote
+# test root builds the full technote stack
+# (``from documenteer.conf.technote import *``).
+_HAS_TECHNOTE_DEPS = importlib.util.find_spec("technote") is not None
+
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
 
@@ -229,6 +234,111 @@ def test_guide_linkcheck_happy_path(
     status_output = app.status.getvalue()
     assert "Link check complete (Ook check id: 7)" in status_output
     assert "ok: 3" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="technote-linkcheck-service",
+    srcdir="technote-linkcheck-service",
+)
+def test_technote_linkcheck_happy_path(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A technote project built with the linkcheck builder against a
+    mocked Ook API submits with the origin base URL derived from the
+    technote's canonical URL and reports results end-to-end.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # A GitHub Actions push build of the technote's default branch
+    # (github_default_branch = "master" in the fixture's technote.toml).
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    monkeypatch.setenv("GITHUB_REF_NAME", "master")
+
+    checked_urls = [
+        _checked_url(url)
+        for url in (
+            "https://example.com/page",
+            "https://www.lsst.io/",
+        )
+    ]
+    _mock_submit_check(responses, checked_urls)
+
+    app.build()
+
+    # The happy path exits 0.
+    assert app.statuscode == 0
+
+    # A submission and a poll were made, with bearer auth from OOK_TOKEN.
+    assert len(responses.calls) == 2
+    api_request = responses.calls[0].request
+    assert api_request.headers["Authorization"] == "Bearer test-token"
+
+    # The submission payload carries the origin base URL derived from
+    # the technote's canonical URL (normalized: lowercased host,
+    # trailing slash stripped), the default-version flag matched against
+    # technote.toml's github_default_branch, and the URL + page-path
+    # list.
+    assert api_request.body is not None
+    payload = json.loads(api_request.body)
+    assert payload["origin_base_url"] == "https://sqr-000.lsst.io"
+    assert payload["is_default_version"] is True
+    submitted = {url["url"]: url["origin_paths"] for url in payload["urls"]}
+    assert submitted == {
+        "https://example.com/page": ["index"],
+        "https://www.lsst.io/": ["index"],
+    }
+
+    # linkcheck_ignore patterns (the fixture's technote.toml ignores
+    # https://ls.st/) are applied client-side: ignored URLs are never
+    # submitted.
+    assert not any(url.startswith("https://ls.st/") for url in submitted)
+
+    # A summary is printed.
+    status_output = app.status.getvalue()
+    assert "Link check complete (Ook check id: 7)" in status_output
+    assert "ok: 2" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="technote-linkcheck-service",
+    srcdir="technote-linkcheck-service-escape-hatch",
+    confoverrides={"documenteer_linkcheck_use_service": False},
+)
+def test_technote_use_service_override(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A technote can restore Sphinx's built-in linkcheck builder by
+    overriding documenteer_linkcheck_use_service in its conf.py: the
+    service builder override is not applied and the Ook service is never
+    contacted.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+
+    # The override fell through to the stock builder, not the
+    # service-backed subclass.
+    assert type(app.builder) is CheckExternalLinksBuilder
+
+    # The responses mock intercepts the in-process link checks, so no
+    # real network access happens during the build.
+    app.build()
+
+    # The Ook service was never contacted.
+    assert not any(
+        (call.request.url or "").startswith(OOK_BASE_URL)
+        for call in responses.calls
+    )
+
+    # The stock builder wrote its own report, not the service artifact.
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
 
 
 @pytest.mark.skipif(

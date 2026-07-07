@@ -13,7 +13,7 @@ from importlib.metadata import PackageNotFoundError, metadata
 from importlib.metadata import version as get_version
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import urlparse
 
 from pydantic import (
     BaseModel,
@@ -26,7 +26,7 @@ from pydantic import (
 from sphinx.errors import ConfigError
 
 from ..storage.linkcheckclient import DEFAULT_BASE_URL as OOK_DEFAULT_BASE_URL
-from ._utils import GitRepository
+from ._utils import GitRepository, normalize_origin_base_url
 
 __all__ = [
     "ConfigRoot",
@@ -40,23 +40,6 @@ __all__ = [
     "SphinxModel",
     "ThemeModel",
 ]
-
-
-def _normalize_origin_base_url(url: str) -> str:
-    """Normalize an origin base URL the way the Ook link-check service
-    does: lowercase the host and strip any trailing slash (queries and
-    fragments are dropped).
-    """
-    parts = urlsplit(url)
-    return urlunsplit(
-        (
-            parts.scheme.lower(),
-            parts.netloc.lower(),
-            parts.path.rstrip("/"),
-            "",
-            "",
-        )
-    )
 
 
 class OpenApiGeneratorModel(BaseModel):
@@ -576,13 +559,13 @@ class DocumenteerConfig:
         available.
         """
         if self._linkcheck.origin_base_url:
-            return _normalize_origin_base_url(
+            return normalize_origin_base_url(
                 str(self._linkcheck.origin_base_url)
             )
         base_url = self.base_url
         if not base_url:
             return None
-        return _normalize_origin_base_url(base_url)
+        return normalize_origin_base_url(base_url)
 
     def append_nitpick_ignore(
         self, nitpick_ignore: list[tuple[str, str]]
