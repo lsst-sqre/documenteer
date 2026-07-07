@@ -203,6 +203,18 @@ jobs:
           UV_PYTHON: ${{ env.PYTHON_VERSION }}
           OOK_TOKEN: ${{ secrets.OOK_TOKEN }}
 
+      # Upload the machine-readable link-check results for review from the
+      # Actions UI. Runs even when docs-linkcheck fails (broken links) so the
+      # JSON is available for triage; may be absent if the service degraded.
+      - name: Upload link-check results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linkcheck-results
+          path: docs/_build/linkcheck/linkcheck.json
+          if-no-files-found: warn
+          retention-days: 7
+
       # Only attempt documentation uploads for tagged releases and pull
       # requests from ticket branches in the same repository.  This avoids
       # version clutter in the docs and failures when a PR doesn't have access
