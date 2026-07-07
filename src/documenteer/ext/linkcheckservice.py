@@ -64,9 +64,10 @@ def resolve_default_branch_flag(
 ) -> bool:
     """Determine whether this build is a default-branch build.
 
-    Only default-branch submissions replace an LTD project's recorded URL
-    occurrences in the link-check service; all submissions receive full
-    results.
+    Default-branch builds are submitted to the link-check service as
+    default-version builds of the origin website. Only default-version
+    submissions replace the origin's recorded URL occurrences; all
+    submissions receive full results.
 
     Parameters
     ----------
@@ -111,12 +112,12 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         """Submit the collected hyperlinks to the link-check service and
         report the results.
         """
-        slug = self.config.documenteer_linkcheck_slug
-        if not slug:
+        origin_base_url = self.config.documenteer_linkcheck_origin_base_url
+        if not origin_base_url:
             logger.warning(
-                "No LSST the Docs project slug is available for the "
-                "link-check service. Set project.base_url or "
-                "[sphinx.linkcheck] slug in documenteer.toml."
+                "No origin base URL is available for the link-check "
+                "service. Set project.base_url or [sphinx.linkcheck] "
+                "origin_base_url in documenteer.toml."
             )
             return
 
@@ -126,8 +127,8 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             return
 
         request = LinkCheckRequest(
-            ltd_slug=slug,
-            default_branch=resolve_default_branch_flag(
+            origin_base_url=origin_base_url,
+            is_default_version=resolve_default_branch_flag(
                 os.environ,
                 self.config.documenteer_linkcheck_default_branch_name,
             ),
@@ -137,14 +138,18 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             base_url=self.config.documenteer_linkcheck_service_url
         )
         logger.info(
-            "Submitting %d URLs to the link-check service for project %s",
+            "Submitting %d URLs to the link-check service for %s",
             len(urls),
-            slug,
+            origin_base_url,
         )
-        check = client.submit_check(request)
+        # A 200 submission response means the check completed at
+        # submission and its body already holds the full results; a 202
+        # response's body is the pending check, polled at the Location
+        # header (or its self_url) until complete.
+        check, poll_url = client.submit_check(request)
         if check.status is not CheckRunStatus.complete:
             check = client.poll_check(
-                check.id,
+                poll_url,
                 budget=self.config.documenteer_linkcheck_poll_budget,
             )
         self._report(check)
@@ -162,7 +167,9 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         for uri, hyperlink in self.hyperlinks.items():
             if any(pattern.match(uri) for pattern in ignore_patterns):
                 continue
-            urls.append(SubmittedUrl(url=uri, paths=[hyperlink.docname]))
+            urls.append(
+                SubmittedUrl(url=uri, origin_paths=[hyperlink.docname])
+            )
         return urls
 
     def _report(self, check: LinkCheck) -> None:
@@ -261,7 +268,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     )
     app.add_config_value("documenteer_linkcheck_poll_budget", 300, "")
     app.add_config_value("documenteer_linkcheck_strict", False, "")
-    app.add_config_value("documenteer_linkcheck_slug", None, "")
+    app.add_config_value("documenteer_linkcheck_origin_base_url", None, "")
     app.add_config_value(
         "documenteer_linkcheck_default_branch_name", "main", ""
     )

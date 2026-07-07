@@ -36,19 +36,23 @@ def _checked_url(url: str, status: str = "ok", **overrides: Any) -> dict:
     return result
 
 
-def _check_response(urls: list[dict], *, check_id: int = 7) -> dict:
-    """Create a completed link-check payload for a mocked Ook API."""
+def _check_response(
+    urls: list[dict], *, check_id: int = 7, status: str = "complete"
+) -> dict:
+    """Create a link-check payload for a mocked Ook API."""
     summary: dict[str, int] = {}
     for url in urls:
         summary[url["status"]] = summary.get(url["status"], 0) + 1
     return {
         "id": check_id,
         "self_url": f"{OOK_BASE_URL}/linkcheck/checks/{check_id}",
-        "ltd_slug": "example",
-        "default_branch": False,
-        "status": "complete",
+        "origin_base_url": "https://example.lsst.io",
+        "is_default_version": False,
+        "status": status,
         "date_created": "2026-07-06T12:00:00Z",
-        "date_completed": "2026-07-06T12:00:05Z",
+        "date_completed": (
+            "2026-07-06T12:00:05Z" if status == "complete" else None
+        ),
         "summary": summary,
         "urls": urls,
     }
@@ -57,14 +61,25 @@ def _check_response(urls: list[dict], *, check_id: int = 7) -> dict:
 def _mock_submit_check(
     responses: RequestsMock, urls: list[dict], *, check_id: int = 7
 ) -> None:
-    """Register mocked responses for the async submit-then-poll flow:
-    a 202 with a Location header, followed by a completed check at that
-    location.
+    """Register mocked responses for the async submit-then-poll flow: a
+    202 whose body is the pending check and whose Location header is the
+    poll URL, followed by the completed check at that location.
     """
     check_url = f"{OOK_BASE_URL}/linkcheck/checks/{check_id}"
+    pending_urls = [
+        {
+            **url,
+            "status": "pending",
+            "status_code": None,
+            "checked_at": None,
+        }
+        for url in urls
+    ]
     responses.post(
         f"{OOK_BASE_URL}/linkcheck/checks",
-        body="",
+        json=_check_response(
+            pending_urls, check_id=check_id, status="pending"
+        ),
         status=202,
         headers={"Location": check_url},
     )
@@ -72,6 +87,21 @@ def _mock_submit_check(
         check_url,
         json=_check_response(urls, check_id=check_id),
         status=200,
+    )
+
+
+def _mock_submit_check_completed(
+    responses: RequestsMock, urls: list[dict], *, check_id: int = 7
+) -> None:
+    """Register a mocked 200 submission response: the check completed at
+    submission and its body already carries the full results.
+    """
+    check_url = f"{OOK_BASE_URL}/linkcheck/checks/{check_id}"
+    responses.post(
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        json=_check_response(urls, check_id=check_id),
+        status=200,
+        headers={"Location": check_url},
     )
 
 
@@ -169,18 +199,21 @@ def test_guide_linkcheck_happy_path(
     assert app.statuscode == 0
 
     # A submission and a poll were made, with bearer auth from OOK_TOKEN.
+    # The 202 response's Location header is the poll URL.
     assert len(responses.calls) == 2
     api_request = responses.calls[0].request
     assert api_request.headers["Authorization"] == "Bearer test-token"
+    poll_request = responses.calls[1].request
+    assert poll_request.url == f"{OOK_BASE_URL}/linkcheck/checks/7"
 
-    # The submission payload carries the slug derived from base_url's
-    # subdomain, the default-branch flag from the GitHub Actions env, and
-    # the URL + page-path list.
+    # The submission payload carries the origin base URL derived from
+    # project.base_url, the default-version flag from the GitHub Actions
+    # env, and the URL + page-path list.
     assert api_request.body is not None
     payload = json.loads(api_request.body)
-    assert payload["ltd_slug"] == "example"
-    assert payload["default_branch"] is True
-    submitted = {url["url"]: url["paths"] for url in payload["urls"]}
+    assert payload["origin_base_url"] == "https://example.lsst.io"
+    assert payload["is_default_version"] is True
+    submitted = {url["url"]: url["origin_paths"] for url in payload["urls"]}
     assert submitted == {
         "https://example.com/page": ["index"],
         "https://www.lsst.io/": ["index"],
@@ -192,6 +225,45 @@ def test_guide_linkcheck_happy_path(
     assert not any(url.startswith("https://ls.st/") for url in submitted)
 
     # A summary is printed.
+    status_output = app.status.getvalue()
+    assert "Link check complete (Ook check id: 7)" in status_output
+    assert "ok: 3" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-immediate",
+)
+def test_submission_completed_at_200(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 submission response means the check completed at submission:
+    the results are reported straight from the POST body with no polling
+    round-trip.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    checked_urls = [
+        _checked_url(url)
+        for url in (
+            "https://example.com/page",
+            "https://www.lsst.io/",
+            "https://example.org/resource",
+        )
+    ]
+    _mock_submit_check_completed(responses, checked_urls)
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    # Only the POST was made: no polling round-trip.
+    assert len(responses.calls) == 1
+
+    # The results from the POST body are reported.
     status_output = app.status.getvalue()
     assert "Link check complete (Ook check id: 7)" in status_output
     assert "ok: 3" in status_output

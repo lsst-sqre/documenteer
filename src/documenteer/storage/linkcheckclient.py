@@ -6,6 +6,7 @@ import os
 import time
 from datetime import datetime
 from enum import StrEnum
+from typing import NamedTuple
 
 import requests
 from pydantic import BaseModel, Field
@@ -26,6 +27,7 @@ __all__ = [
     "LinkCheckTimeoutError",
     "LinkCheckUnauthorizedError",
     "LinkCheckUnreachableError",
+    "SubmittedCheck",
     "SubmittedUrl",
 ]
 
@@ -76,11 +78,11 @@ class SubmittedUrl(BaseModel):
 
     url: str = Field(description="The URL to check.")
 
-    paths: list[str] = Field(
+    origin_paths: list[str] = Field(
         default_factory=list,
         description=(
-            "Page paths where the URL occurs, relative to the project's "
-            "documentation root."
+            "Page paths where the URL occurs, relative to the origin's "
+            "base URL."
         ),
     )
 
@@ -88,15 +90,21 @@ class SubmittedUrl(BaseModel):
 class LinkCheckRequest(BaseModel):
     """The submission payload for a link check."""
 
-    ltd_slug: str = Field(
-        description="The LSST the Docs project slug the submission is for."
+    origin_base_url: str = Field(
+        description=(
+            "The base URL of the website the submission is for (e.g. "
+            "https://documenteer.lsst.io). Must be an absolute http(s) URL "
+            "without a query or fragment; path-bearing bases are allowed. "
+            "The service normalizes it by lowercasing the host and "
+            "stripping any trailing slash."
+        )
     )
 
-    default_branch: bool = Field(
+    is_default_version: bool = Field(
         description=(
-            "Whether the submission is a default-branch build. Only "
-            "default-branch submissions replace the project's recorded URL "
-            "occurrences."
+            "Whether the submission is a build of the origin's default "
+            "version. Only default-version submissions replace the origin's "
+            "recorded URL occurrences."
         )
     )
 
@@ -169,14 +177,18 @@ class LinkCheck(BaseModel):
 
     self_url: str = Field(description="URL to access this check in the API.")
 
-    ltd_slug: str = Field(
+    origin_base_url: str = Field(
         description=(
-            "The LSST the Docs project slug the check was submitted for."
+            "The normalized base URL of the origin website the check was "
+            "submitted for."
         )
     )
 
-    default_branch: bool = Field(
-        description="Whether the submission is a default-branch build."
+    is_default_version: bool = Field(
+        description=(
+            "Whether the submission is a build of the origin's default "
+            "version."
+        )
     )
 
     status: CheckRunStatus = Field(
@@ -197,6 +209,18 @@ class LinkCheck(BaseModel):
     urls: list[CheckedUrl] = Field(
         description="Per-URL results, ordered by URL."
     )
+
+
+class SubmittedCheck(NamedTuple):
+    """The outcome of submitting a link check to the service."""
+
+    check: LinkCheck
+    """The created link check, parsed from the submission response body."""
+
+    poll_url: str
+    """URL to poll the check at, from the ``Location`` header (or the
+    check's ``self_url`` if the header is absent).
+    """
 
 
 class LinkCheckClient:
@@ -229,7 +253,7 @@ class LinkCheckClient:
             session if session is not None else requests_retry_session()
         )
 
-    def submit_check(self, request: LinkCheckRequest) -> LinkCheck:
+    def submit_check(self, request: LinkCheckRequest) -> SubmittedCheck:
         """Submit a link check to the service.
 
         Parameters
@@ -239,24 +263,19 @@ class LinkCheckClient:
 
         Returns
         -------
-        LinkCheck
-            The created link check. Its ``status`` may already be
-            ``complete`` if every URL resolved from the service's cache;
-            otherwise poll with `poll_check`.
+        SubmittedCheck
+            The created link check and the URL to poll it at. The service
+            returns the check resource as the response body for both a
+            200 (completed at submission: every URL resolved immediately,
+            so the results are already in the body) and a 202 (accepted
+            with URLs still to resolve: poll at ``poll_url`` with
+            `poll_check` until the check's ``status`` is ``complete``).
         """
         url = f"{self._base_url}/linkcheck/checks"
         r = self._request("POST", url, json_payload=request.model_dump())
-        # The service accepts the submission asynchronously (HTTP 202)
-        # with an empty body, returning the check's URL in the Location
-        # header rather than the check itself.
-        location = r.headers.get("Location")
-        if not location:
-            raise LinkCheckServiceError(
-                f"The link-check service at {url} did not return a "
-                "Location header for the submitted check."
-            )
-        r = self._request("GET", location)
-        return LinkCheck.model_validate_json(r.text)
+        check = LinkCheck.model_validate_json(r.text)
+        poll_url = r.headers.get("Location") or check.self_url
+        return SubmittedCheck(check=check, poll_url=poll_url)
 
     def get_check(self, check_id: int) -> LinkCheck:
         """Get a link check by its identifier.
@@ -271,13 +290,11 @@ class LinkCheckClient:
         LinkCheck
             The link check with its current status and per-URL results.
         """
-        url = f"{self._base_url}/linkcheck/checks/{check_id}"
-        r = self._request("GET", url)
-        return LinkCheck.model_validate_json(r.text)
+        return self._get_check(f"{self._base_url}/linkcheck/checks/{check_id}")
 
     def poll_check(
         self,
-        check_id: int,
+        poll_url: str,
         *,
         budget: float = 300.0,
         initial_interval: float = 1.0,
@@ -287,8 +304,10 @@ class LinkCheckClient:
 
         Parameters
         ----------
-        check_id
-            Identifier of the link check, from `LinkCheck.id`.
+        poll_url
+            URL of the link check in the API, from
+            `SubmittedCheck.poll_url` (the submission's ``Location``
+            header, falling back to the check's ``self_url``).
         budget
             Maximum time to wait for the check to complete, in seconds.
         initial_interval
@@ -311,16 +330,21 @@ class LinkCheckClient:
         deadline = time.monotonic() + budget
         interval = initial_interval
         while True:
-            check = self.get_check(check_id)
+            check = self._get_check(poll_url)
             if check.status is CheckRunStatus.complete:
                 return check
             if time.monotonic() + interval > deadline:
                 raise LinkCheckTimeoutError(
-                    f"Ook link check {check_id} did not complete within "
-                    f"the {budget} second polling budget."
+                    f"The Ook link check at {poll_url} did not complete "
+                    f"within the {budget} second polling budget."
                 )
             time.sleep(interval)
             interval = min(interval * 2.0, max_interval)
+
+    def _get_check(self, url: str) -> LinkCheck:
+        """Get a link check at its API URL."""
+        r = self._request("GET", url)
+        return LinkCheck.model_validate_json(r.text)
 
     def _request(
         self,

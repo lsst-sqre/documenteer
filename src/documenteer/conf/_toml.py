@@ -13,7 +13,7 @@ from importlib.metadata import PackageNotFoundError, metadata
 from importlib.metadata import version as get_version
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from pydantic import (
     BaseModel,
@@ -40,6 +40,23 @@ __all__ = [
     "SphinxModel",
     "ThemeModel",
 ]
+
+
+def _normalize_origin_base_url(url: str) -> str:
+    """Normalize an origin base URL the way the Ook link-check service
+    does: lowercase the host and strip any trailing slash (queries and
+    fragments are dropped).
+    """
+    parts = urlsplit(url)
+    return urlunsplit(
+        (
+            parts.scheme.lower(),
+            parts.netloc.lower(),
+            parts.path.rstrip("/"),
+            "",
+            "",
+        )
+    )
 
 
 class OpenApiGeneratorModel(BaseModel):
@@ -214,12 +231,14 @@ class LinkCheckModel(BaseModel):
         ),
     )
 
-    slug: str | None = Field(
+    origin_base_url: HttpUrl | None = Field(
         None,
         description=(
-            "LSST the Docs project slug override for the link-check "
-            "service. By default the slug is derived from the subdomain of "
-            "project.base_url."
+            "Origin base URL override for the link-check service: the "
+            "full base URL of the website the links are submitted for "
+            "(e.g. https://documenteer.lsst.io). By default the origin "
+            "is project.base_url. The URL is normalized by lowercasing "
+            "the host and stripping any trailing slash."
         ),
     )
 
@@ -547,24 +566,23 @@ class DocumenteerConfig:
         return self._linkcheck.strict
 
     @property
-    def linkcheck_ltd_slug(self) -> str | None:
-        """The LSST the Docs project slug for the link-check service.
+    def linkcheck_origin_base_url(self) -> str | None:
+        """The origin base URL for the link-check service.
 
-        The slug is the ``[sphinx.linkcheck] slug`` override if set;
-        otherwise it is derived from the subdomain of the project's base
-        URL (e.g. ``https://example.lsst.io`` yields ``example``). `None`
-        if neither is available.
+        The origin is the ``[sphinx.linkcheck] origin_base_url`` override
+        if set; otherwise it is the project's base URL. Either way it is
+        normalized (lowercased host, trailing slash stripped) to match
+        the service's origin normalization. `None` if neither is
+        available.
         """
-        if self._linkcheck.slug:
-            return self._linkcheck.slug
+        if self._linkcheck.origin_base_url:
+            return _normalize_origin_base_url(
+                str(self._linkcheck.origin_base_url)
+            )
         base_url = self.base_url
         if not base_url:
             return None
-        hostname = urlparse(base_url).hostname
-        if not hostname:
-            return None
-        subdomain = hostname.split(".")[0]
-        return subdomain or None
+        return _normalize_origin_base_url(base_url)
 
     def append_nitpick_ignore(
         self, nitpick_ignore: list[tuple[str, str]]

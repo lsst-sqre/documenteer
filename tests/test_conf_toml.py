@@ -205,7 +205,7 @@ use_service = false
 service_url = "https://roundtable-dev.lsst.cloud/ook"
 poll_budget = 60
 strict = true
-slug = "custom-slug"
+origin_base_url = "https://Custom.LSST.io/guides/"
 """
 
 
@@ -234,19 +234,23 @@ def test_linkcheck_service_settings() -> None:
     assert config.linkcheck_strict is True
 
 
-def test_linkcheck_slug_derived_from_base_url() -> None:
-    """The LTD slug is derived from the base_url subdomain."""
+def test_linkcheck_origin_derived_from_base_url() -> None:
+    """The origin base URL is derived from project.base_url, normalized
+    without a trailing slash.
+    """
     config = DocumenteerConfig.load(EXAMPLE)
-    assert config.linkcheck_ltd_slug == "documenteer"
+    assert config.linkcheck_origin_base_url == "https://documenteer.lsst.io"
 
 
-def test_linkcheck_slug_override() -> None:
-    """[sphinx.linkcheck] slug overrides the derived slug."""
+def test_linkcheck_origin_override() -> None:
+    """[sphinx.linkcheck] origin_base_url overrides the derived origin
+    and is normalized (lowercased host, trailing slash stripped).
+    """
     config = DocumenteerConfig.load(EXAMPLE_LINKCHECK_SERVICE)
-    assert config.linkcheck_ltd_slug == "custom-slug"
+    assert config.linkcheck_origin_base_url == "https://custom.lsst.io/guides"
 
 
-def test_linkcheck_slug_no_base_url() -> None:
-    """Without a base URL or override, the derived slug is None."""
+def test_linkcheck_origin_no_base_url() -> None:
+    """Without a base URL or override, the origin base URL is None."""
     config = DocumenteerConfig.load(EXAMPLE_NO_SPHINX)
-    assert config.linkcheck_ltd_slug is None
+    assert config.linkcheck_origin_base_url is None
