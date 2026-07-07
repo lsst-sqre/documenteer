@@ -97,6 +97,31 @@ def resolve_default_branch_flag(
     return False
 
 
+def _is_checkable_uri(uri: str) -> bool:
+    """Whether a collected hyperlink URI is one the link-check service
+    should check.
+
+    This mirrors the pre-network guard in Sphinx's built-in linkcheck
+    builder (``HyperlinkAvailabilityCheckWorker._check`` in
+    ``sphinx/builders/linkcheck.py``): the built-in never checks empty
+    URIs, bare ``#fragment`` anchors, ``mailto:``/``tel:`` links, or
+    non-``http(s)`` schemes. Sphinx's ``HyperlinkCollector`` collects a
+    reference node's ``refuri`` verbatim (without requiring a ``://``
+    scheme), so those URIs reach this builder; submitting them to Ook is
+    wrong — fragment-only URIs in particular collapse to a spurious empty
+    URL once Ook strips the fragment.
+
+    Returns
+    -------
+    bool
+        `True` if the URI is an ``http``/``https`` URL that should be
+        submitted, `False` for the non-checkable URIs above.
+    """
+    if len(uri) == 0 or uri.startswith(("#", "mailto:", "tel:")):
+        return False
+    return uri.startswith(("http:", "https:"))
+
+
 class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
     """A linkcheck builder that checks links with Ook's link-check service.
 
@@ -188,14 +213,18 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
     def _collect_submission_urls(self) -> list[SubmittedUrl]:
         """Build the URL submission list from the collected hyperlinks.
 
-        The ``linkcheck_ignore`` patterns are applied client-side so
-        ignored URLs are never submitted to the service.
+        URIs that Sphinx's built-in linkcheck builder never checks are
+        filtered out (see `_is_checkable_uri`), and the ``linkcheck_ignore``
+        patterns are applied client-side, so neither non-checkable nor
+        ignored URLs are ever submitted to the service.
         """
         ignore_patterns = [
             re.compile(pattern) for pattern in self.config.linkcheck_ignore
         ]
         urls: list[SubmittedUrl] = []
         for uri, hyperlink in self.hyperlinks.items():
+            if not _is_checkable_uri(uri):
+                continue
             if any(pattern.match(uri) for pattern in ignore_patterns):
                 continue
             urls.append(

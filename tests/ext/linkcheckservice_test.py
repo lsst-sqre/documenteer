@@ -237,6 +237,65 @@ def test_guide_linkcheck_happy_path(
 
 
 @pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service-filter",
+    srcdir="linkcheck-service-filter",
+)
+def test_non_checkable_uris_filtered(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """URIs the built-in linkcheck builder never checks are filtered out
+    client-side, so they are never submitted to the service.
+
+    Sphinx's HyperlinkCollector collects a reference node's ``refuri``
+    verbatim, including bare ``#fragment`` anchors, ``mailto:``/``tel:``
+    links, and non-http(s) schemes. Without this filter those URIs get
+    submitted (and Ook collapses fragment-only URIs to a spurious empty
+    URL). Real http(s) URLs — minus ``linkcheck_ignore`` matches — are
+    still submitted.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+
+    checked_urls = [
+        _checked_url(url)
+        for url in (
+            "https://example.com/page",
+            "https://www.lsst.io/",
+        )
+    ]
+    _mock_submit_check(responses, checked_urls)
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    api_request = responses.calls[0].request
+    assert api_request.body is not None
+    payload = json.loads(api_request.body)
+    submitted = {url["url"] for url in payload["urls"]}
+
+    # Only real http(s) URLs are submitted.
+    assert submitted == {
+        "https://example.com/page",
+        "https://www.lsst.io/",
+    }
+
+    # Non-checkable URIs never appear in the submission payload: empty or
+    # fragment-only anchors, mailto:, tel:, and non-http(s) schemes.
+    assert not any(uri == "" or uri.startswith("#") for uri in submitted)
+    assert not any(uri.startswith("mailto:") for uri in submitted)
+    assert not any(uri.startswith("tel:") for uri in submitted)
+    assert not any(uri.startswith("ftp:") for uri in submitted)
+
+    # linkcheck_ignore filtering still applies alongside the new filter
+    # (the guide preset ignores https://ls.st/).
+    assert not any(uri.startswith("https://ls.st/") for uri in submitted)
+
+
+@pytest.mark.skipif(
     not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
 )
 @pytest.mark.sphinx(
