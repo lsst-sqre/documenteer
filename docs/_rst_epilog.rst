@@ -47,6 +47,7 @@
 .. _pytest: https://pytest.org
 .. _toctree: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree
 .. _linkcheck: https://www.sphinx-doc.org/en/master/usage/configuration.html?#options-for-the-linkcheck-builder
+.. _Ook: https://github.com/lsst-sqre/ook
 .. _Redoc: https://redocly.com/redoc/
 .. _rst_epilog: https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=rst_epilog#confval-rst_epilog
 .. _napoleon: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html

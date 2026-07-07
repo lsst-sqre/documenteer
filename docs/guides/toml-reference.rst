@@ -497,7 +497,25 @@ See the Intersphinx_ documentation for details on linking to other Sphinx projec
 
 |optional|
 
-Configurations related to Sphinx's linkcheck_ builder.
+Configurations for the ``linkcheck`` builder, which checks the external links in the documentation.
+
+By default, Documenteer replaces Sphinx's built-in linkcheck_ builder with a builder backed by the Ook_ link-check service (the ``documenteer.ext.linkcheckservice`` extension).
+Instead of checking every link in-process, the builder submits the project's external links to the service and polls for the results.
+The service caches results and retries failing links over time, so documentation builds no longer fail on transient third-party outages.
+
+The service requires a bearer token for the Ook API, read from the ``OOK_TOKEN`` environment variable.
+If the token is missing or rejected, the service is unreachable, or the polling budget is exhausted, the build *degrades gracefully* by default: the builder emits a warning and the build finishes with a zero exit status.
+Set :ref:`strict <guide-sphinx-linkcheck-strict>` to ``true`` to fail the build on those conditions instead.
+Links the service reports as broken always fail the build, regardless of the ``strict`` setting.
+
+.. note::
+
+   **Technotes** use the same service-backed ``linkcheck`` builder, but technotes don't read :file:`documenteer.toml`, so the settings below don't apply to them.
+   Instead, the technote configuration preset derives the origin base URL from the ``canonical_url`` setting in the ``[technote]`` table of :file:`technote.toml`, falling back to the technote's handle as ``https://<handle>.lsst.io``.
+   The other settings keep their defaults.
+
+   A technote can override any of these settings through the corresponding ``documenteer_linkcheck_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
+   For example, ``documenteer_linkcheck_use_service = False`` restores Sphinx's built-in linkcheck builder, and ``documenteer_linkcheck_strict = True`` enables strict mode.
 
 ignore
 ------
@@ -506,3 +524,80 @@ ignore
 
 List of URL regular expressions patterns to ignore checking.
 These are appended to the ``linkcheck_ignore`` configuration.
+
+Ignored URLs apply to both the service-backed builder (matching URLs are never submitted to the service) and Sphinx's built-in linkcheck_ builder.
+
+.. _guide-sphinx-linkcheck-use-service:
+
+use_service
+-----------
+
+|optional|
+
+Whether to check links with the Ook_ link-check service instead of Sphinx's built-in linkcheck_ builder.
+Default is ``true``.
+
+Set this to ``false`` as an escape hatch to restore Sphinx's built-in ``linkcheck`` builder, which checks each link in-process and doesn't require an Ook API token:
+
+.. code-block:: toml
+
+   [sphinx.linkcheck]
+   use_service = false
+
+.. _guide-sphinx-linkcheck-service-url:
+
+service_url
+-----------
+
+|optional|
+
+Base URL of the Ook API that hosts the link-check service.
+Default is ``https://roundtable.lsst.cloud/ook``.
+
+.. _guide-sphinx-linkcheck-poll-budget:
+
+poll_budget
+-----------
+
+|optional|
+
+Maximum time, in seconds, to wait for link-check results from the service.
+Default is ``300``.
+
+If the budget is exhausted before the service completes the check, the build emits a warning and continues — or fails, if :ref:`strict <guide-sphinx-linkcheck-strict>` is ``true``.
+
+.. _guide-sphinx-linkcheck-strict:
+
+strict
+------
+
+|optional|
+
+Whether link-check service problems fail the build.
+Default is ``false``: when the service is unavailable (an unreachable service, a missing or rejected ``OOK_TOKEN``, or an exhausted :ref:`poll_budget <guide-sphinx-linkcheck-poll-budget>`), the builder emits a warning and the build finishes with a zero exit status.
+Set this to ``true`` to fail the build on those conditions instead:
+
+.. code-block:: toml
+
+   [sphinx.linkcheck]
+   strict = true
+
+This setting only gates service *availability* problems.
+Links the service reports as broken always fail the build, regardless of this setting.
+
+.. _guide-sphinx-linkcheck-origin-base-url:
+
+origin_base_url
+---------------
+
+|optional|
+
+The origin base URL the links are submitted for: the full base URL of the published website (for example, ``https://documenteer.lsst.io``).
+The link-check service uses the origin to associate the submitted URLs with the website.
+By default the origin is the :ref:`project.base_url <guide-project-base-url>` setting, so most guides don't need to set this override.
+The URL is normalized the way the service normalizes origins: the host is lowercased and any trailing slash is stripped.
+
+.. code-block:: toml
+
+   [sphinx.linkcheck]
+   origin_base_url = "https://documenteer.lsst.io"
