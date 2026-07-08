@@ -504,8 +504,10 @@ Instead of checking every link in-process, the builder submits the project's ext
 The service caches results and retries failing links over time, so documentation builds no longer fail on transient third-party outages.
 
 The service requires a bearer token for the Ook API, read from the ``OOK_TOKEN`` environment variable.
-If the token is missing or rejected, the service is unreachable, or the polling budget is exhausted, the build *degrades gracefully* by default: the builder emits a warning and the build finishes with a zero exit status.
-Set :ref:`strict <guide-sphinx-linkcheck-strict>` to ``true`` to fail the build on those conditions instead.
+If the token is missing or rejected, the builder *falls back* to Sphinx's built-in in-process linkcheck_ builder in every mode, so link checking still runs for projects that haven't configured the token (for example, fork pull requests where secrets are unavailable, or CI that doesn't forward the token).
+The built-in check's own result then decides the build's exit status.
+If instead the service is unreachable or the polling budget is exhausted, the build *degrades gracefully* by default: the builder emits a warning and the build finishes with a zero exit status.
+Set :ref:`strict <guide-sphinx-linkcheck-strict>` to ``true`` to fail the build on those service problems instead.
 Links the service reports as broken always fail the build, regardless of the ``strict`` setting.
 
 .. note::
@@ -544,6 +546,9 @@ Set this to ``false`` as an escape hatch to restore Sphinx's built-in ``linkchec
    [sphinx.linkcheck]
    use_service = false
 
+With ``use_service = false`` the built-in builder is selected outright and the service is never contacted, even when an ``OOK_TOKEN`` is set.
+This differs from the automatic token fallback under the default ``use_service = true``, where the builder uses the service when a token works and only falls back to the built-in in-process check when the ``OOK_TOKEN`` is missing or rejected.
+
 .. _guide-sphinx-linkcheck-service-url:
 
 service_url
@@ -573,8 +578,8 @@ strict
 
 |optional|
 
-Whether link-check service problems fail the build.
-Default is ``false``: when the service is unavailable (an unreachable service, a missing or rejected ``OOK_TOKEN``, or an exhausted :ref:`poll_budget <guide-sphinx-linkcheck-poll-budget>`), the builder emits a warning and the build finishes with a zero exit status.
+Whether genuine link-check service problems fail the build.
+Default is ``false``: when the service is unreachable or the :ref:`poll_budget <guide-sphinx-linkcheck-poll-budget>` is exhausted, the builder emits a warning and the build finishes with a zero exit status.
 Set this to ``true`` to fail the build on those conditions instead:
 
 .. code-block:: toml
@@ -582,7 +587,8 @@ Set this to ``true`` to fail the build on those conditions instead:
    [sphinx.linkcheck]
    strict = true
 
-This setting only gates service *availability* problems.
+This setting only gates genuine service *availability* problems.
+A missing or rejected ``OOK_TOKEN`` is not one of them: rather than failing, the builder falls back to Sphinx's built-in in-process linkcheck_ builder in every mode (including under ``strict``), so link checking still runs.
 Links the service reports as broken always fail the build, regardless of this setting.
 
 .. _guide-sphinx-linkcheck-origin-base-url:

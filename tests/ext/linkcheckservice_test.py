@@ -26,6 +26,27 @@ _HAS_TECHNOTE_DEPS = importlib.util.find_spec("technote") is not None
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
+# The external http(s) URLs the shared ``linkcheck-service`` test root
+# references that Sphinx's built-in checker actually requests (the guide
+# preset's linkcheck_ignore drops https://ls.st/, so it is never fetched).
+TESTROOT_EXTERNAL_URLS = [
+    "https://example.com/page",
+    "https://www.lsst.io/",
+    "https://example.org/resource",
+]
+
+
+def _mock_builtin_head_ok(responses: RequestsMock, urls: list[str]) -> None:
+    """Register 200 HEAD responses for the built-in linkcheck fallback.
+
+    Sphinx's built-in ``CheckExternalLinksBuilder`` checks each external
+    URL with a HEAD request (falling back to GET only if HEAD fails), so a
+    200 HEAD response marks the link ``ok``. Registering exactly the URLs
+    the built-in will request keeps ``assert_all_requests_are_fired`` happy.
+    """
+    for url in urls:
+        responses.head(url, status=200)
+
 
 def _checked_url(url: str, status: str = "ok", **overrides: Any) -> dict:
     """Create a per-URL result for a mocked Ook link-check response.
@@ -703,25 +724,116 @@ def test_unreachable_service_degrades(
     testroot="linkcheck-service",
     srcdir="linkcheck-service-no-token",
 )
-def test_missing_token_degrades(
+def test_missing_token_falls_back_to_builtin(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
     """A missing OOK_TOKEN (e.g. a fork's PR build, where secrets are
-    unavailable) degrades gracefully by default: the build warns that the
-    link check was skipped and exits 0, without contacting the service.
+    unavailable) falls back to Sphinx's built-in in-process link checker
+    rather than skipping, so link checking still runs. The service is
+    never contacted (the client's token guard raises first).
     """
     monkeypatch.delenv("OOK_TOKEN", raising=False)
+    _mock_builtin_head_ok(responses, TESTROOT_EXTERNAL_URLS)
+
+    app.build()
+
+    # The built-in checker ran and every link resolved, so the build
+    # exits 0 — not the old silent skip, which also exited 0 but checked
+    # nothing (the broken-link test below proves the check really runs).
+    assert app.statuscode == 0
+
+    # The Ook service is never contacted without a token.
+    assert not any(
+        (call.request.url or "").startswith(OOK_BASE_URL)
+        for call in responses.calls
+    )
+
+    # The built-in checker wrote its own report; the service artifact was
+    # not written.
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
+
+    # The fallback is announced at info level (in the status stream), so a
+    # warnings-as-errors (-W) build does not fail on it.
+    status_output = app.status.getvalue()
+    assert "falling back to Sphinx's built-in" in status_output
+    assert "No Ook API token is available" in status_output
+    assert "falling back" not in app.warning.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-no-token-broken",
+)
+def test_missing_token_fallback_reports_broken_links(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The built-in fallback really checks links: a broken link found by
+    the in-process checker fails the build with a nonzero exit status,
+    proving the fallback is not a silent no-op.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+    # One link is broken (404 on both HEAD and the built-in's GET retry);
+    # the others resolve.
+    responses.head("https://example.com/page", status=404)
+    responses.get("https://example.com/page", status=404)
+    responses.head("https://www.lsst.io/", status=200)
+    responses.head("https://example.org/resource", status=200)
+
+    app.build()
+
+    # The built-in fallback found a broken link, so the build fails — a
+    # silent skip would have exited 0.
+    assert app.statuscode == 1
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-rejected-token",
+)
+def test_rejected_token_falls_back_to_builtin(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A rejected OOK_TOKEN (the service returns 401 on submit) falls back
+    to Sphinx's built-in in-process link checker, the same as a missing
+    token: the submission is attempted, rejected, and the build then runs
+    the built-in check.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "bad-token")
+    # The service rejects the submission...
+    responses.post(f"{OOK_BASE_URL}/linkcheck/checks", status=401)
+    # ...so the build falls back to the built-in in-process checker.
+    _mock_builtin_head_ok(responses, TESTROOT_EXTERNAL_URLS)
 
     app.build()
 
     assert app.statuscode == 0
-    warning_output = app.warning.getvalue()
-    assert "Link check skipped" in warning_output
-    assert "No Ook API token is available" in warning_output
-    assert "OOK_TOKEN" in warning_output
 
-    # The service is never contacted without a token.
-    assert len(responses.calls) == 0
+    # The submission was attempted (and rejected) before falling back.
+    service_calls = [
+        call
+        for call in responses.calls
+        if (call.request.url or "").startswith(OOK_BASE_URL)
+    ]
+    assert len(service_calls) == 1
+    assert service_calls[0].request.method == "POST"
+
+    # The built-in checker wrote its own report; no service artifact.
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
+
+    # The fallback is announced at info level.
+    assert "falling back to Sphinx's built-in" in app.status.getvalue()
 
 
 @pytest.mark.skipif(
@@ -809,20 +921,29 @@ def test_unreachable_service_strict_fails(
     srcdir="linkcheck-service-strict-no-token",
     confoverrides={"documenteer_linkcheck_strict": True},
 )
-def test_missing_token_strict_fails(
+def test_missing_token_strict_falls_back(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """With [sphinx.linkcheck] strict = true, a missing OOK_TOKEN fails
-    the build with a nonzero exit instead of degrading.
+    """With [sphinx.linkcheck] strict = true and no OOK_TOKEN, the build
+    still falls back to Sphinx's built-in in-process checker rather than
+    hard-failing: a missing token means the project isn't using the
+    service, so strict (which governs genuine service problems) does not
+    apply. The exit status comes from the built-in's real link results.
     """
     monkeypatch.delenv("OOK_TOKEN", raising=False)
+    _mock_builtin_head_ok(responses, TESTROOT_EXTERNAL_URLS)
 
     app.build()
 
-    assert app.statuscode == 1
-    warning_output = app.warning.getvalue()
-    assert "Link check failed" in warning_output
-    assert "No Ook API token is available" in warning_output
+    # Falls back and the built-in finds every link ok, so the build exits
+    # 0 even under strict — strict no longer hard-fails on a missing token.
+    assert app.statuscode == 0
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
+
+    # It fell back rather than reporting a strict service failure.
+    assert "falling back to Sphinx's built-in" in app.status.getvalue()
+    assert "Link check failed" not in app.warning.getvalue()
 
 
 @pytest.mark.skipif(

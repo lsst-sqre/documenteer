@@ -31,6 +31,7 @@ from ..storage.linkcheckclient import (
     LinkCheckClient,
     LinkCheckRequest,
     LinkCheckServiceError,
+    LinkCheckUnauthorizedError,
     SubmittedUrl,
 )
 from ..version import __version__
@@ -205,6 +206,14 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
     def finish(self) -> None:
         """Submit the collected hyperlinks to the link-check service and
         report the results.
+
+        When the ``OOK_TOKEN`` is missing or rejected, the builder falls
+        back to Sphinx's built-in in-process link checker
+        (`_fall_back_to_builtin`) in every mode, so link checking still
+        runs for projects that aren't using the service. Other service
+        problems — an unreachable service or an exhausted polling budget —
+        are routed to `_handle_service_error`, which skips by default and
+        fails only under ``[sphinx.linkcheck] strict = true``.
         """
         origin_base_url = self.config.documenteer_linkcheck_origin_base_url
         if not origin_base_url:
@@ -247,20 +256,59 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
                     poll_url,
                     budget=self.config.documenteer_linkcheck_poll_budget,
                 )
+        except LinkCheckUnauthorizedError as e:
+            # A missing or rejected OOK_TOKEN means this project isn't
+            # using the service; fall back to the built-in check in any
+            # mode (subclass must be caught before LinkCheckServiceError).
+            self._fall_back_to_builtin(e)
+            return
         except LinkCheckServiceError as e:
             self._handle_service_error(e)
             return
         self._report(check)
 
+    def _fall_back_to_builtin(self, error: LinkCheckUnauthorizedError) -> None:
+        """Fall back to Sphinx's built-in in-process link checker when the
+        Ook API token is unavailable.
+
+        A missing or rejected ``OOK_TOKEN`` means the project isn't using
+        the link-check service, so rather than skip link checking (a silent
+        regression for projects that already had a working ``linkcheck``
+        pipeline) the builder runs Sphinx's built-in
+        `~sphinx.builders.linkcheck.CheckExternalLinksBuilder` check
+        in-process via ``super().finish()``. That built-in check writes
+        ``output.txt``/``output.json`` and sets the exit status on broken
+        links, so its own result — not ``strict`` — decides whether the
+        build fails. For the missing-token case the client's token guard
+        raises before any request, so no wasted network call is made to the
+        service.
+
+        The message is logged at info level (not a warning) so a
+        warnings-as-errors (``-W``) build does not fail on this success
+        path, which is hit on every token-less build (mirrors the ``-W``
+        reasoning in `_report`).
+        """
+        logger.info(
+            "Ook API token unavailable (%s); falling back to Sphinx's "
+            "built-in in-process link checker so link checking still runs. "
+            "Set OOK_TOKEN to use the Ook link-check service, or "
+            "[sphinx.linkcheck] use_service = false to select the built-in "
+            "builder explicitly.",
+            error,
+        )
+        super().finish()
+
     def _handle_service_error(self, error: LinkCheckServiceError) -> None:
-        """Handle a link-check service problem (unreachable service,
-        missing/rejected token, or an exhausted polling budget).
+        """Handle a genuine link-check service problem: an unreachable
+        service or an exhausted polling budget.
 
         By default the build degrades gracefully: a warning is emitted
         and the build continues with a zero exit status, so documentation
         builds do not fail on a transient service problem. With
         ``[sphinx.linkcheck] strict = true`` in ``documenteer.toml`` the
-        same conditions fail the build instead.
+        same conditions fail the build instead. A missing or rejected
+        ``OOK_TOKEN`` is handled separately by `_fall_back_to_builtin`, not
+        here.
         """
         if self.config.documenteer_linkcheck_strict:
             logger.warning(
