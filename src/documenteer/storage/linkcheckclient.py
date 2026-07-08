@@ -169,6 +169,16 @@ class CheckedUrl(BaseModel):
         ),
     )
 
+    origin_paths: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Page paths where the URL occurs, echoed back from the "
+            "submission, relative to the origin's base URL. Defaults to an "
+            "empty list when the field is absent, tolerating an Ook that "
+            "does not yet report it."
+        ),
+    )
+
 
 class LinkCheck(BaseModel):
     """A submitted link check with its per-URL results."""

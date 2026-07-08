@@ -28,7 +28,12 @@ OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
 
 def _checked_url(url: str, status: str = "ok", **overrides: Any) -> dict:
-    """Create a per-URL result for a mocked Ook link-check response."""
+    """Create a per-URL result for a mocked Ook link-check response.
+
+    ``origin_paths`` — the referencing pages Ook echoes back for the URL —
+    defaults to ``["index"]`` (the single-page test roots' only docname);
+    pass it as an override for multi-page roots.
+    """
     result: dict[str, Any] = {
         "url": url,
         "status": status,
@@ -37,6 +42,7 @@ def _checked_url(url: str, status: str = "ok", **overrides: Any) -> dict:
         "redirect_url": None,
         "error": None,
         "checked_at": "2026-07-06T12:00:00Z",
+        "origin_paths": ["index"],
     }
     result.update(overrides)
     return result
@@ -912,6 +918,65 @@ def test_use_service_false_restores_builtin_builder(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
+    srcdir="linkcheck-service-response-pages",
+)
+def test_report_pages_from_response_origin_paths(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The pages reported for each link come from the poll response's
+    ``origin_paths``, not a locally-held submission-to-page map.
+
+    The single-page test root references every URL only from ``index``,
+    so page names other than ``index`` can only have come from the
+    response.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="broken",
+                status_code=404,
+                error="404 Not Found",
+                origin_paths=["contributing", "release-notes"],
+            ),
+            _checked_url(
+                "https://www.lsst.io/",
+                origin_paths=["release-notes"],
+            ),
+        ],
+    )
+
+    app.build()
+
+    # The broken link's detail line lists the pages from the response,
+    # not the local "index" the root actually references it from.
+    warning_output = app.warning.getvalue()
+    assert (
+        "broken: https://example.com/page "
+        "(page: contributing, release-notes)" in warning_output
+    )
+
+    # The JSON artifact sources each URL's pages from the response too.
+    data = json.loads((Path(app.outdir) / "linkcheck.json").read_text())
+    results = {url["url"]: url for url in data["urls"]}
+    assert results["https://example.com/page"]["pages"] == [
+        "contributing",
+        "release-notes",
+    ]
+    assert results["https://www.lsst.io/"]["pages"] == ["release-notes"]
+    # The artifact keeps its shape: a ``pages`` key, not the model's raw
+    # ``origin_paths`` field.
+    assert "origin_paths" not in results["https://example.com/page"]
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
     srcdir="linkcheck-service-artifact",
 )
 def test_json_artifact(
@@ -1042,19 +1107,27 @@ def test_multipage_url_submits_all_pages(
 def test_multipage_url_artifact_pages(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """The JSON artifact lists every referencing page for each URL, and the
-    per-URL join resolves even when Ook returns the canonical
-    (fragment-stripped) URL rather than the submitted fragment URL.
+    """The JSON artifact lists every referencing page for each URL,
+    sourced from the poll response's per-URL ``origin_paths``.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # Ook echoes each URL's referencing pages back in origin_paths,
+    # returning the fragment-stripped canonical URL for the submitted
+    # https://example.com/guide#intro.
     _mock_submit_check(
         responses,
         [
-            _checked_url("https://example.com/shared"),
-            # Ook returns the fragment-stripped canonical URL for the
-            # submitted https://example.com/guide#intro.
-            _checked_url("https://example.com/guide"),
-            _checked_url("https://example.org/only-a"),
+            _checked_url(
+                "https://example.com/shared",
+                origin_paths=["page-a", "page-b"],
+            ),
+            _checked_url(
+                "https://example.com/guide",
+                origin_paths=["page-a", "page-b"],
+            ),
+            _checked_url(
+                "https://example.org/only-a", origin_paths=["page-a"]
+            ),
         ],
     )
 
@@ -1063,13 +1136,13 @@ def test_multipage_url_artifact_pages(
     data = json.loads((Path(app.outdir) / "linkcheck.json").read_text())
     results = {url["url"]: url for url in data["urls"]}
 
-    # A URL referenced from both pages lists both, sorted.
+    # A URL referenced from both pages lists both, from origin_paths.
     assert results["https://example.com/shared"]["pages"] == [
         "page-a",
         "page-b",
     ]
-    # The canonical URL Ook returns still resolves to every referencing
-    # page despite the submitted URL carrying a #fragment.
+    # The canonical URL Ook returns carries every referencing page in its
+    # origin_paths, even though the submitted URL had a #fragment.
     assert results["https://example.com/guide"]["pages"] == [
         "page-a",
         "page-b",

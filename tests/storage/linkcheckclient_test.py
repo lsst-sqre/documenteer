@@ -262,6 +262,55 @@ def test_unreachable(responses: RequestsMock, monkeypatch: Any) -> None:
         client.submit_check(make_request())
 
 
+def test_checked_url_origin_paths_from_response(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A per-URL result's ``origin_paths`` are parsed from the poll
+    response, carrying the pages the URL occurs on.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    payload = make_check_payload(
+        urls=[
+            {
+                "url": "https://example.com/page",
+                "status": "ok",
+                "status_code": 200,
+                "redirect_status_code": None,
+                "redirect_url": None,
+                "error": None,
+                "checked_at": "2026-07-06T12:00:00Z",
+                "origin_paths": ["guide", "index"],
+            }
+        ],
+    )
+    responses.get(f"{BASE_URL}/linkcheck/checks/42", json=payload, status=200)
+
+    client = LinkCheckClient()
+    check = client.get_check(42)
+
+    assert check.urls[0].origin_paths == ["guide", "index"]
+
+
+def test_checked_url_origin_paths_default_empty(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A per-URL result without ``origin_paths`` (a not-yet-upgraded Ook)
+    defaults to an empty list rather than erroring.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # make_check_payload's default URL omits origin_paths.
+    responses.get(
+        f"{BASE_URL}/linkcheck/checks/42",
+        json=make_check_payload(),
+        status=200,
+    )
+
+    client = LinkCheckClient()
+    check = client.get_check(42)
+
+    assert check.urls[0].origin_paths == []
+
+
 def test_base_url_override(responses: RequestsMock, monkeypatch: Any) -> None:
     """The service base URL is configurable (trailing slash tolerated)."""
     monkeypatch.setenv("OOK_TOKEN", "test-token")

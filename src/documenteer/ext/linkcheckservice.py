@@ -293,30 +293,6 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             for uri, hyperlink in self.hyperlinks.items()
         }
 
-    @staticmethod
-    def _canonical_url(url: str) -> str:
-        """Return the canonical URL Ook keys results on.
-
-        Ook reports each result under its fragment-stripped URL
-        (`CheckedUrl.url`), so keys in the reporting/artifact page map are
-        normalized the same way for the per-URL join to resolve.
-        """
-        return url.split("#", 1)[0]
-
-    def _canonical_page_map(self) -> dict[str, list[str]]:
-        """Map each canonical (fragment-stripped) URL to the sorted set of
-        docnames that reference it.
-
-        Keyed to match the URLs Ook returns in its results, so both the
-        JSON artifact and the report detail lines resolve their pages even
-        when several ``#fragment`` variants of a URL collapse to one
-        canonical result.
-        """
-        merged: dict[str, set[str]] = {}
-        for uri, docnames in self._referencing_page_sets().items():
-            merged.setdefault(self._canonical_url(uri), set()).update(docnames)
-        return {url: sorted(docnames) for url, docnames in merged.items()}
-
     def _collect_submission_urls(self) -> list[SubmittedUrl]:
         """Build the URL submission list from the collected hyperlinks.
 
@@ -347,8 +323,7 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         ``failing``, and ``unsupported`` links are reported at info level
         so a warnings-as-errors (``-W``) build does not fail on them.
         """
-        pages = self._canonical_page_map()
-        artifact_path = self._write_json_artifact(check, pages)
+        artifact_path = self._write_json_artifact(check)
 
         logger.info("")
         logger.info("Link check complete: %s", check.self_url)
@@ -364,7 +339,7 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         for result in check.urls:
             if result.status in (CheckUrlStatus.ok, CheckUrlStatus.pending):
                 continue
-            message = self._describe_result(result, pages)
+            message = self._describe_result(result)
             # Only ``broken`` links fail the build (via the statuscode set
             # below), so they are reported as warnings. ``redirected``,
             # ``failing``, and ``unsupported`` links are reported at info
@@ -389,18 +364,18 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         sphinx_app = getattr(self, "_app", None) or self.app
         sphinx_app.statuscode = 1
 
-    def _write_json_artifact(
-        self, check: LinkCheck, pages: Mapping[str, list[str]]
-    ) -> Path:
+    def _write_json_artifact(self, check: LinkCheck) -> Path:
         """Write the machine-readable results artifact to the build
         output directory.
 
         The artifact holds the full check from the service, with each
-        per-URL result annotated with the pages the URL occurs on.
+        per-URL result annotated with the pages the URL occurs on. Those
+        pages come straight from the service's ``origin_paths``, surfaced
+        under the artifact's stable ``pages`` key.
         """
         data = check.model_dump(mode="json")
         for url_data in data["urls"]:
-            url_data["pages"] = pages.get(url_data["url"], [])
+            url_data["pages"] = url_data.pop("origin_paths")
         artifact_path = Path(self.outdir) / JSON_ARTIFACT_NAME
         artifact_path.write_text(
             json.dumps(data, indent=2) + "\n", encoding="utf-8"
@@ -408,11 +383,13 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         return artifact_path
 
     @staticmethod
-    def _describe_result(
-        result: CheckedUrl, pages: Mapping[str, list[str]]
-    ) -> str:
-        """Format the detail report line for one checked URL."""
-        page_list = ", ".join(pages.get(result.url, [])) or "unknown"
+    def _describe_result(result: CheckedUrl) -> str:
+        """Format the detail report line for one checked URL.
+
+        The pages the URL occurs on come from the service's per-URL
+        ``origin_paths``.
+        """
+        page_list = ", ".join(result.origin_paths) or "unknown"
         parts = [f"{result.status.value}: {result.url} (page: {page_list})"]
         if result.status_code is not None:
             parts.append(f"HTTP {result.status_code}")
