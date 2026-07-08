@@ -183,7 +183,13 @@ class CheckedUrl(BaseModel):
 class LinkCheck(BaseModel):
     """A submitted link check with its per-URL results."""
 
-    id: int = Field(description="The check's identifier.")
+    id: str = Field(
+        description=(
+            "The check's identifier, an opaque Ook Crockford base32 token "
+            "(e.g. ``a1b2-c3d4-e5f6-g7h8``). Treated as an opaque string; "
+            "it is never parsed or validated as a number."
+        )
+    )
 
     self_url: str = Field(description="URL to access this check in the API.")
 
@@ -287,13 +293,15 @@ class LinkCheckClient:
         poll_url = r.headers.get("Location") or check.self_url
         return SubmittedCheck(check=check, poll_url=poll_url)
 
-    def get_check(self, check_id: int) -> LinkCheck:
+    def get_check(self, check_id: str) -> LinkCheck:
         """Get a link check by its identifier.
 
         Parameters
         ----------
         check_id
-            Identifier of the link check, from `LinkCheck.id`.
+            Identifier of the link check, from `LinkCheck.id`. An opaque
+            token that is interpolated into the resource URL as-is, never
+            parsed as a number.
 
         Returns
         -------

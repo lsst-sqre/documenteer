@@ -26,6 +26,10 @@ _HAS_TECHNOTE_DEPS = importlib.util.find_spec("technote") is not None
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
+# An Ook Crockford base32 check id, treated as an opaque token by the
+# client (never parsed as a number).
+OOK_CHECK_ID = "a1b2-c3d4-e5f6-g7h8"
+
 # The external http(s) URLs the shared ``linkcheck-service`` test root
 # references that Sphinx's built-in checker actually requests (the guide
 # preset's linkcheck_ignore drops https://ls.st/, so it is never fetched).
@@ -70,7 +74,7 @@ def _checked_url(url: str, status: str = "ok", **overrides: Any) -> dict:
 
 
 def _check_response(
-    urls: list[dict], *, check_id: int = 7, status: str = "complete"
+    urls: list[dict], *, check_id: str = OOK_CHECK_ID, status: str = "complete"
 ) -> dict:
     """Create a link-check payload for a mocked Ook API."""
     summary: dict[str, int] = {}
@@ -92,7 +96,7 @@ def _check_response(
 
 
 def _mock_submit_check(
-    responses: RequestsMock, urls: list[dict], *, check_id: int = 7
+    responses: RequestsMock, urls: list[dict], *, check_id: str = OOK_CHECK_ID
 ) -> None:
     """Register mocked responses for the async submit-then-poll flow: a
     202 whose body is the pending check and whose Location header is the
@@ -124,7 +128,7 @@ def _mock_submit_check(
 
 
 def _mock_submit_check_completed(
-    responses: RequestsMock, urls: list[dict], *, check_id: int = 7
+    responses: RequestsMock, urls: list[dict], *, check_id: str = OOK_CHECK_ID
 ) -> None:
     """Register a mocked 200 submission response: the check completed at
     submission and its body already carries the full results.
@@ -237,7 +241,9 @@ def test_guide_linkcheck_happy_path(
     api_request = responses.calls[0].request
     assert api_request.headers["Authorization"] == "Bearer test-token"
     poll_request = responses.calls[1].request
-    assert poll_request.url == f"{OOK_BASE_URL}/linkcheck/checks/7"
+    assert (
+        poll_request.url == f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}"
+    )
 
     # The submission payload carries the origin base URL derived from
     # project.base_url, the default-version flag from the GitHub Actions
@@ -260,7 +266,7 @@ def test_guide_linkcheck_happy_path(
     # A summary is printed.
     status_output = app.status.getvalue()
     assert (
-        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/7"
+        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}"
         in status_output
     )
     # The check runtime is reported in seconds (fixture: 12:00:00 -> 12:00:05).
@@ -391,7 +397,7 @@ def test_technote_linkcheck_happy_path(
     # A summary is printed.
     status_output = app.status.getvalue()
     assert (
-        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/7"
+        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}"
         in status_output
     )
     assert "ok: 2" in status_output
@@ -471,7 +477,7 @@ def test_submission_completed_at_200(
     # The results from the POST body are reported.
     status_output = app.status.getvalue()
     assert (
-        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/7"
+        f"Link check complete: {OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}"
         in status_output
     )
     assert "ok: 3" in status_output
@@ -853,7 +859,7 @@ def test_poll_budget_exhaustion_degrades(
     skipped and exits 0.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    check_url = f"{OOK_BASE_URL}/linkcheck/checks/7"
+    check_url = f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}"
     pending_urls = [
         _checked_url(
             "https://example.com/page",
@@ -965,7 +971,7 @@ def test_poll_budget_exhaustion_strict_fails(
     fails the build with a nonzero exit instead of degrading.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    check_url = f"{OOK_BASE_URL}/linkcheck/checks/7"
+    check_url = f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}"
     pending_urls = [
         _checked_url(
             "https://example.com/page",
@@ -1133,7 +1139,7 @@ def test_json_artifact(
     assert artifact_path.is_file()
     data = json.loads(artifact_path.read_text())
 
-    assert data["id"] == 7
+    assert data["id"] == OOK_CHECK_ID
     assert data["status"] == "complete"
     assert data["summary"] == {
         "pending": 0,
