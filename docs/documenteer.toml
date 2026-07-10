@@ -41,7 +41,6 @@ sphinxcontrib-bibtex = "https://sphinxcontrib-bibtex.readthedocs.io/en/latest/"
 technote = "https://technote.lsst.io/"
 
 [sphinx.linkcheck]
-service_url = "https://roundtable-dev.lsst.cloud/ook"  # temp while link check is a dev-only prototype
 ignore = [
     "https://mermaid-js.github.io",
     "https://rubin-obs.slack.com",
