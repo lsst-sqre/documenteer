@@ -658,6 +658,140 @@ def test_non_broken_statuses_pass_warningiserror(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
+    srcdir="linkcheck-service-blocked",
+)
+def test_blocked_links_reported_as_caveat(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A bot-blocked link (Ook's ``blocked`` disposition) is a caveat, not
+    a failure: it is reported at info level, labeled as likely bot
+    protection, counted in the summary, and never fails the build.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+
+    app.build()
+
+    # Blocked links are unverifiable from CI, not broken: the build exits 0.
+    assert app.statuscode == 0
+
+    status_output = app.status.getvalue()
+    # The summary counts the blocked link alongside the other statuses.
+    assert "blocked: 1" in status_output
+    assert "ok: 1" in status_output
+
+    # The blocked link is reported at info level with its page, HTTP
+    # status, error detail, and a bot-protection label.
+    assert "blocked: https://example.com/page (page: index)" in status_output
+    assert "HTTP 403" in status_output
+    assert "403 Forbidden" in status_output
+    assert "likely bot protection" in status_output
+
+    # The blocked detail line is not a warning, so a warnings-as-errors
+    # (-W) build would not fail on it.
+    assert "blocked:" not in app.warning.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-warningiserror-blocked",
+    warningiserror=True,
+    # The test root is not a Git repository, so sphinx-last-updated-by-git
+    # warns; suppress it to isolate link-check reporting under -W.
+    confoverrides={"suppress_warnings": ["git"]},
+)
+def test_blocked_passes_warningiserror(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """With warnings-as-errors (Sphinx's ``-W``), a check that reports a
+    blocked link (no broken) still exits 0, because blocked is reported at
+    info level rather than as a warning.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+
+    # Under warningiserror, any logger.warning would raise SphinxWarning;
+    # info-level reporting keeps the build green.
+    app.build()
+
+    assert app.statuscode == 0
+    assert "blocked: 1" in app.status.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-blocked-artifact",
+)
+def test_blocked_link_json_artifact(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The JSON artifact records the blocked disposition: the summary
+    carries a ``blocked`` count and the per-URL result keeps its
+    ``blocked`` status and diagnostic detail.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+
+    app.build()
+
+    data = json.loads((Path(app.outdir) / "linkcheck.json").read_text())
+    assert data["summary"]["blocked"] == 1
+
+    results = {url["url"]: url for url in data["urls"]}
+    blocked = results["https://example.com/page"]
+    assert blocked["status"] == "blocked"
+    assert blocked["status_code"] == 403
+    assert blocked["error"] == "403 Forbidden"
+    assert blocked["pages"] == ["index"]
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
     srcdir="linkcheck-service-warningiserror-broken",
     warningiserror=True,
     # The test root is not a Git repository, so sphinx-last-updated-by-git
@@ -1148,6 +1282,7 @@ def test_json_artifact(
         "failing": 0,
         "broken": 1,
         "unsupported": 0,
+        "blocked": 0,
     }
 
     results = {url["url"]: url for url in data["urls"]}

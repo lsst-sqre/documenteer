@@ -368,8 +368,10 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         Prints the summary counts by status and a detail line for every
         link that needs attention. ``broken`` links fail the build with a
         nonzero exit status and are reported as warnings; ``redirected``,
-        ``failing``, and ``unsupported`` links are reported at info level
-        so a warnings-as-errors (``-W``) build does not fail on them.
+        ``failing``, ``unsupported``, and ``blocked`` links are reported at
+        info level so a warnings-as-errors (``-W``) build does not fail on
+        them. ``blocked`` links (bot protection) are unverifiable from CI's
+        vantage point, not broken, so they never fail the build.
         """
         artifact_path = self._write_json_artifact(check)
 
@@ -390,11 +392,11 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             message = self._describe_result(result)
             # Only ``broken`` links fail the build (via the statuscode set
             # below), so they are reported as warnings. ``redirected``,
-            # ``failing``, and ``unsupported`` links are reported at info
-            # level so a warnings-as-errors (``-W``) build does not fail on
-            # them. This mirrors Sphinx's built-in linkcheck, which fails
-            # via a nonzero statuscode for broken links and logs redirects
-            # at info level by default.
+            # ``failing``, ``unsupported``, and ``blocked`` links are
+            # reported at info level so a warnings-as-errors (``-W``) build
+            # does not fail on them. This mirrors Sphinx's built-in
+            # linkcheck, which fails via a nonzero statuscode for broken
+            # links and logs redirects at info level by default.
             if result.status is CheckUrlStatus.broken:
                 logger.warning(message)
             else:
@@ -448,6 +450,12 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             parts.append(redirect)
         if result.error:
             parts.append(result.error)
+        if result.status is CheckUrlStatus.blocked:
+            # Ook reports ``blocked`` when a URL trips a site's bot
+            # protection (typically a Cloudflare 403). That is
+            # unverifiable from CI's vantage point rather than genuinely
+            # broken, so the detail line says as much.
+            parts.append("likely bot protection; unverifiable from CI")
         return " - ".join(parts)
 
 

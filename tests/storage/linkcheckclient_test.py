@@ -346,6 +346,42 @@ def test_checked_url_origin_paths_default_empty(
     assert check.urls[0].origin_paths == []
 
 
+def test_blocked_status_parses(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A URL Ook reports as ``blocked`` (bot protection, lsst-sqre/ook#290)
+    parses into the ``blocked`` disposition, and the summary's ``blocked``
+    count is read back without disturbing the other status counts.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    payload = make_check_payload(
+        urls=[
+            {
+                "url": "https://example.com/page",
+                "status": "blocked",
+                "status_code": 403,
+                "redirect_status_code": None,
+                "redirect_url": None,
+                "error": "403 Forbidden",
+                "checked_at": "2026-07-06T12:00:00Z",
+                "origin_paths": ["index"],
+            }
+        ],
+        summary={"blocked": 1},
+    )
+    responses.get(
+        f"{BASE_URL}/linkcheck/checks/{CHECK_ID}", json=payload, status=200
+    )
+
+    client = LinkCheckClient()
+    check = client.get_check(CHECK_ID)
+
+    assert check.urls[0].status is CheckUrlStatus.blocked
+    assert check.summary.blocked == 1
+    # Blocked is its own count; broken (which fails the build) stays zero.
+    assert check.summary.broken == 0
+
+
 def test_base_url_override(responses: RequestsMock, monkeypatch: Any) -> None:
     """The service base URL is configurable (trailing slash tolerated)."""
     monkeypatch.setenv("OOK_TOKEN", "test-token")

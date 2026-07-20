@@ -71,6 +71,7 @@ class CheckUrlStatus(StrEnum):
     failing = "failing"
     broken = "broken"
     unsupported = "unsupported"
+    blocked = "blocked"
 
 
 class SubmittedUrl(BaseModel):
@@ -129,6 +130,14 @@ class LinkCheckSummary(BaseModel):
     broken: int = Field(0, description="Broken URLs.")
 
     unsupported: int = Field(0, description="URLs that cannot be checked.")
+
+    blocked: int = Field(
+        0,
+        description=(
+            "URLs blocked by bot protection, unverifiable from CI's vantage "
+            "point (not counted as broken)."
+        ),
+    )
 
 
 class CheckedUrl(BaseModel):
