@@ -25,7 +25,8 @@ from pydantic import (
 )
 from sphinx.errors import ConfigError
 
-from ._utils import GitRepository
+from ..storage.linkcheckclient import DEFAULT_BASE_URL as OOK_DEFAULT_BASE_URL
+from ._utils import GitRepository, normalize_origin_base_url
 
 __all__ = [
     "ConfigRoot",
@@ -180,6 +181,48 @@ class LinkCheckModel(BaseModel):
     ignore: list[str] = Field(
         description="Regular expressions of URLs to skip checking links",
         default_factory=list,
+    )
+
+    use_service: bool = Field(
+        True,
+        description=(
+            "Check links with Ook's link-check service instead of Sphinx's "
+            "built-in linkcheck builder."
+        ),
+    )
+
+    service_url: HttpUrl = Field(
+        HttpUrl(OOK_DEFAULT_BASE_URL),
+        description=(
+            "Base URL of the Ook API that hosts the link-check service."
+        ),
+    )
+
+    poll_budget: int = Field(
+        300,
+        description=(
+            "Maximum time (seconds) to wait for link-check results from "
+            "the service."
+        ),
+    )
+
+    strict: bool = Field(
+        False,
+        description=(
+            "Fail the build when the link-check service is unavailable "
+            "instead of degrading to a warning."
+        ),
+    )
+
+    origin_base_url: HttpUrl | None = Field(
+        None,
+        description=(
+            "Origin base URL override for the link-check service: the "
+            "full base URL of the website the links are submitted for "
+            "(e.g. https://documenteer.lsst.io). By default the origin "
+            "is project.base_url. The URL is normalized by lowercasing "
+            "the host and stripping any trailing slash."
+        ),
     )
 
 
@@ -469,6 +512,60 @@ class DocumenteerConfig:
         """
         if self.conf.sphinx and self.conf.sphinx.linkcheck:
             link_patterns.extend(self.conf.sphinx.linkcheck.ignore)
+
+    @property
+    def _linkcheck(self) -> LinkCheckModel:
+        """The linkcheck configuration model, or its defaults if the
+        [sphinx] table is not set.
+        """
+        if self.conf.sphinx:
+            return self.conf.sphinx.linkcheck
+        return LinkCheckModel()
+
+    @property
+    def linkcheck_use_service(self) -> bool:
+        """Whether to check links with Ook's link-check service instead of
+        Sphinx's built-in linkcheck builder.
+        """
+        return self._linkcheck.use_service
+
+    @property
+    def linkcheck_service_url(self) -> str:
+        """Base URL of the Ook API that hosts the link-check service
+        (without a trailing slash).
+        """
+        return str(self._linkcheck.service_url).rstrip("/")
+
+    @property
+    def linkcheck_poll_budget(self) -> int:
+        """Maximum time (seconds) to wait for link-check results from the
+        service.
+        """
+        return self._linkcheck.poll_budget
+
+    @property
+    def linkcheck_strict(self) -> bool:
+        """Whether link-check service degradation fails the build."""
+        return self._linkcheck.strict
+
+    @property
+    def linkcheck_origin_base_url(self) -> str | None:
+        """The origin base URL for the link-check service.
+
+        The origin is the ``[sphinx.linkcheck] origin_base_url`` override
+        if set; otherwise it is the project's base URL. Either way it is
+        normalized (lowercased host, trailing slash stripped) to match
+        the service's origin normalization. `None` if neither is
+        available.
+        """
+        if self._linkcheck.origin_base_url:
+            return normalize_origin_base_url(
+                str(self._linkcheck.origin_base_url)
+            )
+        base_url = self.base_url
+        if not base_url:
+            return None
+        return normalize_origin_base_url(base_url)
 
     def append_nitpick_ignore(
         self, nitpick_ignore: list[tuple[str, str]]

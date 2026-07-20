@@ -12,6 +12,7 @@ from documenteer.conf import (
     get_asset_path,
     get_template_dir,
 )
+from documenteer.conf._utils import get_technote_origin_base_url
 
 
 def test_get_asset_path() -> None:
@@ -30,6 +31,43 @@ def test_get_template_dir() -> None:
     # This template dir doesn't exist
     with pytest.raises(ConfigError):
         get_asset_path("not-a-theme")
+
+
+def test_technote_origin_from_canonical_url() -> None:
+    """The technote origin base URL prefers the canonical URL from
+    technote.toml, normalized (lowercased host, trailing slash
+    stripped).
+    """
+    assert (
+        get_technote_origin_base_url(
+            canonical_url="https://SQR-000.lsst.io/",
+            technote_id="SQR-000",
+        )
+        == "https://sqr-000.lsst.io"
+    )
+
+
+def test_technote_origin_from_handle() -> None:
+    """Without a canonical URL, the technote origin base URL is derived
+    from the technote handle as ``https://<handle>.lsst.io``.
+    """
+    assert (
+        get_technote_origin_base_url(
+            canonical_url=None,
+            technote_id="SQR-000",
+        )
+        == "https://sqr-000.lsst.io"
+    )
+
+
+def test_technote_origin_unavailable() -> None:
+    """Without a canonical URL or a technote handle, the origin base URL
+    is None.
+    """
+    assert (
+        get_technote_origin_base_url(canonical_url=None, technote_id=None)
+        is None
+    )
 
 
 def test_extend_excludes_for_non_index_source() -> None:

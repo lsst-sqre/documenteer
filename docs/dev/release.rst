@@ -7,7 +7,7 @@ This information is only useful for maintainers.
 
 Documenteer's releases are largely automated through GitHub Actions (see the ``.github/workflows/ci.yaml`` file for details).
 When a semantic version tag is pushed to GitHub, `Documenteer is released to PyPI`_ with that version.
-Similarly, documentation is built and pushed for each version (see https://documenteer.lsst.io/v).
+Similarly, documentation is built and pushed for each version (see https://documenteer.lsst.io/v/index.html).
 
 .. _`Documenteer is released to PyPI`: https://pypi.org/project/documenteer/
 
@@ -44,7 +44,7 @@ At the HEAD of the ``master`` branch, create and push a tag with the semantic ve
 The tag **must** follow the :pep:`440` specification since Documenteer uses setuptools_scm_ to set version metadata based on Git tags.
 In particular, **don't** prefix the tag with ``v``.
 
-.. _setuptools_scm: https://github.com/pypa/setuptools_scm
+.. _setuptools_scm: https://github.com/pypa/setuptools-scm
 
 Travis CI will upload the new release to PyPI and documentation to https://documenteer.lsst.io.
 

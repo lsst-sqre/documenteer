@@ -192,3 +192,65 @@ def test_show_last_updated_disabled() -> None:
     """show_last_updated reflects sphinx.theme.show_last_updated = false."""
     config = DocumenteerConfig.load(EXAMPLE_NO_LAST_UPDATED)
     assert config.show_last_updated is False
+
+
+EXAMPLE_LINKCHECK_SERVICE = """
+
+[project]
+title = "Documenteer"
+base_url = "https://documenteer.lsst.io"
+
+[sphinx.linkcheck]
+use_service = false
+service_url = "https://roundtable-dev.lsst.cloud/ook"
+poll_budget = 60
+strict = true
+origin_base_url = "https://Custom.LSST.io/guides/"
+"""
+
+
+def test_linkcheck_service_defaults() -> None:
+    """The link-check service settings have production-ready defaults,
+    even without a [sphinx] table.
+    """
+    for example in (EXAMPLE, EXAMPLE_NO_SPHINX):
+        config = DocumenteerConfig.load(example)
+        assert config.linkcheck_use_service is True
+        assert (
+            config.linkcheck_service_url == "https://roundtable.lsst.cloud/ook"
+        )
+        assert config.linkcheck_poll_budget == 300
+        assert config.linkcheck_strict is False
+
+
+def test_linkcheck_service_settings() -> None:
+    """[sphinx.linkcheck] settings override the service defaults."""
+    config = DocumenteerConfig.load(EXAMPLE_LINKCHECK_SERVICE)
+    assert config.linkcheck_use_service is False
+    assert (
+        config.linkcheck_service_url == "https://roundtable-dev.lsst.cloud/ook"
+    )
+    assert config.linkcheck_poll_budget == 60
+    assert config.linkcheck_strict is True
+
+
+def test_linkcheck_origin_derived_from_base_url() -> None:
+    """The origin base URL is derived from project.base_url, normalized
+    without a trailing slash.
+    """
+    config = DocumenteerConfig.load(EXAMPLE)
+    assert config.linkcheck_origin_base_url == "https://documenteer.lsst.io"
+
+
+def test_linkcheck_origin_override() -> None:
+    """[sphinx.linkcheck] origin_base_url overrides the derived origin
+    and is normalized (lowercased host, trailing slash stripped).
+    """
+    config = DocumenteerConfig.load(EXAMPLE_LINKCHECK_SERVICE)
+    assert config.linkcheck_origin_base_url == "https://custom.lsst.io/guides"
+
+
+def test_linkcheck_origin_no_base_url() -> None:
+    """Without a base URL or override, the origin base URL is None."""
+    config = DocumenteerConfig.load(EXAMPLE_NO_SPHINX)
+    assert config.linkcheck_origin_base_url is None

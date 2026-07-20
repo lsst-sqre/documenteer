@@ -14,7 +14,11 @@ from documenteer.conf import (
     get_template_dir,
 )
 
-from ._utils import get_common_nitpick_ignore, get_common_nitpick_ignore_regex
+from ._utils import (
+    get_common_nitpick_ignore,
+    get_common_nitpick_ignore_regex,
+    get_technote_origin_base_url,
+)
 
 # Suppress warnings about deprecated features in future Sphinx versions.
 # This is noise for users because Documenteer itself constrains the Sphinx
@@ -53,6 +57,7 @@ extensions.extend(  # noqa: F405
         "sphinx_design",
         "sphinxcontrib.youtube",
         "sphinx_sitemap",
+        "documenteer.ext.linkcheckservice",
     ]
 )
 
@@ -122,6 +127,21 @@ if _id is not None:
     html_context["editions_url"] = (  # noqa: F405
         f"https://{_id.lower()}.lsst.io/v/"
     )
+
+# Ook link-check service settings for documenteer.ext.linkcheckservice.
+# Only the technote-derived settings are set here; the others keep the
+# defaults registered by the extension. All of them are overridable in
+# the technote's conf.py after the ``from documenteer.conf.technote
+# import *`` line (e.g. ``documenteer_linkcheck_use_service = False``
+# restores Sphinx's built-in linkcheck builder).
+_canonical_url = T.toml.technote.canonical_url  # noqa: F405
+documenteer_linkcheck_origin_base_url = get_technote_origin_base_url(
+    canonical_url=str(_canonical_url) if _canonical_url else None,
+    technote_id=_id,
+)
+documenteer_linkcheck_default_branch_name = (
+    T.toml.technote.github_default_branch  # noqa: F405
+)
 
 nitpick_ignore_regex.extend(get_common_nitpick_ignore_regex())  # noqa: F405
 nitpick_ignore.extend(get_common_nitpick_ignore())  # noqa: F405

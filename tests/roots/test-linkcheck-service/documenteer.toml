@@ -1,0 +1,10 @@
+[project]
+title = "Linkcheck Service Test"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/example"
+
+[sphinx.theme]
+# This test root is not its own Git repository, so the "Edit on GitHub"
+# button (which resolves the doc path against a Git working tree) is
+# disabled.
+show_github_edit_link = false
