@@ -35,11 +35,11 @@
 .. _`sconsUtils`: https://github.com/lsst/sconsUtils
 .. _`sqre/infrastructure/documenteer`: https://ci.lsst.codes/blue/organizations/jenkins/sqre%2Finfrastructure%2Fdocumenteer/activity
 .. _astro-metadata-translator.lsst.io: https://astro-metadata-translator.lsst.io
-.. _automodapi: http://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
+.. _automodapi: https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
 .. _black: https://black.readthedocs.io/en/stable/
-.. _breathe: http://breathe.readthedocs.io/en/latest/index.html
+.. _breathe: https://breathe.readthedocs.io/en/latest/index.html
 .. _conda-forge: https://conda-forge.org
-.. _conda: https://conda.io/en/latest/index.html
+.. _conda: https://docs.conda.io/en/latest/index.html
 .. _isort: https://pycqa.github.io/isort/
 .. _numpydoc: https://numpydoc.readthedocs.io/en/latest/index.html
 .. _pre-commit: https://pre-commit.com
@@ -48,7 +48,7 @@
 .. _toctree: http://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree
 .. _linkcheck: https://www.sphinx-doc.org/en/master/usage/configuration.html?#options-for-the-linkcheck-builder
 .. _Ook: https://github.com/lsst-sqre/ook
-.. _Redoc: https://redocly.com/redoc/
+.. _Redoc: https://redocly.com/redoc
 .. _rst_epilog: https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=rst_epilog#confval-rst_epilog
 .. _napoleon: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
 .. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html

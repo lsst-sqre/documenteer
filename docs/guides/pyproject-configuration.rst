@@ -35,7 +35,7 @@ The key content from :file:`pyproject.toml` looks like this:
 Notice how the ``[project]`` table in :file:`documenteer.toml` is quite short because most information is found from the Python project metadata:
 
 - ``version`` is inferred from the installed package's metadata.
-  If you use `setuptools_scm <https://github.com/pypa/setuptools_scm>`__, the version automatically increments with every commit or tag.
+  If you use `setuptools_scm <https://github.com/pypa/setuptools-scm>`__, the version automatically increments with every commit or tag.
 
 - ``base_url`` is inferred from the ``Homepage`` field in ``[project.urls]`` in :file:`pyproject.toml`.
 

@@ -11,7 +11,7 @@
 
   The footer date is rendered as a `<time>` element whose `datetime` attribute carries the canonical UTC ISO 8601 timestamp, and a small bundled script (`rubin-last-modified.js`) rewrites the visible text to the reader's own local date (for example "June 1, 2024"). With JavaScript disabled the element falls back to the UTC date as `YYYY-MM-DD`. This ensures readers in any timezone see the correct calendar day, which a fixed UTC date can otherwise misrepresent.
 
-  The extension is also the single source of truth for the page's last-modified date in the HTML `<head>`: it emits the same Git date as an `article:modified_time` (Open Graph), `dcterms.modified` (Dublin Core), and a Schema.org `dateModified` (JSON-LD). The user-guide preset sets `git_last_updated_metatags = false` so the auto-loaded `sphinx-last-updated-by-git` extension (still used for the sitemap) doesn't emit a duplicate Open Graph tag from a separate Git computation.
+  The extension is also the single source of truth for the page's last-modified date in the HTML `<head>`: it emits the same Git date as an `article:modified_time` (Open Graph), `dcterms.modified` (Dublin Core), and a [Schema.org](https://schema.org/) `dateModified` (JSON-LD). The user-guide preset sets `git_last_updated_metatags = false` so the auto-loaded `sphinx-last-updated-by-git` extension (still used for the sitemap) doesn't emit a duplicate Open Graph tag from a separate Git computation.
 
   Because the date comes from Git, CI builds must check out the full history (set `fetch-depth: 0` with `actions/checkout`). To avoid publishing misleading dates, Documenteer detects a shallow clone, omits the timestamp from every page, and emits a build warning.
 
@@ -75,7 +75,7 @@
 - A new extension, `documenteer.ext.robots`, helps you generate a `robots.txt` file to inform web crawlers about access to documentation sites. In this initial version, the `robots.txt` file is generated when a `sitemap.xml` file is available in order to link to that sitemap. The extension won't overwrite an existing `robots.txt` file.
 - Documenteer's Sphinx extensions (`documenteer.ext.*`) now use Sphinx's built-in logging system, `sphinx.util.logging`, instead of the standard Python logging module.
 
-- Rubin user guides (`documenteer.conf.guide`) now include Plausible.io analytics integration for privacy-preserving website analytics. The Plausible domain is configured by default to `lsst.io`, which is the common tracking domain for all Rubin Observatory technical documentation.
+- Rubin user guides (`documenteer.conf.guide`) now include [Plausible.io](https://plausible.io/) analytics integration for privacy-preserving website analytics. The Plausible domain is configured by default to `lsst.io`, which is the common tracking domain for all Rubin Observatory technical documentation.
 
 ### Bug fixes
 
@@ -86,7 +86,7 @@
 
 ### Backwards-incompatible changes
 
-- All Science Pipelines-related tooling and Sphinx extensions have been removed from Documenteer and moved to a new Science Pipelines package called `sphinxutils` (https://github.com/lsst-dm/sphinxutils). Removed components include:
+- All Science Pipelines-related tooling and Sphinx extensions have been removed from Documenteer and moved to a new Science Pipelines package called `sphinxutils` (https://github.com/lsst/sphinxutils). Removed components include:
 
   - `documenteer.stackdocs`
   - Configurations `documenteer.conf.pipelines` and `documenteer.conf.pipelinespkg`
@@ -206,7 +206,7 @@
 
 ### New features
 
-- Added a `[sphinx.redirects]` table to `documenteer.toml`. This provides support for configuring page redirects from the TOML configuratin. Redirects are useful if pages move because of a content re-organization. This feature is based on [sphinx-rediraffe](https://github.com/wpilibsuite/sphinxext-rediraffe).
+- Added a `[sphinx.redirects]` table to `documenteer.toml`. This provides support for configuring page redirects from the TOML configuratin. Redirects are useful if pages move because of a content re-organization. This feature is based on [sphinx-rediraffe](https://github.com/sphinx-doc/sphinxext-rediraffe).
 
 - Added the [sphinxcontrib-youtube](https://sphinxcontrib-youtube.readthedocs.io/en/latest/index.html) for embedded YouTube and Vimeo videos into documentation pages. This extension is available for both user guides (`documenteer.conf.guide`) and technotes (`documenteer.conf.technotes`).
 
@@ -556,7 +556,7 @@ Fixes:
 
   - `pip install documenteer[technote]` installs the core dependencies required by Documenteer, as well as the pinned Sphinx theme and extensions used by all technote projects.
 
-  - `pip install documenteer[pipelines]` installs the core dependencies required by Documenteer, as well as the Sphinx theme and extensions used by pipelines.lsst.io.
+  - `pip install documenteer[pipelines]` installs the core dependencies required by Documenteer, as well as the Sphinx theme and extensions used by [pipelines.lsst.io](https://pipelines.lsst.io/).
     These extensions no longer have pinned versions.
 
   Development and test dependencies are no longer pinned.
@@ -576,7 +576,7 @@ Fixes:
   Overall, the configurations are compatible with these exceptions:
 
   - ReStructuredText source files are no longer copied into the built site for Pipelines projects (`html_copy_source` is `False`).
-    This change reduces the upload site of the pipelines.lsst.io site.
+    This change reduces the upload site of the [pipelines.lsst.io](https://pipelines.lsst.io/) site.
   - Updated the MathJax CDN URL to point to cdnjs.
 
 - The stack documentation build (`stack-docs build`) can now run a Doxygen build to generate an HTML site and tag file of the C++ API.
@@ -590,7 +590,7 @@ Fixes:
   It's intended to be used equivalently to the `automodapi` extension.
 
   The built-in Doxygen build considers all Stack packages with a `doc/doxygen.conf.in` file.
-  Documenteer creates a Doxygen configuration from the contents of each package's `doxygen.conf.in` file, along with built-in defaults appropriate for pipelines.lsst.io.
+  Documenteer creates a Doxygen configuration from the contents of each package's `doxygen.conf.in` file, along with built-in defaults appropriate for [pipelines.lsst.io](https://pipelines.lsst.io/).
   For example, individual packages can add to the `EXCLUDE` tag.
   By default, each package's `include` directory is included in the Doxygen build.
 
@@ -727,9 +727,9 @@ Fixes:
 
 ## 0.4.1 (2018-10-15)
 
-- Add `documenteer.sphinxext.lssttasks` to the Sphinx extensions available for pipelines.lsst.io documentation builds.
+- Add `documenteer.sphinxext.lssttasks` to the Sphinx extensions available for [pipelines.lsst.io](https://pipelines.lsst.io/) documentation builds.
 
-- For pipelines.lsst.io builds, Documenteer ignores the `home/` directory that's created at the root of the `pipelines_lsst_io` directory.
+- For [pipelines.lsst.io](https://pipelines.lsst.io/) builds, Documenteer ignores the `home/` directory that's created at the root of the `pipelines_lsst_io` directory.
   This directory is created as part of the ci.lsst.codes `sqre/infra/documenteer` job and shouldn't be part of the documentation build.
 
 ## 0.4.0 (2018-10-14)
@@ -763,7 +763,7 @@ Fixes:
   You can use this directive after adding `documenteer.sphinxext` to the extensions list in a project's `conf.py`.
 
 - New `module-toctree` and `package-toctree` directives.
-  These create toctrees for modules and packages, respectively, in Stack documentation sites like pipelines.lsst.io.
+  These create toctrees for modules and packages, respectively, in Stack documentation sites like [pipelines.lsst.io](https://pipelines.lsst.io/).
   With these directives, we don't need to modify the `index.rst` file in https://github.com/lsst/pipelines_lsst_io each time new packages are added or removed.
   You can use this directive after adding `documenteer.sphinxext` to the extensions list in a project's `conf.py`.
   These directives include `skip` options for skipping certain packages and modules.
@@ -872,7 +872,7 @@ Fixes:
   This will allow us to install different Sphinx themes for different types of projects, for example.
 - Pin Sphinx to >=1.5.0,<1.6.0 and docutils to 0.13.1. This is due to an API change in Sphinx's application `Config.init_values()`, which is used for making mock applications in Documenteer's unit tests.
 - Move the `ddconfig.py` module for technical note Sphinx project configuration to the `documenteer.sphinxconfig.technoteconf` namespace for similarity with the `stackconf` module.
-- Now using [versioneer](https://github.com/warner/python-versioneer) for version management.
+- Now using [versioneer](https://github.com/python-versioneer/python-versioneer) for version management.
 
 ## 0.1.11 (2017-03-01)
 
@@ -883,7 +883,7 @@ Fixes:
 
 Includes prototype support for LSST Science Pipelines documentation, as part of `DM-6199 <https://rubinobs.atlassian.net/browse/DM-6199>`__:
 
-- Added dependencies to [breathe](http://breathe.readthedocs.io/en/latest/), [astropy-helpers](https://github.com/astropy/astropy-helpers) and the [lsst-sphinx-bootstrap-theme](https://github.com/lsst-sqre/lsst-sphinx-bootstrap-theme) to generally coordinate LSST Science Pipelines documentation dependencies.
+- Added dependencies to [breathe](https://breathe.readthedocs.io/en/latest/), [astropy-helpers](https://github.com/astropy/astropy-helpers) and the [lsst-sphinx-bootstrap-theme](https://github.com/lsst-sqre/lsst-sphinx-bootstrap-theme) to generally coordinate LSST Science Pipelines documentation dependencies.
 - Created `documenteer.sphinxconfig.stackconf` module to centrally coordinate Science Pipelines documentation configuration. Much of the configuration is based on [astropy-helper's Sphinx configuration](https://github.com/astropy/astropy-helpers/blob/master/astropy_helpers/sphinx/conf.py) since the LSST Science Pipelines documentation is heavily based upon Astropy's Sphinx theme and API reference generation infrastructure.
   Also includes prototype configuration for breathe (the doxygen XML bridge).
 - Updated test harness (pytest and plugin versions).
@@ -896,7 +896,7 @@ Includes prototype support for LSST Science Pipelines documentation, as part of 
 
 - `last_revised` and `version` metadata in technote projects can now be set automatically from Git context if those fields are not explicitly set in `metadata.yaml`. DM-6916.
 - Dependencies are now specified solely in `setup.py`, with `requirements.txt` being used for development dependencies only.
-  This is consistent with advice from https://caremad.io/2013/07/setup-vs-requirement/.
+  This is consistent with advice from https://caremad.io/posts/2013/07/setup-vs-requirement/.
 
 ## 0.1.7 (2016-06-02)
 
