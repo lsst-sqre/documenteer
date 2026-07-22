@@ -13,6 +13,8 @@ import pytest_responses  # noqa: F401
 from responses import RequestsMock, matchers
 from sphinx.testing.util import SphinxTestApp
 
+from documenteer.ext.intersphinxcache import CACHE_DIRNAME
+
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 INVENTORY_ENDPOINT = f"{OOK_BASE_URL}/intersphinx/inventory"
 
@@ -198,6 +200,104 @@ def test_per_inventory_fallback(
     assert not any(
         (call.request.url or "") == projb_inv_url for call in responses.calls
     )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-oddkey",
+    srcdir="intersphinx-cache-oddkey",
+)
+def test_mapping_key_with_path_separator_is_sanitized(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A mapping key containing a path separator does not raise out of the
+    config-inited handler: the cache filename is sanitized and the entry is
+    still rewritten to a local file inside the cache directory.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The entry was rewritten to a local file that exists on disk.
+    locations = _inventory_locations(app, "proj/sub")
+    assert len(locations) == 1
+    assert "://" not in locations[0]
+    local_path = Path(locations[0])
+    assert local_path.is_file()
+
+    # The filename is a single path component under the cache directory with
+    # the separator sanitized away (no nested "proj/sub" directory).
+    assert local_path.parent.name == CACHE_DIRNAME
+    assert "/" not in local_path.name
+    assert local_path.name.startswith("proj_sub-")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-write-failure",
+)
+def test_write_failure_falls_back(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """An OSError while writing the prefetched inventory does not fail the
+    build: the entry is left untouched with a warning, and stock intersphinx
+    fetches the origin directly.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+    # The entry falls back to a direct origin fetch, which succeeds.
+    responses.get(origin_inv_url, body=_make_inventory(), status=200)
+
+    # Fail only writes into the extension's cache directory, so Sphinx's own
+    # build writes are unaffected.
+    real_write_bytes = Path.write_bytes
+
+    def _failing_write_bytes(self: Path, data: bytes) -> int:
+        if CACHE_DIRNAME in self.parts:
+            raise OSError("simulated disk failure")
+        return real_write_bytes(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", _failing_write_bytes)
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The build warned about the failed write, naming the inventory.
+    warnings = app.warning.getvalue()
+    assert "testproj" in warnings
+    assert "Could not write" in warnings
+
+    # The entry was left untouched, so intersphinx fetched the origin
+    # directly and the cross-reference still resolved upstream.
+    assert _inventory_locations(app, "testproj") == (None,)
+    assert any(
+        (call.request.url or "") == origin_inv_url for call in responses.calls
+    )
+    html = (Path(app.outdir) / "index.html").read_text()
+    assert "https://example.com/project/api.html#example.func" in html
 
 
 @pytest.mark.sphinx(

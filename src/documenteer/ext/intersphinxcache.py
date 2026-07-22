@@ -25,8 +25,10 @@ make a build worse than today.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import posixpath
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -34,6 +36,7 @@ from sphinx.util import logging
 
 from ..storage.intersphinxcacheclient import (
     DEFAULT_BASE_URL,
+    TOKEN_ENV_VAR,
     IntersphinxCacheClient,
     IntersphinxCacheError,
 )
@@ -44,12 +47,11 @@ if TYPE_CHECKING:
     from sphinx.config import Config
     from sphinx.util.typing import ExtensionMetadata
 
+# TOKEN_ENV_VAR is re-exported from the storage client so the extension's
+# public surface is unchanged while the constant has a single definition.
 __all__ = ["TOKEN_ENV_VAR", "setup"]
 
 logger = logging.getLogger(__name__)
-
-TOKEN_ENV_VAR = "OOK_TOKEN"
-"""Environment variable whose presence opts a build in to prefetching."""
 
 INVENTORY_FILENAME = "objects.inv"
 """Default inventory file name, appended to a target URI when the inventory
@@ -58,6 +60,23 @@ location is unset (mirrors ``sphinx.ext.intersphinx``)."""
 CACHE_DIRNAME = "_documenteer_intersphinx_inventory"
 """Name of the build-directory subdirectory that holds prefetched
 inventories."""
+
+_UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
+"""Characters not allowed in a generated inventory filename stem."""
+
+
+def _inventory_filename(name: str) -> str:
+    """Return a filesystem-safe ``.inv`` filename for a mapping key.
+
+    The mapping key comes from an author-controlled ``intersphinx_mapping``
+    and may contain path separators or other characters that are unsafe in a
+    filename. The key is sanitized for readability and suffixed with a short
+    hash of the original key so distinct keys that sanitize to the same stem
+    do not collide.
+    """
+    safe = _UNSAFE_FILENAME_CHARS.sub("_", name)
+    digest = hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
+    return f"{safe}-{digest}{os.extsep}inv"
 
 
 def _resolve_origin_inventory_url(
@@ -101,7 +120,10 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
     client = IntersphinxCacheClient(
         base_url=config.documenteer_intersphinx_cache_service_url
     )
-    cache_dir = Path(app.outdir) / CACHE_DIRNAME
+    # Written under the build tree (a sibling of the doctree cache) rather
+    # than app.outdir, so the prefetched .inv blobs are not published as
+    # part of the deployable HTML site.
+    cache_dir = Path(app.doctreedir).parent / CACHE_DIRNAME
 
     for name, value in list(mapping.items()):
         if not isinstance(value, (tuple, list)) or len(value) != 2:
@@ -127,9 +149,23 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
             )
             continue
 
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        inv_path = cache_dir / f"{name}{os.extsep}inv"
-        inv_path.write_bytes(data)
+        inv_path = cache_dir / _inventory_filename(name)
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            inv_path.write_bytes(data)
+        except OSError as e:
+            # A filesystem error writing the cache leaves this entry
+            # untouched so stock intersphinx fetches the origin directly;
+            # the build is never worse than without the service.
+            logger.warning(
+                "Could not write the prefetched intersphinx inventory for "
+                "%r to %s (%s); falling back to a direct fetch of %s.",
+                name,
+                inv_path,
+                e,
+                origin_url,
+            )
+            continue
         # Rewrite only the inventory location; the target URI is left
         # unchanged so resolved links still point at the upstream site.
         mapping[name] = (target_uri, str(inv_path))
