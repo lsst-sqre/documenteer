@@ -57,9 +57,11 @@ INVENTORY_FILENAME = "objects.inv"
 """Default inventory file name, appended to a target URI when the inventory
 location is unset (mirrors ``sphinx.ext.intersphinx``)."""
 
-CACHE_DIRNAME = "_documenteer_intersphinx_inventory"
+CACHE_DIRNAME = ".documenteer_intersphinx_inventory"
 """Name of the build-directory subdirectory that holds prefetched
-inventories."""
+inventories. Dot-prefixed so it is excluded from a published site even when
+the doctree cache defaults to ``outdir/.doctrees`` (a build without ``-d``),
+mirroring how ``.doctrees`` is conventionally excluded."""
 
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 """Characters not allowed in a generated inventory filename stem."""
@@ -121,8 +123,10 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         base_url=config.documenteer_intersphinx_cache_service_url
     )
     # Written under the build tree (a sibling of the doctree cache) rather
-    # than app.outdir, so the prefetched .inv blobs are not published as
-    # part of the deployable HTML site.
+    # than app.outdir. The directory name is dot-prefixed so that even when
+    # doctreedir defaults to outdir/.doctrees (a build without -d) and this
+    # sibling lands inside outdir, the prefetched .inv blobs are excluded
+    # from the published HTML site, mirroring how .doctrees is excluded.
     cache_dir = Path(app.doctreedir).parent / CACHE_DIRNAME
 
     for name, value in list(mapping.items()):
