@@ -159,6 +159,11 @@ class IntersphinxCacheClient:
         try:
             r.raise_for_status()
         except requests.HTTPError as e:
+            # Any other non-2xx response lands here, including a 404 when the
+            # inventory endpoint is not yet deployed. The extension treats
+            # every IntersphinxCacheError the same way — leave the entry
+            # untouched and fall back to a direct origin fetch — so no
+            # dedicated error class is needed for the 404 case.
             raise IntersphinxCacheError(
                 f"Error from the Ook intersphinx inventory cache at "
                 f"{api_url} for {url}: {e}"

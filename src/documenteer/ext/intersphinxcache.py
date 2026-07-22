@@ -17,10 +17,14 @@ accepts local file paths as inventory locations.)
 
 The extension is a complete no-op when ``OOK_TOKEN`` is unset (forks, local
 builds) or when disabled via ``documenteer_intersphinx_cache_use_service``.
-Any per-inventory client error (unauthorized, unreachable, 5xx, timeout)
-leaves that mapping entry untouched so stock intersphinx fetches the origin
-directly, and emits a warning naming the inventory. An Ook outage can never
-make a build worse than today.
+Any per-inventory client error (unauthorized, unreachable, 5xx, 404,
+timeout) leaves that mapping entry untouched so stock intersphinx fetches
+the origin directly, and reports the fallback at INFO level naming the
+inventory. INFO (not WARNING) is deliberate: Rubin docs builds run with
+``-W`` (warnings-as-errors), so logging graceful service degradation as a
+warning would fail the build, defeating the guarantee that an Ook outage
+can never make a build worse than today. (This matches the linkcheck
+service, which likewise logs service-side conditions at INFO.)
 """
 
 from __future__ import annotations
@@ -143,8 +147,12 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         except IntersphinxCacheError as e:
             # Any client error leaves this entry untouched so stock
             # intersphinx fetches the origin directly; the build is never
-            # worse than without the service.
-            logger.warning(
+            # worse than without the service. Reported at info (not warning)
+            # level so a warnings-as-errors (``-W``) build does not fail on
+            # graceful service degradation (e.g. Ook returning 404 for a
+            # not-yet-deployed endpoint), matching the linkcheck-service
+            # precedent in ``linkcheckservice.py``.
+            logger.info(
                 "Could not prefetch the intersphinx inventory for %r from "
                 "Ook (%s); falling back to a direct fetch of %s.",
                 name,
@@ -160,8 +168,11 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         except OSError as e:
             # A filesystem error writing the cache leaves this entry
             # untouched so stock intersphinx fetches the origin directly;
-            # the build is never worse than without the service.
-            logger.warning(
+            # the build is never worse than without the service. Reported at
+            # info (not warning) level so a warnings-as-errors (``-W``) build
+            # does not fail on graceful degradation, matching the
+            # linkcheck-service precedent in ``linkcheckservice.py``.
+            logger.info(
                 "Could not write the prefetched intersphinx inventory for "
                 "%r to %s (%s); falling back to a direct fetch of %s.",
                 name,

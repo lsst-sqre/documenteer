@@ -504,7 +504,8 @@ Only the inventory locations are rewritten — the target URIs are left unchange
 
 Prefetching requires a bearer token for the Ook API, read from the ``OOK_TOKEN`` environment variable.
 When the token is unset, the extension is a complete no-op and stock Intersphinx_ behavior is unchanged, so builds still work for projects that haven't configured the token (for example, fork pull requests where secrets are unavailable, or local builds).
-When the service fails for an individual inventory (an unauthorized or rejected token, an unreachable service, a server error, or a timeout), that mapping entry is left untouched so Intersphinx_ fetches the origin directly, and the build emits a warning naming the inventory.
+When the service fails for an individual inventory (an unauthorized or rejected token, an unreachable service, a server error, or a timeout), that mapping entry is left untouched so Intersphinx_ fetches the origin directly, and the build reports the fallback at the ``INFO`` log level naming the inventory.
+The fallback is logged at ``INFO`` rather than as a warning on purpose: Rubin documentation builds run with warnings-as-errors (``-W``), so reporting graceful service degradation as a warning would fail the build.
 An Ook outage can never make a build worse than a build without the service.
 
 .. note::

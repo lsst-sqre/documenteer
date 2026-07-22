@@ -142,9 +142,9 @@ def test_per_inventory_fallback(
     responses: RequestsMock,
     monkeypatch: Any,
 ) -> None:
-    """When Ook fails for one inventory, the build warns naming it and that
-    entry falls back to a direct origin fetch, while other inventories still
-    use the cache.
+    """When Ook fails for one inventory, the build reports the fallback at
+    info level naming it and that entry falls back to a direct origin fetch,
+    while other inventories still use the cache.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     proja_inv_url = "https://a.example.com/objects.inv"
@@ -169,10 +169,13 @@ def test_per_inventory_fallback(
     app = _make_app(make_app, app_params)
     app.build()
 
-    # The build warned, naming the failed inventory.
-    warnings = app.warning.getvalue()
-    assert "proja" in warnings
-    assert "Could not prefetch" in warnings
+    # The fallback is reported at info level (not as a warning, so a
+    # warnings-as-errors ``-W`` build does not fail on Ook degradation),
+    # naming the failed inventory.
+    status = app.status.getvalue()
+    assert "proja" in status
+    assert "Could not prefetch" in status
+    assert "Could not prefetch" not in app.warning.getvalue()
 
     # projb was rewritten to a local cache file; proja was left untouched
     # (its inventory location is still None, so intersphinx fetches the
@@ -256,8 +259,8 @@ def test_write_failure_falls_back(
     monkeypatch: Any,
 ) -> None:
     """An OSError while writing the prefetched inventory does not fail the
-    build: the entry is left untouched with a warning, and stock intersphinx
-    fetches the origin directly.
+    build: the entry is left untouched with the fallback reported at info
+    level, and stock intersphinx fetches the origin directly.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     origin_inv_url = "https://example.com/project/objects.inv"
@@ -285,10 +288,13 @@ def test_write_failure_falls_back(
     app = _make_app(make_app, app_params)
     app.build()
 
-    # The build warned about the failed write, naming the inventory.
-    warnings = app.warning.getvalue()
-    assert "testproj" in warnings
-    assert "Could not write" in warnings
+    # The fallback is reported at info level (not as a warning, so a
+    # warnings-as-errors ``-W`` build does not fail on a cache write
+    # failure), naming the inventory.
+    status = app.status.getvalue()
+    assert "testproj" in status
+    assert "Could not write" in status
+    assert "Could not write" not in app.warning.getvalue()
 
     # The entry was left untouched, so intersphinx fetched the origin
     # directly and the cross-reference still resolved upstream.
