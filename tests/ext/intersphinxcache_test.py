@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import zlib
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,16 @@ from sphinx.testing.util import SphinxTestApp
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 INVENTORY_ENDPOINT = f"{OOK_BASE_URL}/intersphinx/inventory"
+
+# Whether the guide preset's theme is importable; the guide test root builds
+# the full user-guide stack (``from documenteer.conf.guide import *``), which
+# pins ``html_theme = "pydata_sphinx_theme"``.
+_HAS_PYDATA = importlib.util.find_spec("pydata_sphinx_theme") is not None
+
+# Whether the technote preset's dependencies are importable; the technote
+# test root builds the full technote stack
+# (``from documenteer.conf.technote import *``).
+_HAS_TECHNOTE_DEPS = importlib.util.find_spec("technote") is not None
 
 
 def _make_inventory(
@@ -258,4 +269,54 @@ def test_use_service_false_disables_extension(
     assert not any(
         (call.request.url or "").startswith(INVENTORY_ENDPOINT)
         for call in responses.calls
+    )
+
+
+@pytest.mark.skipif(
+    not _HAS_PYDATA, reason="pydata_sphinx_theme is not installed"
+)
+@pytest.mark.sphinx("html", testroot="guide", srcdir="guide-intersphinx-cache")
+def test_guide_preset_registers_extension(
+    make_app: Any,
+    app_params: Any,
+    monkeypatch: Any,
+) -> None:
+    """The guide preset registers the intersphinxcache extension and wires
+    the [sphinx.intersphinx_cache] settings through to its config values.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+
+    app = _make_app(make_app, app_params)
+
+    assert "documenteer.ext.intersphinxcache" in app.extensions
+    assert app.config.documenteer_intersphinx_cache_use_service is True
+    assert app.config.documenteer_intersphinx_cache_service_url == (
+        OOK_BASE_URL
+    )
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "html",
+    testroot="technote-linkcheck-service",
+    srcdir="technote-intersphinx-cache",
+)
+def test_technote_preset_registers_extension(
+    make_app: Any,
+    app_params: Any,
+    monkeypatch: Any,
+) -> None:
+    """The technote preset registers the intersphinxcache extension with the
+    extension's default settings.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+
+    app = _make_app(make_app, app_params)
+
+    assert "documenteer.ext.intersphinxcache" in app.extensions
+    assert app.config.documenteer_intersphinx_cache_use_service is True
+    assert app.config.documenteer_intersphinx_cache_service_url == (
+        OOK_BASE_URL
     )

@@ -73,6 +73,8 @@ __all__ = [
     "intersphinx_mapping",
     "intersphinx_timeout",
     "intersphinx_cache_limit",
+    "documenteer_intersphinx_cache_use_service",
+    "documenteer_intersphinx_cache_service_url",
     # LINKCHECK
     "linkcheck_retries",
     "linkcheck_ignore",
@@ -185,6 +187,7 @@ extensions = [
     "documenteer.ext.openapi",
     "documenteer.ext.redoc",
     "documenteer.ext.linkcheckservice",
+    "documenteer.ext.intersphinxcache",
 ]
 _conf.append_extensions(extensions)
 
@@ -258,6 +261,11 @@ _conf.extend_intersphinx_mapping(intersphinx_mapping)
 intersphinx_timeout = 10.0  # seconds
 
 intersphinx_cache_limit = 5  # days
+
+# Ook intersphinx inventory cache settings for
+# documenteer.ext.intersphinxcache
+documenteer_intersphinx_cache_use_service = _conf.intersphinx_cache_use_service
+documenteer_intersphinx_cache_service_url = _conf.intersphinx_cache_service_url
 
 
 # ============================================================================
