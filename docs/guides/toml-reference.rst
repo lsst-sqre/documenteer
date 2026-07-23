@@ -508,6 +508,9 @@ When the service fails for an individual inventory (an unauthorized or rejected 
 The fallback is logged at ``INFO`` rather than as a warning on purpose: Rubin documentation builds run with warnings-as-errors (``-W``), so reporting graceful service degradation as a warning would fail the build.
 An Ook outage can never make a build worse than a build without the service.
 
+To avoid re-downloading inventories on every build, Documenteer caches each prefetched :file:`objects.inv` on disk and only revalidates it with Ook after a short time-to-live (see :ref:`disk_cache_ttl <guide-sphinx-intersphinx-cache-disk-cache-ttl>` below).
+While a cached inventory is younger than the TTL, it is reused without contacting Ook at all; once the TTL has expired, Documenteer revalidates conditionally with an ``If-None-Match`` request, and a ``304 Not Modified`` reuses the on-disk copy with no inventory body transferred.
+
 .. note::
 
    **Technotes** also prefetch intersphinx inventories from the service, but technotes don't read :file:`documenteer.toml`, so the settings below don't apply to them; the defaults are used.
@@ -543,6 +546,29 @@ service_url
 
 Base URL of the Ook API that hosts the intersphinx inventory cache service.
 Default is ``https://roundtable.lsst.cloud/ook``.
+
+.. _guide-sphinx-intersphinx-cache-disk-cache-ttl:
+
+disk_cache_ttl
+--------------
+
+|optional|
+
+How long, in seconds, a prefetched inventory on disk is reused before Documenteer revalidates it with the Ook_ service.
+Default is ``600`` (10 minutes).
+
+While a cached :file:`objects.inv` is younger than the TTL, Documenteer reuses it as-is and makes no request to Ook, so rapid successive local rebuilds skip the round-trip entirely.
+Once the TTL has expired, Documenteer revalidates the inventory conditionally: it sends the ETag it stored alongside the cached file as an ``If-None-Match`` header, and if Ook answers ``304 Not Modified`` the on-disk copy is reused with no inventory body transferred and its TTL window restarts.
+A ``200 OK`` response replaces the cached inventory.
+
+Set ``disk_cache_ttl`` to ``0`` to disable this fast path so every build revalidates with Ook:
+
+.. code-block:: toml
+
+   [sphinx.intersphinx_cache]
+   disk_cache_ttl = 0
+
+The TTL governs only the client-to-Ook hop; whether Ook's own cached copy is current relative to the origin site remains Ook's concern.
 
 [sphinx.linkcheck]
 ==================

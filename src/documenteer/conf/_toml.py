@@ -201,6 +201,18 @@ class IntersphinxCacheModel(BaseModel):
         ),
     )
 
+    disk_cache_ttl: int = Field(
+        600,
+        ge=0,
+        description=(
+            "Seconds an on-disk cached inventory stays fresh before the "
+            "client revalidates it with Ook. Within this window, successive "
+            "builds reuse the local file without contacting Ook at all. "
+            "Set to 0 to disable the fast path so every build revalidates "
+            "with Ook."
+        ),
+    )
+
 
 class LinkCheckModel(BaseModel):
     """Model for linkcheck builder configurations in documenteer.toml."""
@@ -559,6 +571,13 @@ class DocumenteerConfig:
         service (without a trailing slash).
         """
         return str(self._intersphinx_cache.service_url).rstrip("/")
+
+    @property
+    def intersphinx_cache_disk_cache_ttl(self) -> int:
+        """Seconds an on-disk cached inventory stays fresh before the client
+        revalidates it with Ook (0 disables the fast path).
+        """
+        return self._intersphinx_cache.disk_cache_ttl
 
     def append_linkcheck_ignore(self, link_patterns: list[str]) -> None:
         """Append URL patterns for sphinx.linkcheck.ignore to existing

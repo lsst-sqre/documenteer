@@ -9,7 +9,7 @@ import pytest
 import pytest_responses  # noqa: F401
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout as RequestsTimeout
-from responses import RequestsMock
+from responses import RequestsMock, matchers
 
 from documenteer.storage.intersphinxcacheclient import (
     IntersphinxCacheClient,
@@ -42,15 +42,64 @@ def test_get_inventory_success(
     )
 
     client = IntersphinxCacheClient()
-    content = client.get_inventory(INVENTORY_URL)
+    result = client.get_inventory(INVENTORY_URL)
 
-    assert content == INVENTORY_BYTES
+    assert result.not_modified is False
+    assert result.content == INVENTORY_BYTES
+    assert result.etag is None
     assert len(responses.calls) == 1
     api_request = responses.calls[0].request
     assert api_request.headers["Authorization"] == "Bearer test-token"
+    assert "If-None-Match" not in api_request.headers
     assert api_request.url is not None
     query = parse_qs(urlparse(api_request.url).query)
     assert query["url"] == [INVENTORY_URL]
+
+
+def test_get_inventory_returns_etag(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 response with an ETag header surfaces the ETag alongside the
+    inventory bytes.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": '"abc123"'},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.not_modified is False
+    assert result.content == INVENTORY_BYTES
+    assert result.etag == '"abc123"'
+
+
+def test_get_inventory_conditional_not_modified(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Passing an ETag sends ``If-None-Match``; a 304 response signals
+    not-modified with no body and echoes the requested ETag back.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        status=304,
+        match=[matchers.header_matcher({"If-None-Match": '"abc123"'})],
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL, etag='"abc123"')
+
+    assert result.not_modified is True
+    assert result.content is None
+    assert result.etag == '"abc123"'
+    api_request = responses.calls[0].request
+    assert api_request.headers["If-None-Match"] == '"abc123"'
 
 
 def test_missing_token(monkeypatch: Any) -> None:
@@ -142,8 +191,8 @@ def test_base_url_override(responses: RequestsMock, monkeypatch: Any) -> None:
     client = IntersphinxCacheClient(
         base_url="https://roundtable-dev.lsst.cloud/ook/"
     )
-    content = client.get_inventory(INVENTORY_URL)
-    assert content == INVENTORY_BYTES
+    result = client.get_inventory(INVENTORY_URL)
+    assert result.content == INVENTORY_BYTES
 
 
 def test_explicit_token_argument(
@@ -158,8 +207,8 @@ def test_explicit_token_argument(
     )
 
     client = IntersphinxCacheClient(token="explicit-token")
-    content = client.get_inventory(INVENTORY_URL)
+    result = client.get_inventory(INVENTORY_URL)
 
-    assert content == INVENTORY_BYTES
+    assert result.content == INVENTORY_BYTES
     api_request = responses.calls[0].request
     assert api_request.headers["Authorization"] == "Bearer explicit-token"

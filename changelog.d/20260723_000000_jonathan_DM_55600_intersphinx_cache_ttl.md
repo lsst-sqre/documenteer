@@ -1,0 +1,3 @@
+### New features
+
+- Prefetched intersphinx inventories are now cached on disk with a short time-to-live (the new `disk_cache_ttl` setting under `[sphinx.intersphinx_cache]`, default 600 seconds; `0` disables it), so rapid successive local rebuilds reuse the cached `objects.inv` without contacting Ook at all. Once the TTL expires, Documenteer revalidates conditionally: it sends the stored ETag as an `If-None-Match` header, and a `304 Not Modified` reuses the on-disk copy with no inventory body transferred (a `200 OK` replaces it). Technotes can override the TTL through `documenteer_intersphinx_cache_disk_cache_ttl` in `conf.py`.

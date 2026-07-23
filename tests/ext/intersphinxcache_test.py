@@ -13,7 +13,7 @@ import pytest_responses  # noqa: F401
 from responses import RequestsMock, matchers
 from sphinx.testing.util import SphinxTestApp
 
-from documenteer.ext.intersphinxcache import CACHE_DIRNAME
+from documenteer.ext.intersphinxcache import CACHE_DIRNAME, _inventory_filename
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 INVENTORY_ENDPOINT = f"{OOK_BASE_URL}/intersphinx/inventory"
@@ -133,6 +133,540 @@ def test_prefetch_rewrites_mapping_and_resolves(
 
 @pytest.mark.sphinx(
     "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-ttl-fastpath",
+)
+def test_ttl_fast_path_skips_ook_on_second_build(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A second build within disk_cache_ttl reuses the on-disk inventory
+    without contacting Ook, and the mapping is still rewritten to the local
+    cache file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    # The first build fetches from Ook and writes the on-disk cache.
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert len(responses.calls) == 1
+
+    # A second build within the TTL (the default 600s) reuses the on-disk
+    # inventory without contacting Ook at all.
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 1
+
+    # The mapping is still rewritten to the local cache file.
+    locations = _inventory_locations(app2, "testproj")
+    assert len(locations) == 1
+    assert "://" not in locations[0]
+    assert Path(locations[0]).is_file()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-ttl-disabled",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_ttl_zero_revalidates_every_build(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """With disk_cache_ttl = 0 the fast path is disabled, so every build
+    revalidates with Ook even when a fresh on-disk cache file exists.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert len(responses.calls) == 1
+
+    # A second build contacts Ook again because the fast path is disabled.
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 2
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-log-download",
+)
+def test_download_logged_at_info(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A successful cold download from Ook is reported at info level naming
+    the inventory, so build logs show that the Ook cache was used (rather
+    than the prefetch being silent and only intersphinx's local-file loading
+    lines appearing).
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    inventory = _make_inventory()
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=inventory,
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The download is reported at info level (status stream, not the warning
+    # stream, so a warnings-as-errors ``-W`` build is unaffected), naming the
+    # inventory and the byte count.
+    status = app.status.getvalue()
+    assert (
+        "Downloaded the intersphinx inventory for 'testproj' from Ook "
+        f"({len(inventory)} bytes)." in status
+    )
+    assert "Downloaded" not in app.warning.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-log-fastpath",
+)
+def test_ttl_fast_path_logged_at_info(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A TTL fast-path reuse (no request to Ook) is reported at info level
+    naming the inventory, so build logs distinguish a cache hit from the
+    extension not running at all.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    # The first build downloads and writes the on-disk cache.
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+
+    # The second build (within the default TTL) reuses the on-disk copy and
+    # says so at info level (status stream, not the warning stream).
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    status = app2.status.getvalue()
+    assert (
+        "Reusing the on-disk intersphinx inventory for 'testproj' "
+        "(younger than disk_cache_ttl)." in status
+    )
+    assert "Reusing" not in app2.warning.getvalue()
+
+
+def _etag_sidecar(inv_path: Path) -> Path:
+    """Return the ETag sidecar path for a cached ``.inv`` file."""
+    return inv_path.with_name(inv_path.name + ".etag")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-etag-304",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_revalidation_304_reuses_disk_bytes(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """After the TTL expires, a revalidation that returns 304 reuses the
+    on-disk inventory (no body transferred) and rewrites the mapping to the
+    local file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    etag = '"v1etag"'
+    inventory = _make_inventory()
+    # The 304 (registered first) is chosen only when If-None-Match is sent;
+    # the initial build has no such header and falls through to the 200.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": etag}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=inventory,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": etag},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    # First build fetches a 200 with an ETag and writes the .inv + sidecar.
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert len(responses.calls) == 1
+    inv_path = Path(_inventory_locations(app1, "testproj")[0])
+    sidecar = _etag_sidecar(inv_path)
+    assert sidecar.read_text() == etag
+
+    # Second build revalidates with If-None-Match and gets a 304.
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 2
+    assert responses.calls[1].request.headers["If-None-Match"] == etag
+
+    # The on-disk bytes are reused unchanged and the mapping still points at
+    # the local file; the sidecar is preserved.
+    locations = _inventory_locations(app2, "testproj")
+    assert "://" not in locations[0]
+    assert Path(locations[0]) == inv_path
+    assert inv_path.read_bytes() == inventory
+    assert sidecar.read_text() == etag
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-log-304",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_revalidation_304_logged_at_info(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A revalidation answered with 304 Not Modified is reported at info
+    level naming the inventory, so build logs show that Ook was consulted
+    and the on-disk copy is current.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    etag = '"v1etag"'
+    # The 304 (registered first) is chosen only when If-None-Match is sent;
+    # the initial build has no such header and falls through to the 200.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": etag}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": etag},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+
+    # The second build revalidates, gets a 304, and says so at info level
+    # (status stream, not the warning stream).
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    status = app2.status.getvalue()
+    assert (
+        "The intersphinx inventory for 'testproj' is unchanged on Ook "
+        "(HTTP 304 Not Modified); reusing the on-disk copy." in status
+    )
+    assert "unchanged on Ook" not in app2.warning.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-unconditional-304",
+)
+def test_unconditional_304_falls_back(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A protocol-violating 304 answered to an unconditional request (no
+    cached inventory, so no If-None-Match was sent) is treated as a fallback:
+    the entry is left untouched with an info-level log rather than mapped to a
+    nonexistent local file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    # The very first build has no cached .inv/sidecar, so it sends no
+    # If-None-Match; a misbehaving server answers 304 anyway.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The fallback is reported at info level (not a warning, so a
+    # warnings-as-errors ``-W`` build does not fail on the misbehavior) and
+    # names the inventory, and the entry is left untouched (its inventory
+    # location is still None) so stock intersphinx fetches the origin directly.
+    status = app.status.getvalue()
+    assert "testproj" in status
+    assert "304 Not Modified" in status
+    assert "304 Not Modified" not in app.warning.getvalue()
+    assert _inventory_locations(app, "testproj") == (None,)
+    # No local cache file was mapped in, so nothing points at a possibly
+    # nonexistent path.
+    cache_dir = Path(app.doctreedir).parent / CACHE_DIRNAME
+    assert not any(cache_dir.glob("*.inv")) if cache_dir.exists() else True
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-etag-200",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_revalidation_200_replaces_inv_and_sidecar(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A revalidation that returns 200 replaces both the .inv file and the
+    ETag sidecar.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    inv_v1 = _make_inventory(version="1.0")
+    inv_v2 = _make_inventory(version="2.0")
+    # When If-None-Match "v1" is sent, the server returns fresh bytes + v2.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=inv_v2,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": '"v2"'},
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": '"v1"'}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=inv_v1,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": '"v1"'},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    inv_path = Path(_inventory_locations(app1, "testproj")[0])
+    sidecar = _etag_sidecar(inv_path)
+    assert inv_path.read_bytes() == inv_v1
+    assert sidecar.read_text() == '"v1"'
+
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 2
+
+    # Both the inventory bytes and the sidecar are replaced with the new copy.
+    assert inv_path.read_bytes() == inv_v2
+    assert sidecar.read_text() == '"v2"'
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-no-etag",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_no_etag_server_full_fetch_no_sidecar(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """Against a server that returns no ETag, behavior is today's: a full
+    fetch on every TTL miss, no sidecar written, and no warnings.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert len(responses.calls) == 1
+    inv_path = Path(_inventory_locations(app1, "testproj")[0])
+    assert not _etag_sidecar(inv_path).exists()
+
+    # A second build (TTL disabled) fetches the full body again; still no
+    # sidecar and no warnings.
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 2
+    assert not _etag_sidecar(inv_path).exists()
+    # The extension itself emits no warning (the only lines in the warning
+    # stream are Sphinx's own multi-app node-registration noise from building
+    # two apps in one process, which does not occur in a real build).
+    warning = app2.warning.getvalue()
+    assert "Could not" not in warning
+    assert "intersphinx inventory" not in warning
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-etag-cleared",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_200_without_etag_clears_stale_sidecar(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A 200 response without an ETag clears any stale sidecar left by a
+    previous ETag-bearing response (e.g. after a server downgrade).
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    # The revalidation (If-None-Match "v1") is answered by a downgraded server
+    # with a 200 that carries no ETag header.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(version="2.0"),
+        status=200,
+        content_type="application/octet-stream",
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": '"v1"'}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(version="1.0"),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": '"v1"'},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    inv_path = Path(_inventory_locations(app1, "testproj")[0])
+    sidecar = _etag_sidecar(inv_path)
+    assert sidecar.read_text() == '"v1"'
+
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 2
+    # The stale sidecar is removed and the mapping still points at the file.
+    assert not sidecar.exists()
+    assert Path(_inventory_locations(app2, "testproj")[0]) == inv_path
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-etag-error",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_revalidation_error_leaves_mapping_untouched(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A client error during revalidation leaves the mapping entry untouched
+    with an info-level log, and the build still succeeds via a direct origin
+    fetch.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    # The revalidation fails with a client error. A 404 (not a force-listed
+    # 5xx) is answered on the first attempt without the retry session
+    # consuming the fallback 200, keeping the scenario deterministic.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        json={"detail": "not found"},
+        status=404,
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": '"v1"'}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": '"v1"'},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+
+    # The build succeeds and the fallback is reported at info level (not a
+    # warning, so a warnings-as-errors ``-W`` build does not fail), naming the
+    # inventory. The mapping entry is left untouched (its inventory location
+    # is still None), so stock intersphinx is responsible for the origin,
+    # exactly as without the service.
+    status = app2.status.getvalue()
+    assert "testproj" in status
+    assert "Could not prefetch" in status
+    assert "Could not prefetch" not in app2.warning.getvalue()
+    assert _inventory_locations(app2, "testproj") == (None,)
+
+
+@pytest.mark.sphinx(
+    "html",
     testroot="intersphinx-cache-multi",
     srcdir="intersphinx-cache-fallback",
 )
@@ -205,10 +739,33 @@ def test_per_inventory_fallback(
     )
 
 
+def test_inventory_filename_keys_on_name_and_origin_url() -> None:
+    """The cache filename hash includes the resolved origin URL, so changing
+    an entry's URL (while keeping the same key) yields a different filename —
+    the new URL misses the cache and is fetched immediately rather than served
+    a stale inventory for up to one TTL window.
+    """
+    name = "proj"
+    url_a = "https://a.example.com/objects.inv"
+    url_b = "https://b.example.com/objects.inv"
+
+    # Deterministic for identical inputs.
+    assert _inventory_filename(name, url_a) == _inventory_filename(name, url_a)
+    # A changed origin URL changes the filename.
+    assert _inventory_filename(name, url_a) != _inventory_filename(name, url_b)
+    # A changed key still changes the filename (distinct keys never collide).
+    assert _inventory_filename("other", url_a) != _inventory_filename(
+        name, url_a
+    )
+    # The stem is still the sanitized key and the suffix is still .inv.
+    assert _inventory_filename(name, url_a).startswith("proj-")
+    assert _inventory_filename(name, url_a).endswith(".inv")
+
+
 @pytest.mark.sphinx(
     "html",
     testroot="intersphinx-cache-oddkey",
-    srcdir="intersphinx-cache-oddkey",
+    srcdir="intersphinx-cache-oddkey-sanitize",
 )
 def test_mapping_key_with_path_separator_is_sanitized(
     make_app: Any,
@@ -399,6 +956,7 @@ def test_guide_preset_registers_extension(
     assert app.config.documenteer_intersphinx_cache_service_url == (
         OOK_BASE_URL
     )
+    assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600
 
 
 @pytest.mark.skipif(
@@ -426,3 +984,4 @@ def test_technote_preset_registers_extension(
     assert app.config.documenteer_intersphinx_cache_service_url == (
         OOK_BASE_URL
     )
+    assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600

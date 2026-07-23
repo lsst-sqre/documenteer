@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 
 import requests
 
@@ -16,6 +17,7 @@ __all__ = [
     "IntersphinxCacheServerError",
     "IntersphinxCacheUnauthorizedError",
     "IntersphinxCacheUnreachableError",
+    "InventoryFetchResult",
 ]
 
 DEFAULT_BASE_URL = "https://roundtable.lsst.cloud/ook"
@@ -23,6 +25,28 @@ DEFAULT_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
 TOKEN_ENV_VAR = "OOK_TOKEN"
 """Environment variable holding the bearer token for the Ook API."""
+
+
+@dataclass(frozen=True)
+class InventoryFetchResult:
+    """The outcome of a (possibly conditional) inventory fetch.
+
+    A ``304 Not Modified`` response is signaled by ``not_modified`` being
+    `True` with ``content`` `None`; a ``200 OK`` carries the fetched bytes in
+    ``content`` with ``not_modified`` `False`. ``etag`` is the entity tag the
+    caller should persist alongside the inventory: on a 200 it is the ETag
+    from the response (or `None` when the server sent no ``ETag`` header), and
+    on a 304 it is the ETag that was revalidated.
+    """
+
+    not_modified: bool
+    """Whether the server reported the inventory unchanged (HTTP 304)."""
+
+    content: bytes | None
+    """The raw inventory bytes on a 200, or `None` on a 304."""
+
+    etag: str | None
+    """The entity tag to persist, or `None` when the server sent none."""
 
 
 class IntersphinxCacheError(ValueError):
@@ -88,7 +112,9 @@ class IntersphinxCacheClient:
             session if session is not None else requests_retry_session()
         )
 
-    def get_inventory(self, url: str) -> bytes:
+    def get_inventory(
+        self, url: str, *, etag: str | None = None
+    ) -> InventoryFetchResult:
         """Fetch the cached intersphinx inventory for an origin URL.
 
         Parameters
@@ -96,12 +122,17 @@ class IntersphinxCacheClient:
         url
             The origin ``objects.inv`` URL to fetch from the cache, passed
             to the service as the ``url`` query parameter.
+        etag
+            An entity tag from a previously cached copy. When provided, the
+            request carries an ``If-None-Match`` header so an unchanged
+            inventory can be answered with ``304 Not Modified`` and no body.
 
         Returns
         -------
-        bytes
-            The raw inventory bytes, returned unparsed for the caller to
-            write to a local file.
+        InventoryFetchResult
+            The fetch outcome: either new bytes plus the response ETag
+            (``not_modified=False``), or a not-modified signal that echoes the
+            revalidated ``etag`` (``not_modified=True``, ``content=None``).
 
         Raises
         ------
@@ -124,6 +155,10 @@ class IntersphinxCacheClient:
             )
         api_url = f"{self._base_url}/intersphinx/inventory"
         headers = {"Authorization": f"Bearer {self._token}"}
+        if etag is not None:
+            # Conditional revalidation: an unchanged inventory is answered
+            # with 304 and transfers no body.
+            headers["If-None-Match"] = etag
         try:
             r = self._session.get(
                 api_url,
@@ -151,6 +186,13 @@ class IntersphinxCacheClient:
                 f"cache at {api_url} (HTTP {r.status_code}). Check the "
                 f"{TOKEN_ENV_VAR} environment variable."
             )
+        if r.status_code == 304:
+            # The conditional request matched: the inventory is unchanged, so
+            # the caller keeps its on-disk copy. Echo back the ETag it
+            # revalidated with.
+            return InventoryFetchResult(
+                not_modified=True, content=None, etag=etag
+            )
         if r.status_code >= 500:
             raise IntersphinxCacheServerError(
                 f"Server error from the Ook intersphinx inventory cache at "
@@ -168,4 +210,8 @@ class IntersphinxCacheClient:
                 f"Error from the Ook intersphinx inventory cache at "
                 f"{api_url} for {url}: {e}"
             ) from e
-        return r.content
+        return InventoryFetchResult(
+            not_modified=False,
+            content=r.content,
+            etag=r.headers.get("ETag"),
+        )
