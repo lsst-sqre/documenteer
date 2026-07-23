@@ -265,6 +265,7 @@ base_url = "https://documenteer.lsst.io"
 [sphinx.intersphinx_cache]
 use_service = false
 service_url = "https://roundtable-dev.lsst.cloud/ook"
+disk_cache_ttl = 0
 """
 
 
@@ -279,6 +280,7 @@ def test_intersphinx_cache_defaults() -> None:
             config.intersphinx_cache_service_url
             == "https://roundtable.lsst.cloud/ook"
         )
+        assert config.intersphinx_cache_disk_cache_ttl == 600
 
 
 def test_intersphinx_cache_settings() -> None:
@@ -289,3 +291,4 @@ def test_intersphinx_cache_settings() -> None:
         config.intersphinx_cache_service_url
         == "https://roundtable-dev.lsst.cloud/ook"
     )
+    assert config.intersphinx_cache_disk_cache_ttl == 0

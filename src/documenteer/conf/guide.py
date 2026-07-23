@@ -75,6 +75,7 @@ __all__ = [
     "intersphinx_cache_limit",
     "documenteer_intersphinx_cache_use_service",
     "documenteer_intersphinx_cache_service_url",
+    "documenteer_intersphinx_cache_disk_cache_ttl",
     # LINKCHECK
     "linkcheck_retries",
     "linkcheck_ignore",
@@ -266,6 +267,9 @@ intersphinx_cache_limit = 5  # days
 # documenteer.ext.intersphinxcache
 documenteer_intersphinx_cache_use_service = _conf.intersphinx_cache_use_service
 documenteer_intersphinx_cache_service_url = _conf.intersphinx_cache_service_url
+documenteer_intersphinx_cache_disk_cache_ttl = (
+    _conf.intersphinx_cache_disk_cache_ttl
+)
 
 
 # ============================================================================

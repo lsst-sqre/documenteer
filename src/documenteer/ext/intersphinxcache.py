@@ -15,6 +15,14 @@ real upstream site and stock intersphinx runs unmodified. (Rationale:
 intersphinx cannot send an ``Authorization`` header to inventory URLs, but it
 accepts local file paths as inventory locations.)
 
+A client-side on-disk TTL avoids the Ook round-trip on rapid successive
+builds: when the cached ``.inv`` file for a mapping entry already exists with
+an mtime younger than ``documenteer_intersphinx_cache_disk_cache_ttl`` seconds
+(default 600), it is reused as-is without contacting Ook. Setting the TTL to
+``0`` disables this fast path so every build revalidates with Ook. The TTL
+governs only the client-to-Ook hop; whether Ook's own cached copy is stale
+relative to the origin remains Ook's concern.
+
 The extension is a complete no-op when ``OOK_TOKEN`` is unset (forks, local
 builds) or when disabled via ``documenteer_intersphinx_cache_use_service``.
 Any per-inventory client error (unauthorized, unreachable, 5xx, 404,
@@ -33,6 +41,7 @@ import hashlib
 import os
 import posixpath
 import re
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -106,6 +115,20 @@ def _resolve_origin_inventory_url(
     return None
 
 
+def _is_cache_fresh(path: Path, ttl: int) -> bool:
+    """Return whether a cached inventory file exists and its mtime is younger
+    than ``ttl`` seconds.
+
+    A missing file (or any stat error) is treated as not fresh so the caller
+    revalidates with Ook.
+    """
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return False
+    return (time.time() - mtime) < ttl
+
+
 def _prefetch_inventories(app: Sphinx, config: Config) -> None:
     """Prefetch intersphinx inventories from Ook and rewrite the mapping.
 
@@ -133,6 +156,8 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
     # from the published HTML site, mirroring how .doctrees is excluded.
     cache_dir = Path(app.doctreedir).parent / CACHE_DIRNAME
 
+    ttl = config.documenteer_intersphinx_cache_disk_cache_ttl
+
     for name, value in list(mapping.items()):
         if not isinstance(value, (tuple, list)) or len(value) != 2:
             # An unexpected entry shape is left for intersphinx to validate.
@@ -140,6 +165,17 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         target_uri, inv_location = value
         origin_url = _resolve_origin_inventory_url(target_uri, inv_location)
         if origin_url is None:
+            continue
+
+        inv_path = cache_dir / _inventory_filename(name)
+        if ttl > 0 and _is_cache_fresh(inv_path, ttl):
+            # TTL fast path: the on-disk inventory is younger than the TTL, so
+            # reuse it without contacting Ook at all. The mapping is rewritten
+            # to the local path exactly as it would be after a fresh prefetch.
+            # The TTL governs only this client-to-Ook hop; whether Ook's own
+            # cached copy is stale relative to the origin remains Ook's
+            # concern.
+            mapping[name] = (target_uri, str(inv_path))
             continue
 
         try:
@@ -161,7 +197,6 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
             )
             continue
 
-        inv_path = cache_dir / _inventory_filename(name)
         try:
             cache_dir.mkdir(parents=True, exist_ok=True)
             inv_path.write_bytes(data)
@@ -207,6 +242,9 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     app.add_config_value("documenteer_intersphinx_cache_use_service", True, "")
     app.add_config_value(
         "documenteer_intersphinx_cache_service_url", DEFAULT_BASE_URL, ""
+    )
+    app.add_config_value(
+        "documenteer_intersphinx_cache_disk_cache_ttl", 600, ""
     )
 
     return {

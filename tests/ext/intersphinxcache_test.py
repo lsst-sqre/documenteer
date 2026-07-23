@@ -133,6 +133,84 @@ def test_prefetch_rewrites_mapping_and_resolves(
 
 @pytest.mark.sphinx(
     "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-ttl-fastpath",
+)
+def test_ttl_fast_path_skips_ook_on_second_build(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A second build within disk_cache_ttl reuses the on-disk inventory
+    without contacting Ook, and the mapping is still rewritten to the local
+    cache file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    # The first build fetches from Ook and writes the on-disk cache.
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert len(responses.calls) == 1
+
+    # A second build within the TTL (the default 600s) reuses the on-disk
+    # inventory without contacting Ook at all.
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 1
+
+    # The mapping is still rewritten to the local cache file.
+    locations = _inventory_locations(app2, "testproj")
+    assert len(locations) == 1
+    assert "://" not in locations[0]
+    assert Path(locations[0]).is_file()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-ttl-disabled",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_ttl_zero_revalidates_every_build(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """With disk_cache_ttl = 0 the fast path is disabled, so every build
+    revalidates with Ook even when a fresh on-disk cache file exists.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert len(responses.calls) == 1
+
+    # A second build contacts Ook again because the fast path is disabled.
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 2
+
+
+@pytest.mark.sphinx(
+    "html",
     testroot="intersphinx-cache-multi",
     srcdir="intersphinx-cache-fallback",
 )
@@ -399,6 +477,7 @@ def test_guide_preset_registers_extension(
     assert app.config.documenteer_intersphinx_cache_service_url == (
         OOK_BASE_URL
     )
+    assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600
 
 
 @pytest.mark.skipif(
@@ -426,3 +505,4 @@ def test_technote_preset_registers_extension(
     assert app.config.documenteer_intersphinx_cache_service_url == (
         OOK_BASE_URL
     )
+    assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600
