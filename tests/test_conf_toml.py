@@ -254,3 +254,38 @@ def test_linkcheck_origin_no_base_url() -> None:
     """Without a base URL or override, the origin base URL is None."""
     config = DocumenteerConfig.load(EXAMPLE_NO_SPHINX)
     assert config.linkcheck_origin_base_url is None
+
+
+EXAMPLE_INTERSPHINX_CACHE = """
+
+[project]
+title = "Documenteer"
+base_url = "https://documenteer.lsst.io"
+
+[sphinx.intersphinx_cache]
+use_service = false
+service_url = "https://roundtable-dev.lsst.cloud/ook"
+"""
+
+
+def test_intersphinx_cache_defaults() -> None:
+    """The intersphinx cache settings have production-ready defaults, even
+    without a [sphinx] table.
+    """
+    for example in (EXAMPLE, EXAMPLE_NO_SPHINX):
+        config = DocumenteerConfig.load(example)
+        assert config.intersphinx_cache_use_service is True
+        assert (
+            config.intersphinx_cache_service_url
+            == "https://roundtable.lsst.cloud/ook"
+        )
+
+
+def test_intersphinx_cache_settings() -> None:
+    """[sphinx.intersphinx_cache] settings override the defaults."""
+    config = DocumenteerConfig.load(EXAMPLE_INTERSPHINX_CACHE)
+    assert config.intersphinx_cache_use_service is False
+    assert (
+        config.intersphinx_cache_service_url
+        == "https://roundtable-dev.lsst.cloud/ook"
+    )

@@ -25,12 +25,16 @@ from pydantic import (
 )
 from sphinx.errors import ConfigError
 
+from ..storage.intersphinxcacheclient import (
+    DEFAULT_BASE_URL as INTERSPHINX_CACHE_DEFAULT_BASE_URL,
+)
 from ..storage.linkcheckclient import DEFAULT_BASE_URL as OOK_DEFAULT_BASE_URL
 from ._utils import GitRepository, normalize_origin_base_url
 
 __all__ = [
     "ConfigRoot",
     "DocumenteerConfig",
+    "IntersphinxCacheModel",
     "IntersphinxModel",
     "LinkCheckModel",
     "OpenApiDocsModel",
@@ -175,6 +179,29 @@ class IntersphinxModel(BaseModel):
     )
 
 
+class IntersphinxCacheModel(BaseModel):
+    """Model for the Ook intersphinx inventory cache configuration in
+    documenteer.toml.
+    """
+
+    use_service: bool = Field(
+        True,
+        description=(
+            "Prefetch intersphinx object inventories from Ook's inventory "
+            "cache service so builds do not depend on third-party site "
+            "availability."
+        ),
+    )
+
+    service_url: HttpUrl = Field(
+        HttpUrl(INTERSPHINX_CACHE_DEFAULT_BASE_URL),
+        description=(
+            "Base URL of the Ook API that hosts the intersphinx inventory "
+            "cache service."
+        ),
+    )
+
+
 class LinkCheckModel(BaseModel):
     """Model for linkcheck builder configurations in documenteer.toml."""
 
@@ -314,6 +341,10 @@ class SphinxModel(BaseModel):
     theme: ThemeModel = Field(default_factory=ThemeModel)
 
     intersphinx: IntersphinxModel = Field(default_factory=IntersphinxModel)
+
+    intersphinx_cache: IntersphinxCacheModel = Field(
+        default_factory=IntersphinxCacheModel
+    )
 
     linkcheck: LinkCheckModel = Field(default_factory=LinkCheckModel)
 
@@ -505,6 +536,29 @@ class DocumenteerConfig:
         ):
             for project, url in self.conf.sphinx.intersphinx.projects.items():
                 mapping[project] = (str(url), None)
+
+    @property
+    def _intersphinx_cache(self) -> IntersphinxCacheModel:
+        """The intersphinx cache configuration model, or its defaults if the
+        [sphinx] table is not set.
+        """
+        if self.conf.sphinx:
+            return self.conf.sphinx.intersphinx_cache
+        return IntersphinxCacheModel()
+
+    @property
+    def intersphinx_cache_use_service(self) -> bool:
+        """Whether to prefetch intersphinx inventories from Ook's inventory
+        cache service.
+        """
+        return self._intersphinx_cache.use_service
+
+    @property
+    def intersphinx_cache_service_url(self) -> str:
+        """Base URL of the Ook API that hosts the intersphinx inventory cache
+        service (without a trailing slash).
+        """
+        return str(self._intersphinx_cache.service_url).rstrip("/")
 
     def append_linkcheck_ignore(self, link_patterns: list[str]) -> None:
         """Append URL patterns for sphinx.linkcheck.ignore to existing

@@ -58,6 +58,7 @@ extensions.extend(  # noqa: F405
         "sphinxcontrib.youtube",
         "sphinx_sitemap",
         "documenteer.ext.linkcheckservice",
+        "documenteer.ext.intersphinxcache",
     ]
 )
 

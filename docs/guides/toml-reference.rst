@@ -492,6 +492,58 @@ The values are URLs to the root of Sphinx documentation projects.
 
 See the Intersphinx_ documentation for details on linking to other Sphinx projects.
 
+[sphinx.intersphinx_cache]
+==========================
+
+|optional|
+
+Configurations for prefetching intersphinx inventories from the Ook_ inventory cache service (the ``documenteer.ext.intersphinxcache`` extension).
+
+By default, Documenteer prefetches each intersphinx project's object inventory (:file:`objects.inv`) from the Ook_ inventory cache service and rewrites ``intersphinx_mapping`` to point at the locally-written files, so documentation builds no longer depend on third-party site availability.
+Only the inventory locations are rewritten — the target URIs are left unchanged, so resolved links still point at the real upstream sites.
+
+Prefetching requires a bearer token for the Ook API, read from the ``OOK_TOKEN`` environment variable.
+When the token is unset, the extension is a complete no-op and stock Intersphinx_ behavior is unchanged, so builds still work for projects that haven't configured the token (for example, fork pull requests where secrets are unavailable, or local builds).
+When the service fails for an individual inventory (an unauthorized or rejected token, an unreachable service, a server error, or a timeout), that mapping entry is left untouched so Intersphinx_ fetches the origin directly, and the build reports the fallback at the ``INFO`` log level naming the inventory.
+The fallback is logged at ``INFO`` rather than as a warning on purpose: Rubin documentation builds run with warnings-as-errors (``-W``), so reporting graceful service degradation as a warning would fail the build.
+An Ook outage can never make a build worse than a build without the service.
+
+.. note::
+
+   **Technotes** also prefetch intersphinx inventories from the service, but technotes don't read :file:`documenteer.toml`, so the settings below don't apply to them; the defaults are used.
+
+   A technote can override these settings through the corresponding ``documenteer_intersphinx_cache_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
+   For example, ``documenteer_intersphinx_cache_use_service = False`` disables prefetching.
+
+.. _guide-sphinx-intersphinx-cache-use-service:
+
+use_service
+-----------
+
+|optional|
+
+Whether to prefetch intersphinx inventories from the Ook_ inventory cache service.
+Default is ``true``.
+
+Set this to ``false`` as an escape hatch to disable prefetching so Intersphinx_ fetches every inventory directly from its origin site:
+
+.. code-block:: toml
+
+   [sphinx.intersphinx_cache]
+   use_service = false
+
+With ``use_service = false`` the service is never contacted, even when an ``OOK_TOKEN`` is set.
+
+.. _guide-sphinx-intersphinx-cache-service-url:
+
+service_url
+-----------
+
+|optional|
+
+Base URL of the Ook API that hosts the intersphinx inventory cache service.
+Default is ``https://roundtable.lsst.cloud/ook``.
+
 [sphinx.linkcheck]
 ==================
 
