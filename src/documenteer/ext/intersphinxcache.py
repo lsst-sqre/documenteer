@@ -92,17 +92,21 @@ _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 """Characters not allowed in a generated inventory filename stem."""
 
 
-def _inventory_filename(name: str) -> str:
-    """Return a filesystem-safe ``.inv`` filename for a mapping key.
+def _inventory_filename(name: str, origin_url: str) -> str:
+    """Return a filesystem-safe ``.inv`` filename for a mapping entry.
 
     The mapping key comes from an author-controlled ``intersphinx_mapping``
     and may contain path separators or other characters that are unsafe in a
     filename. The key is sanitized for readability and suffixed with a short
-    hash of the original key so distinct keys that sanitize to the same stem
-    do not collide.
+    hash of the original key *and* the resolved origin inventory URL. Hashing
+    the origin URL as well means that changing an entry's target URI or
+    inventory URL (while keeping the same key) yields a different filename, so
+    the new URL misses the cache and is fetched immediately rather than being
+    served the previously cached inventory for up to one TTL window. Including
+    the key keeps distinct keys that sanitize to the same stem from colliding.
     """
     safe = _UNSAFE_FILENAME_CHARS.sub("_", name)
-    digest = hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
+    digest = hashlib.sha256(f"{name}\n{origin_url}".encode()).hexdigest()[:8]
     return f"{safe}-{digest}{os.extsep}inv"
 
 
@@ -220,9 +224,27 @@ def _revalidate_inventory(
 
     if result.not_modified:
         # 304 Not Modified: the on-disk bytes are current and no body was
-        # transferred. Refresh the file's mtime to restart the TTL window
-        # (best-effort; a failed refresh only means the next build
-        # revalidates sooner) and map to the local file.
+        # transferred. This is only meaningful when we actually sent an
+        # If-None-Match (request_etag is not None) and the cached file is
+        # still present. A misbehaving server that answers 304 to an
+        # unconditional request would otherwise map the entry to a
+        # possibly-nonexistent local file, which intersphinx would then warn
+        # about as unreadable — under -W the one case that could make the
+        # build worse than not using the service at all. Treat that as a
+        # fallback: leave the entry untouched so stock intersphinx fetches
+        # the origin directly.
+        if request_etag is None or not inv_path.is_file():
+            logger.info(
+                "Ook returned 304 Not Modified for %r without a usable "
+                "cached inventory (no ETag was sent or the cache file is "
+                "missing); falling back to a direct fetch of %s.",
+                name,
+                origin_url,
+            )
+            return None
+        # Refresh the file's mtime to restart the TTL window (best-effort; a
+        # failed refresh only means the next build revalidates sooner) and
+        # map to the local file.
         with contextlib.suppress(OSError):
             os.utime(inv_path, None)
         return str(inv_path)
@@ -292,7 +314,7 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         if origin_url is None:
             continue
 
-        inv_path = cache_dir / _inventory_filename(name)
+        inv_path = cache_dir / _inventory_filename(name, origin_url)
         etag_path = _etag_sidecar_path(inv_path)
         if ttl > 0 and _is_cache_fresh(inv_path, ttl):
             # TTL fast path: the on-disk inventory is younger than the TTL, so

@@ -292,3 +292,22 @@ def test_intersphinx_cache_settings() -> None:
         == "https://roundtable-dev.lsst.cloud/ook"
     )
     assert config.intersphinx_cache_disk_cache_ttl == 0
+
+
+EXAMPLE_NEGATIVE_TTL = """
+
+[project]
+title = "Documenteer"
+base_url = "https://documenteer.lsst.io"
+
+[sphinx.intersphinx_cache]
+disk_cache_ttl = -1
+"""
+
+
+def test_intersphinx_cache_negative_ttl_rejected() -> None:
+    """A negative disk_cache_ttl is rejected at config load rather than
+    silently coerced to the fast-path-disabled behavior of 0.
+    """
+    with pytest.raises(ConfigError):
+        DocumenteerConfig.load(EXAMPLE_NEGATIVE_TTL)

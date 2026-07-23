@@ -203,6 +203,7 @@ class IntersphinxCacheModel(BaseModel):
 
     disk_cache_ttl: int = Field(
         600,
+        ge=0,
         description=(
             "Seconds an on-disk cached inventory stays fresh before the "
             "client revalidates it with Ook. Within this window, successive "

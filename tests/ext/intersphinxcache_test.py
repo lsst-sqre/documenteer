@@ -13,7 +13,7 @@ import pytest_responses  # noqa: F401
 from responses import RequestsMock, matchers
 from sphinx.testing.util import SphinxTestApp
 
-from documenteer.ext.intersphinxcache import CACHE_DIRNAME
+from documenteer.ext.intersphinxcache import CACHE_DIRNAME, _inventory_filename
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 INVENTORY_ENDPOINT = f"{OOK_BASE_URL}/intersphinx/inventory"
@@ -274,6 +274,50 @@ def test_revalidation_304_reuses_disk_bytes(
     assert Path(locations[0]) == inv_path
     assert inv_path.read_bytes() == inventory
     assert sidecar.read_text() == etag
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-unconditional-304",
+)
+def test_unconditional_304_falls_back(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A protocol-violating 304 answered to an unconditional request (no
+    cached inventory, so no If-None-Match was sent) is treated as a fallback:
+    the entry is left untouched with an info-level log rather than mapped to a
+    nonexistent local file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    # The very first build has no cached .inv/sidecar, so it sends no
+    # If-None-Match; a misbehaving server answers 304 anyway.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The fallback is reported at info level (not a warning, so a
+    # warnings-as-errors ``-W`` build does not fail on the misbehavior) and
+    # names the inventory, and the entry is left untouched (its inventory
+    # location is still None) so stock intersphinx fetches the origin directly.
+    status = app.status.getvalue()
+    assert "testproj" in status
+    assert "304 Not Modified" in status
+    assert "304 Not Modified" not in app.warning.getvalue()
+    assert _inventory_locations(app, "testproj") == (None,)
+    # No local cache file was mapped in, so nothing points at a possibly
+    # nonexistent path.
+    cache_dir = Path(app.doctreedir).parent / CACHE_DIRNAME
+    assert not any(cache_dir.glob("*.inv")) if cache_dir.exists() else True
 
 
 @pytest.mark.sphinx(
@@ -560,10 +604,33 @@ def test_per_inventory_fallback(
     )
 
 
+def test_inventory_filename_keys_on_name_and_origin_url() -> None:
+    """The cache filename hash includes the resolved origin URL, so changing
+    an entry's URL (while keeping the same key) yields a different filename —
+    the new URL misses the cache and is fetched immediately rather than served
+    a stale inventory for up to one TTL window.
+    """
+    name = "proj"
+    url_a = "https://a.example.com/objects.inv"
+    url_b = "https://b.example.com/objects.inv"
+
+    # Deterministic for identical inputs.
+    assert _inventory_filename(name, url_a) == _inventory_filename(name, url_a)
+    # A changed origin URL changes the filename.
+    assert _inventory_filename(name, url_a) != _inventory_filename(name, url_b)
+    # A changed key still changes the filename (distinct keys never collide).
+    assert _inventory_filename("other", url_a) != _inventory_filename(
+        name, url_a
+    )
+    # The stem is still the sanitized key and the suffix is still .inv.
+    assert _inventory_filename(name, url_a).startswith("proj-")
+    assert _inventory_filename(name, url_a).endswith(".inv")
+
+
 @pytest.mark.sphinx(
     "html",
     testroot="intersphinx-cache-oddkey",
-    srcdir="intersphinx-cache-oddkey",
+    srcdir="intersphinx-cache-oddkey-sanitize",
 )
 def test_mapping_key_with_path_separator_is_sanitized(
     make_app: Any,
