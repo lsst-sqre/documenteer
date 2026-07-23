@@ -244,9 +244,15 @@ def _revalidate_inventory(
             return None
         # Refresh the file's mtime to restart the TTL window (best-effort; a
         # failed refresh only means the next build revalidates sooner) and
-        # map to the local file.
+        # map to the local file. Reported at info level so build logs show
+        # that Ook was consulted and the on-disk copy is current.
         with contextlib.suppress(OSError):
             os.utime(inv_path, None)
+        logger.info(
+            "The intersphinx inventory for %r is unchanged on Ook "
+            "(HTTP 304 Not Modified); reusing the on-disk copy.",
+            name,
+        )
         return str(inv_path)
 
     content = result.content
@@ -273,6 +279,14 @@ def _revalidate_inventory(
     # ETag, or clear any stale sidecar when the server sent none (older-server
     # graceful degradation).
     _store_etag(etag_path, result.etag)
+    # Reported at info level so build logs show that the inventory came from
+    # the Ook cache (the local-path rewrite is otherwise only visible via
+    # intersphinx's own "loading intersphinx inventory from ..." lines).
+    logger.info(
+        "Downloaded the intersphinx inventory for %r from Ook (%d bytes).",
+        name,
+        len(content),
+    )
     return str(inv_path)
 
 
@@ -322,7 +336,13 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
             # to the local path exactly as it would be after a fresh prefetch.
             # The TTL governs only this client-to-Ook hop; whether Ook's own
             # cached copy is stale relative to the origin remains Ook's
-            # concern.
+            # concern. Reported at info level so build logs distinguish a
+            # cache hit from the extension not running at all.
+            logger.info(
+                "Reusing the on-disk intersphinx inventory for %r "
+                "(younger than disk_cache_ttl).",
+                name,
+            )
             mapping[name] = (target_uri, str(inv_path))
             continue
 

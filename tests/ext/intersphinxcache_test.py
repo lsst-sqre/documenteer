@@ -209,6 +209,88 @@ def test_ttl_zero_revalidates_every_build(
     assert len(responses.calls) == 2
 
 
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-log-download",
+)
+def test_download_logged_at_info(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A successful cold download from Ook is reported at info level naming
+    the inventory, so build logs show that the Ook cache was used (rather
+    than the prefetch being silent and only intersphinx's local-file loading
+    lines appearing).
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    inventory = _make_inventory()
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=inventory,
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The download is reported at info level (status stream, not the warning
+    # stream, so a warnings-as-errors ``-W`` build is unaffected), naming the
+    # inventory and the byte count.
+    status = app.status.getvalue()
+    assert (
+        "Downloaded the intersphinx inventory for 'testproj' from Ook "
+        f"({len(inventory)} bytes)." in status
+    )
+    assert "Downloaded" not in app.warning.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-log-fastpath",
+)
+def test_ttl_fast_path_logged_at_info(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A TTL fast-path reuse (no request to Ook) is reported at info level
+    naming the inventory, so build logs distinguish a cache hit from the
+    extension not running at all.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    # The first build downloads and writes the on-disk cache.
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+
+    # The second build (within the default TTL) reuses the on-disk copy and
+    # says so at info level (status stream, not the warning stream).
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    status = app2.status.getvalue()
+    assert (
+        "Reusing the on-disk intersphinx inventory for 'testproj' "
+        "(younger than disk_cache_ttl)." in status
+    )
+    assert "Reusing" not in app2.warning.getvalue()
+
+
 def _etag_sidecar(inv_path: Path) -> Path:
     """Return the ETag sidecar path for a cached ``.inv`` file."""
     return inv_path.with_name(inv_path.name + ".etag")
@@ -274,6 +356,59 @@ def test_revalidation_304_reuses_disk_bytes(
     assert Path(locations[0]) == inv_path
     assert inv_path.read_bytes() == inventory
     assert sidecar.read_text() == etag
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-log-304",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_revalidation_304_logged_at_info(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A revalidation answered with 304 Not Modified is reported at info
+    level naming the inventory, so build logs show that Ook was consulted
+    and the on-disk copy is current.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    etag = '"v1etag"'
+    # The 304 (registered first) is chosen only when If-None-Match is sent;
+    # the initial build has no such header and falls through to the 200.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": etag}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": etag},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+
+    # The second build revalidates, gets a 304, and says so at info level
+    # (status stream, not the warning stream).
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    status = app2.status.getvalue()
+    assert (
+        "The intersphinx inventory for 'testproj' is unchanged on Ook "
+        "(HTTP 304 Not Modified); reusing the on-disk copy." in status
+    )
+    assert "unchanged on Ook" not in app2.warning.getvalue()
 
 
 @pytest.mark.sphinx(
