@@ -175,6 +175,39 @@ class GitRepository:
             raise RuntimeError("Git repository is not available.")
         return Path(path)
 
+    def compute_relative_path(self, path: Path | str) -> str | None:
+        """Compute the path of a directory relative to the repository root.
+
+        Parameters
+        ----------
+        path
+            A path inside the Git working tree.
+
+        Returns
+        -------
+        str or None
+            The POSIX-style path of ``path`` relative to the root of the Git
+            working tree. The empty string is returned when ``path`` *is* the
+            repository root (`pathlib.Path.relative_to` yields ``"."`` there,
+            which would inject a literal ``./`` into a URL built from this
+            value). `None` is returned when ``path`` lies outside the working
+            tree.
+
+        Notes
+        -----
+        Both the repository root and ``path`` are resolved before they are
+        compared, so a symlinked path (such as macOS's :file:`/tmp`, which
+        links to :file:`/private/tmp`) is still recognized as being inside the
+        working tree.
+        """
+        root = self.working_tree_dir.resolve()
+        try:
+            relative = Path(path).resolve().relative_to(root)
+        except ValueError:
+            return None
+        posix = relative.as_posix()
+        return "" if posix == "." else posix
+
     @property
     def is_shallow(self) -> bool:
         """Whether the repository is a shallow clone.

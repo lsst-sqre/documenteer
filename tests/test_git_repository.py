@@ -1,4 +1,4 @@
-"""Tests for documenteer.conf._utils.GitRepository.compute_last_modified."""
+"""Tests for documenteer.conf._utils.GitRepository."""
 
 from __future__ import annotations
 
@@ -103,6 +103,50 @@ def test_path_outside_working_tree_skipped(tmp_path: Path) -> None:
     assert git_repo.compute_last_modified([page, outside]) == datetime(
         2024, 6, 1, tzinfo=UTC
     )
+
+
+def test_compute_relative_path(tmp_path: Path) -> None:
+    """Paths inside the working tree resolve to POSIX-style relative paths."""
+    Repo.init(tmp_path)
+    (tmp_path / "docs" / "guides").mkdir(parents=True)
+
+    git_repo = GitRepository(tmp_path)
+
+    # The repository root itself is the empty string, not "." (which would put
+    # a literal "./" into a URL built from this value).
+    assert git_repo.compute_relative_path(tmp_path) == ""
+
+    assert git_repo.compute_relative_path(tmp_path / "docs") == "docs"
+    assert (
+        git_repo.compute_relative_path(tmp_path / "docs" / "guides")
+        == "docs/guides"
+    )
+
+
+def test_compute_relative_path_outside_working_tree(tmp_path: Path) -> None:
+    """A path outside the working tree yields None."""
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    Repo.init(repo_dir)
+    sibling = tmp_path / "elsewhere"
+    sibling.mkdir()
+
+    git_repo = GitRepository(repo_dir)
+    assert git_repo.compute_relative_path(sibling) is None
+
+
+def test_compute_relative_path_through_symlink(tmp_path: Path) -> None:
+    """A symlinked alias of a directory resolves to its real relative path."""
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    Repo.init(repo_dir)
+    (repo_dir / "docs").mkdir()
+
+    link = tmp_path / "link"
+    link.symlink_to(repo_dir, target_is_directory=True)
+
+    git_repo = GitRepository(repo_dir)
+    assert git_repo.compute_relative_path(link / "docs") == "docs"
 
 
 def test_cache_reuse(tmp_path: Path) -> None:
