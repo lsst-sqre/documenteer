@@ -181,6 +181,7 @@ extensions = [
     "sphinx_sitemap",
     "documenteer.ext.robots",
     "documenteer.ext.lastmodified",
+    "documenteer.ext.githubeditlink",
     "documenteer.ext.jira",
     "documenteer.ext.lsstdocushare",
     "documenteer.ext.mockcoderefs",
