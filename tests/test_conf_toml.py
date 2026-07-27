@@ -93,6 +93,17 @@ title = "Documenteer"
 copyright = "2022 AURA"
 """
 
+EXAMPLE_NO_GITHUB_EDIT_LINK = """
+
+[project]
+title = "Documenteer"
+copyright = "2022 AURA"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[sphinx.theme]
+show_github_edit_link = false
+"""
+
 
 def test_load() -> None:
     config = DocumenteerConfig.load(EXAMPLE)
@@ -192,3 +203,39 @@ def test_show_last_updated_disabled() -> None:
     """show_last_updated reflects sphinx.theme.show_last_updated = false."""
     config = DocumenteerConfig.load(EXAMPLE_NO_LAST_UPDATED)
     assert config.show_last_updated is False
+
+
+def test_set_edit_on_github() -> None:
+    """The GitHub repository context is set, but not doc_path.
+
+    ``doc_path`` is resolved from the Sphinx source directory by
+    ``documenteer.ext.githubeditlink``, which can't run this early.
+    """
+    config = DocumenteerConfig.load(EXAMPLE)
+    html_theme_options: dict = {}
+    html_context: dict = {}
+    config.set_edit_on_github(html_theme_options, html_context)
+
+    assert html_theme_options["use_edit_page_button"] is True
+    assert html_context["github_user"] == "lsst-sqre"
+    assert html_context["github_repo"] == "documenteer"
+    assert html_context["github_version"] == "main"
+    assert "doc_path" not in html_context
+
+
+def test_set_edit_on_github_disabled() -> None:
+    """show_github_edit_link = false leaves the Sphinx settings untouched."""
+    config = DocumenteerConfig.load(EXAMPLE_NO_GITHUB_EDIT_LINK)
+    html_theme_options: dict = {}
+    html_context: dict = {}
+    config.set_edit_on_github(html_theme_options, html_context)
+
+    assert html_theme_options == {}
+    assert html_context == {}
+
+
+def test_set_edit_on_github_without_github_url() -> None:
+    """The edit link needs project.github_url to build a URL from."""
+    config = DocumenteerConfig.load(EXAMPLE_NO_SPHINX)
+    with pytest.raises(ConfigError, match=r"project\.github_url is not set"):
+        config.set_edit_on_github({}, {})
