@@ -67,7 +67,26 @@ Builds outside a Git checkout
 The path can only be derived from a Git working tree.
 When the source directory isn't inside one — an sdist, a vendored documentation tree, or a Docker image built without the :file:`.git` directory — the extension omits the "Edit on GitHub" button from every page and notes this in the build log at the informational level.
 
-The message is deliberately *not* a warning, so that builds run with ``-W`` (which turns warnings into errors) still succeed outside a checkout.
+The message is deliberately *not* a warning: building outside a checkout is legitimate, and a warning would fail any build run with ``-W`` (which turns warnings into errors).
+
+.. note::
+
+   This extension stays quiet, but it isn't the only part of the user-guide stack that reads Git.
+   The preset also loads `sphinx-last-updated-by-git <https://github.com/mgeier/sphinx-last-updated-by-git>`__ (through sphinx-sitemap), which *does* warn when it can't read the history:
+
+   .. code-block:: text
+
+      WARNING: Error getting data from Git (no "last updated" dates will be shown
+      for source files from …): fatal: not a git repository [git.subprocess_error]
+
+   A project that builds with ``-W`` outside a Git checkout therefore needs to suppress that warning as well:
+
+   .. code-block:: python
+      :caption: conf.py
+
+      suppress_warnings = ["git.subprocess_error"]
+
+   Without ``-W`` the warning is harmless and the build succeeds either way.
 
 Reference
 =========
