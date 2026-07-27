@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import git
 import pytest
-from git import Repo
+from git import Actor, Repo
 from sphinx.application import Sphinx
 
 _HAS_PYDATA = importlib.util.find_spec("pydata_sphinx_theme") is not None
@@ -50,6 +50,19 @@ Body text.
 # The URL pydata-sphinx-theme builds for the index page of the project
 # configured by CONF_PY, for a source directory in ``docs/``.
 DP2_INDEX_URL = "https://github.com/lsst/dp2_lsst_io/edit/main/docs/index.rst"
+
+# A documenteer.toml driving the real user-guide preset, whose github_url and
+# default github_default_branch ("main") produce DP2_INDEX_URL.
+GUIDE_TOML = """\
+[project]
+title = "Guide Preset Edit Link Test"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst/dp2_lsst_io"
+"""
+
+GUIDE_CONF_PY = "from documenteer.conf.guide import *\n"
+
+ACTOR = Actor("Test Author", "test@example.com")
 
 
 def _project_warnings(warning_output: str) -> list[str]:
@@ -211,6 +224,40 @@ def test_symlinked_srcdir(tmp_path: Path) -> None:
     build = _build(
         confdir=link, srcdir=link / "docs", outdir=tmp_path / "_build"
     )
+
+    assert build.doc_path == "docs"
+    assert f'href="{DP2_INDEX_URL}"' in build.index_html
+
+
+def test_guide_preset_dp2_layout(tmp_path: Path) -> None:
+    """The real user-guide preset produces a correct edit link, dp2-style.
+
+    This is the wiring test: it drives ``documenteer.conf.guide`` itself, so it
+    fails if the extension is dropped from the preset's extensions list or if
+    ``set_edit_on_github`` stops enabling the button -- neither of which the
+    hand-written ``conf.py`` cases above would notice.
+
+    The sources are committed because the guide preset auto-loads
+    sphinx-last-updated-by-git (through sphinx-sitemap), which deletes
+    ``sourcename`` from the context for files Git doesn't track. pydata's
+    edit-this-page component is gated on that value, so an *uncommitted* page
+    renders no button no matter what ``doc_path`` says.
+    """
+    repo = Repo.init(tmp_path)
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    paths = [
+        tmp_path / "documenteer.toml",
+        tmp_path / "conf.py",
+        docs / "index.rst",
+    ]
+    paths[0].write_text(GUIDE_TOML)
+    paths[1].write_text(GUIDE_CONF_PY)
+    paths[2].write_text(INDEX_RST)
+    repo.index.add([str(p) for p in paths])
+    repo.index.commit("Add docs", author=ACTOR, committer=ACTOR)
+
+    build = _build(confdir=tmp_path, srcdir=docs, outdir=tmp_path / "_build")
 
     assert build.doc_path == "docs"
     assert f'href="{DP2_INDEX_URL}"' in build.index_html
