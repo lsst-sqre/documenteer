@@ -45,6 +45,21 @@ A ``doc_path`` taken from the configuration directory would produce a URL that l
 
 This extension therefore computes ``doc_path`` from the source directory at Sphinx's ``config-inited`` event — the earliest point where the source directory is known, and the last point at which the button can still be switched off.
 
+Overriding the detected path
+============================
+
+Auto-detection covers every layout Rubin projects are known to use, but you can set ``doc_path`` yourself in :file:`conf.py` to override it:
+
+.. code-block:: python
+   :caption: conf.py
+
+   html_context["doc_path"] = "docs"
+
+When ``doc_path`` is already set, the extension uses that value and doesn't consult Git at all.
+The button therefore keeps working outside a Git checkout — supplying the path answers the question that auto-detection would have used the working tree to answer.
+
+This is the escape hatch for source layouts that a path within the working tree can't describe, such as a generated source directory, or documentation published from a different repository than the one being built.
+
 Builds outside a Git checkout
 =============================
 
@@ -74,5 +89,5 @@ To use it in a standalone Sphinx project, add ``"documenteer.ext.githubeditlink"
        "github_version": "main",
    }
 
-The extension sets ``doc_path`` itself; leave it out of ``html_context``.
+The extension fills in ``doc_path`` itself, so you don't need to provide it — but it honors the value if you do (see `Overriding the detected path`_).
 It takes no configuration of its own, and is inert unless ``use_edit_page_button`` is enabled.

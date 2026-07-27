@@ -82,6 +82,20 @@ def set_doc_path(app: Sphinx, config: Config) -> None:
         # leave this extension inert.
         return
 
+    if "doc_path" in config.html_context:
+        # An explicitly-configured path wins. This handler runs *after*
+        # conf.py, so without this an author could never override the
+        # auto-detected value. It is the escape hatch for the layouts a
+        # working-tree path can't describe: a generated source directory, or
+        # documentation published from a repository other than the one being
+        # built.
+        logger.debug(
+            "documenteer.ext.githubeditlink: using the configured doc_path "
+            "%r; skipping auto-detection.",
+            config.html_context["doc_path"],
+        )
+        return
+
     try:
         repo = GitRepository(Path(app.srcdir))
     except (git.InvalidGitRepositoryError, git.NoSuchPathError):

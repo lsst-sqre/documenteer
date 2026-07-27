@@ -216,6 +216,64 @@ def test_symlinked_srcdir(tmp_path: Path) -> None:
     assert f'href="{DP2_INDEX_URL}"' in build.index_html
 
 
+def test_configured_doc_path_wins(tmp_path: Path) -> None:
+    """An explicitly-configured ``doc_path`` overrides auto-detection.
+
+    The handler runs after ``conf.py``, so without this the setting would be
+    impossible to override.
+    """
+    Repo.init(tmp_path)
+    _write_project(confdir=tmp_path, srcdir=tmp_path / "docs")
+    (tmp_path / "conf.py").write_text(
+        CONF_PY.replace(
+            '"github_version": "main",',
+            '"github_version": "main",\n    "doc_path": "custom/path",',
+        )
+    )
+
+    build = _build(
+        confdir=tmp_path, srcdir=tmp_path / "docs", outdir=tmp_path / "_build"
+    )
+
+    # "docs" is what auto-detection would have produced.
+    assert build.doc_path == "custom/path"
+    assert (
+        'href="https://github.com/lsst/dp2_lsst_io/edit/main/custom/path/index.rst"'
+        in build.index_html
+    )
+
+
+def test_configured_doc_path_survives_without_git(tmp_path: Path) -> None:
+    """A configured ``doc_path`` keeps the button outside a Git checkout.
+
+    Auto-detection is what needs a working tree; an author who supplied the
+    path has already answered the question Git would have.
+    """
+    _write_project(confdir=tmp_path, srcdir=tmp_path / "docs")
+    (tmp_path / "conf.py").write_text(
+        CONF_PY.replace(
+            '"github_version": "main",',
+            '"github_version": "main",\n    "doc_path": "custom/path",',
+        )
+    )
+
+    with patch(
+        "documenteer.ext.githubeditlink.GitRepository",
+        side_effect=git.InvalidGitRepositoryError,
+    ) as mock_repo:
+        build = _build(
+            confdir=tmp_path,
+            srcdir=tmp_path / "docs",
+            outdir=tmp_path / "_build",
+        )
+
+    # Git is never consulted at all when the path is already known.
+    mock_repo.assert_not_called()
+    assert build.doc_path == "custom/path"
+    assert build.use_edit_page_button is True
+    assert "Edit on GitHub" in build.index_html
+
+
 def test_inert_without_edit_page_button(tmp_path: Path) -> None:
     """With the button off, the extension sets nothing (the technote case)."""
     Repo.init(tmp_path)
