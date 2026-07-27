@@ -426,6 +426,15 @@ This configuration requires information about the GitHub repository from these o
 - :ref:`project.github_url <guide-project-github-url>`
 - :ref:`project.github_default_branch <guide-project-github-default-branch>`
 
+.. seealso::
+
+   :doc:`/sphinx-extensions/github-edit-link` for how the edit URL is assembled.
+
+The in-repository path of the documentation is detected automatically from where the Sphinx **source** directory sits in the Git working tree, so there is nothing to configure for it.
+Builds that keep :file:`conf.py` outside the source directory — ``sphinx-build -c . docs _build/html``, for instance — link to the right file.
+
+When the documentation isn't being built from a Git checkout (an sdist, or a Docker image built without the :file:`.git` directory) the path can't be determined, so the button is silently omitted from every page and the build proceeds normally.
+
 .. _guide-project-show-last-updated:
 
 show_last_updated

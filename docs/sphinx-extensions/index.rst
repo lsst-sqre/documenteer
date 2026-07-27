@@ -26,3 +26,4 @@ Sphinx extensions
    :caption: Page metadata
 
    last-updated
+   github-edit-link
