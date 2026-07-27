@@ -29,7 +29,7 @@ from ..storage.intersphinxcacheclient import (
     DEFAULT_BASE_URL as INTERSPHINX_CACHE_DEFAULT_BASE_URL,
 )
 from ..storage.linkcheckclient import DEFAULT_BASE_URL as OOK_DEFAULT_BASE_URL
-from ._utils import GitRepository, normalize_origin_base_url
+from ._utils import normalize_origin_base_url
 
 __all__ = [
     "ConfigRoot",
@@ -687,7 +687,13 @@ class DocumenteerConfig:
         html_theme_options: MutableMapping[str, Any],
         html_context: MutableMapping[str, Any],
     ) -> None:
-        """Configure the Edit on GitHub functionality, if possible."""
+        """Configure the Edit on GitHub functionality, if possible.
+
+        The in-repository path of the documentation source is *not* set here;
+        it is resolved from the Sphinx source directory by the
+        ``documenteer.ext.githubeditlink`` extension, which is the earliest
+        point where the source directory is known.
+        """
         if (
             self.conf.sphinx
             and self.conf.sphinx.theme.show_github_edit_link is False
@@ -696,7 +702,7 @@ class DocumenteerConfig:
 
         if self.github_url is None:
             raise ConfigError(
-                "sphinx.show_github_edit_link is True by the "
+                "sphinx.show_github_edit_link is True but the "
                 "project.github_url is not set."
             )
 
@@ -711,26 +717,12 @@ class DocumenteerConfig:
                 f"Could not parse GitHub repo URL: {self.github_url}"
             ) from e
 
-        repo = GitRepository(Path.cwd())
-        try:
-            # the current working directory for sphinx config is always
-            # the same as the directory containing the conf.py file.
-            doc_dir = str(Path.cwd().relative_to(repo.working_tree_dir))
-        except ValueError as e:
-            raise ConfigError(
-                "Cannot determine the path of the documentation directory "
-                "relative to the Git repository root. Set "
-                "sphinx.show_github_edit_link to false if this is not a "
-                "git repository."
-            ) from e
-
         html_theme_options["use_edit_page_button"] = True
         html_context["github_user"] = github_owner
         html_context["github_repo"] = github_repo
         html_context["github_version"] = (
             self.conf.project.github_default_branch
         )
-        html_context["doc_path"] = doc_dir
 
     @property
     def header_links_before_dropdown(self) -> int:
