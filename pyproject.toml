@@ -221,6 +221,13 @@ extend-ignore = [
 "src/documenteer/services/technotemigration.py" = [
     "T201",    # This script can use print
 ]
+"src/documenteer/ext/*" = [
+    # Sphinx role functions must match the docutils/Sphinx role API
+    # signature, (name, rawtext, text, lineno, inliner, options, content),
+    # and Sphinx calls them positionally, so these parameters cannot be made
+    # keyword-only.
+    "PLR0917", # role signatures are dictated by the Sphinx role API
+]
 "tests/**" = [
     "D103",    # tests don't need docstrings
     "PLR0915", # tests are allowed to be long, sometimes that's convenient
