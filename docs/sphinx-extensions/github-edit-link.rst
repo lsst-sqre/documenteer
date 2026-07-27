@@ -43,7 +43,8 @@ They differ whenever a build passes ``-c``:
 Here the configuration directory is the repository root while the source directory is :file:`docs/`.
 A ``doc_path`` taken from the configuration directory would produce a URL that looks plausible but points at a file that doesn't exist.
 
-This extension therefore computes ``doc_path`` from the source directory at Sphinx's ``config-inited`` event — the earliest point where the source directory is known, and the last point at which the button can still be switched off.
+This extension therefore computes ``doc_path`` from the source directory at Sphinx's ``config-inited`` event — the earliest point where the source directory is known.
+That is also the safest point at which to *switch the button off*, because a theme may copy ``html_theme_options`` when the builder initializes, and a change made after that copy wouldn't reach the template.
 
 Overriding the detected path
 ============================

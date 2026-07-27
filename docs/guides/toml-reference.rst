@@ -433,7 +433,8 @@ This configuration requires information about the GitHub repository from these o
 The in-repository path of the documentation is detected automatically from where the Sphinx **source** directory sits in the Git working tree, so there is nothing to configure for it.
 Builds that keep :file:`conf.py` outside the source directory — ``sphinx-build -c . docs _build/html``, for instance — link to the right file.
 
-When the documentation isn't being built from a Git checkout (an sdist, or a Docker image built without the :file:`.git` directory) the path can't be determined, so the button is silently omitted from every page and the build proceeds normally.
+When the documentation isn't being built from a Git checkout (an sdist, or a Docker image built without the :file:`.git` directory) the path can't be determined, so the button is omitted from every page — noted in the build log at the informational level — and the build proceeds normally.
+To keep the button in that situation, set the path yourself with ``html_context["doc_path"]`` in :file:`conf.py`; see :doc:`/sphinx-extensions/github-edit-link`.
 
 .. _guide-project-show-last-updated:
 

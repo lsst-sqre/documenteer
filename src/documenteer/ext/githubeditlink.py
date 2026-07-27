@@ -21,10 +21,13 @@ plausible-looking URL that 404s.
 
 This extension therefore computes ``doc_path`` from ``app.srcdir`` at
 ``config-inited``, the earliest event where the source directory is known.
-``config-inited`` (rather than ``builder-inited``) is also the last event at
-which the button can still be turned off, because ``builder.init()`` — which
-resolves ``html_theme_options`` into the theme — runs *before*
-``builder-inited`` is emitted.
+That is also the safest event for *disabling* the button: ``builder.init()``
+runs before ``builder-inited`` is emitted, and a theme may take its own copy of
+``html_theme_options`` there rather than reading the live config, in which case
+a later change wouldn't reach the template. (pydata-sphinx-theme's
+``get_theme_options_dict`` documents exactly that "sometimes the copy never
+occurs" ambiguity.) Settling it at ``config-inited`` avoids depending on which
+behavior a given Sphinx or theme version has.
 
 Ordering against pydata-sphinx-theme needs no special handling: that theme
 connects its own handlers to ``builder-inited`` and ``html-page-context``, and
