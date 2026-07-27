@@ -13,9 +13,10 @@ theme's option, so there is nothing to exercise without it.
 from __future__ import annotations
 
 import importlib.util
+import re
 from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import git
 import pytest
@@ -65,18 +66,28 @@ GUIDE_CONF_PY = "from documenteer.conf.guide import *\n"
 ACTOR = Actor("Test Author", "test@example.com")
 
 
+# Constructing several ``Sphinx`` applications in one process re-runs the
+# setup() of Sphinx's own built-in extensions, which warns about every node,
+# directive, and role it re-registers. The pattern is anchored on that
+# re-setup of a ``sphinx.*`` extension, so it can only ever match this
+# artifact -- a warning from the build under test, or from Documenteer's own
+# extensions, still reaches the assertions.
+_REREGISTRATION_WARNING = re.compile(
+    r"while setting up extension sphinx\.[\w.]+:.*is already registered"
+)
+
+
 def _project_warnings(warning_output: str) -> list[str]:
     """Filter a build's warning stream down to warnings about the project.
 
-    Constructing several ``Sphinx`` applications in one process makes Sphinx
-    re-register its own node classes, each time emitting a "node class ... is
-    already registered" warning. That noise is an artifact of the test process,
-    not of the build under test, so it is dropped here.
+    Drops the cross-application re-registration noise described on
+    `_REREGISTRATION_WARNING`, which is an artifact of the test process rather
+    than of the build under test.
     """
     return [
         line
         for line in warning_output.splitlines()
-        if line.strip() and "is already registered" not in line
+        if line.strip() and not _REREGISTRATION_WARNING.search(line)
     ]
 
 
@@ -209,6 +220,35 @@ def test_not_a_git_repository(tmp_path: Path) -> None:
     assert "Edit on GitHub" not in build.index_html
     # Nothing is logged at warning level, so builds using ``-W`` still pass.
     assert build.warnings == []
+
+
+def test_srcdir_outside_working_tree(tmp_path: Path) -> None:
+    """A repo whose working tree excludes the srcdir warns and disables.
+
+    This shouldn't be reachable in a normal checkout -- both paths are
+    resolved before they're compared -- so unlike the plain non-Git case it is
+    treated as a genuine misconfiguration and does warn.
+    """
+    _write_project(confdir=tmp_path, srcdir=tmp_path / "docs")
+
+    mock_repo = MagicMock()
+    mock_repo.compute_relative_path.return_value = None
+    mock_repo.working_tree_dir = Path("/somewhere/else")
+
+    with patch(
+        "documenteer.ext.githubeditlink.GitRepository", return_value=mock_repo
+    ):
+        build = _build(
+            confdir=tmp_path,
+            srcdir=tmp_path / "docs",
+            outdir=tmp_path / "_build",
+        )
+
+    assert build.use_edit_page_button is False
+    assert build.doc_path is None
+    assert "Edit on GitHub" not in build.index_html
+    assert len(build.warnings) == 1
+    assert "could not determine the path" in build.warnings[0]
 
 
 def test_symlinked_srcdir(tmp_path: Path) -> None:
