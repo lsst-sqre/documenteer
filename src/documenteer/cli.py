@@ -223,6 +223,10 @@ def technote_validate(root_dir: str, *, strict: bool) -> None:
     non-empty abstract using the abstract directive rather than an ordinary
     section heading.
 
+    A directory with no content file and no conf.py is a technote that Sphinx
+    does not build, so only the technote.toml checks (structural and metadata)
+    apply to it.
+
     The command exits non-zero when any error remains. Use ``--strict`` to
     promote warnings to errors.
     """
