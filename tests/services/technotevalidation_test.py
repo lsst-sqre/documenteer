@@ -299,6 +299,9 @@ def test_malformed_toml_reports_tn005(tmp_path: Path) -> None:
     requirements.txt are reported in the same pass.
     """
     (tmp_path / "technote.toml").write_text("[technote\nid = ")
+    (tmp_path / "index.rst").write_text(
+        "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
+    )
     context = ValidationContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteValidationService(context)
     findings = service.validate()
@@ -333,6 +336,88 @@ internal_id = "sickj"
     assert [f.code for f in findings] == ["TN102"]
     assert findings[0].severity is Severity.error
     assert "malformed" in findings[0].message
+
+
+def _write_non_sphinx_technote(tmp_path: Path, toml_content: str) -> None:
+    """Write a non-Sphinx technote: a technote.toml, no index, no conf.py.
+
+    Mirrors a technote-series repository that is published through the shared
+    technote CI with a custom build command (for example an org-mode deck),
+    including the deliberately empty ``requirements.txt`` such a repository
+    carries.
+    """
+    (tmp_path / "technote.toml").write_text(toml_content)
+    (tmp_path / "requirements.txt").write_text("")
+
+
+def test_non_sphinx_technote_passes(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A healthy non-Sphinx technote reports nothing, so the run exits 0."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    _write_non_sphinx_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"
+internal_id = "sickj"
+""",
+    )
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context)
+    assert service.validate() == []
+
+
+def test_non_sphinx_technote_reports_schema_errors(tmp_path: Path) -> None:
+    """A non-Sphinx technote's technote.toml is still schema-checked."""
+    _write_non_sphinx_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+canonical_url = "not a url"
+""",
+    )
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN001"]
+
+
+def test_non_sphinx_technote_runs_author_checks(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A non-Sphinx technote's authors are still resolved against the DB."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/nobody",
+        body="Not found",
+        status=404,
+    )
+    _write_non_sphinx_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "No"
+name.family = "Body"
+internal_id = "nobody"
+""",
+    )
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN102"]
 
 
 def _context_with_content(
@@ -461,11 +546,27 @@ Body text.
     assert findings[0].severity is Severity.error
 
 
-def test_missing_content_file_reports_tn201(tmp_path: Path) -> None:
-    """A technote directory with no index file yields TN201."""
+def test_missing_content_file_yields_no_abstract_finding(
+    tmp_path: Path,
+) -> None:
+    """A missing index file is TN006's business, not the abstract check's."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
     context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    assert [f.code for f in check_abstract(context)] == ["TN201"]
+    assert check_abstract(context) == []
+
+
+def test_conf_py_without_content_file_reports_tn006(tmp_path: Path) -> None:
+    """A Sphinx technote with no index file yields TN006, not TN201."""
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "conf.py").write_text(
+        "from documenteer.conf.technote import *  # noqa: F401,F403\n"
+    )
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN006"]
+    assert findings[0].severity is Severity.error
 
 
 def test_abstract_heading_rst_reports_tn202(tmp_path: Path) -> None:

@@ -91,6 +91,15 @@ CHECKS: dict[str, Check] = {
         description="technote.toml is syntactically valid TOML.",
         severity=Severity.error,
     ),
+    "TN006": Check(
+        code="TN006",
+        name="content-file-present",
+        description=(
+            "A Sphinx technote has an index.rst, index.md, or index.ipynb "
+            "content file."
+        ),
+        severity=Severity.error,
+    ),
     "TN101": Check(
         code="TN101",
         name="author-internal-id-present",
@@ -151,13 +160,18 @@ class ValidationFinding:
 class ValidationContext:
     """The files and services a technote validation run operates on.
 
-    Discovers a technote's ``technote.toml``, content file, and
-    ``requirements.txt`` within a directory and holds the `AuthorDb` used to
-    resolve author identifiers. The ``technote.toml`` *text* is read eagerly
-    when the file exists (``toml_text`` is ``None`` when it is missing, so the
-    structural check TN004 can report it); parsing into a `TechnoteToml` model
-    is deferred to `parse_toml` so the syntax check (TN005) and the
-    schema-conformance check (TN001) can each report a failure as a finding.
+    Discovers a technote's ``technote.toml``, content file, Sphinx
+    ``conf.py``, and ``requirements.txt`` within a directory and holds the
+    `AuthorDb` used to resolve author identifiers. The ``technote.toml`` *text*
+    is read eagerly when the file exists (``toml_text`` is ``None`` when it is
+    missing, so the structural check TN004 can report it); parsing into a
+    `TechnoteToml` model is deferred to `parse_toml` so the syntax check
+    (TN005) and the schema-conformance check (TN001) can each report a failure
+    as a finding.
+
+    The presence of a content file or a ``conf.py`` also distinguishes a Sphinx
+    technote from a technote-series repository that is built by some other
+    tool; see `is_sphinx_technote`.
     """
 
     _CONTENT_FILENAMES = ("index.rst", "index.md", "index.ipynb")
@@ -169,6 +183,7 @@ class ValidationContext:
         toml_path: Path,
         toml_text: str | None,
         content_path: Path | None,
+        conf_path: Path | None,
         requirements_path: Path | None,
         requirements_text: str | None,
         author_db: AuthorDb,
@@ -177,6 +192,7 @@ class ValidationContext:
         self.toml_path = toml_path
         self.toml_text = toml_text
         self.content_path = content_path
+        self.conf_path = conf_path
         self.requirements_path = requirements_path
         self.requirements_text = requirements_text
         self.author_db = author_db
@@ -198,6 +214,9 @@ class ValidationContext:
                 content_path = candidate
                 break
 
+        conf_file = root_dir / "conf.py"
+        conf_path = conf_file if conf_file.exists() else None
+
         requirements_file = root_dir / "requirements.txt"
         requirements_path: Path | None = None
         requirements_text: str | None = None
@@ -210,10 +229,24 @@ class ValidationContext:
             toml_path=toml_path,
             toml_text=toml_text,
             content_path=content_path,
+            conf_path=conf_path,
             requirements_path=requirements_path,
             requirements_text=requirements_text,
             author_db=author_db,
         )
+
+    @property
+    def is_sphinx_technote(self) -> bool:
+        """Whether the directory is a Sphinx-built technote.
+
+        A directory with neither a content file nor a ``conf.py`` is a
+        technote-series repository that is built by some other tool (for
+        example an org-mode deck published through the shared technote CI with
+        a custom build command). Only the ``technote.toml``-based checks apply
+        to it; the requirements, content, and content-file checks assume a
+        Documenteer/Sphinx build.
+        """
+        return self.content_path is not None or self.conf_path is not None
 
     def parse_toml(self) -> TechnoteToml:
         """Parse the ``technote.toml`` text into a `TechnoteToml` model.
@@ -248,6 +281,12 @@ class TechnoteValidationService:
         in the same run rather than hidden behind the metadata failure. A
         directory with no ``technote.toml`` at all (TN004) is not a technote,
         so that finding stands alone.
+
+        A directory with neither a content file nor a ``conf.py`` is a
+        technote-series repository that Sphinx does not build (see
+        `ValidationContext.is_sphinx_technote`). Only the
+        ``technote.toml``-based checks — TN004/TN005/TN001 and the author
+        checks — run for it, so a healthy non-Sphinx technote reports nothing.
         """
         findings: list[ValidationFinding] = []
 
@@ -281,6 +320,24 @@ class TechnoteValidationService:
 
         if parsed is not None:
             findings.extend(self._check_author_internal_ids(parsed))
+
+        # A technote that Sphinx does not build has no requirements.txt or
+        # content-file contract to check, so the technote.toml-based checks
+        # above are the whole report.
+        if not self._context.is_sphinx_technote:
+            return findings
+
+        # TN006 — a Sphinx technote needs a content file for Sphinx to build
+        # and for the abstract scan to read.
+        if self._context.content_path is None:
+            findings.append(
+                ValidationFinding.from_check(
+                    "TN006",
+                    f"No content file found in {self._context.root_dir}: a "
+                    f"technote needs an index.rst, index.md, or index.ipynb "
+                    f"file.",
+                )
+            )
         findings.extend(check_abstract(self._context))
         findings.extend(check_requirements(self._context))
         return findings
@@ -371,16 +428,13 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
     The suggested-directive text in the TN201/TN202 messages is format-aware:
     reStructuredText content is pointed at ``.. abstract::`` and MyST/notebook
     content at the ```` ```{abstract} ```` fenced directive.
+
+    A directory with no content file at all produces no findings here: that is
+    a structural condition, reported as TN006 by the validation runner.
     """
     content_path = context.content_path
     if content_path is None:
-        return [
-            ValidationFinding.from_check(
-                "TN201",
-                "No abstract found: the technote has no "
-                "index.{rst,md,ipynb} content file to scan.",
-            )
-        ]
+        return []
 
     suffix = content_path.suffix.lower()
     if suffix == ".ipynb":

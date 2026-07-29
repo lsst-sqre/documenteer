@@ -75,6 +75,10 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Structural
      - :file:`technote.toml` is syntactically valid TOML. A syntax error skips only the author checks (``TN1xx``), like ``TN001``.
      - Error
+   * - ``TN006``
+     - Structural
+     - The technote has a content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`). Checked only for Sphinx technotes; a directory with no content file *and* no :file:`conf.py` is treated as a non-Sphinx technote instead (see below).
+     - Error
    * - ``TN101``
      - Metadata
      - Every author declares an ``internal_id``.
@@ -89,7 +93,7 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Warning
    * - ``TN201``
      - Content
-     - The content declares a non-empty abstract.
+     - The content file declares a non-empty abstract. A technote with no content file at all is reported as ``TN006`` instead.
      - Error
    * - ``TN202``
      - Content
@@ -99,6 +103,14 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Content
      - The content file can be parsed to scan for an abstract (an :file:`index.ipynb` notebook is valid JSON).
      - Error
+
+Non-Sphinx technotes
+====================
+
+Some technote-series repositories are not Sphinx projects at all: they publish through the shared technote CI with a custom build command (an Org-mode deck, for example).
+When a directory has no content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`) *and* no :file:`conf.py`, the validator treats it as one of these and checks only that its :file:`technote.toml` is well formed — ``TN004``, ``TN005``, ``TN001``, and the author checks (``TN1xx``).
+The :file:`requirements.txt` checks (``TN002``/``TN003``), the content checks (``TN2xx``), and ``TN006`` are skipped, since they describe a Documenteer/Sphinx build that these repositories do not have.
+A repository that *does* have a :file:`conf.py` but no content file is a broken Sphinx technote, and is reported as ``TN006``.
 
 .. note::
 
