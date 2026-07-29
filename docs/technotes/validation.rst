@@ -57,7 +57,7 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Default severity
    * - ``TN001``
      - Structural
-     - :file:`technote.toml` conforms to the technote schema. A schema failure short-circuits the remaining checks.
+     - :file:`technote.toml` conforms to the technote schema. A schema failure skips only the author checks (``TN1xx``), which need the parsed metadata; the requirements and content checks still run. When the failure comes from a historical author name form, the finding names that form and points at :command:`documenteer technote migrate`.
      - Error
    * - ``TN002``
      - Structural
@@ -69,11 +69,11 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Warning
    * - ``TN004``
      - Structural
-     - :file:`technote.toml` exists in the technote directory. A missing file short-circuits the remaining checks (like ``TN001``).
+     - :file:`technote.toml` exists in the technote directory. A missing file short-circuits the remaining checks, since the directory is not a technote.
      - Error
    * - ``TN005``
      - Structural
-     - :file:`technote.toml` is syntactically valid TOML. A syntax error short-circuits the remaining checks (like ``TN001``).
+     - :file:`technote.toml` is syntactically valid TOML. A syntax error skips only the author checks (``TN1xx``), like ``TN001``.
      - Error
    * - ``TN101``
      - Metadata
