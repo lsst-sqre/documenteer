@@ -145,8 +145,8 @@ internal_id = "sickj"
     assert findings[0].severity is Severity.warning
 
 
-def test_invalid_schema_short_circuits(tmp_path: Path) -> None:
-    """A schema failure yields only TN001 and skips the author check."""
+def test_invalid_schema_skips_author_checks(tmp_path: Path) -> None:
+    """A schema failure yields TN001 and skips the model-dependent checks."""
     context = _write_technote(
         tmp_path,
         """
@@ -155,12 +155,132 @@ id = "SQR-000"
 
 [[technote.authors]]
 name.given = "Jonathan"
+
+[[technote.authors]]
+name.given = "Frossie"
+name.family = "Economou"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    # The second author has no internal_id, but TN101 needs the parsed model,
+    # so only the schema finding is reported.
+    assert [f.code for f in findings] == ["TN001"]
+    assert findings[0].severity is Severity.error
+
+
+def test_invalid_schema_still_runs_toml_independent_checks(
+    tmp_path: Path,
+) -> None:
+    """A schema failure no longer suppresses the TN002/TN2xx checks."""
+    (tmp_path / "technote.toml").write_text(
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Jonathan"
+"""
+    )
+    (tmp_path / "index.rst").write_text(
+        "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
+    )
+    (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
+    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN001", "TN201", "TN002", "TN003"]
+
+
+def test_legacy_single_string_author_name_reports_tn001(
+    tmp_path: Path,
+) -> None:
+    """The removed ``name = {name = "..."}`` form gets a targeted message."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = { name = "Jonathan Sick" }
+internal_id = "sickj"
 """,
     )
     service = TechnoteValidationService(context)
     findings = service.validate()
     assert [f.code for f in findings] == ["TN001"]
-    assert findings[0].severity is Severity.error
+    message = findings[0].message
+    assert 'name = { name = "Full Name" }' in message
+    assert "technote 0.5" in message
+    assert 'name = { given = "Given", family = "Family" }' in message
+    assert "documenteer technote migrate" in message
+    # The pydantic detail is retained for anyone debugging the schema error.
+    assert "technote.authors.0.name" in message
+
+
+def test_legacy_split_name_keys_report_tn001(tmp_path: Path) -> None:
+    """The renamed ``given_names``/``family_names`` keys are called out."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = { given_names = "Jonathan", family_names = "Sick" }
+internal_id = "sickj"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN001"]
+    message = findings[0].message
+    assert 'name = { given_names = "...", family_names = "..." }' in message
+    assert "renamed in November 2023" in message
+    assert 'name = { given = "Given", family = "Family" }' in message
+    assert "documenteer technote migrate" in message
+
+
+def test_non_author_schema_error_has_no_legacy_message(
+    tmp_path: Path,
+) -> None:
+    """A schema error unrelated to author names keeps the plain message."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+canonical_url = "not a url"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN001"]
+    message = findings[0].message
+    assert "documenteer technote migrate" not in message
+    assert "canonical_url" in message
+
+
+def test_other_author_schema_error_has_no_legacy_message(
+    tmp_path: Path,
+) -> None:
+    """An author with a non-legacy schema error keeps the plain message."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = { given = "Jonathan", family = "Sick" }
+orcid = "not-an-orcid"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN001"]
+    assert "documenteer technote migrate" not in findings[0].message
 
 
 def test_missing_toml_reports_tn004(tmp_path: Path) -> None:
@@ -173,12 +293,16 @@ def test_missing_toml_reports_tn004(tmp_path: Path) -> None:
 
 
 def test_malformed_toml_reports_tn005(tmp_path: Path) -> None:
-    """A syntactically broken technote.toml yields a single TN005 error."""
+    """A syntactically broken technote.toml yields a TN005 error.
+
+    The TOML-independent checks still run, so the missing abstract and
+    requirements.txt are reported in the same pass.
+    """
     (tmp_path / "technote.toml").write_text("[technote\nid = ")
     context = ValidationContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteValidationService(context)
     findings = service.validate()
-    assert [f.code for f in findings] == ["TN005"]
+    assert [f.code for f in findings] == ["TN005", "TN201", "TN002"]
     assert findings[0].severity is Severity.error
 
 

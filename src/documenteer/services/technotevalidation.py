@@ -9,6 +9,7 @@ import tomllib
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
@@ -237,11 +238,21 @@ class TechnoteValidationService:
         self._context = context
 
     def validate(self) -> list[ValidationFinding]:
-        """Run the registered checks and aggregate their findings."""
+        """Run the registered checks and aggregate their findings.
+
+        Only the checks that read the parsed `TechnoteToml` model are skipped
+        when ``technote.toml`` cannot be parsed. A ``technote.toml`` that is
+        unreadable as TOML (TN005) or that fails schema validation (TN001)
+        therefore still gets its requirements (TN002/TN003) and content
+        (TN2xx) findings reported, so a technote's other problems are visible
+        in the same run rather than hidden behind the metadata failure. A
+        directory with no ``technote.toml`` at all (TN004) is not a technote,
+        so that finding stands alone.
+        """
         findings: list[ValidationFinding] = []
 
         # TN004 — technote.toml must exist. A missing file short-circuits the
-        # remaining checks because they all read the parsed metadata.
+        # remaining checks because the directory is not a technote.
         if self._context.toml_text is None:
             return [
                 ValidationFinding.from_check(
@@ -251,26 +262,25 @@ class TechnoteValidationService:
             ]
 
         # TN005/TN001 — the technote.toml must be valid TOML (TN005) and then
-        # conform to the schema (TN001). Either failure short-circuits the
-        # remaining checks because they operate on the parsed model.
+        # conform to the schema (TN001). Either failure leaves the parsed
+        # model unavailable, so only the checks that need it are skipped.
+        parsed: TechnoteToml | None = None
         try:
             parsed = self._context.parse_toml()
         except tomllib.TOMLDecodeError as e:
-            return [
+            findings.append(
                 ValidationFinding.from_check(
                     "TN005",
                     f"technote.toml is not valid TOML: {e}",
                 )
-            ]
+            )
         except ValidationError as e:
-            return [
-                ValidationFinding.from_check(
-                    "TN001",
-                    f"technote.toml does not conform to the schema: {e}",
-                )
-            ]
+            findings.append(
+                _schema_conformance_finding(self._context.toml_text, e)
+            )
 
-        findings.extend(self._check_author_internal_ids(parsed))
+        if parsed is not None:
+            findings.extend(self._check_author_internal_ids(parsed))
         findings.extend(check_abstract(self._context))
         findings.extend(check_requirements(self._context))
         return findings
@@ -470,6 +480,89 @@ def check_requirements(context: ValidationContext) -> list[ValidationFinding]:
         )
 
     return findings
+
+
+# Guidance shared by every legacy author-name hint.
+_MODERN_NAME_ADVICE = (
+    'Use \'name = { given = "Given", family = "Family" }\' instead. Run '
+    "'documenteer technote migrate' to update technote.toml to the modern "
+    "format automatically."
+)
+
+# Historical ``[[technote.authors]]`` name forms, as the keys that identify
+# each form in the ``name`` table paired with the hint describing it.
+_LEGACY_NAME_HINTS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        ("name",),
+        "Its [[technote.authors]] entries use the legacy single-string "
+        "author name form 'name = { name = \"Full Name\" }', which technote "
+        "0.5 removed.",
+    ),
+    (
+        ("given_names", "family_names"),
+        "Its [[technote.authors]] entries use the pre-technote-0.5 author "
+        'name keys \'name = { given_names = "...", '
+        'family_names = "..." }\', which were renamed in November 2023.',
+    ),
+)
+
+
+def _schema_conformance_finding(
+    toml_text: str, error: ValidationError
+) -> ValidationFinding:
+    """Build the TN001 finding for a schema-invalid ``technote.toml``.
+
+    When the ``[[technote.authors]]`` entries use one of the historical author
+    name forms, the raw pydantic report is prefixed with a message that names
+    the legacy form, shows its modern replacement, and points at
+    :command:`documenteer technote migrate`. The pydantic detail is always
+    appended so schema errors that are not about legacy author names remain
+    actionable.
+    """
+    hints = _legacy_author_name_hints(toml_text)
+    if not hints:
+        return ValidationFinding.from_check(
+            "TN001",
+            f"technote.toml does not conform to the schema: {error}",
+        )
+    return ValidationFinding.from_check(
+        "TN001",
+        "technote.toml does not conform to the schema. "
+        + " ".join(hints)
+        + f" {_MODERN_NAME_ADVICE} Underlying schema errors: {error}",
+    )
+
+
+def _legacy_author_name_hints(toml_text: str) -> list[str]:
+    """Describe the legacy author-name forms present in technote.toml text.
+
+    Reads the *input* data (rather than the parsed model, which is
+    unavailable when schema validation fails) and returns one hint for each
+    distinct historical ``[[technote.authors]]`` name form found. Authors
+    whose schema errors are unrelated to these forms produce no hints.
+    """
+    name_tables = _author_name_tables(toml_text)
+    return [
+        hint
+        for keys, hint in _LEGACY_NAME_HINTS
+        if any(key in name_table for name_table in name_tables for key in keys)
+    ]
+
+
+def _author_name_tables(toml_text: str) -> list[dict[str, Any]]:
+    """Extract the ``name`` tables of each ``[[technote.authors]]`` entry."""
+    data = tomllib.loads(toml_text)
+    technote_table = data.get("technote")
+    if not isinstance(technote_table, dict):
+        return []
+    authors = technote_table.get("authors")
+    if not isinstance(authors, list):
+        return []
+    return [
+        author["name"]
+        for author in authors
+        if isinstance(author, dict) and isinstance(author.get("name"), dict)
+    ]
 
 
 def _parse_requirements(text: str) -> list[Requirement]:
