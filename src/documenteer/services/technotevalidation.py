@@ -15,12 +15,13 @@ from typing import Any
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from pydantic import ValidationError
-from technote.sources.tomlsettings import TechnoteToml
+from technote.sources.tomlsettings import Person, TechnoteToml
 
 from documenteer.storage.authordb import (
     AuthorDb,
     AuthorDbUnreachableError,
     AuthorNotFoundError,
+    AuthorSearchResult,
 )
 
 __all__ = [
@@ -147,6 +148,43 @@ CHECKS: dict[str, Check] = {
         severity=Severity.error,
     ),
 }
+
+
+_NAME_MATCH_SCORE = 90.0
+"""The author-search relevance score that counts as a name match.
+
+Ook documents its 0-100 search scores in bands and describes 90-100 as "exact
+or near-exact matches", so a *single* result in that band identifies an author
+confidently enough to suggest. Two or more are ambiguous (for example the
+several ``Jones`` entries a family-name-only query returns), and the
+suggestion is withheld.
+"""
+
+
+@dataclass(frozen=True)
+class _AuthorSuggestion:
+    """A confidently-matched author database entry to suggest to the user."""
+
+    internal_id: str
+    name: str
+    basis: str
+
+    def describe(self, declared_name: str) -> str:
+        """Phrase the suggestion for appending to a finding's message.
+
+        The database's own spelling of the name is included only when it
+        differs from the name the technote declares, where it is the evidence
+        that makes an unfamiliar ID recognizable (``jonesrl`` is "R. Lynne
+        Jones"); repeating an identical name would only pad the message.
+        """
+        if _normalize_name(self.name) == _normalize_name(declared_name):
+            return (
+                f"Did you mean '{self.internal_id}' (matched by {self.basis})?"
+            )
+        return (
+            f"Did you mean '{self.internal_id}' "
+            f"({self.name}, matched by {self.basis})?"
+        )
 
 
 @dataclass(frozen=True)
@@ -357,24 +395,26 @@ class TechnoteValidationService:
         for author in parsed.technote.authors:
             name = f"{author.name.given} {author.name.family}".strip()
             if author.internal_id is None:
-                findings.append(
-                    ValidationFinding.from_check(
-                        "TN101",
-                        f"Author {name} is missing an internal_id.",
+                message = f"Author {name} is missing an internal_id."
+                suggestion = self._suggest_internal_id(author)
+                if suggestion is not None:
+                    message += (
+                        f" {suggestion.describe(name)} Run 'documenteer "
+                        f"technote sync-authors' after adding it."
                     )
-                )
+                findings.append(ValidationFinding.from_check("TN101", message))
                 continue
             try:
                 self._context.author_db.get_author(author.internal_id)
             except AuthorNotFoundError:
-                findings.append(
-                    ValidationFinding.from_check(
-                        "TN102",
-                        f"Author {name} has internal_id "
-                        f"'{author.internal_id}', which is not in the "
-                        f"author database.",
-                    )
+                message = (
+                    f"Author {name} has internal_id '{author.internal_id}', "
+                    f"which is not in the author database."
                 )
+                suggestion = self._suggest_internal_id(author)
+                if suggestion is not None:
+                    message += f" {suggestion.describe(name)}"
+                findings.append(ValidationFinding.from_check("TN102", message))
             except AuthorDbUnreachableError:
                 findings.append(
                     ValidationFinding.from_check(
@@ -394,6 +434,103 @@ class TechnoteValidationService:
                     )
                 )
         return findings
+
+    def _suggest_internal_id(self, author: Person) -> _AuthorSuggestion | None:
+        """Look up the ``internal_id`` an author most likely meant.
+
+        Searches the author database by name (Ook's author API has no ORCID
+        lookup) and accepts a candidate only on a confident match: the same
+        ORCID, or a single near-exact name match with no conflicting ORCID.
+        Anything ambiguous, and any failure of the lookup itself, yields
+        `None` so the finding keeps its plain message — a suggestion is a
+        convenience and must never turn a working validation run into a
+        failing one.
+        """
+        query = ", ".join(
+            part for part in (author.name.family, author.name.given) if part
+        )
+        if not query:
+            return None
+        try:
+            results = self._context.author_db.search_authors(query)
+        except ValueError:
+            # Both an unreachable database (AuthorDbUnreachableError) and a
+            # malformed search response (pydantic ValidationError) are
+            # ValueErrors, and neither should disturb the primary check.
+            return None
+        declared_orcid = (
+            str(author.orcid) if author.orcid is not None else None
+        )
+        return _match_author(results, orcid=declared_orcid)
+
+
+def _match_author(
+    results: list[AuthorSearchResult], *, orcid: str | None
+) -> _AuthorSuggestion | None:
+    """Pick the one author search result that confidently matches.
+
+    An ORCID declared in ``technote.toml`` is the strongest evidence: a single
+    result carrying the same ORCID is a match however its name is spelled.
+    Otherwise a single result in the search's near-exact score band matches by
+    name, unless it declares a *different* ORCID than the technote does, which
+    proves the two are different people. Every other outcome — no results,
+    several equally-good ones, a name match contradicted by an ORCID — is
+    ambiguous and returns `None`.
+    """
+    declared_orcid = _normalize_orcid(orcid)
+    if declared_orcid is not None:
+        orcid_matches = [
+            result
+            for result in results
+            if _normalize_orcid(result.orcid) == declared_orcid
+        ]
+        if len(orcid_matches) == 1:
+            return _suggestion_from(orcid_matches[0], basis="ORCID")
+        if orcid_matches:
+            return None
+
+    name_matches = [
+        result for result in results if result.score >= _NAME_MATCH_SCORE
+    ]
+    if len(name_matches) != 1:
+        return None
+    candidate = name_matches[0]
+    candidate_orcid = _normalize_orcid(candidate.orcid)
+    if (
+        declared_orcid is not None
+        and candidate_orcid is not None
+        and candidate_orcid != declared_orcid
+    ):
+        return None
+    return _suggestion_from(candidate, basis="name")
+
+
+def _suggestion_from(
+    result: AuthorSearchResult, *, basis: str
+) -> _AuthorSuggestion:
+    """Build a suggestion from an author search result."""
+    name = " ".join(
+        part for part in (result.given_name, result.family_name) if part
+    )
+    return _AuthorSuggestion(
+        internal_id=result.internal_id, name=name, basis=basis
+    )
+
+
+def _normalize_orcid(orcid: object) -> str | None:
+    """Reduce an ORCID URL to its bare identifier for comparison.
+
+    Comparing identifiers rather than URLs makes the match insensitive to the
+    ``http``/``https`` scheme and to a trailing slash.
+    """
+    if orcid is None:
+        return None
+    return str(orcid).rstrip("/").rsplit("/", maxsplit=1)[-1].upper()
+
+
+def _normalize_name(name: str) -> str:
+    """Fold a personal name for comparing two spellings of it."""
+    return " ".join(name.lower().split())
 
 
 # The reStructuredText abstract directive marker: ``.. abstract::``, with any

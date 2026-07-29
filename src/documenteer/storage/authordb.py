@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import requests
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, TypeAdapter
 
 __all__ = [
     "Address",
@@ -12,6 +12,7 @@ __all__ = [
     "AuthorDb",
     "AuthorDbUnreachableError",
     "AuthorNotFoundError",
+    "AuthorSearchResult",
 ]
 
 
@@ -109,10 +110,51 @@ class Author(BaseModel):
     )
 
 
+class AuthorSearchResult(Author):
+    """An author returned by a name search, with its relevance score."""
+
+    score: float = Field(
+        description=(
+            "Relevance score (0-100) of the result for the search query. "
+            "Ook documents 90-100 as an exact or near-exact match."
+        ),
+    )
+
+
+_SEARCH_RESULTS_ADAPTER = TypeAdapter(list[AuthorSearchResult])
+"""Validator for Ook's author-search response body."""
+
+
 class AuthorDb:
     """An interface to Ook's author API."""
 
     def __init__(self) -> None: ...
+
+    def search_authors(
+        self, query: str, *, limit: int = 10
+    ) -> list[AuthorSearchResult]:
+        """Search the author database by name.
+
+        Ook's author search is fuzzy and typo-tolerant, accepting names in
+        several forms (``"Family, Given"``, ``"Given Family"``, a family name
+        alone, and so on). Results are sorted by descending relevance score.
+
+        Raises
+        ------
+        AuthorDbUnreachableError
+            If the author database could not be searched, whether from a
+            transport failure or any HTTP error status.
+        """
+        url = "https://roundtable.lsst.cloud/ook/authors"
+        params = {"search": query, "limit": str(limit)}
+        try:
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            raise AuthorDbUnreachableError(
+                f"Failed to search authors for '{query}' at {url}"
+            ) from e
+        return _SEARCH_RESULTS_ADAPTER.validate_json(r.text)
 
     def get_author(self, author_id: str) -> Author:
         """Get an author entry by ID."""

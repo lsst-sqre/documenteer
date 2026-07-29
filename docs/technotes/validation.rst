@@ -81,11 +81,11 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Error
    * - ``TN101``
      - Metadata
-     - Every author declares an ``internal_id``.
+     - Every author declares an ``internal_id``. The finding suggests the likely ID when the author can be matched in the author database (see :ref:`technote-validate-suggested-ids`).
      - Error
    * - ``TN102``
      - Metadata
-     - Each author's ``internal_id`` resolves in the Rubin author database (`authordb.yaml`_). Also fires when the database returns a malformed record for the ID.
+     - Each author's ``internal_id`` resolves in the Rubin author database (`authordb.yaml`_). Also fires when the database returns a malformed record for the ID. The finding suggests the likely ID when the author can be matched by name or ORCID (see :ref:`technote-validate-suggested-ids`).
      - Error
    * - ``TN103``
      - Metadata
@@ -107,6 +107,27 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Content
      - The abstract directive has body content. Most often the abstract text was left unindented under ``.. abstract::``, which reStructuredText reads as an empty directive: the page publishes an empty abstract section and an empty ``og:description``. The finding locates the directive marker as ``file:line``.
      - Error
+
+.. _technote-validate-suggested-ids:
+
+Suggested author IDs
+====================
+
+An author ``internal_id`` that is missing (``TN101``) or unknown (``TN102``) is a dead end on its own, so the validator tries to name the ID you probably want.
+It searches the author database for the author's name and appends a suggestion when exactly one entry matches confidently:
+
+.. code-block:: text
+
+   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' after adding it.
+   [TN102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
+
+The message states what the match is based on:
+
+- **matched by ORCID** — the ``orcid`` in your :file:`technote.toml` author entry is the same as that entry's ORCID. This is the strongest evidence, and holds even when the two spell the name differently.
+- **matched by name** — a single near-exact name match, whose ORCID (if it has one) does not contradict yours.
+
+The suggestion is deliberately conservative and best-effort: an ambiguous search (several equally good matches, as a common family name gives) or a match contradicted by a differing ORCID adds nothing to the message, and a failed lookup leaves the finding exactly as it would otherwise read.
+A suggestion never changes whether the command passes or fails — verify it before you use it.
 
 How the abstract is found
 =========================

@@ -30,6 +30,25 @@ AUTHOR_JSON = """
 """
 
 
+def _search_result(
+    internal_id: str,
+    given_name: str,
+    family_name: str,
+    score: float,
+    orcid: str | None = None,
+) -> dict[str, object]:
+    """Build one entry of an Ook author-search response body."""
+    return {
+        "affiliations": [],
+        "family_name": family_name,
+        "given_name": given_name,
+        "internal_id": internal_id,
+        "notes": [],
+        "orcid": orcid,
+        "score": score,
+    }
+
+
 def _write_technote(tmp_path: Path, toml_content: str) -> ValidationContext:
     """Write a technote.toml into ``tmp_path`` and build a context.
 
@@ -94,6 +113,49 @@ name.family = "Economou"
     assert all(f.severity is Severity.error for f in findings)
 
 
+def test_missing_internal_id_suggests_orcid_match(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A TN101 author whose ORCID is in the DB gets a suggested ID."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=json.dumps(
+            [
+                _search_result(
+                    "alsayyady",
+                    "Yusra",
+                    "AlSayyad",
+                    90.0,
+                    orcid="https://orcid.org/0009-0008-9216-7516",
+                ),
+                _search_result("aliee", "Eman E.", "Ali", 40.0),
+            ]
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Yusra"
+name.family = "AlSayyad"
+orcid = "https://orcid.org/0009-0008-9216-7516"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN101"]
+    assert findings[0].message == (
+        "Author Yusra AlSayyad is missing an internal_id. Did you mean "
+        "'alsayyady' (matched by ORCID)? Run 'documenteer technote "
+        "sync-authors' after adding it."
+    )
+
+
 def test_internal_id_not_found(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
@@ -119,6 +181,181 @@ internal_id = "nobody"
     findings = service.validate()
     assert [f.code for f in findings] == ["TN102"]
     assert findings[0].severity is Severity.error
+
+
+def test_unknown_internal_id_suggests_name_match(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A TN102 author with one near-exact name match gets a suggested ID."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/lynnej",
+        body="Not found",
+        status=404,
+    )
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=json.dumps(
+            [
+                _search_result("jonesrl", "R. Lynne", "Jones", 90.0),
+                _search_result("jonesd", "Derek", "Jones", 70.0),
+                _search_result("jonesrwl", "Roger", "Jones", 70.0),
+            ]
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Lynne"
+name.family = "Jones"
+internal_id = "lynnej"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN102"]
+    assert findings[0].message == (
+        "Author Lynne Jones has internal_id 'lynnej', which is not in the "
+        "author database. Did you mean 'jonesrl' (R. Lynne Jones, matched "
+        "by name)?"
+    )
+
+
+def test_ambiguous_name_match_keeps_plain_message(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Several equally-good name matches suggest nothing."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=json.dumps(
+            [
+                _search_result("jonesd", "Derek", "Jones", 90.0),
+                _search_result("jonesrl", "R. Lynne", "Jones", 90.0),
+            ]
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "L."
+name.family = "Jones"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN101"]
+    assert findings[0].message == "Author L. Jones is missing an internal_id."
+
+
+def test_weak_name_match_keeps_plain_message(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A search with no near-exact result suggests nothing."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=json.dumps([_search_result("jonesd", "Derek", "Jones", 45.0)]),
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Nemo"
+name.family = "Nobody"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN101"]
+    assert (
+        findings[0].message == "Author Nemo Nobody is missing an internal_id."
+    )
+
+
+def test_conflicting_orcid_keeps_plain_message(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A name match whose ORCID differs is a different person, so no hint."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=json.dumps(
+            [
+                _search_result(
+                    "jonesd",
+                    "Derek",
+                    "Jones",
+                    90.0,
+                    orcid="https://orcid.org/0000-0001-5916-0031",
+                )
+            ]
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Derek"
+name.family = "Jones"
+orcid = "https://orcid.org/0000-0003-3001-676X"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN101"]
+    assert (
+        findings[0].message == "Author Derek Jones is missing an internal_id."
+    )
+
+
+def test_suggestion_lookup_failure_keeps_plain_message(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A failed suggestion lookup leaves the finding as it was."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body="Internal server error",
+        status=500,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"
+orcid = "https://orcid.org/0000-0003-3001-676X"
+""",
+    )
+    service = TechnoteValidationService(context)
+    findings = service.validate()
+    assert [f.code for f in findings] == ["TN101"]
+    assert findings[0].severity is Severity.error
+    assert (
+        findings[0].message
+        == "Author Jonathan Sick is missing an internal_id."
+    )
 
 
 def test_authordb_unreachable(tmp_path: Path, responses: RequestsMock) -> None:
