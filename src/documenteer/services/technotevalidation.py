@@ -6,6 +6,7 @@ import json
 import re
 import string
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -121,7 +122,7 @@ CHECKS: dict[str, Check] = {
     "TN201": Check(
         code="TN201",
         name="abstract-present",
-        description="The content declares a non-empty abstract directive.",
+        description="The content declares an abstract directive.",
         severity=Severity.error,
     ),
     "TN202": Check(
@@ -137,6 +138,12 @@ CHECKS: dict[str, Check] = {
         code="TN203",
         name="content-file-parseable",
         description="The content file can be parsed to scan for an abstract.",
+        severity=Severity.error,
+    ),
+    "TN204": Check(
+        code="TN204",
+        name="abstract-directive-not-empty",
+        description="The abstract directive has body content.",
         severity=Severity.error,
     ),
 }
@@ -389,13 +396,20 @@ class TechnoteValidationService:
         return findings
 
 
-# The reStructuredText abstract directive: ``.. abstract::``.
-_RST_ABSTRACT_DIRECTIVE = re.compile(r"^\s*\.\.\s+abstract::\s*$")
+# The reStructuredText abstract directive marker: ``.. abstract::``, with any
+# text that trails it on the marker line. docutils lowercases directive names,
+# so ``.. Abstract::`` builds too.
+_RST_ABSTRACT_DIRECTIVE = re.compile(
+    r"^(?P<indent>\s*)\.\.\s+abstract::(?P<trailing>.*)$", re.IGNORECASE
+)
 # A reStructuredText title line reading exactly "Abstract" (case-insensitive).
 _RST_ABSTRACT_TITLE = re.compile(r"^\s*abstract\s*$", re.IGNORECASE)
 # MyST abstract directives: ```` ```{abstract} ```` and ``:::{abstract}``.
-_MYST_BACKTICK_ABSTRACT = re.compile(r"^\s*`{3,}\{abstract\}\s*$")
-_MYST_COLON_ABSTRACT = re.compile(r"^\s*:{3,}\{abstract\}\s*$")
+# Matched case-insensitively because docutils lowercases directive names.
+_MYST_BACKTICK_ABSTRACT = re.compile(
+    r"^\s*`{3,}\{abstract\}\s*$", re.IGNORECASE
+)
+_MYST_COLON_ABSTRACT = re.compile(r"^\s*:{3,}\{abstract\}\s*$", re.IGNORECASE)
 # Closing fences for the corresponding MyST directives.
 _BACKTICK_FENCE = re.compile(r"^\s*`{3,}\s*$")
 _COLON_FENCE = re.compile(r"^\s*:{3,}\s*$")
@@ -407,6 +421,102 @@ _MD_SETEXT_UNDERLINE = re.compile(r"^\s*(=+|-+)\s*$")
 # directive configuration, not body content, so an options-only abstract is
 # still empty.
 _DIRECTIVE_OPTION_LINE = re.compile(r"^\s*:[\w-]+:")
+# Include directives, whose target is scanned for an abstract as well: rST
+# ``.. include:: path`` and MyST ```` ```{include} path ```` / ``:::{include}
+# path``.
+_RST_INCLUDE_DIRECTIVE = re.compile(
+    r"^\s*\.\.\s+include::\s*(?P<path>\S.*?)\s*$", re.IGNORECASE
+)
+_MYST_INCLUDE_DIRECTIVE = re.compile(
+    r"^\s*(?:`{3,}|:{3,})\{include\}\s*(?P<path>\S.*?)\s*$", re.IGNORECASE
+)
+
+
+@dataclass(frozen=True)
+class _DirectiveScan:
+    """The outcome of scanning one source for an abstract directive.
+
+    Three outcomes are distinguished: no directive at all (``found`` false and
+    ``empty_line`` ``None``), a directive whose body is empty (``empty_line``
+    holds the 1-indexed line of its marker), and a non-empty directive
+    (``found`` true).
+    """
+
+    found: bool
+    empty_line: int | None = None
+
+
+@dataclass(frozen=True)
+class _FormatRules:
+    """How one markup format is scanned for an abstract, and described.
+
+    ``directive_hint`` names the format's abstract directive in a finding's
+    message, and ``empty_advice`` completes the TN204 message that a present
+    directive has no body.
+    """
+
+    scan_directive: Callable[[str], _DirectiveScan]
+    find_heading: Callable[[str], int | None]
+    include_pattern: re.Pattern[str]
+    directive_hint: str
+    empty_advice: str
+
+
+@dataclass(frozen=True)
+class _Source:
+    """One body of text scanned for an abstract.
+
+    ``name`` is how the source is identified in a finding. ``locatable`` is
+    false for a notebook, whose markdown cells are concatenated before
+    scanning, so line numbers in the scanned text locate nothing in the file.
+    """
+
+    name: str
+    text: str
+    locatable: bool = True
+
+    def locate(self, line: int) -> str:
+        """Format the ``file:line:`` prefix for a line in this source."""
+        if not self.locatable:
+            return f"{self.name}: "
+        return f"{self.name}:{line}: "
+
+
+@dataclass(frozen=True)
+class _AbstractSearch:
+    """What scanning a content file and its includes turned up.
+
+    At most one of the fields is set, in priority order: a non-empty directive
+    anywhere wins (``found``); otherwise the first empty directive
+    (``empty_location``); otherwise the first ``Abstract`` heading
+    (``heading_location``). The locations are preformatted ``file:line:``
+    prefixes.
+    """
+
+    found: bool = False
+    empty_location: str | None = None
+    heading_location: str | None = None
+
+
+def _search_abstract(
+    sources: list[_Source], rules: _FormatRules
+) -> _AbstractSearch:
+    """Scan each source for an abstract directive, then for a heading."""
+    empty_location: str | None = None
+    heading_location: str | None = None
+    for source in sources:
+        scan = rules.scan_directive(source.text)
+        if scan.found:
+            return _AbstractSearch(found=True)
+        if empty_location is None and scan.empty_line is not None:
+            empty_location = source.locate(scan.empty_line)
+        if heading_location is None:
+            heading_line = rules.find_heading(source.text)
+            if heading_line is not None:
+                heading_location = source.locate(heading_line)
+    return _AbstractSearch(
+        empty_location=empty_location, heading_location=heading_location
+    )
 
 
 def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
@@ -414,20 +524,33 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
 
     Locates ``index.{rst,md,ipynb}`` via the context's content path and
     scans its source (no Sphinx build) for a non-empty abstract directive.
-    Four outcomes are distinguished (TN2xx content checks):
+    Five outcomes are distinguished (TN2xx content checks):
 
     - A non-empty abstract *directive* (rST ``.. abstract::``; MyST
       ```` ```{abstract} ```` or ``:::{abstract}``; ``.ipynb`` markdown
       cells) → no findings.
+    - A directive that is present but has no body → a TN204 finding locating
+      the directive marker. The common cause is an abstract left unindented
+      under ``.. abstract::``, which docutils reads as an empty directive and
+      which publishes an empty abstract section.
     - No directive but an ordinary ``Abstract`` section heading → a TN202
-      finding pointing authors to the format's abstract directive.
-    - Neither → a TN201 finding: no abstract found.
+      finding locating the heading and pointing authors to the format's
+      abstract directive.
+    - None of the above → a TN201 finding: no abstract found.
     - A ``.ipynb`` file that is not valid JSON → a TN203 finding: the content
       file could not be parsed to scan for an abstract.
 
-    The suggested-directive text in the TN201/TN202 messages is format-aware:
+    The suggested-directive text in the messages is format-aware:
     reStructuredText content is pointed at ``.. abstract::`` and MyST/notebook
     content at the ```` ```{abstract} ```` fenced directive.
+
+    An abstract that the content factors into another file and pulls in with
+    an include directive is found as well; see `_included_sources`.
+
+    TN202 and TN204 findings are prefixed with a ``file:line:`` location. A
+    notebook's markdown cells are concatenated before scanning, so its
+    findings carry the file name alone rather than a line number that does not
+    correspond to anything in the file.
 
     A directory with no content file at all produces no findings here: that is
     a structural condition, reported as TN006 by the validation runner.
@@ -453,35 +576,87 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
         text = content_path.read_text(encoding="utf-8")
         is_rst = suffix == ".rst"
 
-    if is_rst:
-        has_directive = _has_rst_abstract_directive(text)
-        has_heading = _has_rst_abstract_heading(text)
-        directive_hint = ".. abstract::"
-    else:
-        has_directive = _has_myst_abstract_directive(text)
-        has_heading = _has_markdown_abstract_heading(text)
-        directive_hint = "```{abstract}```"
+    rules = _RST_RULES if is_rst else _MYST_RULES
+    sources = [_Source(content_path.name, text, locatable=suffix != ".ipynb")]
+    sources.extend(
+        _included_sources(
+            text,
+            content_path=content_path,
+            root_dir=context.root_dir,
+            pattern=rules.include_pattern,
+        )
+    )
+    search = _search_abstract(sources, rules)
 
-    if has_directive:
+    if search.found:
         return []
-    if has_heading:
+    if search.empty_location is not None:
+        return [
+            ValidationFinding.from_check(
+                "TN204",
+                f"{search.empty_location}the {rules.directive_hint} directive "
+                f"is empty — {rules.empty_advice}",
+            )
+        ]
+    if search.heading_location is not None:
         return [
             ValidationFinding.from_check(
                 "TN202",
-                f"{content_path.name} declares its abstract as an ordinary "
-                f"'Abstract' section heading. Use the {directive_hint} "
-                f"directive instead so the abstract is captured in the "
-                f"technote metadata.",
+                f"{search.heading_location}the abstract is declared as an "
+                f"ordinary 'Abstract' section heading. Use the "
+                f"{rules.directive_hint} directive instead so the abstract is "
+                f"captured in the technote metadata.",
             )
         ]
     return [
         ValidationFinding.from_check(
             "TN201",
             f"No abstract found in {content_path.name}. Add a non-empty "
-            f"{directive_hint} directive so the abstract is captured in the "
-            f"technote metadata.",
+            f"{rules.directive_hint} directive so the abstract is captured in "
+            f"the technote metadata.",
         )
     ]
+
+
+def _included_sources(
+    text: str, *, content_path: Path, root_dir: Path, pattern: re.Pattern[str]
+) -> list[_Source]:
+    """Read the files the content includes, one level deep.
+
+    A technote may factor its abstract into a separate file pulled in with an
+    include directive, so those files are scanned for an abstract too. The
+    resolution is deliberately shallow — includes within an included file are
+    not followed — because this is a source scan, not a full parse.
+
+    Paths are resolved relative to the content file's directory (or, for the
+    rST convention of a leading ``/``, relative to the technote root). A path
+    that escapes the technote root is skipped, as is one that cannot be read:
+    Sphinx reports a broken include itself, and the validator should not fail
+    on it twice.
+    """
+    root = root_dir.resolve()
+    sources: list[_Source] = []
+    for line in text.splitlines():
+        match = pattern.match(line)
+        if match is None:
+            continue
+        raw_path = match.group("path")
+        if raw_path.startswith("/"):
+            candidate = root_dir.joinpath(*raw_path.lstrip("/").split("/"))
+        else:
+            candidate = content_path.parent / raw_path
+        resolved = candidate.resolve()
+        if (
+            not resolved.is_relative_to(root)
+            or resolved == content_path.resolve()
+        ):
+            continue
+        try:
+            included_text = resolved.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        sources.append(_Source(str(resolved.relative_to(root)), included_text))
+    return sources
 
 
 def check_requirements(context: ValidationContext) -> list[ValidationFinding]:
@@ -664,40 +839,70 @@ def _read_notebook_markdown(path: Path) -> str:
     return "\n\n".join(parts)
 
 
-def _has_rst_abstract_directive(text: str) -> bool:
-    """Whether the text has a non-empty ``.. abstract::`` directive."""
+def _scan_rst_abstract_directive(text: str) -> _DirectiveScan:
+    """Scan reStructuredText for an ``.. abstract::`` directive.
+
+    Distinguishes a non-empty directive from one whose body is missing (the
+    common case being a body left unindented at column 0, which docutils
+    reads as an empty directive and which publishes an empty abstract).
+    """
+    empty_line: int | None = None
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        if not _RST_ABSTRACT_DIRECTIVE.match(line):
+        match = _RST_ABSTRACT_DIRECTIVE.match(line)
+        if match is None:
             continue
-        marker_indent = len(line) - len(line.lstrip())
-        # The directive body is the indented block that follows. An indented,
-        # non-blank line that is not an option line counts as content, making
-        # the directive non-empty. Option lines (``:class: dropdown``) are
-        # directive configuration, so an options-only directive stays empty.
-        for body_line in lines[i + 1 :]:
-            if body_line.strip() == "":
-                continue
-            indent = len(body_line) - len(body_line.lstrip())
-            if indent <= marker_indent:
-                break
-            if _DIRECTIVE_OPTION_LINE.match(body_line):
-                continue
-            return True
+        # Text trailing the marker is body content: the directive declares no
+        # arguments and no options, so docutils folds the whole directive
+        # block into its content.
+        if match.group("trailing").strip():
+            return _DirectiveScan(found=True)
+        marker_indent = len(match.group("indent"))
+        # Otherwise the directive body is the indented block that follows. An
+        # indented, non-blank line that is not an option line counts as
+        # content. Option lines (``:class: dropdown``) are directive
+        # configuration, so an options-only directive stays empty.
+        if _rst_block_has_body(lines[i + 1 :], marker_indent):
+            return _DirectiveScan(found=True)
+        if empty_line is None:
+            empty_line = i + 1
+    return _DirectiveScan(found=False, empty_line=empty_line)
+
+
+def _rst_block_has_body(lines: list[str], marker_indent: int) -> bool:
+    """Whether the indented block after a directive marker has content."""
+    for body_line in lines:
+        if body_line.strip() == "":
+            continue
+        indent = len(body_line) - len(body_line.lstrip())
+        if indent <= marker_indent:
+            return False
+        if _DIRECTIVE_OPTION_LINE.match(body_line):
+            continue
+        return True
     return False
 
 
-def _has_myst_abstract_directive(text: str) -> bool:
-    """Whether the text has a non-empty MyST abstract directive."""
+def _scan_myst_abstract_directive(text: str) -> _DirectiveScan:
+    """Scan MyST/Markdown for a fenced abstract directive.
+
+    Like the reStructuredText scan, distinguishes a directive that is missing
+    from one that is present but has no body between its fences.
+    """
+    empty_line: int | None = None
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if _MYST_BACKTICK_ABSTRACT.match(line):
-            if _myst_fence_has_body(lines, i, _BACKTICK_FENCE):
-                return True
+            closer = _BACKTICK_FENCE
         elif _MYST_COLON_ABSTRACT.match(line):
-            if _myst_fence_has_body(lines, i, _COLON_FENCE):
-                return True
-    return False
+            closer = _COLON_FENCE
+        else:
+            continue
+        if _myst_fence_has_body(lines, i, closer):
+            return _DirectiveScan(found=True)
+        if empty_line is None:
+            empty_line = i + 1
+    return _DirectiveScan(found=False, empty_line=empty_line)
 
 
 def _myst_fence_has_body(
@@ -718,16 +923,19 @@ def _myst_fence_has_body(
     return False
 
 
-def _has_rst_abstract_heading(text: str) -> bool:
-    """Whether the text has an ``Abstract`` reStructuredText section title."""
+def _find_rst_abstract_heading(text: str) -> int | None:
+    """Find an ``Abstract`` reStructuredText section title.
+
+    Returns the 1-indexed line of the title, or `None` if there is none.
+    """
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if not _RST_ABSTRACT_TITLE.match(line):
             continue
         title_len = len(line.strip())
         if i + 1 < len(lines) and _is_rst_adornment(lines[i + 1], title_len):
-            return True
-    return False
+            return i + 1
+    return None
 
 
 def _is_rst_adornment(line: str, min_length: int) -> bool:
@@ -741,20 +949,42 @@ def _is_rst_adornment(line: str, min_length: int) -> bool:
     return all(c == char for c in stripped)
 
 
-def _has_markdown_abstract_heading(text: str) -> bool:
-    """Whether the text has a Markdown ``Abstract`` heading.
+def _find_markdown_abstract_heading(text: str) -> int | None:
+    """Find a Markdown ``Abstract`` heading.
 
     Detects both ATX headings (``## Abstract``) and Setext headings (an
-    ``Abstract`` line underlined by ``===`` or ``---``).
+    ``Abstract`` line underlined by ``===`` or ``---``), returning the
+    1-indexed line of the heading text, or `None` if there is none.
     """
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if _MD_ABSTRACT_HEADING.match(line):
-            return True
+            return i + 1
         if (
             _RST_ABSTRACT_TITLE.match(line)
             and i + 1 < len(lines)
             and _MD_SETEXT_UNDERLINE.match(lines[i + 1])
         ):
-            return True
-    return False
+            return i + 1
+    return None
+
+
+_RST_RULES = _FormatRules(
+    scan_directive=_scan_rst_abstract_directive,
+    find_heading=_find_rst_abstract_heading,
+    include_pattern=_RST_INCLUDE_DIRECTIVE,
+    directive_hint="'.. abstract::'",
+    empty_advice="indent the abstract text under the directive.",
+)
+"""How reStructuredText content is scanned for an abstract."""
+
+_MYST_RULES = _FormatRules(
+    scan_directive=_scan_myst_abstract_directive,
+    find_heading=_find_markdown_abstract_heading,
+    include_pattern=_MYST_INCLUDE_DIRECTIVE,
+    directive_hint="'```{abstract}' fenced",
+    empty_advice=(
+        "put the abstract text between the opening and closing fences."
+    ),
+)
+"""How MyST Markdown and notebook content is scanned for an abstract."""

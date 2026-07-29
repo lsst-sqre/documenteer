@@ -520,12 +520,76 @@ def test_abstract_directive_ipynb_passes(tmp_path: Path) -> None:
     assert check_abstract(context) == []
 
 
-def test_empty_abstract_directive_reports_tn201(tmp_path: Path) -> None:
-    """An abstract directive with no body is not a passing abstract."""
+def test_rst_abstract_body_on_marker_line_passes(tmp_path: Path) -> None:
+    """``.. abstract:: text`` is valid rST: the text is directive content."""
+    content = (
+        "#############\nDemo technote\n#############\n\n"
+        ".. abstract:: A technote is a web-native single page document.\n\n"
+        "Introduction\n============\n\nBody text.\n"
+    )
+    context = _context_with_content(tmp_path, "index.rst", content)
+    assert check_abstract(context) == []
+
+
+def test_mixed_case_rst_abstract_directive_passes(tmp_path: Path) -> None:
+    """Docutils lowercases directive names, so ``.. Abstract::`` builds."""
+    content = (
+        "#############\nDemo technote\n#############\n\n"
+        ".. Abstract::\n\n"
+        "   A technote is a web-native single page document.\n\n"
+        "Introduction\n============\n\nBody text.\n"
+    )
+    context = _context_with_content(tmp_path, "index.rst", content)
+    assert check_abstract(context) == []
+
+
+def test_mixed_case_myst_abstract_directive_passes(tmp_path: Path) -> None:
+    """Docutils lowercases directive names, so ```{Abstract} builds."""
+    content = (
+        "# Demo technote\n\n"
+        "```{Abstract}\n"
+        "A technote is a web-native single page document.\n"
+        "```\n\n"
+        "## Introduction\n\nBody text.\n"
+    )
+    context = _context_with_content(tmp_path, "index.md", content)
+    assert check_abstract(context) == []
+
+
+def test_empty_myst_abstract_directive_reports_tn204(tmp_path: Path) -> None:
+    """A MyST abstract fence with no body is reported with its location."""
     content = "# Demo technote\n\n```{abstract}\n```\n\n## Introduction\n"
     context = _context_with_content(tmp_path, "index.md", content)
     findings = check_abstract(context)
-    assert [f.code for f in findings] == ["TN201"]
+    assert [f.code for f in findings] == ["TN204"]
+    assert findings[0].message.startswith("index.md:3:")
+    # MyST content is pointed at the fenced directive, not the rST form.
+    assert "```{abstract}" in findings[0].message
+    assert ".. abstract::" not in findings[0].message
+
+
+def test_unindented_rst_abstract_body_reports_tn204(tmp_path: Path) -> None:
+    """An ``.. abstract::`` whose body is at column 0 is an empty directive."""
+    content = """\
+#############
+Demo technote
+#############
+
+.. abstract::
+
+A technote is a web-native single page document.
+
+Introduction
+============
+
+Body text.
+"""
+    context = _context_with_content(tmp_path, "index.rst", content)
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN204"]
+    assert findings[0].severity is Severity.error
+    assert findings[0].message.startswith("index.rst:5:")
+    assert ".. abstract::" in findings[0].message
 
 
 def test_no_abstract_reports_tn201(tmp_path: Path) -> None:
@@ -590,6 +654,7 @@ Body text.
     findings = check_abstract(context)
     assert [f.code for f in findings] == ["TN202"]
     assert findings[0].severity is Severity.error
+    assert findings[0].message.startswith("index.rst:5:")
     assert ".. abstract::" in findings[0].message
 
 
@@ -609,6 +674,7 @@ Body text.
     context = _context_with_content(tmp_path, "index.md", content)
     findings = check_abstract(context)
     assert [f.code for f in findings] == ["TN202"]
+    assert findings[0].message.startswith("index.md:3:")
     # MyST content is pointed at the fenced abstract directive, not the rST
     # form.
     assert "```{abstract}" in findings[0].message
@@ -630,6 +696,76 @@ def test_abstract_heading_ipynb_reports_tn202(tmp_path: Path) -> None:
     assert ".. abstract::" not in findings[0].message
 
 
+def test_abstract_via_rst_include_passes(tmp_path: Path) -> None:
+    """An abstract factored into an rST ``.. include::`` file passes."""
+    (tmp_path / "abstract.rst").write_text(
+        ".. abstract::\n\n   A web-native single page document.\n"
+    )
+    content = (
+        "#############\nDemo technote\n#############\n\n"
+        ".. include:: abstract.rst\n\n"
+        "Introduction\n============\n\nBody text.\n"
+    )
+    context = _context_with_content(tmp_path, "index.rst", content)
+    assert check_abstract(context) == []
+
+
+def test_abstract_via_myst_include_passes(tmp_path: Path) -> None:
+    """An abstract factored into a MyST ``{include}`` file passes."""
+    (tmp_path / "abstract.md").write_text(
+        "```{abstract}\nA web-native single page document.\n```\n"
+    )
+    content = (
+        "# Demo technote\n\n"
+        "```{include} abstract.md\n"
+        "```\n\n"
+        "## Introduction\n\nBody text.\n"
+    )
+    context = _context_with_content(tmp_path, "index.md", content)
+    assert check_abstract(context) == []
+
+
+def test_include_of_missing_file_reports_tn201(tmp_path: Path) -> None:
+    """An include pointing at a missing file is ignored, not a crash."""
+    content = (
+        "#############\nDemo technote\n#############\n\n"
+        ".. include:: nowhere.rst\n\n"
+        "Introduction\n============\n\nBody text.\n"
+    )
+    context = _context_with_content(tmp_path, "index.rst", content)
+    assert [f.code for f in check_abstract(context)] == ["TN201"]
+
+
+def test_include_outside_technote_root_is_ignored(tmp_path: Path) -> None:
+    """An include that escapes the technote root is not scanned."""
+    (tmp_path / "abstract.rst").write_text(
+        ".. abstract::\n\n   A web-native single page document.\n"
+    )
+    root = tmp_path / "technote"
+    root.mkdir()
+    content = (
+        "#############\nDemo technote\n#############\n\n"
+        ".. include:: ../abstract.rst\n\n"
+        "Introduction\n============\n\nBody text.\n"
+    )
+    context = _context_with_content(root, "index.rst", content)
+    assert [f.code for f in check_abstract(context)] == ["TN201"]
+
+
+def test_empty_notebook_abstract_reports_tn204_without_line(
+    tmp_path: Path,
+) -> None:
+    """A notebook's cells are concatenated, so no line number is reported."""
+    content = _ipynb(
+        "# Demo technote\n\n```{abstract}\n```",
+        "## Introduction\n\nBody text.",
+    )
+    context = _context_with_content(tmp_path, "index.ipynb", content)
+    findings = check_abstract(context)
+    assert [f.code for f in findings] == ["TN204"]
+    assert findings[0].message.startswith("index.ipynb: ")
+
+
 def test_corrupt_notebook_reports_tn203(tmp_path: Path) -> None:
     """A content notebook that is not valid JSON yields a TN203 error."""
     context = _context_with_content(tmp_path, "index.ipynb", "{ not json")
@@ -638,7 +774,7 @@ def test_corrupt_notebook_reports_tn203(tmp_path: Path) -> None:
     assert findings[0].severity is Severity.error
 
 
-def test_myst_options_only_abstract_reports_tn201(tmp_path: Path) -> None:
+def test_myst_options_only_abstract_reports_tn204(tmp_path: Path) -> None:
     """A MyST abstract directive with only options is treated as empty."""
     content = (
         "# Demo technote\n\n"
@@ -648,10 +784,10 @@ def test_myst_options_only_abstract_reports_tn201(tmp_path: Path) -> None:
         "## Introduction\n\nBody text.\n"
     )
     context = _context_with_content(tmp_path, "index.md", content)
-    assert [f.code for f in check_abstract(context)] == ["TN201"]
+    assert [f.code for f in check_abstract(context)] == ["TN204"]
 
 
-def test_rst_options_only_abstract_reports_tn201(tmp_path: Path) -> None:
+def test_rst_options_only_abstract_reports_tn204(tmp_path: Path) -> None:
     """An rST abstract directive with only options is treated as empty."""
     content = (
         "#############\nDemo technote\n#############\n\n"
@@ -660,7 +796,7 @@ def test_rst_options_only_abstract_reports_tn201(tmp_path: Path) -> None:
         "Introduction\n============\n\nBody text.\n"
     )
     context = _context_with_content(tmp_path, "index.rst", content)
-    assert [f.code for f in check_abstract(context)] == ["TN201"]
+    assert [f.code for f in check_abstract(context)] == ["TN204"]
 
 
 def test_setext_abstract_heading_md_reports_tn202(tmp_path: Path) -> None:

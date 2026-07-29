@@ -93,16 +93,31 @@ Codes are grouped by concern: ``TN0xx`` for structural checks, ``TN1xx`` for met
      - Warning
    * - ``TN201``
      - Content
-     - The content file declares a non-empty abstract. A technote with no content file at all is reported as ``TN006`` instead.
+     - The content file declares an abstract directive. A technote with no content file at all is reported as ``TN006`` instead, and a directive that is present but empty as ``TN204``.
      - Error
    * - ``TN202``
      - Content
-     - The abstract uses the abstract directive rather than an ordinary ``Abstract`` section heading.
+     - The abstract uses the abstract directive rather than an ordinary ``Abstract`` section heading. The finding locates the heading as ``file:line``.
      - Error
    * - ``TN203``
      - Content
      - The content file can be parsed to scan for an abstract (an :file:`index.ipynb` notebook is valid JSON).
      - Error
+   * - ``TN204``
+     - Content
+     - The abstract directive has body content. Most often the abstract text was left unindented under ``.. abstract::``, which reStructuredText reads as an empty directive: the page publishes an empty abstract section and an empty ``og:description``. The finding locates the directive marker as ``file:line``.
+     - Error
+
+How the abstract is found
+=========================
+
+The abstract check is a source scan, not a Sphinx build, so it is worth knowing what it does and does not see.
+
+- Both the reStructuredText directive (``.. abstract::``) and the MyST fenced directive (a triple-backtick or ``:::`` fence opening with ``{abstract}``) are recognized, in any letter case — docutils lowercases directive names, so a ``{Abstract}`` fence builds and passes.
+- In reStructuredText, text on the marker line itself (``.. abstract:: The abstract.``) is directive content and passes.
+- Directive *options* (for example ``:class: dropdown``) are configuration rather than content, so a directive holding only options is empty (``TN204``).
+- An abstract factored into another file and pulled in with ``.. include::`` or a MyST ``{include}`` fence is found: those includes are resolved one level deep, relative to the content file. Includes within an included file are not followed, and an include that is missing or points outside the technote directory is ignored (Sphinx reports those itself).
+- An :file:`index.ipynb` notebook's markdown cells are concatenated before scanning, so its findings name the file without a line number.
 
 Non-Sphinx technotes
 ====================
