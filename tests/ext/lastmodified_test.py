@@ -250,10 +250,12 @@ def test_last_updated_suppressed_for_shallow_clone(app: SphinxTestApp) -> None:
     assert not _has_modified_metatags(captured["index"])
     assert not _has_modified_metatags(captured["page2"])
 
-    # The user is warned exactly once about the shallow clone.
+    # The user is warned exactly once about the shallow clone, with a
+    # suppress_warnings key for builds where a shallow clone is expected.
     warnings = app.warning.getvalue()
     assert warnings.count("shallow clone") == 1
     assert "fetch-depth: 0" in warnings
+    assert "[documenteer.git_shallow]" in warnings
 
 
 @pytest.mark.skipif(

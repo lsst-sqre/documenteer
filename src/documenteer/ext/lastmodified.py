@@ -124,7 +124,9 @@ class LastModified:
                     "shallow clone, so 'last updated' page timestamps would "
                     "be inaccurate and have been omitted. In CI, configure "
                     "actions/checkout with fetch-depth: 0 to fetch the full "
-                    "history and enable them."
+                    "history and enable them.",
+                    type="documenteer",
+                    subtype="git_shallow",
                 )
                 return None
         return self._repo

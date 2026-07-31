@@ -35,6 +35,7 @@
 .. _`sconsUtils`: https://github.com/lsst/sconsUtils
 .. _`sqre/infrastructure/documenteer`: https://ci.lsst.codes/blue/organizations/jenkins/sqre%2Finfrastructure%2Fdocumenteer/activity
 .. _astro-metadata-translator.lsst.io: https://astro-metadata-translator.lsst.io
+.. _sphinx-automodapi:
 .. _automodapi: https://sphinx-automodapi.readthedocs.io/en/latest/automodapi.html
 .. _black: https://black.readthedocs.io/en/stable/
 .. _breathe: https://breathe.readthedocs.io/en/latest/index.html
@@ -52,6 +53,7 @@
 .. _rst_epilog: https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=rst_epilog#confval-rst_epilog
 .. _napoleon: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
 .. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
+.. _sphinx-autodoc-typehints:
 .. _sphinx_autodoc_typehints: https://github.com/tox-dev/sphinx-autodoc-typehints
 .. _sphinxcontrib-redoc: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 .. _sphinxcontrib-bibtex: https://sphinxcontrib-bibtex.readthedocs.io/en/latest/
@@ -64,6 +66,7 @@
 .. _pipx: https://pipx.pypa.io
 .. _`LSSTC Slack Workspace`: https://lsstc.slack.com
 .. _`uv`: https://docs.astral.sh/uv/
+.. _`autodoc-pydantic`: https://autodoc-pydantic.readthedocs.io/en/stable/
 
 .. |dmw-squarebot| replace:: `direct message with @squarebot <https://slack.com/app_redirect?app=A07PWG9UG9M&team=T02SVMGU4>`__
 

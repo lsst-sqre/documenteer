@@ -190,6 +190,7 @@ extensions = [
     "documenteer.ext.redoc",
     "documenteer.ext.linkcheckservice",
     "documenteer.ext.intersphinxcache",
+    "documenteer.ext.autotypes",
 ]
 _conf.append_extensions(extensions)
 
