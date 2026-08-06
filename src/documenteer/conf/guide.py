@@ -334,6 +334,13 @@ html_theme_options = {
     # renders empty on pages where nothing applies, and pydata-sphinx-theme
     # drops empty article-footer components per page.
     "article_footer_items": ["rubin-print-footer"],
+    # Custom Rubin page footer (rubin-footer.html): project link inventory,
+    # copyright, funding statement, and funding-partner logo lineup. It
+    # replaces the theme's default footer components (copyright and
+    # sphinx-version in footer_start, theme-version in footer_end), which
+    # also drops the Sphinx and pydata-sphinx-theme attribution.
+    "footer_start": ["rubin-footer"],
+    "footer_end": [],
     "analytics": {
         "plausible_analytics_domain": "lsst.io",
         "plausible_analytics_url": "https://plausible.io/js/script.file-downloads.hash.outbound-links.js",
@@ -410,6 +417,13 @@ html_static_path: list[str] = [
     get_asset_path("rubin-favicon-transparent-32px.png"),
     get_asset_path("rubin-favicon.svg"),
     get_asset_path("rubin-pydata-theme.css"),
+    # Funding-partner logo lineup for the page footer (rubin-footer.html).
+    # File entries land flat in _static/, so the template references
+    # _static/rubin-partners.png.
+    get_asset_path("rsd-assets/rubin-partners.png"),
+    # Aligns the page footer content with the rendered article column; the
+    # centered CSS layout is the no-JavaScript fallback.
+    get_asset_path("rubin-footer-align.js"),
 ]
 
 html_css_files = ["rubin-pydata-theme.css"]
@@ -417,7 +431,7 @@ html_css_files = ["rubin-pydata-theme.css"]
 # The lastmodified extension renders the per-page "last modified" footer date
 # as a <time> element; rubin-last-modified.js localizes it to the reader's
 # timezone. Only ship the script when the feature is enabled.
-html_js_files: list[str] = []
+html_js_files: list[str] = ["rubin-footer-align.js"]
 if documenteer_last_modified_enabled:
     html_static_path.append(get_asset_path("rubin-last-modified.js"))
     html_js_files.append("rubin-last-modified.js")

@@ -1,0 +1,71 @@
+{# Rubin Observatory page footer, rendered through the theme's footer_start
+   slot in place of the default copyright/sphinx-version/theme-version
+   components. Contains the project link inventory, the copyright statement,
+   the agency funding statement, and the funding-partner logo lineup. #}
+<div class="rubin-footer">
+  <nav class="rubin-footer__nav" aria-label="Rubin Observatory">
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://rubinobservatory.org/">Rubin Observatory</a>
+      </p>
+      <ul class="rubin-footer__nav-list">
+        <li><a href="https://rubinobservatory.org/for-scientists">For scientists</a></li>
+        <li><a href="https://rubinobservatory.org/news">News</a></li>
+      </ul>
+    </div>
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://www.lsst.io">Documentation</a>
+      </p>
+    </div>
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://data.lsst.cloud">data.lsst.cloud</a>
+      </p>
+    </div>
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://community.lsst.org">Community forum</a>
+      </p>
+    </div>
+  </nav>
+
+  {% if show_copyright and copyright %}
+  <p class="rubin-footer__copyright">
+    {% trans copyright=copyright|e %}© Copyright {{ copyright }}.{% endtrans %}
+  </p>
+  {% endif %}
+
+  <div class="rubin-footer__funding">
+    <p>
+      The U.S. National Science Foundation (<a href="https://www.nsf.gov/">NSF</a>)
+      and the U.S. Department of Energy (<a href="https://www.energy.gov/">DOE</a>)
+      Office of Science will support Rubin Observatory in its operations phase to
+      carry out the Legacy Survey of Space and Time. They will also provide support
+      for scientific research with the data. During operations, NSF funding is
+      managed by the Association of Universities for Research in Astronomy
+      (<a href="https://www.aura-astronomy.org/">AURA</a>) under a cooperative
+      agreement with NSF, and DOE funding is managed by SLAC National Accelerator
+      Laboratory (<a href="https://www6.slac.stanford.edu/">SLAC</a>), under
+      contract by DOE. Rubin Observatory is operated by
+      <a href="https://noirlab.edu/public/">NSF NOIRLab</a> and SLAC.
+    </p>
+    <p>
+      NSF is an independent federal agency created by Congress in 1950 to promote
+      the progress of science. NSF supports basic research and people to create
+      knowledge that transforms the future.
+    </p>
+    <p>
+      The DOE Office of Science is the single largest supporter of basic research
+      in the physical sciences in the United States and is working to address some
+      of the most pressing challenges of our time.
+    </p>
+  </div>
+
+  <div class="rubin-footer__partner-logos">
+    <img
+      src="{{ pathto('_static/rubin-partners.png', 1) }}"
+      alt="Logos of the Vera C. Rubin Observatory, NSF, US DOE, NOIRLab, AURA, and SLAC."
+    />
+  </div>
+</div>

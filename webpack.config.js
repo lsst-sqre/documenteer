@@ -42,6 +42,10 @@ module.exports = {
           ),
           to: 'rsd-assets',
         },
+        {
+          from: join(rsdAssetsDir, 'partner-logos/rubin-partners.png'),
+          to: 'rsd-assets',
+        },
       ],
     }),
   ],

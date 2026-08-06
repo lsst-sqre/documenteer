@@ -182,6 +182,78 @@ body {
   color: var(--pst-color-text-muted);
 }
 
+/* Rubin page footer (rubin-footer.html), rendered through the theme's
+ * footer_start slot: link inventory columns, copyright, funding statement,
+ * and the funding-partner logo lineup. The theme's .footer-items__start
+ * container already grows to fill .bd-footer__inner, so the footer only
+ * needs its own internal layout. */
+/* No-JavaScript fallback layout: match the footer content's measure to
+ * the theme's article column (.bd-article-container caps at 60em
+ * including 1rem side padding, and .bd-footer__inner supplies the same
+ * 1rem padding, so 58em yields the same content width) and center it.
+ * When JavaScript is available, rubin-footer-align.js overrides the left
+ * margin and max-width inline to align the footer with the rendered
+ * article column, whose left edge shifts per page with the primary
+ * sidebar. */
+.rubin-footer {
+  width: 100%;
+  max-width: 58em;
+  margin-inline: auto;
+}
+
+.rubin-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.rubin-footer__nav-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.rubin-footer__nav-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.rubin-footer__nav-list li {
+  margin: 0.125rem 0;
+}
+
+.rubin-footer__copyright {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.rubin-footer__funding {
+  font-size: 0.8rem;
+  color: var(--pst-color-text-muted);
+}
+
+.rubin-footer__funding p {
+  margin: 0.5rem 0;
+}
+
+.rubin-footer__partner-logos {
+  margin-top: 1.5rem;
+}
+
+.rubin-footer__partner-logos img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* The partner logo lineup is only available as a dark-on-transparent PNG;
+ * invert it to white-on-transparent in dark mode (same technique as
+ * Squareone's u-invertable-image utility). */
+html[data-theme='dark'] .rubin-footer__partner-logos img {
+  filter: invert(100%);
+}
+
 /* Print-only provenance footer (rubin-print-footer.html), rendered through
  * the article-footer slot at the end of the article body. On screen the
  * "Help improve this page" box carries this information; in print that box
