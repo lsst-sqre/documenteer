@@ -7,9 +7,12 @@
 Documenteer's ``documenteer.ext.githubeditlink`` extension resolves the in-repository path that pydata-sphinx-theme's "Edit on GitHub" button links to.
 It determines where the Sphinx **source** directory sits inside the Git working tree and publishes that path as the ``doc_path`` value in the HTML context.
 
+In the user-guide preset the link is not rendered in the theme's default position in the right sidebar; instead it appears in the :ref:`"Help improve this page" box <guide-improve-this-page>` at the bottom of each page, below the previous/next page links, alongside the :ref:`Git-derived last-modified timestamp <documenteer-ext-lastmodified>`.
+Individual pages can hide the box with the :ref:`hide_content_footer metadata field <guide-improve-this-page>`.
+
 .. tip::
 
-   If you use Documenteer's user-guide configuration preset, this extension is already enabled and the button is shown by default.
+   If you use Documenteer's user-guide configuration preset, this extension is already enabled and the link is shown by default.
    Toggle it with the :ref:`show_github_edit_link <guide-project-show-github-edit-link>` setting in :file:`documenteer.toml`; you don't need to edit :file:`conf.py`.
 
 How the edit URL is built

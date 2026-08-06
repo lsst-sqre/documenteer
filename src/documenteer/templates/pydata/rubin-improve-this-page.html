@@ -1,0 +1,36 @@
+{# "Help improve this page" box, rendered by the prev-next component override
+   (components/prev-next.html) so it lands inside .bd-article-container just
+   below the prev/next links, aligned with the article column in every layout.
+   It gathers the page-improvement affordances in one place, modeled on MDN's
+   article footer: the "Edit on GitHub" link (relocated from the theme's
+   default spot in the secondary sidebar) and documenteer.ext.lastmodified's
+   Git-derived last-modified date (via the last-updated.html component
+   override).
+
+   The template renders nothing when neither feature applies to a page, or
+   when the page opts out with the hide_content_footer metadata field
+   (reST ":hide_content_footer:" file-wide metadata, or MyST frontmatter
+   "hide_content_footer: true"). reST field-list metadata arrives as an
+   empty string, so the gate is on the key's presence, with an explicit-false
+   escape for YAML frontmatter.
+
+   The edit-link gate mirrors pydata-sphinx-theme's own edit-this-page
+   component: sourcename/page_source_suffix are unset for source-less pages
+   (genindex, search), and documenteer.ext.githubeditlink turns
+   use_edit_page_button off when the repository path can't be resolved.
+   get_edit_provider_and_url() is registered on the page context by the theme
+   before the page template renders. #}
+{%- set rubin_hide_box = meta is defined and meta and 'hide_content_footer' in meta and meta['hide_content_footer'] not in [false, 'false', 'False', '0'] %}
+{%- set rubin_show_edit_link = sourcename is defined and theme_use_edit_page_button == true and page_source_suffix %}
+{%- if not rubin_hide_box and (rubin_show_edit_link or documenteer_last_modified_iso) %}
+<aside class="rubin-improve-this-page" aria-label="{{ _('Page information') }}">
+  {%- if rubin_show_edit_link %}
+  <h2 class="rubin-improve-this-page__title">Help improve this page</h2>
+  <p class="rubin-improve-this-page__edit">
+    Found a mistake or something missing?
+    <a href="{{ get_edit_provider_and_url()[1] }}" rel="nofollow"><i class="fa-solid fa-pencil"></i> Edit this page on GitHub</a>.
+  </p>
+  {%- endif %}
+  {% include "last-updated.html" %}
+</aside>
+{%- endif %}

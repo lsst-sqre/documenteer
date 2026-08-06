@@ -106,24 +106,73 @@ body {
   --pst-color-text-base: var(--rsd-component-text-color);
 }
 
-/* "Last updated" timestamp at the bottom of the article body
- * (documenteer.ext.lastmodified -> pydata "last-updated" component).
- * Left-aligned, muted, with breathing room above and below so it reads as
- * page metadata between the body and the prev/next navigation. */
-.bd-footer-article .last-updated {
+/* "Help improve this page" box (rubin-improve-this-page.html), rendered by
+ * the components/prev-next.html override just below the prev/next links.
+ * Living inside .bd-article-container, it tracks the article column's
+ * position and width in every layout (with or without the primary or
+ * secondary sidebars), so no width/centering rules are needed here. */
+/* The theme floats the prev/next links (a.left-prev / a.right-next), which
+ * collapses .prev-next-area to zero height and would let the box flow up
+ * beside them. flow-root makes the area contain its floats so the box's
+ * margin-top applies normally; clear is a belt-and-suspenders fallback. */
+.prev-next-area {
+  display: flow-root;
+}
+
+.rubin-improve-this-page {
+  clear: both;
   margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  text-align: left;
-  font-size: 0.875em;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-surface);
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+}
+
+/* Line the box up with the article body text. pydata-sphinx-theme indents
+ * the article (.bd-article) by an extra 2rem at >=1200px; match that
+ * breakpoint to avoid over-indenting on narrow screens. */
+@media (min-width: 1200px) {
+  .rubin-improve-this-page {
+    margin-left: 2rem;
+  }
+}
+
+.rubin-improve-this-page__title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.rubin-improve-this-page p {
+  margin: 0.25rem 0;
+}
+
+/* The Git-derived timestamp (documenteer.ext.lastmodified ->
+ * last-updated.html component) reads as muted page metadata. */
+.rubin-improve-this-page .last-updated {
   color: var(--pst-color-text-muted);
 }
 
-/* Indent the footer so the timestamp lines up with the article body text.
- * pydata-sphinx-theme only indents the article (.bd-article) by 2rem at
- * >=1200px, so match that breakpoint to avoid over-indenting on narrow
- * screens, where the body has no extra indent. */
-@media (min-width: 1200px) {
-  .bd-footer-article {
-    padding-left: 2rem;
+/* Print-only provenance footer (rubin-print-footer.html), rendered through
+ * the article-footer slot at the end of the article body. On screen the
+ * "Help improve this page" box carries this information; in print that box
+ * disappears with the theme's d-print-none navigation chrome, so this
+ * footer supplies the last-modified date and canonical URL instead. */
+.rubin-print-footer {
+  display: none;
+}
+
+@media print {
+  .rubin-print-footer {
+    display: block;
+    margin-top: 2rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--pst-color-border);
+    font-size: 0.875rem;
+    color: var(--pst-color-text-muted);
+  }
+
+  .rubin-print-footer p {
+    margin: 0.25rem 0;
   }
 }

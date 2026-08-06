@@ -5,8 +5,10 @@ Builds a minimal site with the full user-guide stack
 (``from documenteer.conf.guide import *``) and asserts two couplings that the
 pydata-sphinx-theme 0.19 / FontAwesome 7 upgrade touches:
 
-- ``documenteer.ext.lastmodified``'s "last updated" footer still renders in the
-  article footer slot (``footer.bd-footer-article``), and
+- ``documenteer.ext.lastmodified``'s "last updated" timestamp renders inside
+  the "Help improve this page" box, which the ``components/prev-next.html``
+  override places just below the prev/next links inside the article
+  container, and
 - the GitHub ``icon_links`` entry renders with a FontAwesome 7 class that
   actually resolves to a glyph. FA7 (bundled in pydata 0.18+) dropped the FA6
   ``fa-github-square`` alias, so the icon must use ``fa-square-github``.
@@ -68,15 +70,55 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
     content = (app.outdir / "index.html").read_text(encoding="utf-8")
     doc = html.fromstring(content)
 
-    # The last-updated footer renders the overriding <time> component in the
-    # article footer slot (the slot pydata empty-checks at priority 500).
+    # The last-updated timestamp renders the overriding <time> component
+    # inside the "Help improve this page" box, which the prev-next component
+    # override appends below the prev/next links inside the article container
+    # (keeping it aligned with the article column in every sidebar layout).
     assert "This page was last modified on" in content
     times = doc.cssselect(
-        "footer.bd-footer-article time.documenteer-last-modified"
+        "footer.prev-next-footer aside.rubin-improve-this-page "
+        "time.documenteer-last-modified"
     )
-    assert len(times) == 1, "last-updated footer should render exactly once"
+    assert len(times) == 1, "last-updated timestamp should render exactly once"
     assert times[0].get("datetime") == EXPECTED_ISO
     assert times[0].text_content().strip() == EXPECTED_DATE
+
+    # The theme's edit-this-page component must no longer render in the
+    # secondary sidebar; the edit link's home is the "Help improve this page"
+    # box. (In this test the srcdir is not a Git checkout, so githubeditlink
+    # disables the edit link entirely and the box carries only the timestamp.)
+    assert not doc.cssselect(".bd-sidebar-secondary .editthispage"), (
+        "edit-this-page should be removed from the secondary sidebar"
+    )
+
+    # The print-only provenance footer renders in the article-footer slot
+    # with its own copy of the <time> component and the canonical page URL.
+    # (The interactive box sits inside the theme's d-print-none prev-next
+    # footer, so printed pages rely on this footer instead.)
+    print_footers = doc.cssselect(
+        "footer.bd-footer-article .rubin-print-footer"
+    )
+    assert len(print_footers) == 1, "print footer should render exactly once"
+    print_times = print_footers[0].cssselect("time.documenteer-last-modified")
+    assert len(print_times) == 1
+    assert print_times[0].get("datetime") == EXPECTED_ISO
+    # Must match project.base_url in tests/roots/test-guide/documenteer.toml.
+    assert (
+        "https://example.lsst.io/index.html" in print_footers[0].text_content()
+    ), "print footer should carry the canonical page URL"
+
+    # A page bearing the hide_content_footer metadata field suppresses the
+    # box and its print counterpart entirely, even though their timestamp
+    # context is populated.
+    hidden = html.fromstring(
+        (app.outdir / "hidden.html").read_text(encoding="utf-8")
+    )
+    assert not hidden.cssselect("aside.rubin-improve-this-page"), (
+        "hide_content_footer metadata should suppress the box"
+    )
+    assert not hidden.cssselect(".rubin-print-footer"), (
+        "hide_content_footer metadata should suppress the print footer"
+    )
 
     # The GitHub icon_links entry renders in the navbar icon-links list (not in
     # .navbar-nav -- the icon-links moved to navbar-header-items__end in 0.18,

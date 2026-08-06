@@ -321,20 +321,30 @@ html_theme_options = {
     },
     "pygments_light_style": "xcode",
     "pygments_dark_style": "github-dark",
+    # The theme's default secondary sidebar also carries "edit-this-page" and
+    # "sourcelink"; the edit link is relocated to the "Help improve this page"
+    # box below the prev/next links (see the components/prev-next.html
+    # template override), and source links are off
+    # (html_show_sourcelink = False).
+    "secondary_sidebar_items": ["page-toc"],
+    # Print-only provenance footer at the end of the article body: the "Help
+    # improve this page" box sits inside the theme's d-print-none prev-next
+    # footer, so printed pages get the last-modified date and canonical URL
+    # from this component instead (hidden on screen by CSS). The component
+    # renders empty on pages where nothing applies, and pydata-sphinx-theme
+    # drops empty article-footer components per page.
+    "article_footer_items": ["rubin-print-footer"],
     "analytics": {
         "plausible_analytics_domain": "lsst.io",
         "plausible_analytics_url": "https://plausible.io/js/script.file-downloads.hash.outbound-links.js",
     },
 }
 
-# Show a "Last updated on <date>." timestamp at the bottom of each page's
-# article body, derived from Git commit history by
-# documenteer.ext.lastmodified. When enabled, add pydata-sphinx-theme's
-# built-in "last-updated" component to the article footer slot (which is empty
-# by default).
+# Derive a per-page "last modified" date from Git commit history
+# (documenteer.ext.lastmodified). When enabled, the date renders inside the
+# "Help improve this page" box below the prev/next links via the
+# last-updated.html component override.
 documenteer_last_modified_enabled = _conf.show_last_updated
-if documenteer_last_modified_enabled:
-    html_theme_options["article_footer_items"] = ["last-updated"]
 
 # documenteer.ext.lastmodified now emits article:modified_time itself, so
 # turn off the duplicate tag from sphinx-last-updated-by-git (auto-loaded by
