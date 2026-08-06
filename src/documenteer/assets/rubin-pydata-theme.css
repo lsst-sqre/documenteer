@@ -106,6 +106,35 @@ body {
   --pst-color-text-base: var(--rsd-component-text-color);
 }
 
+/* Desktop header layout: keep the search / theme switcher / icon links
+ * cluster (.navbar-header-items__end) pinned to the right edge of the
+ * header. The theme lets the whole .navbar-header-items row wrap, so with
+ * enough nav links the end cluster drops to a second left-aligned line.
+ * Instead, forbid wrapping at that level: the center block is then forced
+ * to shrink, and the nav links wrap within their own box (the theme
+ * already sets flex-wrap: wrap on .bd-header ul.navbar-nav).
+ * Scoped to the theme's >=960px breakpoint where these header items are
+ * shown; the mobile hamburger layout is untouched. */
+@media (min-width: 960px) {
+  .bd-header .navbar-header-items {
+    flex-wrap: nowrap;
+  }
+
+  /* Every flex item in the chain down to the nav list needs min-width: 0,
+   * or its max-content width (all links on one line) becomes a floor and
+   * the end cluster gets pushed out of view instead of the links wrapping. */
+  .bd-header .navbar-header-items__center,
+  .bd-header .navbar-header-items__center .navbar-item,
+  .bd-header .navbar-header-items__center .navbar-item nav {
+    min-width: 0;
+  }
+
+  .bd-header .navbar-header-items__end {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+}
+
 /* "Help improve this page" box (rubin-improve-this-page.html), rendered by
  * the components/prev-next.html override just below the prev/next links.
  * Living inside .bd-article-container, it tracks the article column's
