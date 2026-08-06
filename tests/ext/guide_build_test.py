@@ -11,7 +11,8 @@ pydata-sphinx-theme 0.19 / FontAwesome 7 upgrade touches:
   container, and
 - the GitHub ``icon_links`` entry renders with a FontAwesome 7 class that
   actually resolves to a glyph. FA7 (bundled in pydata 0.18+) dropped the FA6
-  ``fa-github-square`` alias, so the icon must use ``fa-square-github``.
+  ``fa-github-square`` alias; the icon uses the round ``fa-github`` mark,
+  which matches the visual weight of the theme's other header icons.
 
 Purely-visual aspects (the switcher dropdown, dark/light toggle, search) stay
 in manual QA; this test pins the two couplings that can regress silently into a
@@ -131,12 +132,17 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
     assert github_links, "GitHub icon_links link should be present"
 
     # Every rendered copy must use the FontAwesome 7 class that resolves to a
-    # glyph; FA7 dropped the FA6 ``fa-github-square`` alias.
+    # glyph: the round fa-github mark, whose visual weight matches the
+    # theme's other header icons (the square mark renders oversized).
     for link in github_links:
-        icons = link.cssselect("i.fa-square-github")
+        icons = link.cssselect("i.fa-github")
         assert len(icons) == 1, (
-            "GitHub icon should use the FontAwesome 7 fa-square-github class"
+            "GitHub icon should use the round fa-github class"
         )
     assert "fa-github-square" not in content, (
         "the FA6 fa-github-square name was dropped in FA7 and must not leak in"
+    )
+    assert "fa-square-github" not in content, (
+        "the square GitHub mark renders oversized next to the other header "
+        "icons and should not be used"
     )

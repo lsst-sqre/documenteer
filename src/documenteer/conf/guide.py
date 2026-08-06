@@ -358,10 +358,10 @@ if _conf.github_url:
         {
             "name": "GitHub",
             "url": _conf.github_url,
-            # FontAwesome 7 (bundled by pydata-sphinx-theme 0.18+) dropped the
-            # FA6 "fa-github-square" alias; the square GitHub mark is now
-            # "fa-brands fa-square-github".
-            "icon": "fa-brands fa-square-github",
+            # The round GitHub mark matches the visual weight of the theme's
+            # other header icons (e.g. the theme switcher); the square mark
+            # fills its whole glyph box and renders oversized next to them.
+            "icon": "fa-brands fa-github",
             "type": "fontawesome",
         }
     )
