@@ -14,7 +14,7 @@ Documenteer provides centralized configuration and tooling for technotes.
    edit-locally
    edit-on-github
    how-your-technote-gets-published
-   validation
+   lint/index
    migrate
 
 .. toctree::

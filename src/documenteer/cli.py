@@ -7,13 +7,13 @@ from pathlib import Path
 import click
 
 from documenteer.services.technoteauthor import TechnoteAuthorService
-from documenteer.services.technotemigration import TechnoteMigrationService
-from documenteer.services.technotevalidation import (
+from documenteer.services.technotelint import (
+    LintContext,
+    LintFinding,
     Severity,
-    TechnoteValidationService,
-    ValidationContext,
-    ValidationFinding,
+    TechnoteLintService,
 )
+from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.storage.authordb import AuthorDb
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
@@ -193,7 +193,7 @@ def technote_migrate(
         migration_service.delete_deprecated_files()
 
 
-@technote.command(name="validate")
+@technote.command(name="lint")
 @click.option(
     "--dir",
     "-d",
@@ -210,11 +210,11 @@ def technote_migrate(
     default=False,
     help="Promote warnings to errors",
 )
-def technote_validate(root_dir: str, *, strict: bool) -> None:
-    """Validate a technote's metadata and structure.
+def technote_lint(root_dir: str, *, strict: bool) -> None:
+    """Lint a technote's metadata and structure.
 
-    This runs three groups of checks and reports each finding with a stable,
-    linter-style code (for example ``[TN101]``). Structural checks (``TN0xx``)
+    This runs three groups of checks and reports each finding with a stable
+    rule code (for example ``[TN101]``). Structural checks (``TN0xx``)
     confirm that technote.toml exists, is valid TOML, and conforms to the
     technote schema, and that requirements.txt declares documenteer[technote]
     without pinning Sphinx separately. Metadata checks (``TN1xx``) confirm that
@@ -231,13 +231,13 @@ def technote_validate(root_dir: str, *, strict: bool) -> None:
     promote warnings to errors.
     """
     author_db = AuthorDb()
-    context = ValidationContext.from_dir(Path(root_dir), author_db)
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(Path(root_dir), author_db)
+    service = TechnoteLintService(context)
+    findings = service.lint()
 
     # Split into errors and warnings; --strict promotes warnings to errors.
-    errors: list[ValidationFinding] = []
-    warnings: list[ValidationFinding] = []
+    errors: list[LintFinding] = []
+    warnings: list[LintFinding] = []
     for finding in findings:
         if strict or finding.severity is Severity.error:
             errors.append(finding)
@@ -249,7 +249,7 @@ def technote_validate(root_dir: str, *, strict: bool) -> None:
         click.echo(f"[{finding.code}] {finding.message}")
 
     if not errors and not warnings:
-        click.echo("✅ Technote validation passed with no issues.")
+        click.echo("✅ Technote lint passed with no issues.")
         return
 
     click.echo(f"Found {len(errors)} error(s) and {len(warnings)} warning(s).")

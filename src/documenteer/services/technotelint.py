@@ -1,4 +1,4 @@
-"""Service for validating a technote's metadata and structure."""
+"""Service for linting a technote's metadata and structure."""
 
 from __future__ import annotations
 
@@ -27,17 +27,17 @@ from documenteer.storage.authordb import (
 __all__ = [
     "CHECKS",
     "Check",
+    "LintContext",
+    "LintFinding",
     "Severity",
-    "TechnoteValidationService",
-    "ValidationContext",
-    "ValidationFinding",
+    "TechnoteLintService",
     "check_abstract",
     "check_requirements",
 ]
 
 
 class Severity(StrEnum):
-    """The severity of a validation finding."""
+    """The severity of a lint finding."""
 
     error = "error"
     warning = "warning"
@@ -45,11 +45,11 @@ class Severity(StrEnum):
 
 @dataclass(frozen=True)
 class Check:
-    """Metadata describing a single validation check.
+    """Metadata describing a single lint check.
 
     The `CHECKS` registry, keyed by ``code``, is the single source of truth
     for every check's stable code, human-readable name, description, and
-    default severity. The validation runner consults it when building
+    default severity. The lint runner consults it when building
     findings, and a future exception-configuration layer can consult it to
     map codes onto overridden severities.
     """
@@ -188,22 +188,22 @@ class _AuthorSuggestion:
 
 
 @dataclass(frozen=True)
-class ValidationFinding:
-    """A single finding produced by a validation check."""
+class LintFinding:
+    """A single finding produced by a lint check."""
 
     code: str
     severity: Severity
     message: str
 
     @classmethod
-    def from_check(cls, code: str, message: str) -> ValidationFinding:
+    def from_check(cls, code: str, message: str) -> LintFinding:
         """Build a finding for a registered check's default severity."""
         check = CHECKS[code]
         return cls(code=check.code, severity=check.severity, message=message)
 
 
-class ValidationContext:
-    """The files and services a technote validation run operates on.
+class LintContext:
+    """The files and services a technote lint run operates on.
 
     Discovers a technote's ``technote.toml``, content file, Sphinx
     ``conf.py``, and ``requirements.txt`` within a directory and holds the
@@ -243,9 +243,7 @@ class ValidationContext:
         self.author_db = author_db
 
     @classmethod
-    def from_dir(
-        cls, root_dir: Path, author_db: AuthorDb
-    ) -> ValidationContext:
+    def from_dir(cls, root_dir: Path, author_db: AuthorDb) -> LintContext:
         """Build a context from a technote directory."""
         toml_path = root_dir / "technote.toml"
         toml_text: str | None = None
@@ -309,13 +307,13 @@ class ValidationContext:
         return TechnoteToml.parse_toml(self.toml_text)
 
 
-class TechnoteValidationService:
+class TechnoteLintService:
     """Validate a technote's metadata, producing a list of findings."""
 
-    def __init__(self, context: ValidationContext) -> None:
+    def __init__(self, context: LintContext) -> None:
         self._context = context
 
-    def validate(self) -> list[ValidationFinding]:
+    def lint(self) -> list[LintFinding]:
         """Run the registered checks and aggregate their findings.
 
         Only the checks that read the parsed `TechnoteToml` model are skipped
@@ -329,17 +327,17 @@ class TechnoteValidationService:
 
         A directory with neither a content file nor a ``conf.py`` is a
         technote-series repository that Sphinx does not build (see
-        `ValidationContext.is_sphinx_technote`). Only the
+        `LintContext.is_sphinx_technote`). Only the
         ``technote.toml``-based checks — TN004/TN005/TN001 and the author
         checks — run for it, so a healthy non-Sphinx technote reports nothing.
         """
-        findings: list[ValidationFinding] = []
+        findings: list[LintFinding] = []
 
         # TN004 — technote.toml must exist. A missing file short-circuits the
         # remaining checks because the directory is not a technote.
         if self._context.toml_text is None:
             return [
-                ValidationFinding.from_check(
+                LintFinding.from_check(
                     "TN004",
                     f"technote.toml not found in {self._context.root_dir}.",
                 )
@@ -353,7 +351,7 @@ class TechnoteValidationService:
             parsed = self._context.parse_toml()
         except tomllib.TOMLDecodeError as e:
             findings.append(
-                ValidationFinding.from_check(
+                LintFinding.from_check(
                     "TN005",
                     f"technote.toml is not valid TOML: {e}",
                 )
@@ -376,7 +374,7 @@ class TechnoteValidationService:
         # and for the abstract scan to read.
         if self._context.content_path is None:
             findings.append(
-                ValidationFinding.from_check(
+                LintFinding.from_check(
                     "TN006",
                     f"No content file found in {self._context.root_dir}: a "
                     f"technote needs an index.rst, index.md, or index.ipynb "
@@ -389,9 +387,9 @@ class TechnoteValidationService:
 
     def _check_author_internal_ids(
         self, parsed: TechnoteToml
-    ) -> list[ValidationFinding]:
+    ) -> list[LintFinding]:
         """Check author ``internal_id`` metadata (TN101/TN102/TN103)."""
-        findings: list[ValidationFinding] = []
+        findings: list[LintFinding] = []
         for author in parsed.technote.authors:
             name = f"{author.name.given} {author.name.family}".strip()
             if author.internal_id is None:
@@ -402,7 +400,7 @@ class TechnoteValidationService:
                         f" {suggestion.describe(name)} Run 'documenteer "
                         f"technote sync-authors' after adding it."
                     )
-                findings.append(ValidationFinding.from_check("TN101", message))
+                findings.append(LintFinding.from_check("TN101", message))
                 continue
             try:
                 self._context.author_db.get_author(author.internal_id)
@@ -414,10 +412,10 @@ class TechnoteValidationService:
                 suggestion = self._suggest_internal_id(author)
                 if suggestion is not None:
                     message += f" {suggestion.describe(name)}"
-                findings.append(ValidationFinding.from_check("TN102", message))
+                findings.append(LintFinding.from_check("TN102", message))
             except AuthorDbUnreachableError:
                 findings.append(
-                    ValidationFinding.from_check(
+                    LintFinding.from_check(
                         "TN103",
                         f"Could not reach the author database to verify "
                         f"internal_id '{author.internal_id}' for author "
@@ -426,7 +424,7 @@ class TechnoteValidationService:
                 )
             except ValidationError:
                 findings.append(
-                    ValidationFinding.from_check(
+                    LintFinding.from_check(
                         "TN102",
                         f"Author {name} has internal_id "
                         f"'{author.internal_id}', whose author database "
@@ -443,7 +441,7 @@ class TechnoteValidationService:
         ORCID, or a single near-exact name match with no conflicting ORCID.
         Anything ambiguous, and any failure of the lookup itself, yields
         `None` so the finding keeps its plain message — a suggestion is a
-        convenience and must never turn a working validation run into a
+        convenience and must never turn a working lint run into a
         failing one.
         """
         query = ", ".join(
@@ -656,7 +654,7 @@ def _search_abstract(
     )
 
 
-def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
+def check_abstract(context: LintContext) -> list[LintFinding]:
     """Statically check that the technote content declares an abstract.
 
     Locates ``index.{rst,md,ipynb}`` via the context's content path and
@@ -690,7 +688,7 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
     correspond to anything in the file.
 
     A directory with no content file at all produces no findings here: that is
-    a structural condition, reported as TN006 by the validation runner.
+    a structural condition, reported as TN006 by the lint runner.
     """
     content_path = context.content_path
     if content_path is None:
@@ -702,7 +700,7 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
             text = _read_notebook_markdown(content_path)
         except json.JSONDecodeError as e:
             return [
-                ValidationFinding.from_check(
+                LintFinding.from_check(
                     "TN203",
                     f"{content_path.name} could not be parsed as a notebook "
                     f"(invalid JSON): {e}",
@@ -729,7 +727,7 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
         return []
     if search.empty_location is not None:
         return [
-            ValidationFinding.from_check(
+            LintFinding.from_check(
                 "TN204",
                 f"{search.empty_location}the {rules.directive_hint} directive "
                 f"is empty — {rules.empty_advice}",
@@ -737,7 +735,7 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
         ]
     if search.heading_location is not None:
         return [
-            ValidationFinding.from_check(
+            LintFinding.from_check(
                 "TN202",
                 f"{search.heading_location}the abstract is declared as an "
                 f"ordinary 'Abstract' section heading. Use the "
@@ -746,7 +744,7 @@ def check_abstract(context: ValidationContext) -> list[ValidationFinding]:
             )
         ]
     return [
-        ValidationFinding.from_check(
+        LintFinding.from_check(
             "TN201",
             f"No abstract found in {content_path.name}. Add a non-empty "
             f"{rules.directive_hint} directive so the abstract is captured in "
@@ -768,7 +766,7 @@ def _included_sources(
     Paths are resolved relative to the content file's directory (or, for the
     rST convention of a leading ``/``, relative to the technote root). A path
     that escapes the technote root is skipped, as is one that cannot be read:
-    Sphinx reports a broken include itself, and the validator should not fail
+    Sphinx reports a broken include itself, and the linter should not fail
     on it twice.
     """
     root = root_dir.resolve()
@@ -796,10 +794,10 @@ def _included_sources(
     return sources
 
 
-def check_requirements(context: ValidationContext) -> list[ValidationFinding]:
+def check_requirements(context: LintContext) -> list[LintFinding]:
     """Statically check the technote's ``requirements.txt`` (TN002/TN003).
 
-    Parses ``ValidationContext.requirements_text`` with
+    Parses ``LintContext.requirements_text`` with
     `packaging.requirements.Requirement` and emits structural findings:
 
     - TN002 (warning) if ``documenteer`` is absent or is declared without
@@ -812,7 +810,7 @@ def check_requirements(context: ValidationContext) -> list[ValidationFinding]:
     A missing ``requirements.txt`` (no ``requirements_text``) is treated as
     an empty file, so ``documenteer`` is absent and TN002 fires.
     """
-    findings: list[ValidationFinding] = []
+    findings: list[LintFinding] = []
     requirements = _parse_requirements(context.requirements_text or "")
 
     documenteer_reqs = [
@@ -828,7 +826,7 @@ def check_requirements(context: ValidationContext) -> list[ValidationFinding]:
     }
     if not documenteer_reqs or "technote" not in extras:
         findings.append(
-            ValidationFinding.from_check(
+            LintFinding.from_check(
                 "TN002",
                 "requirements.txt should declare 'documenteer[technote]' so "
                 "the technote theme and Sphinx configuration are installed.",
@@ -837,7 +835,7 @@ def check_requirements(context: ValidationContext) -> list[ValidationFinding]:
 
     if any(canonicalize_name(req.name) == "sphinx" for req in requirements):
         findings.append(
-            ValidationFinding.from_check(
+            LintFinding.from_check(
                 "TN003",
                 "requirements.txt pins 'sphinx' separately. Remove it and "
                 "rely on the Sphinx version constrained by "
@@ -875,7 +873,7 @@ _LEGACY_NAME_HINTS: tuple[tuple[tuple[str, ...], str], ...] = (
 
 def _schema_conformance_finding(
     toml_text: str, error: ValidationError
-) -> ValidationFinding:
+) -> LintFinding:
     """Build the TN001 finding for a schema-invalid ``technote.toml``.
 
     When the ``[[technote.authors]]`` entries use one of the historical author
@@ -887,11 +885,11 @@ def _schema_conformance_finding(
     """
     hints = _legacy_author_name_hints(toml_text)
     if not hints:
-        return ValidationFinding.from_check(
+        return LintFinding.from_check(
             "TN001",
             f"technote.toml does not conform to the schema: {error}",
         )
-    return ValidationFinding.from_check(
+    return LintFinding.from_check(
         "TN001",
         "technote.toml does not conform to the schema. "
         + " ".join(hints)
