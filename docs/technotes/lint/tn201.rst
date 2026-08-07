@@ -1,0 +1,72 @@
+:og:description: TN201 fires when a technote's content file declares no abstract directive, leaving the technote without the summary used in listings, metadata, and social cards.
+
+########################
+abstract-present (TN201)
+########################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Content
+     - Error
+
+The technote's content file must declare an abstract with the abstract directive.
+The abstract is part of the technote's metadata: it is published in the technote's structured metadata, shown in document listings, and used as the page's ``og:description`` for link previews.
+A technote without one publishes with no summary anywhere.
+
+The abstract is found by scanning the source — see :ref:`technote-lint-abstract-scan` for exactly what the scan recognizes (including abstracts pulled in with ``include`` directives).
+
+Example of a failing technote
+=============================
+
+.. code-block:: rst
+   :caption: index.rst
+
+   ################
+   A technote title
+   ################
+
+   Introduction
+   ============
+
+   The document begins here, with no abstract declared.
+
+.. code-block:: text
+
+   [TN201] No abstract found in index.rst. Add a non-empty '.. abstract::' directive so the abstract is captured in the technote metadata.
+
+How to fix it
+=============
+
+Add an abstract directive near the top of the content file, with its text indented as directive content.
+In reStructuredText:
+
+.. code-block:: rst
+   :caption: index.rst
+
+   ################
+   A technote title
+   ################
+
+   .. abstract::
+
+      One or two sentences summarizing the technote.
+
+In a Markdown (MyST) technote, use the fenced directive:
+
+.. code-block:: markdown
+   :caption: index.md
+
+   # A technote title
+
+   ```{abstract}
+   One or two sentences summarizing the technote.
+   ```
+
+See also
+========
+
+- :doc:`TN202 <tn202>` — the abstract exists but is written as a section heading.
+- :doc:`TN204 <tn204>` — the abstract directive exists but is empty.

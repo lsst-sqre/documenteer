@@ -1,0 +1,56 @@
+:og:description: TN004 fires when no technote.toml exists in the linted directory — usually because the command ran outside the technote's root, or the technote is a legacy technote that has not been migrated.
+
+#############################
+technote-toml-present (TN004)
+#############################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Structural
+     - Error
+
+The linted directory must contain a :file:`technote.toml` file.
+This file is what makes a directory a technote — it holds the document's identity and metadata — so when it is missing the remaining rules cannot run and the linter stops with only this finding.
+
+Illustration of a failing repository
+====================================
+
+This is a repository/filesystem condition rather than a content problem.
+Either the command was run from the wrong directory, or the repository predates :file:`technote.toml`:
+
+.. code-block:: text
+
+   sqr-000/               # legacy technote layout — no technote.toml
+   ├── metadata.yaml
+   ├── index.rst
+   ├── conf.py
+   └── requirements.txt
+
+.. code-block:: text
+
+   [TN004] technote.toml not found in /path/to/sqr-000.
+
+How to fix it
+=============
+
+First check where you ran the command: it lints the current directory by default, so run it from the technote repository's root (or point at it with ``--dir``):
+
+.. prompt:: bash
+
+   documenteer technote lint --dir path/to/technote
+
+If the repository genuinely has no :file:`technote.toml` but has a :file:`metadata.yaml`, it is a legacy technote.
+Migrate it to the modern format, which creates :file:`technote.toml`:
+
+.. prompt:: bash
+
+   documenteer technote migrate
+
+See also
+========
+
+- :doc:`TN005 <tn005>` — :file:`technote.toml` exists but is not valid TOML.
+- :doc:`../migrate` — migrating a legacy technote to the modern format.
