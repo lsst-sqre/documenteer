@@ -20,6 +20,6 @@
     "webpack-cli": "^7.1.0"
   },
   "dependencies": {
-    "@lsst-sqre/rubin-style-dictionary": "^0.7.0"
+    "@lsst-sqre/rubin-style-dictionary": "^0.8.0"
   }
 }

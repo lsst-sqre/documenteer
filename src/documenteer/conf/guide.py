@@ -190,6 +190,7 @@ extensions = [
     "documenteer.ext.redoc",
     "documenteer.ext.linkcheckservice",
     "documenteer.ext.intersphinxcache",
+    "documenteer.ext.autotypes",
 ]
 _conf.append_extensions(extensions)
 
@@ -311,7 +312,7 @@ html_context: dict[str, Any] = {}
 # documentation.
 html_theme_options = {
     "header_links_before_dropdown": _conf.header_links_before_dropdown,
-    "external_links": [{"name": "Rubin docs", "url": "https://www.lsst.io"}],
+    "external_links": [],
     "icon_links": [],
     "logo": {
         "image_light": "rubin-titlebar-imagotype-light.svg",
@@ -320,20 +321,37 @@ html_theme_options = {
     },
     "pygments_light_style": "xcode",
     "pygments_dark_style": "github-dark",
+    # The theme's default secondary sidebar also carries "edit-this-page" and
+    # "sourcelink"; the edit link is relocated to the "Help improve this page"
+    # box below the prev/next links (see the components/prev-next.html
+    # template override), and source links are off
+    # (html_show_sourcelink = False).
+    "secondary_sidebar_items": ["page-toc"],
+    # Print-only provenance footer at the end of the article body: the "Help
+    # improve this page" box sits inside the theme's d-print-none prev-next
+    # footer, so printed pages get the last-modified date and canonical URL
+    # from this component instead (hidden on screen by CSS). The component
+    # renders empty on pages where nothing applies, and pydata-sphinx-theme
+    # drops empty article-footer components per page.
+    "article_footer_items": ["rubin-print-footer"],
+    # Custom Rubin page footer (rubin-footer.html): project link inventory,
+    # copyright, funding statement, and funding-partner logo lineup. It
+    # replaces the theme's default footer components (copyright and
+    # sphinx-version in footer_start, theme-version in footer_end), which
+    # also drops the Sphinx and pydata-sphinx-theme attribution.
+    "footer_start": ["rubin-footer"],
+    "footer_end": [],
     "analytics": {
         "plausible_analytics_domain": "lsst.io",
         "plausible_analytics_url": "https://plausible.io/js/script.file-downloads.hash.outbound-links.js",
     },
 }
 
-# Show a "Last updated on <date>." timestamp at the bottom of each page's
-# article body, derived from Git commit history by
-# documenteer.ext.lastmodified. When enabled, add pydata-sphinx-theme's
-# built-in "last-updated" component to the article footer slot (which is empty
-# by default).
+# Derive a per-page "last modified" date from Git commit history
+# (documenteer.ext.lastmodified). When enabled, the date renders inside the
+# "Help improve this page" box below the prev/next links via the
+# last-updated.html component override.
 documenteer_last_modified_enabled = _conf.show_last_updated
-if documenteer_last_modified_enabled:
-    html_theme_options["article_footer_items"] = ["last-updated"]
 
 # documenteer.ext.lastmodified now emits article:modified_time itself, so
 # turn off the duplicate tag from sphinx-last-updated-by-git (auto-loaded by
@@ -347,10 +365,10 @@ if _conf.github_url:
         {
             "name": "GitHub",
             "url": _conf.github_url,
-            # FontAwesome 7 (bundled by pydata-sphinx-theme 0.18+) dropped the
-            # FA6 "fa-github-square" alias; the square GitHub mark is now
-            # "fa-brands fa-square-github".
-            "icon": "fa-brands fa-square-github",
+            # The round GitHub mark matches the visual weight of the theme's
+            # other header icons (e.g. the theme switcher); the square mark
+            # fills its whole glyph box and renders oversized next to them.
+            "icon": "fa-brands fa-github",
             "type": "fontawesome",
         }
     )
@@ -399,6 +417,14 @@ html_static_path: list[str] = [
     get_asset_path("rubin-favicon-transparent-32px.png"),
     get_asset_path("rubin-favicon.svg"),
     get_asset_path("rubin-pydata-theme.css"),
+    get_asset_path("rubin-pydata-theme.css.map"),
+    # Funding-partner logo lineup for the page footer (rubin-footer.html).
+    # File entries land flat in _static/, so the template references
+    # _static/rubin-partners.png.
+    get_asset_path("rsd-assets/rubin-partners.png"),
+    # Aligns the page footer content with the rendered article column; the
+    # centered CSS layout is the no-JavaScript fallback.
+    get_asset_path("rubin-footer-align.js"),
 ]
 
 html_css_files = ["rubin-pydata-theme.css"]
@@ -406,7 +432,7 @@ html_css_files = ["rubin-pydata-theme.css"]
 # The lastmodified extension renders the per-page "last modified" footer date
 # as a <time> element; rubin-last-modified.js localizes it to the reader's
 # timezone. Only ship the script when the feature is enabled.
-html_js_files: list[str] = []
+html_js_files: list[str] = ["rubin-footer-align.js"]
 if documenteer_last_modified_enabled:
     html_static_path.append(get_asset_path("rubin-last-modified.js"))
     html_js_files.append("rubin-last-modified.js")

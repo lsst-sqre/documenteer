@@ -17,6 +17,9 @@ module.exports = {
     'rubin-technote': [
       './src/assets/rubin-technote/styles/rubin-technote.scss',
     ],
+    'rubin-pydata-theme': [
+      './src/assets/rubin-guide/styles/rubin-pydata-theme.scss',
+    ],
   },
   output: {
     filename: 'scripts/[name].js',
@@ -40,6 +43,10 @@ module.exports = {
             rsdAssetsDir,
             'rubin-imagotype/rubin-imagotype-color-on-white-crop.svg'
           ),
+          to: 'rsd-assets',
+        },
+        {
+          from: join(rsdAssetsDir, 'partner-logos/rubin-partners.png'),
           to: 'rsd-assets',
         },
       ],

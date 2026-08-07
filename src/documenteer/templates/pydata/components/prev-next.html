@@ -1,0 +1,11 @@
+{# Override of pydata-sphinx-theme's prev-next component that appends the
+   "Help improve this page" box after the prev/next links. The theme offers no
+   slot inside .bd-article-container below prev-next, and rendering the box
+   outside the container (e.g. via content_footer_items) breaks alignment:
+   .bd-content centers the 60em article column with justify-content, so a
+   left-flush footer drifts whenever there is centering slack (no primary
+   sidebar, wide viewports). Rendering here keeps the box inside the article
+   column in every layout. The "!" prefix loads the theme's own template, so
+   no markup is copied. #}
+{% include "!components/prev-next.html" %}
+{% include "rubin-improve-this-page.html" %}

@@ -4,7 +4,8 @@
 "Last updated" page timestamps
 ##############################
 
-Documenteer's ``documenteer.ext.lastmodified`` extension adds a "This page was last modified on <date>." timestamp to the bottom of each page's article body.
+Documenteer's ``documenteer.ext.lastmodified`` extension adds a "This page was last modified on <date>." timestamp to the bottom of each page.
+In the user-guide preset it renders inside the :ref:`"Help improve this page" box <guide-improve-this-page>` below the previous/next page links, alongside the "Edit on GitHub" link.
 The date is derived from the page's **Git commit history** rather than the filesystem modification time, which is meaningless in CI where checkouts have arbitrary timestamps.
 In the user-guide preset the footer date is rendered to the **reader's** local timezone (see `Reader-localized footer date`_).
 It is also the single source of truth for the page's last-modified date in the HTML ``<head>``, where it emits the same Git date as Open Graph, Dublin Core, and Schema.org metadata (see `HTML metadata`_).

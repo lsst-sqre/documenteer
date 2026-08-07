@@ -279,9 +279,11 @@ def test_guide_preset_dp2_layout(tmp_path: Path) -> None:
 
     The sources are committed because the guide preset auto-loads
     sphinx-last-updated-by-git (through sphinx-sitemap), which deletes
-    ``sourcename`` from the context for files Git doesn't track. pydata's
-    edit-this-page component is gated on that value, so an *uncommitted* page
-    renders no button no matter what ``doc_path`` says.
+    ``sourcename`` from the context for files Git doesn't track. The edit link
+    (rendered by the preset's rubin-improve-this-page box below the prev/next
+    links, which mirrors pydata's edit-this-page gate) is conditioned on that
+    value,
+    so an *uncommitted* page renders no link no matter what ``doc_path`` says.
     """
     repo = Repo.init(tmp_path)
     docs = tmp_path / "docs"

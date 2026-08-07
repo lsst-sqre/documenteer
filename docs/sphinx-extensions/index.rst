@@ -7,6 +7,7 @@ Sphinx extensions
    :titlesonly:
    :caption: Referencing & linking
 
+   autotypes
    jira-reference
    docushare-reference
    lsst-pybtex-style

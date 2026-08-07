@@ -66,3 +66,5 @@ target/
 # Python environments
 .venv
 venv
+
+.playwright-mcp
