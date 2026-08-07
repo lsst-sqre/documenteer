@@ -2,10 +2,41 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlparse
+
+import pytest
 import pytest_responses  # noqa: F401
+import requests
 from responses import RequestsMock
 
-from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.authordb import (
+    AuthorDb,
+    AuthorDbUnreachableError,
+    AuthorNotFoundError,
+)
+
+SEARCH_JSON = """
+[
+    {
+        "affiliations": [],
+        "family_name": "Jones",
+        "given_name": "R. Lynne",
+        "internal_id": "jonesrl",
+        "notes": [],
+        "orcid": "https://orcid.org/0000-0001-5916-0031",
+        "score": 90.0
+    },
+    {
+        "affiliations": [],
+        "family_name": "Jones",
+        "given_name": "Derek",
+        "internal_id": "jonesd",
+        "notes": [],
+        "orcid": null,
+        "score": 70.0
+    }
+]
+"""
 
 
 def test_from_yaml(responses: RequestsMock) -> None:
@@ -62,3 +93,78 @@ def test_from_yaml(responses: RequestsMock) -> None:
     assert author.affiliations[0].internal_id == "JSickCodes"
     assert author.affiliations[0].name == "J.Sick Codes Inc."
     assert str(author.affiliations[1].ror) == "https://ror.org/048g3cy84"
+
+
+def test_get_author_not_found(responses: RequestsMock) -> None:
+    """A 404 response raises ``AuthorNotFoundError``."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/nobody",
+        body="Not found",
+        status=404,
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(AuthorNotFoundError):
+        author_db.get_author("nobody")
+
+
+def test_get_author_transport_error(responses: RequestsMock) -> None:
+    """A transport failure raises ``AuthorDbUnreachableError``."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=requests.ConnectionError("connection refused"),
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(ValueError, match="Failed to fetch author") as exc_info:
+        author_db.get_author("sickj")
+    assert isinstance(exc_info.value, AuthorDbUnreachableError)
+    assert not isinstance(exc_info.value, AuthorNotFoundError)
+
+
+def test_search_authors(responses: RequestsMock) -> None:
+    """A name search returns scored author results, best match first."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=SEARCH_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    results = author_db.search_authors("Jones, Lynne")
+    assert [r.internal_id for r in results] == ["jonesrl", "jonesd"]
+    assert results[0].score == 90.0
+    assert str(results[0].orcid) == "https://orcid.org/0000-0001-5916-0031"
+    assert results[1].orcid is None
+    query = parse_qs(urlparse(responses.calls[0].request.url or "").query)
+    assert query["search"] == ["Jones, Lynne"]
+    assert query["limit"] == ["10"]
+
+
+def test_search_authors_transport_error(responses: RequestsMock) -> None:
+    """A failed search raises ``AuthorDbUnreachableError``."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body="Internal server error",
+        status=500,
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(AuthorDbUnreachableError):
+        author_db.search_authors("Jones, Lynne")
+
+
+def test_get_author_server_error(responses: RequestsMock) -> None:
+    """A non-404 HTTP error is a transport error, not a not-found."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body="Internal server error",
+        status=500,
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(ValueError, match="Failed to fetch author") as exc_info:
+        author_db.get_author("sickj")
+    assert isinstance(exc_info.value, AuthorDbUnreachableError)
+    assert not isinstance(exc_info.value, AuthorNotFoundError)

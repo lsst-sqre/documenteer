@@ -1,0 +1,59 @@
+:og:description: TN102 fires when an author's internal_id does not resolve in the Rubin author database, either because the ID is wrong or the database record is malformed.
+
+################################
+author-internal-id-known (TN102)
+################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Metadata
+     - Error
+
+Each author's ``internal_id`` in :file:`technote.toml` must resolve to an entry in the Rubin author database (`authordb.yaml`_).
+An ID that the database does not know — a typo, an ID that was never registered, or a guessed value — cannot identify the author for DOI metadata.
+This rule also fires when the database returns a *malformed* record for the ID, which is a database problem rather than a technote problem.
+
+Example of a failing technote
+=============================
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [[technote.authors]]
+   name = { given = "Lynne", family = "Jones" }
+   internal_id = "lynnej"
+
+.. code-block:: text
+
+   [TN102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
+
+When the linter can confidently match the author in the author database — by ORCID, or by a single near-exact name match — it suggests the likely ID (see :ref:`technote-lint-suggested-ids`).
+Verify the suggestion before using it; it never changes whether the command passes.
+
+How to fix it
+=============
+
+Replace the ``internal_id`` with the author's actual ID from `authordb.yaml`_, then synchronize the author's metadata:
+
+.. code-block:: toml
+
+   [[technote.authors]]
+   name = { given = "Lynne", family = "Jones" }
+   internal_id = "jonesrl"
+
+.. prompt:: bash
+
+   documenteer technote sync-authors
+
+If the author genuinely has no entry in the author database, add one by submitting a pull request to `lsst/lsst-texmf <https://github.com/lsst/lsst-texmf>`__ — see :doc:`../author-metadata`.
+If the finding says the author's database record is *malformed*, the fix belongs in the database entry itself, not in your technote: correct the entry in `lsst/lsst-texmf <https://github.com/lsst/lsst-texmf>`__.
+
+See also
+========
+
+- :doc:`TN101 <tn101>` — the entry declares no ``internal_id`` at all.
+- :doc:`TN103 <tn103>` — the author database could not be reached to verify the ID.
+- :doc:`../author-metadata` — how technote author metadata connects to the author database.

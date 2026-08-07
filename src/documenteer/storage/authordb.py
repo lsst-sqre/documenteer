@@ -3,9 +3,35 @@
 from __future__ import annotations
 
 import requests
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, TypeAdapter
 
-__all__ = ["Address", "Affiliation", "Author", "AuthorDb"]
+__all__ = [
+    "Address",
+    "Affiliation",
+    "Author",
+    "AuthorDb",
+    "AuthorDbUnreachableError",
+    "AuthorNotFoundError",
+    "AuthorSearchResult",
+]
+
+
+class AuthorNotFoundError(ValueError):
+    """Raised when an author ID is not present in the author database.
+
+    This corresponds to an HTTP 404 response from the author API, as opposed
+    to a transport failure (an unreachable database), which is signalled with
+    an `AuthorDbUnreachableError`.
+    """
+
+
+class AuthorDbUnreachableError(ValueError):
+    """Raised when the author database cannot be reached for resolution.
+
+    This corresponds to a transport failure — a connection error, timeout,
+    or a non-404 HTTP error (for example a 5xx) — as opposed to a definitive
+    404 not-found response, which is signalled with an `AuthorNotFoundError`.
+    """
 
 
 class Address(BaseModel):
@@ -84,10 +110,51 @@ class Author(BaseModel):
     )
 
 
+class AuthorSearchResult(Author):
+    """An author returned by a name search, with its relevance score."""
+
+    score: float = Field(
+        description=(
+            "Relevance score (0-100) of the result for the search query. "
+            "Ook documents 90-100 as an exact or near-exact match."
+        ),
+    )
+
+
+_SEARCH_RESULTS_ADAPTER = TypeAdapter(list[AuthorSearchResult])
+"""Validator for Ook's author-search response body."""
+
+
 class AuthorDb:
     """An interface to Ook's author API."""
 
     def __init__(self) -> None: ...
+
+    def search_authors(
+        self, query: str, *, limit: int = 10
+    ) -> list[AuthorSearchResult]:
+        """Search the author database by name.
+
+        Ook's author search is fuzzy and typo-tolerant, accepting names in
+        several forms (``"Family, Given"``, ``"Given Family"``, a family name
+        alone, and so on). Results are sorted by descending relevance score.
+
+        Raises
+        ------
+        AuthorDbUnreachableError
+            If the author database could not be searched, whether from a
+            transport failure or any HTTP error status.
+        """
+        url = "https://roundtable.lsst.cloud/ook/authors"
+        params = {"search": query, "limit": str(limit)}
+        try:
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            raise AuthorDbUnreachableError(
+                f"Failed to search authors for '{query}' at {url}"
+            ) from e
+        return _SEARCH_RESULTS_ADAPTER.validate_json(r.text)
 
     def get_author(self, author_id: str) -> Author:
         """Get an author entry by ID."""
@@ -95,8 +162,16 @@ class AuthorDb:
         try:
             r = requests.get(url, timeout=10)
             r.raise_for_status()
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                raise AuthorNotFoundError(
+                    f"Author {author_id} not found in the author database"
+                ) from e
+            raise AuthorDbUnreachableError(
+                f"Failed to fetch author {author_id} from {url}"
+            ) from e
         except requests.RequestException as e:
-            raise ValueError(
+            raise AuthorDbUnreachableError(
                 f"Failed to fetch author {author_id} from {url}"
             ) from e
         return Author.model_validate_json(r.text)

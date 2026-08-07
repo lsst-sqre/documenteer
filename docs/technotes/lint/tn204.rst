@@ -1,0 +1,67 @@
+:og:description: TN204 fires when a technote's abstract directive has no body content — most often because the abstract text was left unindented, which reStructuredText reads as an empty directive.
+
+####################################
+abstract-directive-not-empty (TN204)
+####################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Content
+     - Error
+
+The abstract directive must have body content.
+An empty directive builds without any warning from Sphinx, but it publishes an empty abstract section and an empty ``og:description`` — the technote looks fine in the editor while its summary is silently missing everywhere it matters.
+
+Example of a failing technote
+=============================
+
+The classic cause is abstract text left *unindented* under ``.. abstract::``.
+reStructuredText scopes directive content by indentation, so the unindented paragraph is ordinary body text that follows an empty directive:
+
+.. code-block:: rst
+   :caption: index.rst
+
+   ################
+   A technote title
+   ################
+
+   .. abstract::
+
+   One or two sentences that were meant to be the abstract.
+
+.. code-block:: text
+
+   [TN204] index.rst:5: the '.. abstract::' directive is empty — indent the abstract text under the directive.
+
+Directive *options* do not count as content either: a directive holding only ``:class: dropdown`` (for example) is still empty.
+
+How to fix it
+=============
+
+Indent the abstract text so it becomes the directive's content:
+
+.. code-block:: rst
+   :caption: index.rst
+
+   .. abstract::
+
+      One or two sentences that were meant to be the abstract.
+
+Text written on the marker line itself (``.. abstract:: The abstract.``) is also directive content and passes.
+In a Markdown (MyST) technote, put the text inside the fence:
+
+.. code-block:: markdown
+   :caption: index.md
+
+   ```{abstract}
+   One or two sentences that were meant to be the abstract.
+   ```
+
+See also
+========
+
+- :doc:`TN201 <tn201>` — no abstract directive was found at all.
+- :doc:`TN202 <tn202>` — the abstract is written as a section heading instead.

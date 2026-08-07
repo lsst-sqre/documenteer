@@ -7,6 +7,13 @@ from pathlib import Path
 import click
 
 from documenteer.services.technoteauthor import TechnoteAuthorService
+from documenteer.services.technotelint import (
+    LintContext,
+    LintFinding,
+    Severity,
+    TechnoteLintService,
+    rule_url,
+)
 from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.storage.authordb import AuthorDb
 from documenteer.storage.technotetoml import TechnoteTomlFile
@@ -185,3 +192,77 @@ def technote_migrate(
 
     if auto_delete or click.confirm("Delete deprecated files?"):
         migration_service.delete_deprecated_files()
+
+
+@technote.command(name="lint")
+@click.option(
+    "--dir",
+    "-d",
+    "root_dir",
+    type=click.Path(exists=True),
+    default=".",
+    help="Path to technote directory",
+)
+@click.option(
+    "--strict",
+    "-s",
+    "strict",
+    is_flag=True,
+    default=False,
+    help="Promote warnings to errors",
+)
+def technote_lint(root_dir: str, *, strict: bool) -> None:
+    """Lint a technote's metadata and structure.
+
+    This runs three groups of checks and reports each finding with a stable
+    rule code (for example ``[TN101]``). Structural checks (``TN0xx``)
+    confirm that technote.toml exists, is valid TOML, and conforms to the
+    technote schema, and that requirements.txt declares documenteer[technote]
+    without pinning Sphinx separately. Metadata checks (``TN1xx``) confirm that
+    every author declares an internal_id that resolves in the Rubin author
+    database. Content checks (``TN2xx``) confirm that the content declares a
+    non-empty abstract using the abstract directive rather than an ordinary
+    section heading.
+
+    A directory with no content file and no conf.py is a technote that Sphinx
+    does not build, so only the technote.toml checks (structural and metadata)
+    apply to it.
+
+    Each rule has a documentation page explaining the finding and its fix at
+    https://documenteer.lsst.io/technotes/lint/, and the report links to the
+    page for every rule it fires.
+
+    The command exits non-zero when any error remains. Use ``--strict`` to
+    promote warnings to errors.
+    """
+    author_db = AuthorDb()
+    context = LintContext.from_dir(Path(root_dir), author_db)
+    service = TechnoteLintService(context)
+    findings = service.lint()
+
+    # Split into errors and warnings; --strict promotes warnings to errors.
+    errors: list[LintFinding] = []
+    warnings: list[LintFinding] = []
+    for finding in findings:
+        if strict or finding.severity is Severity.error:
+            errors.append(finding)
+        else:
+            warnings.append(finding)
+
+    # Report errors first, then warnings; each prefixed with its code.
+    for finding in (*errors, *warnings):
+        click.echo(f"[{finding.code}] {finding.message}")
+
+    if not errors and not warnings:
+        click.echo("✅ Technote lint passed with no issues.")
+        return
+
+    click.echo(f"Found {len(errors)} error(s) and {len(warnings)} warning(s).")
+
+    # Point at the landing page for each distinct rule that fired.
+    click.echo("Learn more:")
+    for code in sorted({f.code for f in (*errors, *warnings)}):
+        click.echo(f"  {code}: {rule_url(code)}")
+
+    if errors:
+        raise SystemExit(1)

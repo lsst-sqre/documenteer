@@ -1,0 +1,52 @@
+:og:description: TN002 fires when a technote's requirements.txt does not declare documenteer with the [technote] extra, so the technote theme and Sphinx configuration are not installed.
+
+#################################################
+requirements-declare-documenteer-technote (TN002)
+#################################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Structural
+     - Warning
+
+A Sphinx technote's :file:`requirements.txt` must declare ``documenteer[technote]``.
+The ``[technote]`` extra is what installs the technote theme and Sphinx configuration, so a requirements file that omits it (or omits ``documenteer`` entirely) builds with whatever happens to be installed — which breaks in the isolated environments that CI and :command:`tox` create.
+
+A missing :file:`requirements.txt` is treated as an empty one, so this rule fires for it too.
+This rule is skipped for :ref:`non-Sphinx technotes <technote-lint-non-sphinx>`.
+
+Example of a failing technote
+=============================
+
+.. code-block:: text
+   :caption: requirements.txt
+
+   sphinx==8.1.0
+
+.. code-block:: text
+
+   [TN002] requirements.txt should declare 'documenteer[technote]' so the technote theme and Sphinx configuration are installed.
+
+A bare ``documenteer`` requirement without the extra also fails, since the extra's dependencies (the technote theme among them) would not be installed.
+
+How to fix it
+=============
+
+Declare ``documenteer`` with the ``[technote]`` extra in :file:`requirements.txt`:
+
+.. code-block:: text
+   :caption: requirements.txt
+
+   documenteer[technote]>=2.0,<3.0
+
+The version bounds are recommended so that a future Documenteer major release cannot break your build unexpectedly.
+If your file pins Sphinx as a separate line, remove that line as well — that is :doc:`TN003 <tn003>`.
+
+See also
+========
+
+- :doc:`TN003 <tn003>` — do not pin Sphinx separately from ``documenteer[technote]``.
+- :doc:`../migrate` — the migration tool writes a modern :file:`requirements.txt`.
