@@ -12,6 +12,7 @@ from documenteer.services.technotelint import (
     LintFinding,
     Severity,
     TechnoteLintService,
+    rule_url,
 )
 from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.storage.authordb import AuthorDb
@@ -227,6 +228,10 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
     does not build, so only the technote.toml checks (structural and metadata)
     apply to it.
 
+    Each rule has a documentation page explaining the finding and its fix at
+    https://documenteer.lsst.io/technotes/lint/, and the report links to the
+    page for every rule it fires.
+
     The command exits non-zero when any error remains. Use ``--strict`` to
     promote warnings to errors.
     """
@@ -253,5 +258,11 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
         return
 
     click.echo(f"Found {len(errors)} error(s) and {len(warnings)} warning(s).")
+
+    # Point at the landing page for each distinct rule that fired.
+    click.echo("Learn more:")
+    for code in sorted({f.code for f in (*errors, *warnings)}):
+        click.echo(f"  {code}: {rule_url(code)}")
+
     if errors:
         raise SystemExit(1)

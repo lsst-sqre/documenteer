@@ -10,11 +10,13 @@ import requests
 from responses import RequestsMock
 
 from documenteer.services.technotelint import (
+    CHECKS,
     LintContext,
     Severity,
     TechnoteLintService,
     check_abstract,
     check_requirements,
+    rule_url,
 )
 from documenteer.storage.authordb import AuthorDb
 
@@ -1181,3 +1183,23 @@ def test_requirements_findings_surface_through_lint(
     # promote exactly these to make the run fatal.
     assert [f.code for f in findings] == ["TN002", "TN003"]
     assert all(f.severity is Severity.warning for f in findings)
+
+
+def test_every_rule_has_a_docs_landing_page() -> None:
+    """Each registered rule code has a page under docs/technotes/lint/.
+
+    The lint report's "Learn more" footer links each fired code to
+    ``rule_url(code)``, which maps onto ``docs/technotes/lint/<code>.rst``
+    on documenteer.lsst.io — so a rule without a page would ship a dead
+    link.
+    """
+    docs_dir = Path(__file__).parents[2] / "docs" / "technotes" / "lint"
+    for code in CHECKS:
+        page = docs_dir / f"{code.lower()}.rst"
+        assert page.is_file(), f"{code} has no docs page at {page}"
+        # The page's title names the code, so a copied page that still
+        # describes a different rule is caught too.
+        assert f"({code})" in page.read_text(), (
+            f"{page} does not title the {code} rule"
+        )
+        assert rule_url(code).endswith(f"/technotes/lint/{code.lower()}.html")
