@@ -1,4 +1,4 @@
-"""Tests for the TechnoteValidationService class."""
+"""Tests for the TechnoteLintService class."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import pytest_responses  # noqa: F401
 import requests
 from responses import RequestsMock
 
-from documenteer.services.technotevalidation import (
+from documenteer.services.technotelint import (
+    LintContext,
     Severity,
-    TechnoteValidationService,
-    ValidationContext,
+    TechnoteLintService,
     check_abstract,
     check_requirements,
 )
@@ -49,7 +49,7 @@ def _search_result(
     }
 
 
-def _write_technote(tmp_path: Path, toml_content: str) -> ValidationContext:
+def _write_technote(tmp_path: Path, toml_content: str) -> LintContext:
     """Write a technote.toml into ``tmp_path`` and build a context.
 
     Also writes an ``index.rst`` with a well-formed abstract and a sane
@@ -62,7 +62,7 @@ def _write_technote(tmp_path: Path, toml_content: str) -> ValidationContext:
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
     (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
-    return ValidationContext.from_dir(tmp_path, AuthorDb())
+    return LintContext.from_dir(tmp_path, AuthorDb())
 
 
 def test_valid_authors_pass(tmp_path: Path, responses: RequestsMock) -> None:
@@ -85,8 +85,8 @@ name.family = "Sick"
 internal_id = "sickj"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert findings == []
 
 
@@ -107,8 +107,8 @@ name.given = "Frossie"
 name.family = "Economou"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN101", "TN101"]
     assert all(f.severity is Severity.error for f in findings)
 
@@ -146,8 +146,8 @@ name.family = "AlSayyad"
 orcid = "https://orcid.org/0009-0008-9216-7516"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN101"]
     assert findings[0].message == (
         "Author Yusra AlSayyad is missing an internal_id. Did you mean "
@@ -177,8 +177,8 @@ name.family = "Body"
 internal_id = "nobody"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN102"]
     assert findings[0].severity is Severity.error
 
@@ -216,8 +216,8 @@ name.family = "Jones"
 internal_id = "lynnej"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN102"]
     assert findings[0].message == (
         "Author Lynne Jones has internal_id 'lynnej', which is not in the "
@@ -252,8 +252,8 @@ name.given = "L."
 name.family = "Jones"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN101"]
     assert findings[0].message == "Author L. Jones is missing an internal_id."
 
@@ -279,8 +279,8 @@ name.given = "Nemo"
 name.family = "Nobody"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN101"]
     assert (
         findings[0].message == "Author Nemo Nobody is missing an internal_id."
@@ -319,8 +319,8 @@ name.family = "Jones"
 orcid = "https://orcid.org/0000-0003-3001-676X"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN101"]
     assert (
         findings[0].message == "Author Derek Jones is missing an internal_id."
@@ -348,8 +348,8 @@ name.family = "Sick"
 orcid = "https://orcid.org/0000-0003-3001-676X"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN101"]
     assert findings[0].severity is Severity.error
     assert (
@@ -376,8 +376,8 @@ name.family = "Sick"
 internal_id = "sickj"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN103"]
     assert findings[0].severity is Severity.warning
 
@@ -398,8 +398,8 @@ name.given = "Frossie"
 name.family = "Economou"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     # The second author has no internal_id, but TN101 needs the parsed model,
     # so only the schema finding is reported.
     assert [f.code for f in findings] == ["TN001"]
@@ -423,9 +423,9 @@ name.given = "Jonathan"
         "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
     )
     (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN001", "TN201", "TN002", "TN003"]
 
 
@@ -444,8 +444,8 @@ name = { name = "Jonathan Sick" }
 internal_id = "sickj"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
     message = findings[0].message
     assert 'name = { name = "Full Name" }' in message
@@ -469,8 +469,8 @@ name = { given_names = "Jonathan", family_names = "Sick" }
 internal_id = "sickj"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
     message = findings[0].message
     assert 'name = { given_names = "...", family_names = "..." }' in message
@@ -491,8 +491,8 @@ id = "SQR-000"
 canonical_url = "not a url"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
     message = findings[0].message
     assert "documenteer technote migrate" not in message
@@ -514,17 +514,17 @@ name = { given = "Jonathan", family = "Sick" }
 orcid = "not-an-orcid"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
     assert "documenteer technote migrate" not in findings[0].message
 
 
 def test_missing_toml_reports_tn004(tmp_path: Path) -> None:
     """A directory with no technote.toml yields a single TN004 error."""
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN004"]
     assert findings[0].severity is Severity.error
 
@@ -539,9 +539,9 @@ def test_malformed_toml_reports_tn005(tmp_path: Path) -> None:
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
     )
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN005", "TN201", "TN002"]
     assert findings[0].severity is Severity.error
 
@@ -568,8 +568,8 @@ name.family = "Sick"
 internal_id = "sickj"
 """,
     )
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN102"]
     assert findings[0].severity is Severity.error
     assert "malformed" in findings[0].message
@@ -609,9 +609,9 @@ name.family = "Sick"
 internal_id = "sickj"
 """,
     )
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    assert service.validate() == []
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    assert service.lint() == []
 
 
 def test_non_sphinx_technote_reports_schema_errors(tmp_path: Path) -> None:
@@ -624,9 +624,9 @@ id = "SQR-000"
 canonical_url = "not a url"
 """,
     )
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
 
 
@@ -651,25 +651,25 @@ name.family = "Body"
 internal_id = "nobody"
 """,
     )
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN102"]
 
 
 def _context_with_content(
     tmp_path: Path, filename: str, content: str
-) -> ValidationContext:
+) -> LintContext:
     """Write a minimal technote.toml plus a content file, build a context.
 
     Also writes a sane ``requirements.txt`` so the structural requirements
     check (TN002/TN003) stays silent for content-focused tests that route
-    through the full ``validate()`` aggregation.
+    through the full ``lint()`` aggregation.
     """
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
     (tmp_path / filename).write_text(content)
     (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
-    return ValidationContext.from_dir(tmp_path, AuthorDb())
+    return LintContext.from_dir(tmp_path, AuthorDb())
 
 
 def _ipynb(*markdown_sources: str) -> str:
@@ -852,7 +852,7 @@ def test_missing_content_file_yields_no_abstract_finding(
 ) -> None:
     """A missing index file is TN006's business, not the abstract check's."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    context = LintContext.from_dir(tmp_path, AuthorDb())
     assert check_abstract(context) == []
 
 
@@ -863,9 +863,9 @@ def test_conf_py_without_content_file_reports_tn006(tmp_path: Path) -> None:
         "from documenteer.conf.technote import *  # noqa: F401,F403\n"
     )
     (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
     assert [f.code for f in findings] == ["TN006"]
     assert findings[0].severity is Severity.error
 
@@ -1063,20 +1063,20 @@ def test_setext_abstract_heading_ipynb_reports_tn202(tmp_path: Path) -> None:
     assert [f.code for f in findings] == ["TN202"]
 
 
-def test_abstract_finding_surfaces_through_validate(tmp_path: Path) -> None:
+def test_abstract_finding_surfaces_through_lint(tmp_path: Path) -> None:
     """check_abstract's findings are aggregated by the service."""
     context = _context_with_content(
         tmp_path,
         "index.rst",
         "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n",
     )
-    service = TechnoteValidationService(context)
-    assert [f.code for f in service.validate()] == ["TN201"]
+    service = TechnoteLintService(context)
+    assert [f.code for f in service.lint()] == ["TN201"]
 
 
 def _context_with_requirements(
     tmp_path: Path, requirements_text: str
-) -> ValidationContext:
+) -> LintContext:
     """Write a minimal technote.toml plus a requirements.txt, build a context.
 
     ``check_requirements`` reads only ``requirements_text``, so no content
@@ -1084,7 +1084,7 @@ def _context_with_requirements(
     """
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
     (tmp_path / "requirements.txt").write_text(requirements_text)
-    return ValidationContext.from_dir(tmp_path, AuthorDb())
+    return LintContext.from_dir(tmp_path, AuthorDb())
 
 
 def test_sane_requirements_pass(tmp_path: Path) -> None:
@@ -1137,7 +1137,7 @@ def test_documenteer_extra_aggregated_across_lines(tmp_path: Path) -> None:
 def test_missing_requirements_file_reports_tn002(tmp_path: Path) -> None:
     """A technote directory with no requirements.txt yields TN002."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
+    context = LintContext.from_dir(tmp_path, AuthorDb())
     assert [f.code for f in check_requirements(context)] == ["TN002"]
 
 
@@ -1167,16 +1167,16 @@ def test_requirements_drift_reports_both_warnings(tmp_path: Path) -> None:
     assert all(f.severity is Severity.warning for f in findings)
 
 
-def test_requirements_findings_surface_through_validate(
+def test_requirements_findings_surface_through_lint(
     tmp_path: Path,
 ) -> None:
     """check_requirements' warnings are aggregated by the service."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
     (tmp_path / "index.rst").write_text(RST_WITH_ABSTRACT)
     (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
-    context = ValidationContext.from_dir(tmp_path, AuthorDb())
-    service = TechnoteValidationService(context)
-    findings = service.validate()
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
     # Warnings only (no author or abstract errors), so --strict would
     # promote exactly these to make the run fatal.
     assert [f.code for f in findings] == ["TN002", "TN003"]
