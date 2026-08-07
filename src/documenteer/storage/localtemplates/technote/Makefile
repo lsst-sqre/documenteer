@@ -9,7 +9,7 @@ html:
 
 .PHONY:
 lint:
-	tox run -e lint,linkcheck
+	tox run -e lint,technote-lint,linkcheck
 
 .PHONY:
 add-author:
@@ -18,10 +18,6 @@ add-author:
 .PHONY:
 sync-authors:
 	tox run -e sync-authors
-
-.PHONY:
-validate:
-	tox run -e validate
 
 .PHONY:
 clean:

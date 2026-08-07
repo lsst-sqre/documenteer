@@ -21,13 +21,11 @@ Run the linter from the root of a technote repository:
 
    documenteer technote lint
 
-If your technote uses the standard :file:`Makefile` (see :doc:`../migrate`), you can equivalently run:
+If your technote uses the standard :file:`Makefile` (see :doc:`../migrate`), the linter also runs as part of the repository's combined lint target, alongside the Pre-commit hooks and the link checker:
 
 .. prompt:: bash
 
-   make validate
-
-(The Makefile target is named ``validate`` because ``make lint`` already runs the repository's Pre-commit and link-check environments.)
+   make lint
 
 The command prints each issue it finds, prefixed with its stable rule code (for example, ``[TN101]``), followed by a summary and a link to the documentation page for every rule that fired:
 

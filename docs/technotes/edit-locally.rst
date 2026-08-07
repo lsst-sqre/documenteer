@@ -70,7 +70,7 @@ To run the linters on-demand, run:
 
    make lint
 
-That command runs both the Pre-commit_ hooks and the link checker.
+That command runs the Pre-commit_ hooks, the :doc:`technote linter <lint/index>` (:command:`documenteer technote lint`), and the link checker.
 If you ran :command:`make init`, the Pre-commit hooks will also run automatically before every Git commit.
 
 Resetting your environment
