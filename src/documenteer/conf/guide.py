@@ -312,7 +312,7 @@ html_context: dict[str, Any] = {}
 # documentation.
 html_theme_options = {
     "header_links_before_dropdown": _conf.header_links_before_dropdown,
-    "external_links": [{"name": "Rubin docs", "url": "https://www.lsst.io"}],
+    "external_links": [],
     "icon_links": [],
     "logo": {
         "image_light": "rubin-titlebar-imagotype-light.svg",
