@@ -17,6 +17,9 @@ module.exports = {
     'rubin-technote': [
       './src/assets/rubin-technote/styles/rubin-technote.scss',
     ],
+    'rubin-pydata-theme': [
+      './src/assets/rubin-guide/styles/rubin-pydata-theme.scss',
+    ],
   },
   output: {
     filename: 'scripts/[name].js',

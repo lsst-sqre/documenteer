@@ -1,0 +1,386 @@
+/*
+ * Rubin theming for the [PyData Sphinx Theme](https://pydata-sphinx-theme.readthedocs.io/en/latest/user_guide/styling.html#)
+ * using design tokens from the [Rubin Style Dictionary](https://style-dictionary.lsst.io).
+ */
+
+/* Both files would default to the Sass namespace "tokens" (basename before
+ * the first dot), so alias them explicitly. */
+@use '../../../../node_modules/@lsst-sqre/rubin-style-dictionary/dist/tokens.css'
+  as tokens-light;
+@use '../../../../node_modules/@lsst-sqre/rubin-style-dictionary/dist/tokens.dark.css'
+  as tokens-dark;
+
+html {
+  --pst-font-family-base: 'Source Sans Pro', var(--pst-font-family-base-system);
+  --pst-font-family-heading:
+    'Source Sans Pro', var(--pst-font-family-base-system);
+}
+
+/* html:not([data-theme]) covers the no-JavaScript first paint: pydata's
+ * theme.conf has no default_mode, so <html> ships without data-theme and
+ * only the head script adds it. */
+html:not([data-theme]),
+html[data-theme='light'] {
+  /* Ramp (--rsd-color-*) tokens are static on :root, so they can be mapped
+   * per-mode here. Component tokens must not be referenced at this level;
+   * see the body block below. */
+  /* brand teal, non-text accents */
+  --pst-color-primary: var(--rsd-color-primary-600);
+  --pst-color-primary-bg: var(--rsd-color-primary-200);
+  /* link hover + focus rings, 7.17:1 */
+  --pst-color-secondary: var(--rsd-color-red-600);
+  --pst-color-secondary-bg: var(--rsd-color-red-100);
+  /* teal accent, no separate hue */
+  --pst-color-accent: var(--rsd-color-primary-600);
+  --pst-color-accent-bg: var(--rsd-color-primary-200);
+  --pst-color-info: var(--rsd-color-blue-600);
+  --pst-color-info-bg: var(--rsd-color-blue-100);
+  --pst-color-success: var(--rsd-color-green-600);
+  --pst-color-success-bg: var(--rsd-color-green-100);
+  --pst-color-warning: var(--rsd-color-orange-600);
+  --pst-color-warning-bg: var(--rsd-color-orange-100);
+  /* pydata's precomputed companion assumes a light warning orange; its
+   * near-black text fails (2.7:1) on orange-600 — the skip link and
+   * sphinx-design warning buttons use this pair. White gives 6.5:1. */
+  --pst-color-warning-text: var(--rsd-color-gray-000);
+  --pst-color-warning-highlight-text: var(--rsd-color-gray-000);
+  --pst-color-danger: var(--rsd-color-red-600);
+  --pst-color-danger-bg: var(--rsd-color-red-100);
+  --pst-color-inline-code: var(--rsd-color-purple-500);
+  --pst-color-link-higher-contrast: var(--rsd-color-blue-600);
+  --pst-color-target: var(--rsd-color-yellow-200);
+  /* #f5f5f5, matches Squareone footer bg */
+  --pst-color-surface: var(--rsd-color-primary-100);
+  --pst-color-on-surface: var(--rsd-color-gray-800);
+  /* on-background stays white in light mode — pydata default, no override needed */
+  --pst-color-table-row-hover-bg: var(--rsd-color-primary-200);
+  --sd-color-muted-bg: var(--rsd-color-gray-500);
+}
+
+html[data-theme='dark'] {
+  /* imagotype teal #00babc, 6.74:1 on the gray-800 page background */
+  --pst-color-primary: var(--rsd-color-primary-400);
+  --pst-color-primary-bg: var(--rsd-color-primary-700);
+  /* 5.73:1 on the gray-800 page background */
+  --pst-color-secondary: var(--rsd-color-red-400);
+  --pst-color-secondary-bg: var(--rsd-color-red-800);
+  --pst-color-accent: var(--rsd-color-primary-400);
+  --pst-color-accent-bg: var(--rsd-color-primary-700);
+  --pst-color-info: var(--rsd-color-blue-300);
+  --pst-color-info-bg: var(--rsd-color-blue-800);
+  --pst-color-success: var(--rsd-color-green-300);
+  --pst-color-success-bg: var(--rsd-color-green-800);
+  --pst-color-warning: var(--rsd-color-orange-300);
+  --pst-color-warning-bg: var(--rsd-color-orange-800);
+  --pst-color-danger: var(--rsd-color-red-300);
+  --pst-color-danger-bg: var(--rsd-color-red-800);
+  --pst-color-inline-code: var(--rsd-color-purple-300);
+  --pst-color-link-higher-contrast: var(--rsd-color-blue-300);
+  --pst-color-target: var(--rsd-color-yellow-800);
+  /* Dark neutral layering on the Rubin warm-gray ramp (page bg = gray-800 #1f2121 via the
+   * component token on body, matching Squareone). RSD has no gray-750, so on-background is a
+   * color-mix intermediate between bg and surface; revisit if RSD grows a gray-750 step. */
+  --pst-color-on-background: color-mix(
+    in srgb,
+    var(--rsd-color-gray-800) 50%,
+    var(--rsd-color-gray-700)
+  );
+  --pst-color-surface: var(--rsd-color-gray-700); /* #313536 */
+  --pst-color-on-surface: var(--rsd-color-gray-100);
+  --pst-color-border-muted: var(--rsd-color-gray-700);
+  --pst-color-table-row-hover-bg: var(--rsd-color-primary-700);
+  /* pydata's default is a blue-slate that clashes with the warm Rubin
+   * grays; gray-600 stays visible against both zebra-row fills. */
+  --pst-color-table-inner-border: var(--rsd-color-gray-600);
+  --sd-color-muted-bg: var(--rsd-color-gray-700);
+}
+
+/* Hover shades for sphinx-design buttons: pydata precomputes these from its
+ * own palette (darkening in both modes), so re-derive them from the Rubin
+ * base colors. Grouped selector keeps specificity at (0,1,1) so these win
+ * over pydata's per-mode declarations. */
+html:not([data-theme]),
+html[data-theme='light'],
+html[data-theme='dark'] {
+  --pst-color-primary-highlight: color-mix(
+    in srgb,
+    var(--pst-color-primary) 85%,
+    black
+  );
+  --pst-color-secondary-highlight: color-mix(
+    in srgb,
+    var(--pst-color-secondary) 85%,
+    black
+  );
+  --pst-color-info-highlight: color-mix(
+    in srgb,
+    var(--pst-color-info) 85%,
+    black
+  );
+  --pst-color-success-highlight: color-mix(
+    in srgb,
+    var(--pst-color-success) 85%,
+    black
+  );
+  --pst-color-warning-highlight: color-mix(
+    in srgb,
+    var(--pst-color-warning) 85%,
+    black
+  );
+  --pst-color-danger-highlight: color-mix(
+    in srgb,
+    var(--pst-color-danger) 85%,
+    black
+  );
+
+  /* pydata sets the sphinx-design dropdown-header fills (--sd-color-*-bg)
+   * as literals from its own palette; re-derive them from the Rubin
+   * semantic backgrounds (RSD 100 tints light / 800 shades dark). */
+  --sd-color-primary-bg: var(--pst-color-primary-bg);
+  --sd-color-secondary-bg: var(--pst-color-secondary-bg);
+  --sd-color-info-bg: var(--pst-color-info-bg);
+  --sd-color-success-bg: var(--pst-color-success-bg);
+  --sd-color-warning-bg: var(--pst-color-warning-bg);
+  --sd-color-danger-bg: var(--pst-color-danger-bg);
+  /* White text passes on both muted fills (5.0:1 / 9.9:1). */
+  --sd-color-muted-bg-text: var(--rsd-color-gray-000);
+}
+
+body {
+  /* Override pydata-sphinx-theme.
+   * The theme overrides are often need to be applied to the body rather than
+   * the root or html element to be more specific.
+   */
+
+  /* Base font size; increased for pydata-sphinx-theme default. */
+  font-size: 18px;
+  line-height: 1.5;
+
+  /*
+   * These colours automatically switch in dark and light mode because
+   * of how the Rubin Style Dictionary variables are themed.
+   *
+   * tokens.dark.css scopes its dark --rsd-component-* values to
+   * `body.dark, [data-theme='dark'] body`, so any --pst-* mapping that
+   * references a component token MUST be declared here on body: custom
+   * properties substitute var() references at computed-value time on the
+   * declaring element, so an html-level declaration would freeze the light
+   * value. One body-level declaration covers both modes.
+   */
+  --pst-color-text-base: var(--rsd-component-text-color);
+  --pst-color-text-muted: var(--rsd-component-text-secondary-color);
+  --pst-color-border: var(--rsd-component-divider-color);
+  --pst-color-background: var(--rsd-component-page-background-color);
+  --pst-color-link: var(--rsd-component-text-link-color);
+  /* --pst-color-link-hover is intentionally not set: pydata derives it from
+   * --pst-color-secondary. */
+
+  /* pydata derives these two from body-level tokens above, but declares
+   * them at the html level, where the derivation would freeze to pydata's
+   * own values — re-derive them here on body. */
+  --pst-color-heading: var(--pst-color-text-base);
+  --sd-color-card-border: var(--pst-color-border);
+
+  /* Text on the sphinx-design dropdown-header fills: the component text
+   * token is dark on the light-mode 100 tints and light on the dark-mode
+   * 800 shades, exactly as needed (component tokens must live on body). */
+  --sd-color-primary-bg-text: var(--rsd-component-text-color);
+  --sd-color-secondary-bg-text: var(--rsd-component-text-color);
+  --sd-color-info-bg-text: var(--rsd-component-text-color);
+  --sd-color-success-bg-text: var(--rsd-component-text-color);
+  --sd-color-warning-bg-text: var(--rsd-component-text-color);
+  --sd-color-danger-bg-text: var(--rsd-component-text-color);
+}
+
+/* sphinx-design neutral outline badges draw both text and border in
+ * --sd-color-{dark,light}, which vanish against a same-tone canvas
+ * (:bdg-dark-line: in dark mode, :bdg-light-line: in light mode). Redraw
+ * the broken combination in each mode with body text and the standard
+ * border; the contrasting combinations keep their distinct neutrals.
+ * !important is required to beat sphinx-design's own .sd-text-* and
+ * .sd-outline-* rules, which also use it. */
+html:not([data-theme]) .sd-badge.sd-outline-light,
+html[data-theme='light'] .sd-badge.sd-outline-light,
+html[data-theme='dark'] .sd-badge.sd-outline-dark {
+  color: var(--pst-color-text-base) !important;
+  border-color: var(--pst-color-border) !important;
+}
+
+/* The RSD divider token in dark mode (gray-700) is the same color as the
+ * dark surface fill, which would erase borders on surface-filled panels
+ * (e.g. the "Help improve this page" box); step one ramp lighter. */
+html[data-theme='dark'] body {
+  --pst-color-border: var(--rsd-color-gray-600);
+}
+
+/* Desktop header layout: keep the search / theme switcher / icon links
+ * cluster (.navbar-header-items__end) pinned to the right edge of the
+ * header. The theme lets the whole .navbar-header-items row wrap, so with
+ * enough nav links the end cluster drops to a second left-aligned line.
+ * Instead, forbid wrapping at that level: the center block is then forced
+ * to shrink, and the nav links wrap within their own box (the theme
+ * already sets flex-wrap: wrap on .bd-header ul.navbar-nav).
+ * Scoped to the theme's >=960px breakpoint where these header items are
+ * shown; the mobile hamburger layout is untouched. */
+@media (min-width: 960px) {
+  .bd-header .navbar-header-items {
+    flex-wrap: nowrap;
+  }
+
+  /* Every flex item in the chain down to the nav list needs min-width: 0,
+   * or its max-content width (all links on one line) becomes a floor and
+   * the end cluster gets pushed out of view instead of the links wrapping. */
+  .bd-header .navbar-header-items__center,
+  .bd-header .navbar-header-items__center .navbar-item,
+  .bd-header .navbar-header-items__center .navbar-item nav {
+    min-width: 0;
+  }
+
+  .bd-header .navbar-header-items__end {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+}
+
+/* "Help improve this page" box (rubin-improve-this-page.html), rendered by
+ * the components/prev-next.html override just below the prev/next links.
+ * Living inside .bd-article-container, it tracks the article column's
+ * position and width in every layout (with or without the primary or
+ * secondary sidebars), so no width/centering rules are needed here. */
+/* The theme floats the prev/next links (a.left-prev / a.right-next), which
+ * collapses .prev-next-area to zero height and would let the box flow up
+ * beside them. flow-root makes the area contain its floats so the box's
+ * margin-top applies normally; clear is a belt-and-suspenders fallback. */
+.prev-next-area {
+  display: flow-root;
+}
+
+.rubin-improve-this-page {
+  clear: both;
+  margin-top: 1.5rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-surface);
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+}
+
+/* Line the box up with the article body text. pydata-sphinx-theme indents
+ * the article (.bd-article) by an extra 2rem at >=1200px; match that
+ * breakpoint to avoid over-indenting on narrow screens. */
+@media (min-width: 1200px) {
+  .rubin-improve-this-page {
+    margin-left: 2rem;
+  }
+}
+
+.rubin-improve-this-page__title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.rubin-improve-this-page p {
+  margin: 0.25rem 0;
+}
+
+/* The Git-derived timestamp (documenteer.ext.lastmodified ->
+ * last-updated.html component) reads as muted page metadata. */
+.rubin-improve-this-page .last-updated {
+  color: var(--pst-color-text-muted);
+}
+
+/* Rubin page footer (rubin-footer.html), rendered through the theme's
+ * footer_start slot: link inventory columns, copyright, funding statement,
+ * and the funding-partner logo lineup. The theme's .footer-items__start
+ * container already grows to fill .bd-footer__inner, so the footer only
+ * needs its own internal layout. */
+/* No-JavaScript fallback layout: match the footer content's measure to
+ * the theme's article column (.bd-article-container caps at 60em
+ * including 1rem side padding, and .bd-footer__inner supplies the same
+ * 1rem padding, so 58em yields the same content width) and center it.
+ * When JavaScript is available, rubin-footer-align.js overrides the left
+ * margin and max-width inline to align the footer with the rendered
+ * article column, whose left edge shifts per page with the primary
+ * sidebar. */
+.rubin-footer {
+  width: 100%;
+  max-width: 58em;
+  margin-inline: auto;
+}
+
+.rubin-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.rubin-footer__nav-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.rubin-footer__nav-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.rubin-footer__nav-list li {
+  margin: 0.125rem 0;
+}
+
+.rubin-footer__copyright {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.rubin-footer__funding {
+  font-size: 0.8rem;
+  color: var(--pst-color-text-muted);
+}
+
+.rubin-footer__funding p {
+  margin: 0.5rem 0;
+}
+
+.rubin-footer__partner-logos {
+  margin-top: 1.5rem;
+}
+
+.rubin-footer__partner-logos img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* The partner logo lineup is only available as a dark-on-transparent PNG;
+ * invert it to white-on-transparent in dark mode (same technique as
+ * Squareone's u-invertable-image utility). */
+html[data-theme='dark'] .rubin-footer__partner-logos img {
+  filter: invert(100%);
+}
+
+/* Print-only provenance footer (rubin-print-footer.html), rendered through
+ * the article-footer slot at the end of the article body. On screen the
+ * "Help improve this page" box carries this information; in print that box
+ * disappears with the theme's d-print-none navigation chrome, so this
+ * footer supplies the last-modified date and canonical URL instead. */
+.rubin-print-footer {
+  display: none;
+}
+
+@media print {
+  .rubin-print-footer {
+    display: block;
+    margin-top: 2rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--pst-color-border);
+    font-size: 0.875rem;
+    color: var(--pst-color-text-muted);
+  }
+
+  .rubin-print-footer p {
+    margin: 0.25rem 0;
+  }
+}

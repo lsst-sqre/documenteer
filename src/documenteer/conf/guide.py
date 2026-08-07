@@ -417,6 +417,7 @@ html_static_path: list[str] = [
     get_asset_path("rubin-favicon-transparent-32px.png"),
     get_asset_path("rubin-favicon.svg"),
     get_asset_path("rubin-pydata-theme.css"),
+    get_asset_path("rubin-pydata-theme.css.map"),
     # Funding-partner logo lineup for the page footer (rubin-footer.html).
     # File entries land flat in _static/, so the template references
     # _static/rubin-partners.png.
