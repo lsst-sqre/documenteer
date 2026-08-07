@@ -99,6 +99,11 @@ def test_lint_missing_internal_id(tmp_path: Path) -> None:
     result = runner.invoke(main, ["technote", "lint", "-d", str(tmp_path)])
     assert result.exit_code == 1
     assert "[TN101]" in result.output
+    # The footer links each fired rule to its documentation landing page.
+    assert (
+        "TN101: https://documenteer.lsst.io/technotes/lint/tn101.html"
+        in result.output
+    )
 
 
 def test_lint_missing_toml_reports_tn004(tmp_path: Path) -> None:

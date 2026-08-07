@@ -33,7 +33,16 @@ __all__ = [
     "TechnoteLintService",
     "check_abstract",
     "check_requirements",
+    "rule_url",
 ]
+
+DOCS_BASE_URL = "https://documenteer.lsst.io/technotes/lint"
+"""Base URL for the lint rule documentation pages."""
+
+
+def rule_url(code: str) -> str:
+    """Return the documentation landing page URL for a lint rule code."""
+    return f"{DOCS_BASE_URL}/{code.lower()}.html"
 
 
 class Severity(StrEnum):
