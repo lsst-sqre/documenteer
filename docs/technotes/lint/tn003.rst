@@ -1,0 +1,46 @@
+:og:description: TN003 fires when a technote's requirements.txt pins Sphinx as a separate requirement instead of relying on the version constrained by documenteer[technote].
+
+###########################################
+requirements-no-separate-sphinx-pin (TN003)
+###########################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Structural
+     - Warning
+
+A technote's :file:`requirements.txt` should not pin Sphinx as a separate requirement.
+``documenteer[technote]`` already constrains Sphinx to the versions its configuration supports, and a separate pin drifts: as Documenteer moves forward, the stale pin either conflicts with Documenteer's constraint (the install fails) or holds the technote on an old Sphinx that Documenteer no longer tests against.
+
+This rule is skipped for :ref:`non-Sphinx technotes <technote-lint-non-sphinx>`.
+
+Example of a failing technote
+=============================
+
+.. code-block:: text
+   :caption: requirements.txt
+
+   documenteer[technote]>=2.0,<3.0
+   sphinx==7.2.6
+
+.. code-block:: text
+
+   [TN003] requirements.txt pins 'sphinx' separately. Remove it and rely on the Sphinx version constrained by 'documenteer[technote]' to avoid version drift.
+
+How to fix it
+=============
+
+Delete the ``sphinx`` line and let ``documenteer[technote]`` resolve the Sphinx version:
+
+.. code-block:: text
+   :caption: requirements.txt
+
+   documenteer[technote]>=2.0,<3.0
+
+See also
+========
+
+- :doc:`TN002 <tn002>` — :file:`requirements.txt` must declare ``documenteer[technote]``.

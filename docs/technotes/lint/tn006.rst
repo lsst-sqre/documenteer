@@ -1,0 +1,55 @@
+:og:description: TN006 fires when a Sphinx technote has no index.rst, index.md, or index.ipynb content file.
+
+############################
+content-file-present (TN006)
+############################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Structural
+     - Error
+
+A Sphinx technote must have a content file: :file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`.
+That file is the technote's single document, so without it there is nothing to build.
+
+This rule only applies to Sphinx technotes.
+A directory with no content file *and* no :file:`conf.py` is treated as a :ref:`non-Sphinx technote <technote-lint-non-sphinx>` — one built by a custom command through the shared technote CI — and this rule is skipped for it.
+A directory that *does* have a :file:`conf.py` but no content file is a broken Sphinx technote, which is exactly what this rule reports.
+
+Illustration of a failing repository
+====================================
+
+This is a repository/filesystem condition.
+The content file may have been renamed (for example to the technote's serial number) or never committed:
+
+.. code-block:: text
+
+   sqr-000/
+   ├── technote.toml
+   ├── conf.py
+   ├── requirements.txt
+   └── sqr-000.rst        # should be index.rst
+
+.. code-block:: text
+
+   [TN006] No content file found in /path/to/sqr-000: a technote needs an index.rst, index.md, or index.ipynb file.
+
+How to fix it
+=============
+
+Name the technote's document :file:`index.rst`, :file:`index.md`, or :file:`index.ipynb` at the repository root:
+
+.. prompt:: bash
+
+   git mv sqr-000.rst index.rst
+
+If you are starting a fresh technote, create the content file from the template — see :doc:`../start-a-technote`.
+
+See also
+========
+
+- :doc:`TN201 <tn201>` — the content file exists but declares no abstract.
+- :doc:`../start-a-technote` — creating a new technote from the template.

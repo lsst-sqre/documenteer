@@ -1,0 +1,65 @@
+:og:description: TN001 fires when technote.toml is valid TOML but does not conform to the technote metadata schema, most often because of a legacy author-name form.
+
+##########################
+schema-conformance (TN001)
+##########################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Structural
+     - Error
+
+:file:`technote.toml` must conform to the technote metadata schema.
+The file parsed as TOML (otherwise :doc:`TN005 <tn005>` fires), but one or more of its tables or fields does not match what the `technote <https://technote.lsst.io>`__ package expects, so the technote cannot be built or its metadata published.
+
+When this rule fires, the author rules (``TN1xx``) are skipped — they need the parsed metadata — but the requirements and content rules still run, so fix the schema problem first and re-run to see the full report.
+
+Example of a failing technote
+=============================
+
+The most common schema failure in older technotes is a historical author-name form.
+Author names were restructured in technote 0.5, so a :file:`technote.toml` like this no longer conforms:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   id = "SQR-000"
+
+   [[technote.authors]]
+   name = { given_names = "Jonathan", family_names = "Sick" }
+   internal_id = "sickj"
+
+.. code-block:: text
+
+   [TN001] technote.toml does not conform to the schema. Its [[technote.authors]] entries use the pre-technote-0.5 author name keys 'name = { given_names = "...", family_names = "..." }', which were renamed in November 2023. Use 'name = { given = "Given", family = "Family" }' instead. Run 'documenteer technote migrate' to update technote.toml to the modern format automatically. Underlying schema errors: …
+
+The finding always ends with the underlying Pydantic schema errors, which name the offending field for failures that are not about author names.
+
+How to fix it
+=============
+
+If the finding names a legacy author-name form, run the migration tool, which rewrites :file:`technote.toml` to the modern format:
+
+.. prompt:: bash
+
+   documenteer technote migrate
+
+For any other schema failure, read the underlying schema errors at the end of the finding — they identify the field and constraint — and correct that field against the schema documented in :doc:`../configuration`.
+For the example above, the modern form is:
+
+.. code-block:: toml
+
+   [[technote.authors]]
+   name = { given = "Jonathan", family = "Sick" }
+   internal_id = "sickj"
+
+See also
+========
+
+- :doc:`TN005 <tn005>` — fires instead when the file is not valid TOML at all.
+- :doc:`../configuration` — the :file:`technote.toml` reference.
+- :doc:`../migrate` — migrating a legacy technote to the modern format.

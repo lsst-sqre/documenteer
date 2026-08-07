@@ -1,0 +1,54 @@
+:og:description: TN005 fires when technote.toml exists but cannot be parsed as TOML, for example because of an unclosed table header or a missing value.
+
+################################
+technote-toml-valid-toml (TN005)
+################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Structural
+     - Error
+
+:file:`technote.toml` must be syntactically valid TOML.
+When the file cannot be parsed at all, none of its metadata is available, so the author rules (``TN1xx``) are skipped — but the requirements and content rules still run, so the report shows everything else that needs attention alongside this finding.
+
+Example of a failing technote
+=============================
+
+A truncated edit — here an unclosed table header and a dangling assignment — makes the file unparseable:
+
+.. code-block:: text
+   :caption: technote.toml
+
+   [technote
+   id =
+
+.. code-block:: text
+
+   [TN005] technote.toml is not valid TOML: Expected ']' at the end of a table declaration (at line 1, column 10)
+
+The finding quotes the parser's error, which names the line and column where parsing failed.
+
+How to fix it
+=============
+
+Open :file:`technote.toml` at the position named in the finding and repair the syntax:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   id = "SQR-000"
+
+Common TOML slips are an unclosed ``[table]`` header, a missing ``=`` value, unquoted strings, and a stray comma.
+Once the file parses, re-run the linter: the schema rule (:doc:`TN001 <tn001>`) and the author rules can now check the parsed metadata.
+
+See also
+========
+
+- :doc:`TN001 <tn001>` — the file parses but does not conform to the technote schema.
+- :doc:`TN004 <tn004>` — the file is missing entirely.
+- :doc:`../configuration` — the :file:`technote.toml` reference.
