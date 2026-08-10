@@ -1,0 +1,46 @@
+:og:description: TN203 fires when a technote's content file cannot be parsed to scan for an abstract — most commonly an index.ipynb notebook that is not valid JSON.
+
+##############################
+content-file-parseable (TN203)
+##############################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Content
+     - Error
+
+The content file must be parseable so the abstract rules can scan it.
+In practice this rule is about :file:`index.ipynb` notebooks: a notebook is a JSON document, and one that is not valid JSON — from a botched merge conflict resolution, a truncated save, or hand editing — cannot be read by the linter (or, for that matter, by Jupyter or the Sphinx build).
+
+Example of a failing technote
+=============================
+
+A merge conflict left markers in the notebook file, so it is no longer valid JSON:
+
+.. code-block:: text
+   :caption: index.ipynb
+
+   {
+    "cells": [
+   <<<<<<< HEAD
+     {"cell_type": "markdown", ...
+
+.. code-block:: text
+
+   [TN203] index.ipynb could not be parsed as a notebook (invalid JSON): Expecting value: line 3 column 1 (char 15)
+
+How to fix it
+=============
+
+Repair the file so it is valid JSON again:
+
+- If the damage came from a merge conflict, resolve the conflict markers — for notebooks, a tool such as `nbdime <https://nbdime.readthedocs.io>`__ merges notebook JSON structurally.
+- Otherwise, restore the last good version from git (:samp:`git checkout {<commit>} -- index.ipynb`) and re-apply your changes by editing the notebook in Jupyter, which always saves valid JSON.
+
+See also
+========
+
+- :doc:`TN201 <tn201>` — the file parses but declares no abstract.

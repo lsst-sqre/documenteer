@@ -1,0 +1,68 @@
+:og:description: TN202 fires when a technote declares its abstract as an ordinary "Abstract" section heading instead of the abstract directive, so the abstract is not captured as metadata.
+
+###############################
+abstract-uses-directive (TN202)
+###############################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Content
+     - Error
+
+The abstract must be declared with the abstract *directive*, not as an ordinary section titled "Abstract".
+A heading renders a section on the page, but only the directive captures the abstract as technote *metadata* — for structured metadata, document listings, and the page's ``og:description``.
+This layout is common in technotes migrated from older formats, which is why the rule reports the heading's exact location.
+
+Example of a failing technote
+=============================
+
+.. code-block:: rst
+   :caption: index.rst
+
+   ################
+   A technote title
+   ################
+
+   Abstract
+   ========
+
+   One or two sentences summarizing the technote.
+
+.. code-block:: text
+
+   [TN202] index.rst:5: the abstract is declared as an ordinary 'Abstract' section heading. Use the '.. abstract::' directive instead so the abstract is captured in the technote metadata.
+
+How to fix it
+=============
+
+Replace the heading with the directive, indenting the abstract text as directive content:
+
+.. code-block:: rst
+   :caption: index.rst
+
+   ################
+   A technote title
+   ################
+
+   .. abstract::
+
+      One or two sentences summarizing the technote.
+
+In a Markdown (MyST) technote the same fix uses the fenced directive:
+
+.. code-block:: markdown
+   :caption: index.md
+
+   ```{abstract}
+   One or two sentences summarizing the technote.
+   ```
+
+See also
+========
+
+- :doc:`TN201 <tn201>` — no abstract of any form was found.
+- :doc:`TN204 <tn204>` — the directive exists but has no content.
+- :doc:`../migrate` — the migration tool converts legacy technotes to the directive form.
