@@ -107,7 +107,16 @@ A name that several modules under those roots bind to *different* objects is tre
 
 .. [#fieldinfo] ``pydantic.main`` imports it only under ``TYPE_CHECKING``, so it is not a runtime attribute of that module.
 
-Anything else is left alone, so genuine mistakes (a typo'd module path that fails to import, a reference to something in this project that should be exported and documented but isn't) still surface as nitpick warnings.
+An object that this project defines only under a **private module path** degrades just like an external one.
+A Pydantic field annotation routinely names a serialization model that lives in an internal module (``lsst.images._transforms._transform.MappingSerializationModel``) and is deliberately never re-exported.
+Sphinx 9 emits a ``py:class`` reference for such a name — as a bare name on the field's page, or as a fully-qualified name with no document context at all\ [#context]_ — where Sphinx 8 rendered the same signature as unlinked plain text.
+The object is real and imports cleanly, but no public documentation target for it can ever be created, so the reference renders as literal text.
+The gate is the *module path*, not the object: a project-local object degrades only when some segment of its defining module path starts with an underscore.
+Project-local objects under wholly public module paths — the ones that *should* be exported and documented but aren't — keep warning, and so do names that fail to import at all, private path or not.
+
+.. [#context] Sphinx reports those from ``<unknown>:1``. This rung only reinterprets an object that the rungs above it already resolved, so it needs no document or module context of its own and widens nothing about what resolves.
+
+Anything else is left alone, so genuine mistakes (a typo'd module path that fails to import, a reference to something in this project's public API that should be exported and documented but isn't) still surface as nitpick warnings.
 
 Sub-extensions
 ==============

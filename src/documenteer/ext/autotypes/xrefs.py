@@ -19,14 +19,17 @@ resolution policy:
 
 - References to module-level :class:`typing.TypeVar` instances,
   undocumented ``Annotated`` aliases, importable objects from external
-  packages absent from every intersphinx inventory, and targets mangled
-  by a leaked ``repr()`` (autodoc-pydantic renders ``Annotated`` field
+  packages absent from every intersphinx inventory, objects this project
+  defines only under private module paths, and targets mangled by a
+  leaked ``repr()`` (autodoc-pydantic renders ``Annotated`` field
   metadata such as lambdas and enum members into cross-reference
   targets) degrade to unlinked literal text instead of nitpick warnings,
   since there is never a meaningful target for them. Bare names in a
   docstring inherited from an external base class (``ConfigDict`` in
   ``pydantic.BaseModel.model_config``'s docstring) are found through the
-  documented class's MRO, so they degrade the same way.
+  documented class's MRO, so they degrade the same way. Project-local
+  objects under wholly public module paths keep warning: those are the
+  ones that should be exported and documented, so they stay visible.
 
 - Modules documented with ``automodapi::`` and ``:no-main-docstr:`` get a
   ``py:module`` cross-reference target pointing at the page (automodapi
@@ -469,19 +472,65 @@ def _is_unlinkable_typing_object(obj: Any) -> bool:
     return _is_annotated_alias(obj)
 
 
-def _is_external_runtime_object(env: BuildEnvironment, obj: Any) -> bool:
-    """Return True when *obj* is defined outside this project's modules."""
+def _runtime_object_module(obj: Any) -> str | None:
+    """Return the module path *obj* is defined in, or None."""
     if inspect.ismodule(obj):
         modname = getattr(obj, "__name__", None)
     else:
         modname = getattr(obj, "__module__", None)
     if not isinstance(modname, str) or not modname:
-        return False
+        return None
+    return modname
+
+
+def _is_project_local_module(env: BuildEnvironment, modname: str) -> bool:
+    """Return True when *modname* is under a module this project documents."""
     modules = set(env.domaindata.get("py", {}).get("modules", {}))
     modules.update(getattr(env, _ENV_MODULE_PAGES_ATTR, {}))
-    return not any(
+    return any(
         modname == mod or modname.startswith(f"{mod}.") for mod in modules
     )
+
+
+def _is_external_runtime_object(env: BuildEnvironment, obj: Any) -> bool:
+    """Return True when *obj* is defined outside this project's modules."""
+    modname = _runtime_object_module(obj)
+    if modname is None:
+        return False
+    return not _is_project_local_module(env, modname)
+
+
+def _is_project_private_runtime_object(
+    env: BuildEnvironment, obj: Any
+) -> bool:
+    """Return True when *obj* lives only under a private path of this project.
+
+    A project's own internal modules hold classes that its public API
+    refers to without re-exporting: Pydantic serialization models are the
+    canonical case, since a field's annotation names the model class
+    defined in ``lsst.images._transforms._transform`` while the package
+    exports only the public model that uses it. Sphinx 9 emits a
+    ``py:class`` reference for those names — as a bare name on the field's
+    page, or as a fully-qualified name with no document context at all —
+    where Sphinx 8 rendered the same signature as plain text. The object
+    is real and importable, but it lives where no public documentation
+    target can be created, so nothing can ever link it.
+
+    The gate is the *module path*, not the object: a project-local object
+    is degraded only when some segment of its defining module path starts
+    with an underscore. Project-local objects under wholly public module
+    paths — the ones that should be exported and documented but aren't —
+    keep warning, which is the invariant separating this rung from a
+    blanket "never warn about our own objects" policy. External objects
+    belong to :func:`_is_external_runtime_object`'s rung whether or not
+    their own module paths are private.
+    """
+    modname = _runtime_object_module(obj)
+    if modname is None:
+        return False
+    if not _is_project_local_module(env, modname):
+        return False
+    return any(part.startswith("_") for part in modname.split("."))
 
 
 def _candidate_names(target: str) -> list[str]:
@@ -860,6 +909,19 @@ def _missing_reference(  # noqa: C901, PLR0912
     # link it. Unlinked literal, not a warning. Names that fail to import
     # (typos, uninstalled packages) still warn.
     if obj is not None and _is_external_runtime_object(env, obj):
+        return contnode
+
+    # An object this project defines only under a private module path (a
+    # Pydantic serialization model in ``pkg._transforms._transform``,
+    # referenced by a field annotation as a bare name or as a
+    # fully-qualified name with no document context at all): the object is
+    # real, but no public documentation target for it can exist, so
+    # nothing can ever link it. Unlinked literal, not a warning. This
+    # reinterprets an object the rungs above already resolved; it does not
+    # widen what resolves. Project-local objects under wholly public
+    # module paths keep warning, since those should be exported and
+    # documented.
+    if obj is not None and _is_project_private_runtime_object(env, obj):
         return contnode
 
     return None

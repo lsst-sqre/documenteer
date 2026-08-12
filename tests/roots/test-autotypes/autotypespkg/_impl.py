@@ -32,6 +32,17 @@ SerializablePoint = Annotated[Point, "serialization-marker"]
 """A `Point` annotated for serialization."""
 
 
+class StampScope:
+    """A marker class that is never re-exported from the package.
+
+    ``autotypespkg/__init__.py`` deliberately omits it, so it exists only
+    under this private implementation module's path and no public
+    documentation target for it can ever be created. This mirrors the
+    serialization models that Pydantic-based projects define beside their
+    public models without exporting them.
+    """
+
+
 class Registry:
     """A registry of stamped values.
 
@@ -142,6 +153,17 @@ class StampSettings(BaseSettingsModel):
     nor ``pydantic`` itself nor ``pydantic.main`` — the MRO class whose
     docstring supplies ``ConfigDict`` — so only a scan of the loaded
     modules under the MRO's package roots finds it.
+    """
+
+    scope: Annotated[str, Field(description="Scope for the stamp.")]
+    """A field whose docstring names a class from a private module path.
+
+    Values are validated against a `StampScope` marker, which lives in
+    this package's private implementation module and is never re-exported.
+    The bare reference resolves through this model's MRO (the defining
+    module of `StampSettings` is that same private module), but the name
+    has no public documentation target anywhere in the build, so there is
+    nothing to link it to.
     """
 
 

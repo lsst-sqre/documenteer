@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import pytest
+from docutils import nodes
+from sphinx import addnodes
 from sphinx.pycode import ModuleAnalyzer
 from sphinx.testing.util import SphinxTestApp
 
@@ -20,8 +22,10 @@ from documenteer.ext.autotypes.xrefs import (
     _AMBIGUOUS,
     _candidate_names,
     _is_mangled_target,
+    _is_project_private_runtime_object,
     _lookup_mro_attribute,
     _lookup_runtime_object,
+    _missing_reference,
     _mro_root_namespace,
     _strip_bogus_typing_prefix,
 )
@@ -123,6 +127,15 @@ def test_autotypes_build(app: SphinxTestApp, warning) -> None:
     # The only anchor in a fully degraded signature is the ¶ headerlink.
     assert label_sig.count("<a") == label_sig.count('<a class="headerlink"')
 
+    # A bare name resolving to a class this project defines only under a
+    # private module path (never re-exported, so no public documentation
+    # target for it can exist) renders as unlinked literal text.
+    marker = "StampScope</span></code>"
+    assert marker in settings_html
+    prefix = settings_html[: settings_html.index(marker)]
+    code_start = prefix.rindex("<code")
+    assert "<a" not in prefix[code_start - 120 : code_start]
+
     # A docstring inherited from an external base class (pydantic's
     # ``BaseModel.model_config``) references a bare ``ConfigDict``, a name
     # that only pydantic's own modules import. It resolves through the
@@ -194,6 +207,80 @@ def test_autotypes_inherited_docstring_degrades(
     prefix = html[: html.index(marker)]
     code_start = prefix.rindex("<code")
     assert "<a" not in prefix[code_start - 120 : code_start]
+
+
+@pytest.mark.sphinx("html", testroot="autotypes-private")
+def test_autotypes_private_module_path(app: SphinxTestApp, warning) -> None:
+    """A ref into this project's private module path degrades to text."""
+    app.build()
+
+    # The object is real but documented nowhere, so it renders as
+    # unlinked literal text rather than as a nitpick warning.
+    assert "privatepkg._impl.PrivateOnly" not in warning.getvalue()
+
+    html = (app.outdir / "index.html").read_text()
+    marker = "privatepkg._impl.PrivateOnly</span></code>"
+    assert marker in html
+    prefix = html[: html.index(marker)]
+    code_start = prefix.rindex("<code")
+    assert "<a" not in prefix[code_start - 120 : code_start]
+
+
+@pytest.mark.sphinx(
+    "html", testroot="autotypes-private", srcdir="autotypes-private-negatives"
+)
+def test_autotypes_private_module_path_negatives(
+    app: SphinxTestApp, warning
+) -> None:
+    """Public-path and unimportable project references still warn."""
+    app.build()
+    warnings = warning.getvalue()
+
+    # Project-local, but under a wholly public module path: this is the
+    # "should be exported and documented but isn't" case, which the
+    # private-segment gate deliberately leaves warning.
+    assert (
+        "reference target not found: privatepkg.helpers.PublicUndocumented"
+        in warnings
+    )
+
+    # A typo under a private module path imports to nothing, so no rung
+    # ever resolves an object for the degrade to reinterpret.
+    assert (
+        "reference target not found: privatepkg._impl.PrivateOnyl" in warnings
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="autotypes-private",
+    srcdir="autotypes-private-contextfree",
+)
+def test_autotypes_private_module_path_without_context(
+    app: SphinxTestApp,
+) -> None:
+    """The context-free fully-qualified shape degrades the same way.
+
+    Sphinx 9 reports some Pydantic annotation references from
+    ``<unknown>:1``, with no ``refdoc``, ``py:module``, or ``py:class`` on
+    the node at all. The dotted target imports on its own, so the rung can
+    still reinterpret it — and its gate still applies.
+    """
+    app.build()
+
+    def resolve(target: str) -> tuple[nodes.Element | None, nodes.Element]:
+        contnode = nodes.literal("", target)
+        node = addnodes.pending_xref(
+            "", contnode, refdomain="py", reftype="obj", reftarget=target
+        )
+        return _missing_reference(app, app.env, node, contnode), contnode
+
+    resolved, contnode = resolve("privatepkg._impl.PrivateOnly")
+    assert resolved is contnode
+
+    # Returning None is what leaves Sphinx to emit the nitpick warning.
+    assert resolve("privatepkg.helpers.PublicUndocumented")[0] is None
+    assert resolve("privatepkg._impl.PrivateOnyl")[0] is None
 
 
 @pytest.mark.sphinx("html", testroot="autotypes-typehints")
@@ -528,6 +615,72 @@ def test_mro_root_namespace_ambiguity(monkeypatch) -> None:
     index = _mro_root_namespace(frozenset({"_autotypes_probe"}))
     assert index["Agreed"] is shared
     assert index["Disputed"] is _AMBIGUOUS
+
+
+class _StubEnv:
+    """Stand-in for the parts of the build environment the ladder reads.
+
+    ``_is_project_private_runtime_object`` only needs the set of module
+    names the project documents, which is exactly what the predicate it
+    shares its project-local test with (``_is_external_runtime_object``)
+    reads out of the Python domain's data.
+    """
+
+    def __init__(self, *modules: str) -> None:
+        self.domaindata = {"py": {"modules": dict.fromkeys(modules)}}
+
+
+def _object_defined_in(modname: str) -> type:
+    """Build a class that reports *modname* as its defining module."""
+
+    class Probe:
+        """A stand-in for an object the reference ladder resolved."""
+
+    Probe.__module__ = modname
+    return Probe
+
+
+def test_is_project_private_runtime_object() -> None:
+    """Only project-local objects under private module paths degrade."""
+    env = _StubEnv("privatepkg", "otherpkg.public")
+
+    # Project-local and defined under a private module path: no public
+    # documentation target for it can ever exist.
+    assert _is_project_private_runtime_object(
+        env, _object_defined_in("privatepkg._impl")
+    )
+    # The private segment can be anywhere in the path, at any depth.
+    assert _is_project_private_runtime_object(
+        env, _object_defined_in("privatepkg._transforms._transform")
+    )
+    assert _is_project_private_runtime_object(
+        env, _object_defined_in("privatepkg.serialization._migrations")
+    )
+
+    # Project-local but wholly public: something that should be exported
+    # and documented but isn't, so the reference keeps warning.
+    assert not _is_project_private_runtime_object(
+        env, _object_defined_in("privatepkg")
+    )
+    assert not _is_project_private_runtime_object(
+        env, _object_defined_in("privatepkg.helpers")
+    )
+
+    # External objects are the external-object rung's business, whether
+    # or not their own module paths are private.
+    assert not _is_project_private_runtime_object(
+        env, _object_defined_in("pydantic.fields")
+    )
+    assert not _is_project_private_runtime_object(
+        env, _object_defined_in("pydantic._internal._model_construction")
+    )
+    # A documented module name is a prefix only at a path boundary.
+    assert not _is_project_private_runtime_object(
+        env, _object_defined_in("privatepkgx._impl")
+    )
+
+    # Objects with no defining module at all are left to warn.
+    assert not _is_project_private_runtime_object(env, object())
 
 
 def test_candidate_names() -> None:
