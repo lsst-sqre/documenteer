@@ -949,6 +949,35 @@ def _iter_annotated_metadata(value: Any, seen: set[int]) -> list[Any]:
     return found
 
 
+def _own_annotations(base: type) -> dict[str, Any] | None:
+    """Return a class's own annotations, raw, or None.
+
+    On Python 3.13 and earlier this is the class dict's
+    ``__annotations__`` — strings under :pep:`563`, evaluated objects
+    otherwise. :pep:`649` (Python 3.14) stops storing that key in the
+    class dict, so the read goes through :func:`inspect.get_annotations`,
+    which computes deferred annotations on demand; when computing them
+    raises (a deferred annotation naming something undefined),
+    ``annotationlib`` recovers their *source text*, which feeds the same
+    string path :pep:`563` annotations do.
+    """
+    try:
+        return inspect.get_annotations(base) or None
+    except Exception:
+        try:
+            import annotationlib  # noqa: PLC0415
+        except ImportError:
+            return None
+    with contextlib.suppress(Exception):
+        return (
+            annotationlib.get_annotations(
+                base, format=annotationlib.Format.STRING
+            )
+            or None
+        )
+    return None
+
+
 def _class_annotation_values(cls: type) -> list[Any]:
     """Collect the annotation values Sphinx renders for a class's members.
 
@@ -966,11 +995,8 @@ def _class_annotation_values(cls: type) -> list[Any]:
     for base in mro:
         if base is object:
             continue
-        try:
-            annotations = vars(base).get("__annotations__")
-        except TypeError:
-            continue
-        if isinstance(annotations, dict):
+        annotations = _own_annotations(base)
+        if annotations is not None:
             values.extend(annotations.values())
     with contextlib.suppress(Exception):
         values.extend(typing.get_type_hints(cls, include_extras=True).values())
