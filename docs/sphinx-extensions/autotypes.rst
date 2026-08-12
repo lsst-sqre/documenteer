@@ -43,6 +43,12 @@ Restoring autodoc-pydantic under Sphinx 9
 Sphinx 9's autodoc rewrite removed the registry-based API that sphinx-automodapi_ used to classify objects, so Pydantic models degrade from ``autopydantic_model`` stubs to generic ``autoclass`` stubs that document every inherited ``BaseModel`` member — producing thousands of nitpick warnings sourced from Pydantic's own docstrings.
 The extension patches automodapi_\ ’s object classification to consult third-party autodoc documenters again.\ [#click]_
 
+Sphinx 9 also drops every *non-field* member — ordinary methods, classmethods, properties, and attributes — from ``autopydantic_model`` pages, so a model's real API disappears and prose references to it (``ArchiveTree.deserialize``) warn.
+autodoc-pydantic_ documents members through autodoc's legacy class-based API, which chooses a documenter for each member from the ones registered with autodoc and skips the member when none can claim it.
+Sphinx 9 registers its own built-in documenters there only under ``autodoc_use_legacy_class_based``, leaving autodoc-pydantic_\ ’s own field, validator, and config documenters as the entire candidate pool.
+The extension registers the built-in documenters again, which restores those members without switching the build over to the legacy API: ``autoclass``, ``automethod``, and the rest keep dispatching to Sphinx 9's native implementation.
+Projects that pinned ``sphinx<9`` in their documentation requirements because of this can lift the pin.
+
 .. [#click] It also repairs sphinx-click's ``mock`` import, which can break under Sphinx 9 with ``TypeError: 'module' object is not callable`` when another extension imports ``sphinx.ext.autodoc.mock``.
 
 Keeping callable singletons in the build
@@ -112,7 +118,7 @@ Sub-extensions
    Rendering: the ``autotype`` documenter for :pep:`695` aliases, and the docstring recovery for ``Annotated`` and ``type`` aliases.
 
 ``documenteer.ext.autotypes.compat``
-   Compatibility shims for other packages in the ecosystem: sphinx-automodapi_\ ’s object classification and its locality test for ``Annotated`` aliases, sphinx-click's ``mock`` import, and the signature guard that keeps callable ``data`` objects in Sphinx 9 builds\ [#compat]_.
+   Compatibility shims for other packages in the ecosystem: sphinx-automodapi_\ ’s object classification and its locality test for ``Annotated`` aliases, sphinx-click's ``mock`` import, the signature guard that keeps callable ``data`` objects in Sphinx 9 builds, and the legacy documenter registration that keeps non-field members on autodoc-pydantic_ model pages\ [#compat]_.
 
 ``documenteer.ext.autotypes.xrefs``
    Cross-reference policy: the ``missing-reference`` resolution ladder described above, and the ``py:module`` targets for modules documented by ``automodapi`` with ``:no-main-docstr:``.

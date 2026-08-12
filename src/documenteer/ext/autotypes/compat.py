@@ -22,6 +22,13 @@ be removed once its upstream home ships a fix:
   object from the built documentation (upstream: sphinx, with
   sphinx-autodoc-typehints as the trigger).
 
+- Sphinx 9 leaves its own built-in documenters out of the legacy
+  class-based registry, so a third-party legacy documenter — most
+  importantly autodoc-pydantic's model documenter — finds nothing able to
+  document an ordinary method, property, or attribute and drops those
+  members from the page (upstream: sphinx, with autodoc-pydantic as the
+  trigger).
+
 Nothing else in Documenteer should depend on this module: it exists only
 so that the rest of `documenteer.ext.autotypes` can assume a working
 ecosystem.
@@ -178,6 +185,65 @@ def _patch_sphinx_click_mock(app: Sphinx) -> None:
         pass
 
 
+def _restore_legacy_member_documenters(app: Sphinx) -> None:
+    """Keep non-field members on autodoc-pydantic model pages on Sphinx 9.
+
+    autodoc-pydantic's model documenter subclasses autodoc's legacy
+    class-based ``ClassDocumenter``, whose ``document_members`` picks a
+    documenter for each member by asking every class in
+    ``app.registry.documenters`` whether it ``can_document_member``, and
+    silently skips the member when none can. Sphinx 9 populates that
+    registry with its own built-in documenters only when
+    ``autodoc_use_legacy_class_based`` is enabled; by default the registry
+    holds nothing but third-party entries. autodoc-pydantic's own
+    documenters cover fields, validators, and config, so those survive,
+    while every ordinary method, classmethod, property, and attribute
+    (Safir's ``build_uws_config``, lsst.images' ``deserialize``) vanishes
+    from the model page — taking prose references to it down as nitpick
+    warnings, which is what forced adopters to pin ``sphinx<9``.
+
+    Registering the built-in documenters restores the candidate pool
+    without switching the build over to the legacy API: the ``autoclass``,
+    ``automethod``, … directives keep dispatching to Sphinx 9's native
+    implementation, because only ``Sphinx.add_autodocumenter`` rebinds
+    those directive names and this registers the documenters alone.
+    ``setdefault`` leaves any documenter another extension registered for
+    the same object type in place, so third-party overrides still win.
+
+    Retire this once autodoc-pydantic documents members through Sphinx 9's
+    native autodoc API, or Sphinx populates the legacy registry whenever a
+    legacy documenter is in use.
+    """
+    try:
+        from sphinx.ext.autodoc import (  # noqa: PLC0415
+            AttributeDocumenter,
+            ClassDocumenter,
+            DataDocumenter,
+            DecoratorDocumenter,
+            ExceptionDocumenter,
+            FunctionDocumenter,
+            MethodDocumenter,
+            ModuleDocumenter,
+            PropertyDocumenter,
+        )
+    except ImportError:
+        return
+
+    documenters = app.registry.documenters
+    for documenter in (
+        ModuleDocumenter,
+        ClassDocumenter,
+        ExceptionDocumenter,
+        DataDocumenter,
+        FunctionDocumenter,
+        DecoratorDocumenter,
+        MethodDocumenter,
+        AttributeDocumenter,
+        PropertyDocumenter,
+    ):
+        documenters.setdefault(documenter.objtype, documenter)
+
+
 def _suppress_data_signature(
     app: Sphinx,
     what: str,
@@ -228,6 +294,10 @@ def setup(app: Sphinx) -> ExtensionMetadata:
         # ``autodoc-process-signature`` is autodoc's event, so autodoc has
         # to be set up before anything can listen for it.
         app.setup_extension("sphinx.ext.autodoc")
+        # Fill the legacy documenter registry now rather than from an
+        # event: ``setdefault`` never displaces a documenter another
+        # extension registers, whenever that extension's setup runs.
+        _restore_legacy_member_documenters(app)
         # Priority below the default 500 so this runs before
         # sphinx-autodoc-typehints' own handler.
         app.connect(

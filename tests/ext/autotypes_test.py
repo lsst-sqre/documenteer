@@ -8,7 +8,10 @@ from sphinx.pycode import ModuleAnalyzer
 from sphinx.testing.util import SphinxTestApp
 
 from documenteer.ext.autotypes._shared import _is_annotated_alias
-from documenteer.ext.autotypes.compat import _suppress_data_signature
+from documenteer.ext.autotypes.compat import (
+    _restore_legacy_member_documenters,
+    _suppress_data_signature,
+)
 from documenteer.ext.autotypes.documenters import (
     _find_alias_docstring,
     _find_assignment_docstring,
@@ -210,6 +213,55 @@ def test_autotypes_callable_singleton(app: SphinxTestApp, warning) -> None:
     html = (app.outdir / "index.html").read_text()
     assert 'id="singletonpkg.auth_dependency"' in html
     assert "The process-wide dependency instance." in html
+
+
+@pytest.mark.sphinx("html", testroot="autotypes-pydantic")
+def test_autotypes_pydantic_model_members(app: SphinxTestApp) -> None:
+    """Non-field members stay on an autodoc-pydantic model page."""
+    app.build()
+
+    # autodoc-pydantic's model documenter uses autodoc's legacy
+    # class-based API, whose member dispatch looks candidate documenters
+    # up in the registry. Sphinx 9 populates that registry with its own
+    # built-in documenters only under ``autodoc_use_legacy_class_based``,
+    # so without the compat shim an ordinary method, classmethod, or
+    # property has no documenter and is dropped from the page.
+    html = (app.outdir / "index.html").read_text()
+    for member in ("serialize", "deserialize", "shout"):
+        assert f'id="pydanticpkg.StampConfig.{member}"' in html
+
+    # The field the model documenter does handle keeps its own rendering.
+    assert 'id="pydanticpkg.StampConfig.label"' in html
+
+    # Prose references to a restored member resolve to it.
+    assert "#pydanticpkg.StampConfig.deserialize" in html
+
+
+def test_restore_legacy_member_documenters() -> None:
+    """The registry fill never displaces another extension's documenter."""
+
+    class ThirdPartyDocumenter:
+        objtype = "class"
+
+    class Registry:
+        def __init__(self) -> None:
+            self.documenters = {"class": ThirdPartyDocumenter}
+
+    class App:
+        def __init__(self) -> None:
+            self.registry = Registry()
+
+    app = App()
+    _restore_legacy_member_documenters(app)
+
+    # The object types autodoc-pydantic model pages lose on Sphinx 9 now
+    # have a documenter able to claim them.
+    for objtype in ("method", "property", "attribute", "data"):
+        assert app.registry.documenters[objtype].objtype == objtype
+
+    # An extension that registered its own documenter for a built-in
+    # object type keeps it, whichever order the two setups ran in.
+    assert app.registry.documenters["class"] is ThirdPartyDocumenter
 
 
 def test_suppress_data_signature() -> None:
