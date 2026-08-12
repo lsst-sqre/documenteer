@@ -23,12 +23,17 @@ from documenteer.ext.autotypes.xrefs import (
     _annotated_metadata_fragments,
     _candidate_names,
     _is_mangled_target,
+    _is_plain_type_alias,
     _is_project_private_runtime_object,
+    _is_unlinkable_registry_match,
     _lookup_mro_attribute,
     _lookup_runtime_object,
     _missing_reference,
     _mro_root_namespace,
+    _project_typing_registry,
     _strip_bogus_typing_prefix,
+    _typing_registry_cache,
+    _TypingEntry,
 )
 
 
@@ -282,6 +287,76 @@ def test_autotypes_private_module_path_without_context(
     # Returning None is what leaves Sphinx to emit the nitpick warning.
     assert resolve("privatepkg.helpers.PublicUndocumented")[0] is None
     assert resolve("privatepkg._impl.PrivateOnyl")[0] is None
+
+
+@pytest.mark.sphinx("html", testroot="autotypes-alias")
+def test_autotypes_external_plain_alias(app: SphinxTestApp, warning) -> None:
+    """A ref to an external plain-assignment alias degrades to text."""
+    app.build()
+
+    # The alias is a bare union object in a package that shares this
+    # project's top-level root without being documented by it, so nothing
+    # can ever link the reference: literal text, not a nitpick warning.
+    assert "reference target not found: PathExpression" not in (
+        warning.getvalue()
+    )
+
+    html = (app.outdir / "index.html").read_text()
+    marker = "PathExpression</span></code>"
+    assert marker in html
+    prefix = html[: html.index(marker)]
+    code_start = prefix.rindex("<code")
+    assert "<a" not in prefix[code_start - 120 : code_start]
+
+
+@pytest.mark.sphinx(
+    "html", testroot="autotypes-alias", srcdir="autotypes-alias-negatives"
+)
+def test_autotypes_external_plain_alias_negatives(
+    app: SphinxTestApp, warning
+) -> None:
+    """Project-local aliases and typo'd alias names still warn."""
+    app.build()
+    warnings = warning.getvalue()
+
+    # A plain alias under one of this project's own documented module
+    # prefixes is the "should be documented as a py:data/py:type object but
+    # isn't" case, which the external gate deliberately leaves warning.
+    assert "reference target not found: LocalAlias" in warnings
+
+    # A typo names no alias in any scanned namespace, so no registry hit
+    # exists for the degrade to act on.
+    assert "reference target not found: PathExpresion" in warnings
+
+
+@pytest.mark.sphinx(
+    "html", testroot="autotypes-alias", srcdir="autotypes-alias-contextfree"
+)
+def test_autotypes_external_plain_alias_without_context(
+    app: SphinxTestApp,
+) -> None:
+    """The context-free bare shape degrades the same way.
+
+    Sphinx 9 reports the references that motivated this rung from
+    ``<unknown>:1``, with no ``refdoc``, ``py:module``, or ``py:class`` on
+    the node at all: nothing but the bare name is available, which is
+    exactly what the registry is indexed by.
+    """
+    app.build()
+
+    def resolve(target: str) -> tuple[nodes.Element | None, nodes.Element]:
+        contnode = nodes.literal("", target)
+        node = addnodes.pending_xref(
+            "", contnode, refdomain="py", reftype="class", reftarget=target
+        )
+        return _missing_reference(app, app.env, node, contnode), contnode
+
+    resolved, contnode = resolve("PathExpression")
+    assert resolved is contnode
+
+    # Returning None is what leaves Sphinx to emit the nitpick warning.
+    assert resolve("LocalAlias")[0] is None
+    assert resolve("PathExpresion")[0] is None
 
 
 def _field_signature(html: str, object_id: str) -> str:
@@ -757,6 +832,211 @@ def test_is_project_private_runtime_object() -> None:
 
     # Objects with no defining module at all are left to warn.
     assert not _is_project_private_runtime_object(env, object())
+
+
+def test_is_plain_type_alias() -> None:
+    """Only plain-assignment union aliases are classified as such."""
+    import types  # noqa: PLC0415
+    from pathlib import Path  # noqa: PLC0415
+    from typing import Annotated, Optional, TypeVar, Union  # noqa: PLC0415
+
+    # Both spellings of a union alias, on every supported Python: 3.14
+    # makes ``X | Y`` a ``typing.Union`` while earlier versions make it a
+    # ``types.UnionType``, and ``Union[...]`` is the mirror image.
+    assert _is_plain_type_alias(str | Path)
+    assert _is_plain_type_alias(Union[str, Path])  # noqa: UP007
+    assert _is_plain_type_alias(Optional[str])  # noqa: UP045
+    assert _is_plain_type_alias(str | None)
+
+    # Ordinary types, values, and the other alias kinds the registry
+    # already classifies on their own are not plain aliases.
+    assert not _is_plain_type_alias(int)
+    assert not _is_plain_type_alias(Path)
+    assert not _is_plain_type_alias("a string")
+    assert not _is_plain_type_alias(TypeVar("T"))
+    assert not _is_plain_type_alias(Annotated[int, "marker"])
+
+    # Other subscripted generics are left alone: a union is the form a
+    # plain-assignment alias takes, and widening past it would admit
+    # values that are not aliases at all.
+    assert not _is_plain_type_alias(list[int])
+    assert not _is_plain_type_alias(dict[str, int])
+    assert not _is_plain_type_alias(types.SimpleNamespace())
+
+
+@pytest.fixture
+def clear_typing_registry_cache():
+    """Isolate the project typing registry's single-entry cache.
+
+    The cache is keyed by ``id(env)`` and holds one entry, so a stub
+    environment's registry could otherwise be served to (or from) another
+    test whose environment object happens to land on the same address.
+    """
+    _typing_registry_cache.clear()
+    yield
+    _typing_registry_cache.clear()
+
+
+def _install_modules(
+    monkeypatch, modules: dict[str, dict[str, object]]
+) -> None:
+    """Register synthetic modules in ``sys.modules`` for one test.
+
+    The typing registry scans the already-imported modules under the
+    documented modules' top-level roots, so a package tree in
+    ``sys.modules`` is the whole input it reads.
+    """
+    import sys  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    for name, attrs in modules.items():
+        module = types.ModuleType(name)
+        for attr, value in attrs.items():
+            setattr(module, attr, value)
+        monkeypatch.setitem(sys.modules, name, module)
+
+
+def test_project_typing_registry_records_plain_aliases(
+    monkeypatch, clear_typing_registry_cache
+) -> None:
+    """Plain union aliases are recorded with the module they were found in."""
+    from pathlib import Path  # noqa: PLC0415
+
+    alias = str | Path
+    _install_modules(
+        monkeypatch,
+        {
+            "aliasprobe": {},
+            "aliasprobe.documented": {"Loader": type("Loader", (), {})},
+            "aliasprobe.external": {"PathExpression": alias},
+        },
+    )
+
+    registry = _project_typing_registry(_StubEnv("aliasprobe.documented"))
+
+    # A union object knows neither its name nor its defining module, so the
+    # module it was found in is recorded alongside it.
+    assert [(e.value, e.module) for e in registry["PathExpression"]] == [
+        (alias, "aliasprobe.external")
+    ]
+
+    # Ordinary module attributes are still not registry entries.
+    assert "Loader" not in registry
+
+
+def test_project_typing_registry_keeps_typevar_entries(
+    monkeypatch, clear_typing_registry_cache
+) -> None:
+    """TypeVars and PEP 695 aliases keep being recorded, with provenance."""
+    from typing import TypeAliasType, TypeVar  # noqa: PLC0415
+
+    T = TypeVar("T")
+    alias = TypeAliasType("StampValue", int | str)
+    _install_modules(
+        monkeypatch,
+        {
+            "varprobe": {},
+            "varprobe.documented": {"T": T, "StampValue": alias},
+        },
+    )
+
+    registry = _project_typing_registry(_StubEnv("varprobe.documented"))
+
+    assert [(e.value, e.module) for e in registry["T"]] == [
+        (T, "varprobe.documented")
+    ]
+    assert [e.value for e in registry["StampValue"]] == [alias]
+
+
+def _entries(*pairs: tuple[object, str]) -> list[_TypingEntry]:
+    """Build registry entries from ``(value, module)`` pairs."""
+    return [_TypingEntry(value, module) for value, module in pairs]
+
+
+def test_is_unlinkable_registry_match_plain_aliases() -> None:
+    """A plain alias degrades only when every hit is external."""
+    from pathlib import Path  # noqa: PLC0415
+
+    env = _StubEnv("aliasprobe.documented")
+    alias = str | Path
+
+    # Found only in a sibling package that shares this project's top-level
+    # root without being under any documented module prefix: no target for
+    # it can exist here, so the reference degrades.
+    assert _is_unlinkable_registry_match(
+        env, _entries((alias, "aliasprobe.external"))
+    )
+
+    # The same object re-exported from a second external module is still
+    # one object, so the identical-object rule holds.
+    assert _is_unlinkable_registry_match(
+        env,
+        _entries(
+            (alias, "aliasprobe.external"),
+            (alias, "aliasprobe.external._impl"),
+        ),
+    )
+
+    # Under a documented module prefix — public or private path — the alias
+    # is this project's own to document as ``py:data``/``py:type``, so the
+    # reference keeps warning.
+    assert not _is_unlinkable_registry_match(
+        env, _entries((alias, "aliasprobe.documented"))
+    )
+    assert not _is_unlinkable_registry_match(
+        env, _entries((alias, "aliasprobe.documented.helpers"))
+    )
+
+    # One project-local hit is enough to keep the name warning.
+    assert not _is_unlinkable_registry_match(
+        env,
+        _entries(
+            (alias, "aliasprobe.external"),
+            (alias, "aliasprobe.documented.helpers"),
+        ),
+    )
+
+    # Two *different* union objects under one name cannot be resolved to
+    # either of them, so the ambiguity rule keeps the reference warning.
+    assert not _is_unlinkable_registry_match(
+        env,
+        _entries(
+            (alias, "aliasprobe.external"),
+            (str | int, "aliasprobe.other"),
+        ),
+    )
+
+    # A name with no registry hits at all (a typo) never degrades here.
+    assert not _is_unlinkable_registry_match(env, [])
+
+
+def test_is_unlinkable_registry_match_typing_objects() -> None:
+    """Objects unlinkable in themselves degrade wherever they were found."""
+    from typing import Annotated, TypeAliasType, TypeVar  # noqa: PLC0415
+
+    env = _StubEnv("aliasprobe.documented")
+
+    # TypeVars, PEP 695 aliases, and Annotated aliases have no target of
+    # their own, so their provenance never enters into it — including in
+    # the project's own modules, which is the pre-existing behavior.
+    for value in (
+        TypeVar("T"),
+        TypeAliasType("StampValue", int | str),
+        Annotated[int, "marker"],
+    ):
+        assert _is_unlinkable_registry_match(
+            env, _entries((value, "aliasprobe.documented"))
+        )
+
+    # A name that is a TypeVar in one module and an external plain alias in
+    # another is unlinkable either way, so it still degrades.
+    assert _is_unlinkable_registry_match(
+        env,
+        _entries(
+            (TypeVar("T"), "aliasprobe.documented"),
+            (int | str, "aliasprobe.external"),
+        ),
+    )
 
 
 def test_candidate_names() -> None:

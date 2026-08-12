@@ -24,7 +24,12 @@ resolution policy:
   leaked ``repr()`` (autodoc-pydantic renders ``Annotated`` field
   metadata such as lambdas and enum members into cross-reference
   targets) degrade to unlinked literal text instead of nitpick warnings,
-  since there is never a meaningful target for them. Bare names in a
+  since there is never a meaningful target for them. So do bare names of
+  plain-assignment union aliases (``ResourcePathExpression = str | Path``)
+  that only packages sharing a top-level root with this project define —
+  ``lsst.resources`` beside a documented ``lsst.images`` — which the
+  registry of scanned typing objects recognizes by the module it found
+  each alias in, since the alias object itself records none. Bare names in a
   docstring inherited from an external base class (``ConfigDict`` in
   ``pydantic.BaseModel.model_config``'s docstring) are found through the
   documented class's MRO, so they degrade the same way. A leaked
@@ -50,8 +55,17 @@ import dataclasses
 import importlib
 import inspect
 import re
+import types
 import typing
-from typing import TYPE_CHECKING, Any, Literal, TypeAliasType, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    NamedTuple,
+    TypeAliasType,
+    TypeVar,
+    cast,
+)
 
 from sphinx.ext.intersphinx import InventoryAdapter
 from sphinx.util.nodes import make_refnode
@@ -98,10 +112,55 @@ def _record_automodapi_module_pages(
             pages[match.group("mod")] = docname
 
 
-_typing_registry_cache: dict[int, dict[str, list[Any]]] = {}
+def _is_plain_type_alias(value: Any) -> bool:
+    """Return True for a plain-assignment *union* type alias.
+
+    ``ResourcePathExpression = str | ParseResult | ResourcePath | Path`` is
+    the shape: a module attribute bound to a union object, with none of the
+    self-describing identity a :pep:`695` ``type`` statement or a
+    :class:`typing.TypeVar` carries. The object knows neither the name it
+    was assigned to nor the module it was written in, which is why the
+    registry that records these has to remember where it found each one.
+
+    Both spellings are recognized on every supported Python: ``X | Y``
+    builds a :class:`types.UnionType` through 3.13 and a
+    :data:`typing.Union` from 3.14 on, and ``Union[X, Y]`` is the mirror
+    image, so the origin is compared against both.
+
+    Other subscripted generics (``list[int]``, ``Callable[..., None]``) are
+    deliberately excluded. A union is the form a plain-assignment alias
+    takes in practice, and every name this classifies widens what the
+    consuming rung will silence — so the classification stays as narrow as
+    the failure mode it exists for.
+    """
+    try:
+        origin = typing.get_origin(value)
+    except Exception:
+        # Attribute probes on arbitrary module attributes can raise
+        # anything (Pydantic's mock validators raise PydanticUserError).
+        return False
+    return origin is typing.Union or origin is types.UnionType
 
 
-def _collect_type_params(obj: Any, registry: dict[str, list[Any]]) -> None:
+class _TypingEntry(NamedTuple):
+    """A typing object found in a scanned module, with its provenance.
+
+    The module name is the one the value was *found* in, which is the only
+    place a plain alias's origin can come from: unlike a ``TypeVar`` or a
+    :class:`typing.TypeAliasType`, a union object carries no ``__module__``
+    of its own defining module (see :func:`_is_plain_type_alias`).
+    """
+
+    value: Any
+    module: str
+
+
+_typing_registry_cache: dict[int, dict[str, list[_TypingEntry]]] = {}
+
+
+def _collect_type_params(
+    obj: Any, registry: dict[str, list[_TypingEntry]], modname: str
+) -> None:
     """Record an object's PEP 695 scoped type parameters in the registry."""
     try:
         params = getattr(obj, "__type_params__", None)
@@ -114,11 +173,13 @@ def _collect_type_params(obj: Any, registry: dict[str, list[Any]]) -> None:
     for param in params:
         name = getattr(param, "__name__", None)
         if name:
-            registry.setdefault(name, []).append(param)
+            registry.setdefault(name, []).append(_TypingEntry(param, modname))
 
 
-def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
-    """Map bare names to TypeVar/alias objects found in project modules.
+def _project_typing_registry(
+    env: BuildEnvironment,
+) -> dict[str, list[_TypingEntry]]:
+    """Map bare names to typing objects found in project modules.
 
     Autodoc has already imported every documented module (and, through
     them, the private modules where TypeVars and aliases are actually
@@ -126,6 +187,13 @@ def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
     top-level packages as the documented modules. This lets a bare
     reference like ``T`` — whose defining module is not recoverable from
     the reference node — be recognized as a TypeVar.
+
+    Recorded are the objects that are never linkable in themselves
+    (TypeVars, :pep:`695` scoped type parameters, ``TypeAliasType`` and
+    ``Annotated`` aliases) plus plain-assignment union aliases
+    (:func:`_is_plain_type_alias`), whose degrade additionally depends on
+    *where* they were found — so every entry carries the scanned module's
+    name as its provenance.
     """
     import sys  # noqa: PLC0415
 
@@ -139,7 +207,7 @@ def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
     roots.update(
         name.split(".")[0] for name in getattr(env, _ENV_MODULE_PAGES_ATTR, {})
     )
-    registry: dict[str, list[Any]] = {}
+    registry: dict[str, list[_TypingEntry]] = {}
     for modname, module in list(sys.modules.items()):
         top = modname.split(".")[0]
         if top not in roots:
@@ -151,21 +219,25 @@ def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
         for attr, value in attrs.items():
             if attr.startswith("_"):
                 continue
-            if isinstance(value, (TypeVar, TypeAliasType)) or (
-                _is_annotated_alias(value)
+            if (
+                isinstance(value, (TypeVar, TypeAliasType))
+                or _is_annotated_alias(value)
+                or _is_plain_type_alias(value)
             ):
-                registry.setdefault(attr, []).append(value)
+                registry.setdefault(attr, []).append(
+                    _TypingEntry(value, modname)
+                )
                 continue
             # PEP 695 scoped type parameters (``def f[U, V](...)`` /
             # ``class C[T]``) are not module attributes, but they are
             # referenced from docstrings just like module-level TypeVars.
-            _collect_type_params(value, registry)
+            _collect_type_params(value, registry, modname)
             if isinstance(value, type):
                 # Snapshot: attribute access on Pydantic models can
                 # mutate the class __dict__ (deferred model rebuilds).
                 for member in list(vars(value).values()):
                     _collect_type_params(
-                        getattr(member, "__func__", member), registry
+                        getattr(member, "__func__", member), registry, modname
                     )
     _typing_registry_cache.clear()
     _typing_registry_cache[key] = registry
@@ -504,6 +576,55 @@ def _is_external_runtime_object(env: BuildEnvironment, obj: Any) -> bool:
     if modname is None:
         return False
     return not _is_project_local_module(env, modname)
+
+
+def _is_unlinkable_registry_match(
+    env: BuildEnvironment, entries: list[_TypingEntry]
+) -> bool:
+    """Return True when every typing-registry hit for a name is unlinkable.
+
+    Two kinds of hit reach this decision, and they are gated differently.
+
+    Objects that are unlinkable *in themselves* — TypeVars, :pep:`695`
+    scoped type parameters, ``TypeAliasType`` and ``Annotated`` aliases
+    (:func:`_is_unlinkable_typing_object`) — never have a target wherever
+    they were found, so their provenance does not enter into it.
+
+    A plain-assignment union alias (:func:`_is_plain_type_alias`) is
+    different: it *could* be documented as a ``py:data`` or ``py:type``
+    object, and when it is, the rungs above this one link it. It degrades
+    only when every hit for the name lies outside this project's documented
+    module prefixes — an external sibling package that merely shares a
+    scanned top-level root, ``lsst.resources`` beside a documented
+    ``lsst.images``. That external gate is what keeps this rung from
+    silencing the project's *own* undocumented aliases, which should be
+    documented rather than degraded, and it uses the same
+    documented-module-prefix test :func:`_is_external_runtime_object` does
+    — reading the module the value was found in, because a union object's
+    own ``__module__`` only ever says ``types`` or ``typing``.
+
+    Plain-alias hits must additionally all be the identical object — the
+    same ambiguity rule :func:`_mro_root_namespace` applies to its own
+    scan. A re-export chain binds one object under several module names,
+    while a name meaning *different* unions in different modules names
+    nothing in particular and keeps warning.
+    """
+    if not entries:
+        return False
+    aliases = [
+        entry
+        for entry in entries
+        if not _is_unlinkable_typing_object(entry.value)
+    ]
+    if not aliases:
+        return True
+    first = aliases[0].value
+    return all(
+        _is_plain_type_alias(entry.value)
+        and entry.value is first
+        and not _is_project_local_module(env, entry.module)
+        for entry in aliases
+    )
 
 
 def _is_project_private_runtime_object(
@@ -1147,9 +1268,16 @@ def _missing_reference(  # noqa: C901, PLR0912
     )
     if obj is not None and _is_unlinkable_typing_object(obj):
         return contnode
+    # A bare name the typing registry knows: a TypeVar or undocumented
+    # alias of this project's, or a plain-assignment union alias that only
+    # an external package under a shared top-level root defines
+    # (``ResourcePathExpression`` from ``lsst.resources``, written into a
+    # documented ``lsst.images`` annotation). Neither the reference node nor
+    # the alias object itself says where such an alias came from, so the
+    # registry's record of the module it was found in is what decides.
     if "." not in base:
         found = _project_typing_registry(env).get(base)
-        if found and all(_is_unlinkable_typing_object(o) for o in found):
+        if found and _is_unlinkable_registry_match(env, found):
             return contnode
 
     # An importable object from an external package (``HttpUrl`` in a
