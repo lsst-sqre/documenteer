@@ -16,6 +16,7 @@ from documenteer.ext.autotypes.xrefs import (
     _AMBIGUOUS,
     _candidate_names,
     _is_mangled_target,
+    _lookup_mro_attribute,
     _lookup_runtime_object,
     _mro_root_namespace,
     _strip_bogus_typing_prefix,
@@ -140,6 +141,55 @@ def test_autotypes_build(app: SphinxTestApp, warning) -> None:
 
     # Bare names that do resolve to project objects still link.
     assert "api/autotypespkg.Registry.html" in index_html
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="autotypes-inherited",
+    srcdir="autotypes-inherited-linked",
+)
+def test_autotypes_inherited_docstring_links(
+    app: SphinxTestApp, warning
+) -> None:
+    """A bare ref inherited from an external base links via intersphinx."""
+    app.build()
+    assert "reference target not found" not in warning.getvalue()
+
+    # ``StampFormatter.write_local_file`` has no docstring of its own, so
+    # the page carries the external base class's — including its bare
+    # ``to_bytes`` reference, which names an attribute of that base rather
+    # than anything in this package's namespace. The terminal name is
+    # ambiguous in the stub inventory (``extpkg.Packer`` publishes a
+    # ``to_bytes`` too), so only the name rebuilt from the MRO resolves.
+    html = (app.outdir / "index.html").read_text()
+    assert (
+        "https://extpkg.example.com/formatter.html#extpkg.Formatter.to_bytes"
+        in html
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="autotypes-inherited",
+    srcdir="autotypes-inherited-degraded",
+    confoverrides={"intersphinx_mapping": {}},
+)
+def test_autotypes_inherited_docstring_degrades(
+    app: SphinxTestApp, warning
+) -> None:
+    """The same ref degrades to an unlinked literal with no inventory."""
+    app.build()
+    assert "reference target not found" not in warning.getvalue()
+
+    # Nothing can link the reference now, so it renders as literal text
+    # rather than warning once per inherited docstring.
+    html = (app.outdir / "index.html").read_text()
+    assert "extpkg.example.com" not in html
+    marker = ">to_bytes<"
+    assert marker in html
+    prefix = html[: html.index(marker)]
+    code_start = prefix.rindex("<code")
+    assert "<a" not in prefix[code_start - 120 : code_start]
 
 
 @pytest.mark.parametrize(
@@ -276,6 +326,89 @@ def test_lookup_runtime_object_mro_root_packages_misses(rootdir) -> None:
         )
     finally:
         sys.path.pop(0)
+
+
+def test_lookup_mro_attribute(rootdir) -> None:
+    """A bare name found as an MRO class's attribute reports its full name."""
+    import sys  # noqa: PLC0415
+
+    sys.path.insert(0, str(rootdir / "test-autotypes-inherited"))
+    try:
+        import extpkg  # noqa: PLC0415
+        import inheritpkg  # noqa: PLC0415
+
+        # ``to_bytes`` is an attribute of an external base class, not a
+        # name in any MRO class's defining-module namespace.
+        found = _lookup_mro_attribute("to_bytes", inheritpkg.StampFormatter)
+        assert found is not None
+        obj, fqn = found
+        assert obj is extpkg.Formatter.to_bytes
+        # The name is rebuilt from the class that *defines* the attribute,
+        # not from the class the reference was rendered inside.
+        assert fqn == "extpkg.Formatter.to_bytes"
+
+        # An override is attributed to the overriding class.
+        found = _lookup_mro_attribute(
+            "write_local_file", inheritpkg.StampFormatter
+        )
+        assert found is not None
+        assert found[1] == "inheritpkg.StampFormatter.write_local_file"
+
+        # Genuine typos are defined by no class in the MRO, so they stay
+        # unresolved and keep warning.
+        assert (
+            _lookup_mro_attribute("to_btyes", inheritpkg.StampFormatter)
+            is None
+        )
+    finally:
+        sys.path.pop(0)
+
+
+def test_lookup_runtime_object_mro_attribute(rootdir) -> None:
+    """Bare names resolve to attributes inherited from an external base."""
+    import sys  # noqa: PLC0415
+
+    sys.path.insert(0, str(rootdir / "test-autotypes-inherited"))
+    try:
+        import extpkg  # noqa: PLC0415
+
+        # Without the class the reference was rendered inside, an
+        # inherited attribute name is unreachable: it is a member of no
+        # module namespace.
+        assert _lookup_runtime_object("to_bytes", "inheritpkg") is None
+
+        # With it, the MRO's attributes are searched, so the reference can
+        # reach the external-object degrade path.
+        assert (
+            _lookup_runtime_object("to_bytes", "inheritpkg", "StampFormatter")
+            is extpkg.Formatter.to_bytes
+        )
+    finally:
+        sys.path.pop(0)
+
+
+def test_lookup_mro_attribute_skips_builtins() -> None:
+    """Builtin base classes, and builtin names, never resolve here."""
+
+    class Mapping(dict):
+        """A class whose MRO reaches a builtin type other than object."""
+
+    assert "get" not in vars(Mapping)
+    assert _lookup_mro_attribute("get", Mapping) is None
+
+    class Model:
+        """A class defining methods that collide with builtin names."""
+
+        def dict(self) -> None:
+            """Stand in for ``pydantic.BaseModel.dict``."""
+
+        def to_bytes(self) -> None:
+            """Stand in for a method whose name collides with nothing."""
+
+    # A bare ``dict`` in a docstring means the builtin type, so it keeps
+    # warning rather than resolving to a same-named method.
+    assert _lookup_mro_attribute("dict", Model) is None
+    assert _lookup_mro_attribute("to_bytes", Model) is not None
 
 
 def test_mro_root_namespace_ambiguity(monkeypatch) -> None:

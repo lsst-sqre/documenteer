@@ -10,7 +10,12 @@ resolution policy:
   don't exactly match a documented target: bare alias names from field
   annotations, private-module paths for objects re-exported from a public
   package, and role mismatches (a ``py:class`` reference to a ``py:data``
-  or ``py:type`` target, locally or in an intersphinx inventory).
+  or ``py:type`` target, locally or in an intersphinx inventory). A bare
+  name that a docstring inherited from an external base class writes
+  about one of that base's own members (``to_bytes`` in
+  ``FormatterV2.write_local_file``'s docstring) is retried under the
+  defining class's fully-qualified name, which the base project's
+  inventory does cover.
 
 - References to module-level :class:`typing.TypeVar` instances,
   undocumented ``Annotated`` aliases, importable objects from external
@@ -31,6 +36,7 @@ resolution policy:
 
 from __future__ import annotations
 
+import builtins
 import contextlib
 import importlib
 import inspect
@@ -46,6 +52,8 @@ from ...version import __version__
 from ._shared import _is_annotated_alias
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from docutils import nodes
     from sphinx.addnodes import pending_xref
     from sphinx.application import Sphinx
@@ -200,6 +208,10 @@ def _lookup_class_object(
     return obj if isinstance(obj, type) else None
 
 
+_MISSING = object()
+"""Sentinel for "this name was never seen here"."""
+
+
 def _lookup_in_class_mro(name: str, cls: type) -> Any | None:
     """Resolve a bare name in the namespaces of a class's MRO.
 
@@ -222,6 +234,11 @@ def _lookup_in_class_mro(name: str, cls: type) -> Any | None:
     the module-level contexts, where builtin-colliding bare names already
     warn when no Python intersphinx inventory is configured, and leaves
     linking real builtins to intersphinx.
+
+    Failing every module namespace, the MRO's classes are searched for an
+    *attribute* of that name (see :func:`_lookup_mro_attribute`): an
+    inherited docstring writes about its own class's members too, not
+    only about the names its module imports.
     """
     import sys  # noqa: PLC0415
 
@@ -244,11 +261,70 @@ def _lookup_in_class_mro(name: str, cls: type) -> Any | None:
             obj = None
         if obj is not None:
             return obj
+    found = _lookup_mro_attribute(name, cls)
+    return found[0] if found is not None else None
+
+
+def _lookup_mro_attribute(name: str, cls: type) -> tuple[Any, str] | None:
+    """Find a bare name among the attributes a class's MRO defines.
+
+    A docstring inherited from an external base class writes about that
+    base's *own* members by their bare names. ``lsst.daf.butler``'s
+    ``FormatterV2.write_local_file`` is the canonical case: its docstring
+    refers to a bare ``to_bytes``, and a subclass that overrides
+    ``write_local_file`` without writing its own docstring inherits the
+    text — bare reference and all — onto a page whose ``py:module``
+    context is the subclass's package.
+
+    :func:`_lookup_in_class_mro` cannot find those names, because they are
+    attributes *of* an MRO class rather than names in any MRO class's
+    defining-module namespace. This does find them, and reports the
+    fully-qualified name the attribute is documented under —
+    ``{module}.{qualname}.{name}`` of the class that *defines* it, not of
+    the class the reference was rendered inside — so the caller can retry
+    intersphinx with a name the base project's inventory can cover.
+
+    The defining class is found through each MRO class's own ``__dict__``:
+    ``getattr`` alone would report every inherited attribute against the
+    documented subclass, whose name no external inventory knows.
+
+    Names are screened against ``builtins`` twice over. Classes defined in
+    the ``builtins`` module are skipped, for the reason
+    :func:`_lookup_in_class_mro` skips that namespace: every MRO ends at
+    :class:`object`, and a subclass of a builtin type would otherwise
+    resolve bare names like ``get`` or ``items`` on its page. Bare names
+    that *are* builtins are skipped as well, whichever class defines
+    them: a docstring's bare ``dict`` means the builtin type, not the
+    deprecated ``pydantic.BaseModel.dict`` method it happens to collide
+    with, so resolving it here would both silence a possible typo and
+    risk linking the reference to the wrong object entirely.
+    """
+    if hasattr(builtins, name):
+        return None
+    try:
+        mro = cls.__mro__
+    except Exception:
+        return None
+    for base in mro:
+        modname = getattr(base, "__module__", None)
+        if not isinstance(modname, str) or not modname:
+            continue
+        if modname == "builtins":
+            continue
+        try:
+            obj = getattr(base, name) if name in vars(base) else _MISSING
+        except Exception:
+            # Attribute access on a class can run arbitrary descriptor
+            # code (Pydantic's mock validators raise PydanticUserError).
+            obj = _MISSING
+        if obj is _MISSING:
+            continue
+        qualname = getattr(base, "__qualname__", None)
+        if not isinstance(qualname, str) or not qualname:
+            continue
+        return obj, f"{modname}.{qualname}.{name}"
     return None
 
-
-_MISSING = object()
-"""Sentinel for "this name was never seen" in a namespace index."""
 
 _AMBIGUOUS = object()
 """Sentinel for a name that names different objects in different modules."""
@@ -437,6 +513,16 @@ _PY_ROLE_FALLBACKS = (
     "py:pydantic_validator",
 )
 
+_PY_MEMBER_ROLE_FALLBACKS = ("py:method", "py:property", *_PY_ROLE_FALLBACKS)
+"""Roles to try for a reference rebuilt as a class attribute's full name.
+
+Methods and properties are only searched for those rebuilt names, not for
+every reference: :data:`_PY_ROLE_FALLBACKS` also drives the bare terminal
+name index (:func:`_intersphinx_terminal_index`), where admitting every
+method name in every inventory would broaden bare-name linking well past
+this rung's business.
+"""
+
 
 def _resolve_local(  # noqa: C901, PLR0912
     app: Sphinx,
@@ -537,6 +623,7 @@ def _resolve_intersphinx(
     node: pending_xref,
     contnode: nodes.Element,
     target: str,
+    objtypes: Sequence[str] = _PY_ROLE_FALLBACKS,
 ) -> nodes.reference | None:
     """Resolve a target against intersphinx inventories under any py role.
 
@@ -558,7 +645,7 @@ def _resolve_intersphinx(
         return newnode
 
     candidates = [target, *_candidate_names(target)]
-    for objtype in _PY_ROLE_FALLBACKS:
+    for objtype in objtypes:
         try:
             entries = inventory[objtype]
         except KeyError:
@@ -731,6 +818,30 @@ def _missing_reference(  # noqa: C901, PLR0912
     terminal = base.rsplit(".", 1)[-1]
     if terminal.startswith("__") and terminal.endswith("__"):
         return contnode
+
+    # A bare name from a docstring inherited from an external base class,
+    # naming one of that base's own members (``to_bytes`` in
+    # ``FormatterV2.write_local_file``'s docstring, inherited onto a
+    # subclass's override): the external project documents it under its
+    # defining class, so retry intersphinx with the name rebuilt from the
+    # MRO. The bare name on its own gets nowhere — a member name like
+    # ``to_bytes`` is rarely unique across the configured inventories.
+    if "." not in base:
+        cls = _lookup_class_object(node.get("py:module"), node.get("py:class"))
+        attribute = (
+            _lookup_mro_attribute(base, cls) if cls is not None else None
+        )
+        if attribute is not None:
+            resolved = _resolve_intersphinx(
+                app,
+                env,
+                node,
+                contnode,
+                attribute[1],
+                objtypes=_PY_MEMBER_ROLE_FALLBACKS,
+            )
+            if resolved is not None:
+                return resolved
 
     # TypeVars and undocumented aliases: unlinked literal, not a warning.
     obj = _lookup_runtime_object(

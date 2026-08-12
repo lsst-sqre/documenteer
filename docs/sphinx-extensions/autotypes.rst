@@ -79,6 +79,14 @@ This rung runs last, so a bare name that also names a project object still links
 Every MRO ends at :class:`object`, so ``builtins`` is skipped deliberately: otherwise any bare name colliding with a builtin (``input``, ``min``) would resolve on a class page and de-warn a possible typo.
 Builtins that *should* link are intersphinx's job, not this rung's.
 
+An inherited docstring writes about its own class's *members* too, not only about the names its module imports, so a bare name that no MRO module namespace has is looked up once more as an **attribute of an MRO class** — and the reference is retried against intersphinx under the fully-qualified name of the class that *defines* the attribute.
+``lsst.daf.butler``\ ’s ``FormatterV2.write_local_file`` is the case that motivated this: its docstring refers to a bare ``to_bytes``, and a subclass that overrides ``write_local_file`` without writing a docstring of its own inherits that text — bare reference and all — onto a page in another package.
+The rebuilt name (``lsst.daf.butler.FormatterV2.to_bytes``) is the one the base project's inventory documents, so the reference becomes a real link whenever that inventory is configured; the bare name alone never gets there, because a member name is rarely unique across inventories.\ [#members]_
+Without such an inventory the resolved attribute reaches the external-object degrade above instead, and renders as literal text.
+Bare names that *are* builtins are skipped here whatever class defines them: a docstring's ``dict`` means the builtin type, not the deprecated ``pydantic.BaseModel.dict`` method it collides with.
+
+.. [#members] ``py:method`` and ``py:property`` inventory entries are searched only for these rebuilt names, so bare-name matching elsewhere in the ladder is unaffected.
+
 Failing that, the bare name is looked up in the **top-level packages the MRO's classes come from** — every already-imported module under those package roots is scanned for the name (``builtins`` excluded again, and the scan is cached per build).
 Pydantic field pages need this rung: the annotation parser splits a field's rendered ``Annotated[str, FieldInfo(annotation=NoneType, required=True, …)]`` type into its parts and emits a bare ``FieldInfo`` reference, but ``FieldInfo`` is exposed by neither ``pydantic`` nor ``pydantic.main``\ [#fieldinfo]_ — only by ``pydantic.fields``, which the MRO never names.
 Because the reference resolves, the same external-object degrade above applies and it renders as literal text instead of warning on every field.
