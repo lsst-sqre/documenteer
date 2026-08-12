@@ -116,6 +116,20 @@ Project-local objects under wholly public module paths — the ones that *should
 
 .. [#context] Sphinx reports those from ``<unknown>:1``. This rung only reinterprets an object that the rungs above it already resolved, so it needs no document or module context of its own and widens nothing about what resolves.
 
+Last of all, a target that is a **fragment of the documented class's own** ``Annotated`` **metadata** degrades to literal text.
+The mangled-target rule above catches a leaked ``repr()`` that cannot be Python at all; when the same rendering *does* parse, Sphinx splits it into syntactically clean pieces and emits a reference for each one, so three more shapes reach the end of the ladder:
+
+- ``Ge`` and ``Le`` — the ``annotated_types`` constraint objects Pydantic puts in a field's metadata for ``Field(ge=…, le=…)``, which surface through the ``repr()`` of the field's ``FieldInfo``. Their package is in none of the model's MRO roots, so the scan above never sees them.
+- ``file`` — Sphinx renders *dataclass* metadata by stringifying each field value instead of by ``repr()``, so Pydantic's ``FilePath`` (``Annotated[Path, PathType('file')]``) renders as ``PathType(path_type=file)`` and the unquoted value is left looking like a name. It is a value fragment: no object of that name exists anywhere.
+- ``ExecutionPhase.PENDING`` — enum members written into the metadata of an annotation Sphinx renders from its *source text*\ [#source]_, which unparse to dotted targets. The bare enum name resolves through the MRO rung above, but an attribute path on it is a name in no scanned namespace.
+
+Metadata says how a value is validated; it is not a reference to anything, and none of these fragments can ever have a documentation target.
+So the names that *this* class's metadata renders are rebuilt — from the metadata objects the way Sphinx renders them, and from unevaluated source-text annotations by reading their metadata positions — and a target among them renders as literal text.
+The set is per class and is consulted only after every resolution rung has already failed, so this rung resolves nothing, adds no lookup surface, and raises no ambiguity question: a name that no metadata rendering of the class in question contains is left to warn, typo of a real fragment or not.
+The annotated *type* is deliberately excluded, so it keeps following the ordinary ladder.
+
+.. [#source] ``sphinx.util.typing.get_type_hints`` falls back to a class's raw ``__annotations__`` when evaluating them raises, and autodoc first copies each base class's *source* annotations onto the class — which is enough to make that fallback fire on a Pydantic model. Under ``from __future__ import annotations`` those raw annotations are :pep:`563` strings, so the annotation is rendered exactly as written.
+
 Anything else is left alone, so genuine mistakes (a typo'd module path that fails to import, a reference to something in this project's public API that should be exported and documented but isn't) still surface as nitpick warnings.
 
 Sub-extensions

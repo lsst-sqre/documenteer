@@ -20,6 +20,7 @@ from documenteer.ext.autotypes.documenters import (
 )
 from documenteer.ext.autotypes.xrefs import (
     _AMBIGUOUS,
+    _annotated_metadata_fragments,
     _candidate_names,
     _is_mangled_target,
     _is_project_private_runtime_object,
@@ -281,6 +282,81 @@ def test_autotypes_private_module_path_without_context(
     # Returning None is what leaves Sphinx to emit the nitpick warning.
     assert resolve("privatepkg.helpers.PublicUndocumented")[0] is None
     assert resolve("privatepkg._impl.PrivateOnyl")[0] is None
+
+
+def _field_signature(html: str, object_id: str) -> str:
+    """Return the signature markup of one documented object."""
+    start = html.index(f'id="{object_id}"')
+    return html[start : html.index("</dt>", start)]
+
+
+@pytest.mark.sphinx("html", testroot="autotypes-annotated")
+def test_autotypes_annotated_metadata(app: SphinxTestApp, warning) -> None:
+    """Fragments of a field's Annotated metadata degrade to literal text."""
+    app.build()
+    assert "reference target not found" not in warning.getvalue()
+
+    html = (app.outdir / "index.html").read_text()
+
+    # The rendered types below are fully degraded, so the only anchor in
+    # each signature is its own ¶ headerlink.
+    def signature(field: str) -> str:
+        sig = _field_signature(html, f"annotatedpkg.{field}")
+        assert sig.count("<a") == sig.count('<a class="headerlink"')
+        return sig
+
+    # ``Ge``/``Le``: annotated_types constraint objects, reachable only
+    # through the repr of the field's ``FieldInfo``.
+    rate = signature("SentryConfig.traces_sample_rate")
+    assert ">Ge<" in rate
+    assert ">Le<" in rate
+
+    # ``file``: a dataclass metadata field's string value, stringified
+    # into the rendered type without its quotes.
+    assert ">file<" in signature("KafkaSettings.cluster_ca_path")
+
+    # Enum members named by attribute path in a source-text annotation.
+    phase = signature("Job.phase")
+    for member in ("PENDING", "EXECUTING", "COMPLETED"):
+        assert f">ExecutionPhase.{member}<" in phase
+
+
+@pytest.mark.sphinx(
+    "html", testroot="autotypes-annotated", srcdir="autotypes-annotated-neg"
+)
+def test_autotypes_annotated_metadata_negatives(app: SphinxTestApp) -> None:
+    """Names no metadata rendering produces keep warning."""
+    app.build()
+
+    def resolve(target: str, klass: str) -> nodes.Element | None:
+        contnode = nodes.literal("", target)
+        node = addnodes.pending_xref(
+            "",
+            contnode,
+            refdomain="py",
+            reftype="class",
+            reftarget=target,
+            **{"py:module": "annotatedpkg", "py:class": klass},
+        )
+        return _missing_reference(app, app.env, node, contnode)
+
+    # The fragments themselves degrade, on the class whose metadata
+    # produces them.
+    assert resolve("Ge", "SentryConfig") is not None
+    assert resolve("file", "KafkaSettings") is not None
+    assert resolve("ExecutionPhase.PENDING", "Job") is not None
+
+    # A typo of a fragment is in no rendering, so it still warns.
+    assert resolve("Gee", "SentryConfig") is None
+    assert resolve("ExecutionPhase.PENDNIG", "Job") is None
+
+    # So does a never-importable dotted name.
+    assert resolve("annotatedpkg.nosuchmodule.Thing", "SentryConfig") is None
+
+    # The index is per class: a fragment of one model's metadata does not
+    # degrade the same name on another model's page.
+    assert resolve("Ge", "Job") is None
+    assert resolve("ExecutionPhase.PENDING", "SentryConfig") is None
 
 
 @pytest.mark.sphinx("html", testroot="autotypes-typehints")
@@ -713,6 +789,111 @@ def test_is_mangled_target() -> None:
     # Parameterized references keep resolving by their base name.
     assert not _is_mangled_target("Model[Any]")
     assert not _is_mangled_target("dict[str, StampValue]")
+
+
+def _annotated_class(**annotations: object) -> type:
+    """Build a class whose ``__annotations__`` are exactly *annotations*.
+
+    Sphinx renders a member's type from the annotation values it finds on
+    the class, so setting them directly is what pins each rendering path
+    under test: real ``Annotated`` objects for the evaluated case, and a
+    string for the unevaluated :pep:`563` case. (This test module itself
+    uses ``from __future__ import annotations``, so a class written with
+    ordinary annotation syntax here could only exercise the second.)
+    """
+
+    class Probe:
+        """A stand-in for a documented class."""
+
+    Probe.__annotations__ = dict(annotations)
+    return Probe
+
+
+def test_annotated_metadata_fragments_runtime() -> None:
+    """Constraint objects nested in a rendered ``FieldInfo`` are fragments."""
+    from typing import Annotated  # noqa: PLC0415
+
+    from pydantic import Field  # noqa: PLC0415
+
+    cls = _annotated_class(rate=Annotated[float, Field(ge=0, le=1)])
+    fragments = _annotated_metadata_fragments(cls)
+
+    # ``Ge`` and ``Le`` only ever appear inside the ``FieldInfo`` repr that
+    # Sphinx unparses; they are in no module namespace the ladder scans.
+    assert {"FieldInfo", "Ge", "Le"} <= fragments
+
+    # The annotated *type* is not metadata, so it keeps following the
+    # ordinary ladder rather than degrading here.
+    assert "float" not in fragments
+
+
+def test_annotated_metadata_fragments_dataclass_value() -> None:
+    """A dataclass metadata field's *value* is a fragment too."""
+    from pathlib import Path  # noqa: PLC0415
+    from typing import Annotated  # noqa: PLC0415
+
+    from pydantic.types import PathType  # noqa: PLC0415
+
+    cls = _annotated_class(
+        ca_path=Annotated[Path, PathType("file")] | None,
+    )
+    fragments = _annotated_metadata_fragments(cls)
+
+    # Sphinx renders dataclass metadata by stringifying each field value,
+    # which drops the quotes from the string ``"file"`` and leaves a bare
+    # name behind that names no object at all.
+    assert "file" in fragments
+    assert "pydantic.types.PathType" in fragments
+
+    # The metadata of a *nested* ``Annotated`` counts, but the annotated
+    # type itself still does not.
+    assert "Path" not in fragments
+    assert "pathlib.Path" not in fragments
+
+
+def test_annotated_metadata_fragments_source_text() -> None:
+    """Fragments are found in unevaluated source-text annotations as well."""
+    cls = _annotated_class(
+        phase="Annotated[Phase, Field(examples=[Phase.DRAFT, Phase.FINAL])]",
+    )
+    fragments = _annotated_metadata_fragments(cls)
+
+    # Enum members used as metadata arguments unparse to dotted targets.
+    assert {"Field", "Phase.DRAFT", "Phase.FINAL"} <= fragments
+
+    # Only the metadata positions count: the annotated type itself keeps
+    # following the ordinary ladder.
+    assert "Phase" not in fragments
+
+
+def test_annotated_metadata_fragments_misses() -> None:
+    """Names no metadata expression renders are not fragments."""
+    from typing import Annotated  # noqa: PLC0415
+
+    from pydantic import Field  # noqa: PLC0415
+
+    fragments = _annotated_metadata_fragments(
+        _annotated_class(rate=Annotated[float, Field(ge=0, le=1)])
+    )
+
+    # A typo of a name the rung *does* cover keeps warning.
+    assert "Gee" not in fragments
+    # So does a real but unrelated class.
+    assert "ModuleAnalyzer" not in fragments
+
+    # An annotation that carries no metadata at all contributes nothing,
+    # and neither does an unparseable one.
+    assert _annotated_metadata_fragments(_annotated_class()) == frozenset()
+    assert (
+        _annotated_metadata_fragments(_annotated_class(rate=float))
+        == frozenset()
+    )
+    assert (
+        _annotated_metadata_fragments(
+            _annotated_class(rate="Annotated[float, Field(<lambda>)]")
+        )
+        == frozenset()
+    )
 
 
 def test_strip_bogus_typing_prefix() -> None:

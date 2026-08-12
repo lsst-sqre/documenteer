@@ -27,9 +27,13 @@ resolution policy:
   since there is never a meaningful target for them. Bare names in a
   docstring inherited from an external base class (``ConfigDict`` in
   ``pydantic.BaseModel.model_config``'s docstring) are found through the
-  documented class's MRO, so they degrade the same way. Project-local
-  objects under wholly public module paths keep warning: those are the
-  ones that should be exported and documented, so they stay visible.
+  documented class's MRO, so they degrade the same way. A leaked
+  ``repr()`` that happens to *parse* as Python is split into fragments
+  instead of mangled, so the fragments of a documented class's own
+  ``Annotated`` metadata (``Ge``, ``file``, ``ExecutionPhase.PENDING``)
+  degrade too. Project-local objects under wholly public module paths
+  keep warning: those are the ones that should be exported and
+  documented, so they stay visible.
 
 - Modules documented with ``automodapi::`` and ``:no-main-docstr:`` get a
   ``py:module`` cross-reference target pointing at the page (automodapi
@@ -39,17 +43,19 @@ resolution policy:
 
 from __future__ import annotations
 
+import ast
 import builtins
 import contextlib
+import dataclasses
 import importlib
 import inspect
 import re
 import typing
-from typing import TYPE_CHECKING, Any, TypeAliasType, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeAliasType, TypeVar, cast
 
 from sphinx.ext.intersphinx import InventoryAdapter
 from sphinx.util.nodes import make_refnode
-from sphinx.util.typing import ExtensionMetadata
+from sphinx.util.typing import ExtensionMetadata, stringify_annotation
 
 from ...version import __version__
 from ._shared import _is_annotated_alias
@@ -809,6 +815,222 @@ def _strip_bogus_typing_prefix(base: str) -> str:
     return name
 
 
+_STRINGIFY_MODE: Literal["fully-qualified-except-typing"] = (
+    "fully-qualified-except-typing"
+)
+"""Rendering mode Sphinx uses for the parts of an ``Annotated`` metadata."""
+
+
+def _ast_dotted_name(node: ast.AST) -> str | None:
+    """Return the dotted name an AST node spells, or None.
+
+    This mirrors Sphinx's own annotation unparser, which renders an
+    ``ast.Name`` as its id and an ``ast.Attribute`` chain as one dotted
+    string — and then turns each such string into a cross-reference. Any
+    other node (a call, a subscript, a literal) is rendered as structure
+    rather than as a reference target, so it has no name of its own.
+    """
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        value = _ast_dotted_name(node.value)
+        return f"{value}.{node.attr}" if value else None
+    return None
+
+
+def _expression_names(node: ast.AST) -> set[str]:
+    """Collect every name Sphinx's unparser would emit for *node*."""
+    names: set[str] = set()
+    stack: list[ast.AST] = [node]
+    while stack:
+        current = stack.pop()
+        name = _ast_dotted_name(current)
+        if name is not None:
+            names.add(name)
+            continue
+        stack.extend(ast.iter_child_nodes(current))
+    return names
+
+
+def _parse_expression(text: str) -> ast.expr | None:
+    """Parse *text* as a Python expression, or return None."""
+    try:
+        return ast.parse(text.strip(), mode="eval").body
+    except (SyntaxError, ValueError, MemoryError, RecursionError):
+        return None
+
+
+def _is_annotated_subscript(node: ast.expr) -> bool:
+    """Return True when *node* subscripts an ``Annotated`` name."""
+    name = _ast_dotted_name(node)
+    return name is not None and name.rsplit(".", 1)[-1] == "Annotated"
+
+
+def _source_metadata_names(text: str) -> set[str]:
+    """Collect the names in the metadata positions of a source annotation.
+
+    A module that has not evaluated its annotations (``from __future__
+    import annotations``, or an explicitly quoted annotation) leaves
+    Sphinx rendering the annotation's own *source text*, which it then
+    unparses into cross-references exactly as written. Only the elements
+    after the first belong to the metadata: the first is the annotated
+    type, which keeps following the ordinary resolution ladder.
+    """
+    tree = _parse_expression(text)
+    if tree is None:
+        return set()
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Subscript):
+            continue
+        if not _is_annotated_subscript(node.value):
+            continue
+        subscript = node.slice
+        if not isinstance(subscript, ast.Tuple):
+            continue
+        for element in subscript.elts[1:]:
+            names |= _expression_names(element)
+    return names
+
+
+def _render_metadata_object(obj: Any) -> list[str]:
+    """Render an ``Annotated`` metadata object the ways Sphinx renders it.
+
+    ``sphinx.util.typing.stringify_annotation`` writes a metadata object
+    into the rendered annotation as its ``repr()``, except for a
+    dataclass, whose fields it stringifies one by one — so a string field
+    value loses its quotes and is left looking like a bare name
+    (``PathType(path_type=file)`` for Pydantic's ``FilePath``). Both
+    renderings are produced, since the reference could have come from
+    either.
+    """
+
+    def render(value: Any) -> str:
+        return stringify_annotation(value, _STRINGIFY_MODE)
+
+    renderings: list[str] = []
+    with contextlib.suppress(Exception):
+        renderings.append(repr(obj))
+    if not isinstance(obj, type) and dataclasses.is_dataclass(obj):
+        with contextlib.suppress(Exception):
+            fields = ", ".join(
+                f"{field.name}={render(getattr(obj, field.name))}"
+                for field in dataclasses.fields(obj)
+                if field.repr
+            )
+            renderings.append(f"{render(type(obj))}({fields})")
+    return renderings
+
+
+def _iter_annotated_metadata(value: Any, seen: set[int]) -> list[Any]:
+    """Collect the metadata objects of every ``Annotated`` form in *value*.
+
+    ``Annotated`` forms nest: Pydantic expands a ``FilePath`` field into
+    ``Annotated[Annotated[Path, PathType('file')] | None, FieldInfo(...)]``,
+    and Sphinx renders the metadata of both.
+    """
+    if id(value) in seen:
+        return []
+    seen.add(id(value))
+    metadata = getattr(value, "__metadata__", None)
+    if isinstance(metadata, tuple):
+        found = list(metadata)
+        origin = getattr(value, "__origin__", None)
+        if origin is not None:
+            found.extend(_iter_annotated_metadata(origin, seen))
+        return found
+    try:
+        args = typing.get_args(value)
+    except Exception:
+        return []
+    found = []
+    for arg in args:
+        found.extend(_iter_annotated_metadata(arg, seen))
+    return found
+
+
+def _class_annotation_values(cls: type) -> list[Any]:
+    """Collect the annotation values Sphinx renders for a class's members.
+
+    Both sources Sphinx itself falls back through are read: the raw
+    ``__annotations__`` of every class in the MRO (which is what
+    ``sphinx.util.typing.get_type_hints`` returns when evaluation fails,
+    and which holds unevaluated *strings* under :pep:`563`), and the
+    evaluated hints when they are available.
+    """
+    values: list[Any] = []
+    try:
+        mro = cls.__mro__
+    except Exception:
+        return values
+    for base in mro:
+        if base is object:
+            continue
+        try:
+            annotations = vars(base).get("__annotations__")
+        except TypeError:
+            continue
+        if isinstance(annotations, dict):
+            values.extend(annotations.values())
+    with contextlib.suppress(Exception):
+        values.extend(typing.get_type_hints(cls, include_extras=True).values())
+    return values
+
+
+_annotated_fragment_cache: dict[int, dict[int, frozenset[str]]] = {}
+
+
+def _annotated_metadata_fragments(
+    cls: type, env: BuildEnvironment | None = None
+) -> frozenset[str]:
+    """Index the names a class's ``Annotated`` metadata can synthesize.
+
+    Sphinx renders a field's ``Annotated`` metadata into the field's type
+    and then unparses the result, so every name in that rendering becomes
+    a cross-reference target. When the rendering is not valid Python the
+    whole target is mangled and :func:`_is_mangled_target` catches it; when
+    it *is* valid Python the target is split into syntactically clean
+    fragments instead — a constraint class from the ``repr()`` of a
+    Pydantic ``FieldInfo`` (``Ge``, ``Le``), a dataclass field's
+    unquoted string value (``file``), or an enum member written into the
+    metadata of a source-text annotation (``ExecutionPhase.PENDING``).
+
+    Those fragments describe how a value is validated; they are not
+    references to anything, and the first two are not even names of
+    objects. Rebuilding the set of fragments *this* class can produce is
+    what lets them degrade without a blanket rule that would silence
+    genuine mistakes elsewhere: a name that no metadata rendering of this
+    class contains is left to warn.
+
+    The index resolves nothing, so it adds no lookup surface and no
+    ambiguity question: it is consulted only after every resolution rung
+    has already failed. It is cached per build environment and class,
+    following :func:`_mro_root_namespace`.
+    """
+    key = id(env)
+    by_class = _annotated_fragment_cache.get(key)
+    if by_class is None:
+        _annotated_fragment_cache.clear()
+        by_class = {}
+        _annotated_fragment_cache[key] = by_class
+    cached = by_class.get(id(cls))
+    if cached is not None:
+        return cached
+    fragments: set[str] = set()
+    for value in _class_annotation_values(cls):
+        if isinstance(value, str):
+            fragments |= _source_metadata_names(value)
+            continue
+        for metadata in _iter_annotated_metadata(value, set()):
+            for rendering in _render_metadata_object(metadata):
+                tree = _parse_expression(rendering)
+                if tree is not None:
+                    fragments |= _expression_names(tree)
+    result = frozenset(fragments)
+    by_class[id(cls)] = result
+    return result
+
+
 def _missing_reference(  # noqa: C901, PLR0912
     app: Sphinx,
     env: BuildEnvironment,
@@ -868,6 +1090,10 @@ def _missing_reference(  # noqa: C901, PLR0912
     if terminal.startswith("__") and terminal.endswith("__"):
         return contnode
 
+    # The class the reference was rendered inside, when it names one: the
+    # rungs below read its MRO and its ``Annotated`` metadata.
+    cls = _lookup_class_object(node.get("py:module"), node.get("py:class"))
+
     # A bare name from a docstring inherited from an external base class,
     # naming one of that base's own members (``to_bytes`` in
     # ``FormatterV2.write_local_file``'s docstring, inherited onto a
@@ -875,11 +1101,8 @@ def _missing_reference(  # noqa: C901, PLR0912
     # defining class, so retry intersphinx with the name rebuilt from the
     # MRO. The bare name on its own gets nowhere — a member name like
     # ``to_bytes`` is rarely unique across the configured inventories.
-    if "." not in base:
-        cls = _lookup_class_object(node.get("py:module"), node.get("py:class"))
-        attribute = (
-            _lookup_mro_attribute(base, cls) if cls is not None else None
-        )
+    if "." not in base and cls is not None:
+        attribute = _lookup_mro_attribute(base, cls)
         if attribute is not None:
             resolved = _resolve_intersphinx(
                 app,
@@ -922,6 +1145,20 @@ def _missing_reference(  # noqa: C901, PLR0912
     # module paths keep warning, since those should be exported and
     # documented.
     if obj is not None and _is_project_private_runtime_object(env, obj):
+        return contnode
+
+    # A fragment of an ``Annotated`` metadata expression that Sphinx wrote
+    # into the field's rendered type and then unparsed: a constraint class
+    # from a ``FieldInfo`` repr (``Ge``), a dataclass metadata field's
+    # unquoted string value (``file``), or an enum member named by
+    # attribute path in a source-text annotation
+    # (``ExecutionPhase.PENDING``). These describe how a value is
+    # validated rather than referring to anything, and the last rungs
+    # could not resolve them because they are names in no scanned
+    # namespace — or, for a value fragment, names of nothing at all.
+    # Unlinked literal, not a warning. Only fragments *this* class's own
+    # metadata renders count, so names from elsewhere keep warning.
+    if cls is not None and base in _annotated_metadata_fragments(cls, env):
         return contnode
 
     return None
