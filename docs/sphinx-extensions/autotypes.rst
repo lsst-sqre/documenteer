@@ -79,6 +79,13 @@ This rung runs last, so a bare name that also names a project object still links
 Every MRO ends at :class:`object`, so ``builtins`` is skipped deliberately: otherwise any bare name colliding with a builtin (``input``, ``min``) would resolve on a class page and de-warn a possible typo.
 Builtins that *should* link are intersphinx's job, not this rung's.
 
+Failing that, the bare name is looked up in the **top-level packages the MRO's classes come from** — every already-imported module under those package roots is scanned for the name (``builtins`` excluded again, and the scan is cached per build).
+Pydantic field pages need this rung: the annotation parser splits a field's rendered ``Annotated[str, FieldInfo(annotation=NoneType, required=True, …)]`` type into its parts and emits a bare ``FieldInfo`` reference, but ``FieldInfo`` is exposed by neither ``pydantic`` nor ``pydantic.main``\ [#fieldinfo]_ — only by ``pydantic.fields``, which the MRO never names.
+Because the reference resolves, the same external-object degrade above applies and it renders as literal text instead of warning on every field.
+A name that several modules under those roots bind to *different* objects is treated as unresolved, and so is a name no module binds at all, so typos keep warning.
+
+.. [#fieldinfo] ``pydantic.main`` imports it only under ``TYPE_CHECKING``, so it is not a runtime attribute of that module.
+
 Anything else is left alone, so genuine mistakes (a typo'd module path that fails to import, a reference to something in this project that should be exported and documented but isn't) still surface as nitpick warnings.
 
 Sub-extensions

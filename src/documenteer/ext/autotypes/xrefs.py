@@ -247,10 +247,110 @@ def _lookup_in_class_mro(name: str, cls: type) -> Any | None:
     return None
 
 
+_MISSING = object()
+"""Sentinel for "this name was never seen" in a namespace index."""
+
+_AMBIGUOUS = object()
+"""Sentinel for a name that names different objects in different modules."""
+
+_mro_namespace_cache: dict[int, dict[frozenset[str], dict[str, Any]]] = {}
+
+
+def _mro_package_roots(cls: type) -> frozenset[str]:
+    """Collect the top-level packages defining a class's MRO.
+
+    ``builtins`` is excluded for the same reason
+    :func:`_lookup_in_class_mro` skips it: every MRO ends at
+    :class:`object`, so including it would make every bare name that
+    collides with a builtin resolve on every class page.
+    """
+    try:
+        mro = cls.__mro__
+    except Exception:
+        return frozenset()
+    roots = set()
+    for base in mro:
+        modname = getattr(base, "__module__", None)
+        if not isinstance(modname, str) or not modname:
+            continue
+        root = modname.split(".")[0]
+        if root != "builtins":
+            roots.add(root)
+    return frozenset(roots)
+
+
+def _mro_root_namespace(
+    roots: frozenset[str], env: BuildEnvironment | None = None
+) -> dict[str, Any]:
+    """Index public names exposed by loaded modules under *roots*.
+
+    Some names are written about in a class's docstrings — or synthesized
+    into its rendered annotations — while being importable from neither
+    the documented module nor any module in the class's MRO. Pydantic's
+    ``FieldInfo`` is the canonical case: the annotation parser splits a
+    field's rendered ``Annotated[str, FieldInfo(...)]`` type into its
+    parts, emitting a bare ``FieldInfo`` reference, yet ``FieldInfo`` is
+    exposed by neither the ``pydantic`` package nor ``pydantic.main`` (the
+    MRO class that supplies the field page's inherited docstrings) — its
+    only home is ``pydantic.fields``.
+
+    Autodoc has already imported every module those packages pull in, so
+    scanning :data:`sys.modules` under the MRO's package roots finds them.
+    The scan is cached per build environment, following
+    :func:`_project_typing_registry`.
+    """
+    import sys  # noqa: PLC0415
+
+    key = id(env)
+    by_roots = _mro_namespace_cache.get(key)
+    if by_roots is None:
+        _mro_namespace_cache.clear()
+        by_roots = {}
+        _mro_namespace_cache[key] = by_roots
+    cached = by_roots.get(roots)
+    if cached is not None:
+        return cached
+    index: dict[str, Any] = {}
+    for modname, module in list(sys.modules.items()):
+        if modname.split(".")[0] not in roots:
+            continue
+        try:
+            attrs = dict(vars(module))
+        except TypeError:
+            continue
+        for attr, value in attrs.items():
+            if attr.startswith("_"):
+                continue
+            found = index.get(attr, _MISSING)
+            if found is _MISSING:
+                index[attr] = value
+            elif found is not value:
+                # The same name meaning different objects in different
+                # modules cannot be resolved to one of them, so the
+                # reference keeps warning.
+                index[attr] = _AMBIGUOUS
+    by_roots[roots] = index
+    return index
+
+
+def _lookup_in_mro_root_packages(
+    name: str, cls: type, env: BuildEnvironment | None = None
+) -> Any | None:
+    """Resolve a bare name against the MRO's top-level packages."""
+    roots = _mro_package_roots(cls)
+    if not roots:
+        return None
+    obj = _mro_root_namespace(roots, env).get(name, _MISSING)
+    if obj is _MISSING or obj is _AMBIGUOUS:
+        return None
+    return obj
+
+
 def _lookup_runtime_object(
     target: str,
     module_context: str | None,
     class_context: str | None = None,
+    env: BuildEnvironment | None = None,
 ) -> Any | None:
     """Find the runtime object a dotted or bare reference points at."""
     if "." in target:
@@ -269,7 +369,13 @@ def _lookup_runtime_object(
         # own module, inherited onto this page.
         cls = _lookup_class_object(module_context, class_context)
         if cls is not None:
-            return _lookup_in_class_mro(target, cls)
+            obj = _lookup_in_class_mro(target, cls)
+            if obj is not None:
+                return obj
+            # Last resort: a name exposed by neither the documented module
+            # nor any MRO class's own module, but by some other module of
+            # the packages those classes come from.
+            return _lookup_in_mro_root_packages(target, cls, env)
     return None
 
 
@@ -628,7 +734,7 @@ def _missing_reference(  # noqa: C901, PLR0912
 
     # TypeVars and undocumented aliases: unlinked literal, not a warning.
     obj = _lookup_runtime_object(
-        base, node.get("py:module"), node.get("py:class")
+        base, node.get("py:module"), node.get("py:class"), env
     )
     if obj is not None and _is_unlinkable_typing_object(obj):
         return contnode

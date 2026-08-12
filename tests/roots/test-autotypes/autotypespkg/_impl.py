@@ -129,6 +129,21 @@ class StampSettings(BaseSettingsModel):
         Field(default_factory=lambda: True, description="Whether stamping."),
     ]
 
+    label: Annotated[str, Field(description="Label for the stamp.")]
+    """A field whose ``FieldInfo`` repr is syntactically valid Python.
+
+    Sphinx 9's annotation parser understands ``ast.Call`` nodes, so this
+    field's rendered type — ``Annotated[str, FieldInfo(annotation=NoneType,
+    required=True, description='...')]`` — is split into its parts and a
+    *bare* ``FieldInfo`` ``py:class`` reference is emitted. (``enabled``
+    above cannot exercise that: its ``default_factory`` lambda makes the
+    repr unparseable, so the whole target is caught by the mangled-target
+    rung instead.) ``FieldInfo`` is importable from neither this package
+    nor ``pydantic`` itself nor ``pydantic.main`` — the MRO class whose
+    docstring supplies ``ConfigDict`` — so only a scan of the loaded
+    modules under the MRO's package roots finds it.
+    """
+
 
 def combine(a: StampValue, b: StampValue) -> StampValue:
     """Combine two stamp values.

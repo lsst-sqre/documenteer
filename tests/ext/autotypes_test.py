@@ -13,9 +13,11 @@ from documenteer.ext.autotypes.documenters import (
     _find_assignment_docstring,
 )
 from documenteer.ext.autotypes.xrefs import (
+    _AMBIGUOUS,
     _candidate_names,
     _is_mangled_target,
     _lookup_runtime_object,
+    _mro_root_namespace,
     _strip_bogus_typing_prefix,
 )
 
@@ -104,6 +106,17 @@ def test_autotypes_build(app: SphinxTestApp, warning) -> None:
     prefix = settings_html[: settings_html.index(marker)]
     code_start = prefix.rindex("<code")
     assert "<a" not in prefix[code_start - 120 : code_start]
+
+    # A ``FieldInfo`` repr that *is* parseable Python is split into its
+    # parts by the annotation parser, which emits a bare ``FieldInfo``
+    # reference. It resolves only through the loaded modules of the
+    # documented class's MRO package roots (``pydantic.fields``), and
+    # degrades to unlinked literal text there.
+    start = settings_html.index('id="autotypespkg.StampSettings.label"')
+    label_sig = settings_html[start : settings_html.index("</dt>", start)]
+    assert "FieldInfo" in label_sig
+    # The only anchor in a fully degraded signature is the ¶ headerlink.
+    assert label_sig.count("<a") == label_sig.count('<a class="headerlink"')
 
     # A docstring inherited from an external base class (pydantic's
     # ``BaseModel.model_config``) references a bare ``ConfigDict``, a name
@@ -206,6 +219,88 @@ def test_lookup_runtime_object_class_mro(rootdir) -> None:
             )
     finally:
         sys.path.pop(0)
+
+
+def test_lookup_runtime_object_mro_root_packages(rootdir) -> None:
+    """Bare names resolve through the MRO's top-level packages."""
+    import sys  # noqa: PLC0415
+
+    sys.path.insert(0, str(rootdir / "test-autotypes"))
+    try:
+        import pydantic  # noqa: PLC0415
+        import pydantic.main  # noqa: PLC0415
+        from pydantic.fields import FieldInfo  # noqa: PLC0415
+
+        # ``FieldInfo`` is exposed by neither the documented package, nor
+        # ``pydantic`` itself, nor ``pydantic.main`` (the module defining
+        # the MRO class whose docstrings the page inherits), so every
+        # earlier rung misses it.
+        assert not hasattr(pydantic, "FieldInfo")
+        assert not hasattr(pydantic.main, "FieldInfo")
+        assert _lookup_runtime_object("FieldInfo", "autotypespkg") is None
+
+        # ``pydantic.fields`` is under the MRO's ``pydantic`` root, so the
+        # scan of loaded modules finds it.
+        assert (
+            _lookup_runtime_object(
+                "FieldInfo", "autotypespkg", "StampSettings"
+            )
+            is FieldInfo
+        )
+    finally:
+        sys.path.pop(0)
+
+
+def test_lookup_runtime_object_mro_root_packages_misses(rootdir) -> None:
+    """Names in no MRO-root package stay unresolved, so typos still warn."""
+    import sys  # noqa: PLC0415
+
+    sys.path.insert(0, str(rootdir / "test-autotypes"))
+    try:
+        # A typo of a name the rung *can* resolve.
+        assert (
+            _lookup_runtime_object(
+                "FeildInfo", "autotypespkg", "StampSettings"
+            )
+            is None
+        )
+        # A real class (imported at the top of this module, so it is in
+        # ``sys.modules``) belonging to a package that is in none of the
+        # MRO's roots.
+        assert ModuleAnalyzer is not None
+        assert (
+            _lookup_runtime_object(
+                "ModuleAnalyzer", "autotypespkg", "StampSettings"
+            )
+            is None
+        )
+    finally:
+        sys.path.pop(0)
+
+
+def test_mro_root_namespace_ambiguity(monkeypatch) -> None:
+    """A name meaning different objects in different modules is unresolved."""
+    import sys  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    shared = object()
+    pkg = types.ModuleType("_autotypes_probe")
+    one = types.ModuleType("_autotypes_probe.one")
+    two = types.ModuleType("_autotypes_probe.two")
+    one.Agreed = shared
+    two.Agreed = shared
+    one.Disputed = object()
+    two.Disputed = object()
+    for name, module in (
+        ("_autotypes_probe", pkg),
+        ("_autotypes_probe.one", one),
+        ("_autotypes_probe.two", two),
+    ):
+        monkeypatch.setitem(sys.modules, name, module)
+
+    index = _mro_root_namespace(frozenset({"_autotypes_probe"}))
+    assert index["Agreed"] is shared
+    assert index["Disputed"] is _AMBIGUOUS
 
 
 def test_candidate_names() -> None:
