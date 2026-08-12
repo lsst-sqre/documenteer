@@ -17,6 +17,11 @@ be removed once its upstream home ships a fix:
   ``sphinx.ext.autodoc.mock`` *module* instead of the ``mock()`` context
   manager on Sphinx 9 (upstream: sphinx-click).
 
+- Sphinx 9 crashes formatting the signature of a callable ``data`` or
+  ``attribute`` object when another extension supplies one, dropping the
+  object from the built documentation (upstream: sphinx, with
+  sphinx-autodoc-typehints as the trigger).
+
 Nothing else in Documenteer should depend on this module: it exists only
 so that the rest of `documenteer.ext.autotypes` can assume a working
 ecosystem.
@@ -173,6 +178,43 @@ def _patch_sphinx_click_mock(app: Sphinx) -> None:
         pass
 
 
+def _suppress_data_signature(
+    app: Sphinx,
+    what: str,
+    name: str,
+    obj: Any,
+    options: Any,
+    signature: str | None,
+    return_annotation: str | None,
+) -> tuple[None, None] | None:
+    """Keep callable singletons from vanishing out of Sphinx 9 autodoc.
+
+    Sphinx 9 allocates ``data`` objects no signature slot, but
+    sphinx-autodoc-typehints' ``autodoc-process-signature`` handler returns
+    a signature tuple for *any* annotated callable — including a
+    module-level instance of a ``__call__``-defining class, the shape
+    Safir's ``*_dependency`` injection helpers use. Sphinx then executes
+    ``signatures[0] = ...`` against that empty list; the ``IndexError`` is
+    caught and logged as ``error while formatting signature ...
+    [autodoc]``, and the object is dropped from the built docs entirely.
+
+    This listener is connected ahead of the typehints handler, and
+    ``emit_firstresult`` stops at the first non-``None`` result, so
+    returning ``(None, None)`` for the affected object types keeps any
+    later handler from supplying a signature Sphinx has nowhere to put.
+    Sphinx's own ``isinstance(result[0], str)`` guard then skips the fatal
+    assignment and the object documents without a signature line — which
+    is what Sphinx 9 models for a data object anyway.
+
+    Retire this once Sphinx guards the empty-signatures assignment, or
+    sphinx-autodoc-typehints stops returning signature tuples for data
+    objects.
+    """
+    if what in {"data", "attribute"}:
+        return None, None
+    return None
+
+
 def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the autotypes compatibility sub-extension."""
     if not SPHINX_LT_9:
@@ -183,6 +225,14 @@ def setup(app: Sphinx) -> ExtensionMetadata:
         # All extensions are loaded by builder-inited, so sphinx-click's
         # import state is settled by then.
         app.connect("builder-inited", _patch_sphinx_click_mock)
+        # ``autodoc-process-signature`` is autodoc's event, so autodoc has
+        # to be set up before anything can listen for it.
+        app.setup_extension("sphinx.ext.autodoc")
+        # Priority below the default 500 so this runs before
+        # sphinx-autodoc-typehints' own handler.
+        app.connect(
+            "autodoc-process-signature", _suppress_data_signature, priority=400
+        )
     _patch_find_mod_objs()
 
     return {

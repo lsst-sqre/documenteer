@@ -45,6 +45,13 @@ The extension patches automodapi_\ ’s object classification to consult third-p
 
 .. [#click] It also repairs sphinx-click's ``mock`` import, which can break under Sphinx 9 with ``TypeError: 'module' object is not callable`` when another extension imports ``sphinx.ext.autodoc.mock``.
 
+Keeping callable singletons in the build
+----------------------------------------
+
+A module-level instance of a ``__call__``-defining class — the shape Safir's ``*_dependency`` injection helpers use — disappears from Sphinx 9 builds that also run sphinx-autodoc-typehints_, with only an ``error while formatting signature ... [autodoc]`` warning to show for it.
+Sphinx 9 gives ``data`` objects no signature slot, while sphinx-autodoc-typehints_ computes a signature for *any* annotated callable, and Sphinx then assigns that signature into an empty list.
+The extension answers the ``autodoc-process-signature`` event ahead of sphinx-autodoc-typehints_ for ``data`` and ``attribute`` objects, so nothing supplies a signature Sphinx has nowhere to put and the object documents without a signature line — which is how Sphinx 9 renders data objects anyway.
+
 Resolving cross-references
 --------------------------
 
@@ -105,7 +112,7 @@ Sub-extensions
    Rendering: the ``autotype`` documenter for :pep:`695` aliases, and the docstring recovery for ``Annotated`` and ``type`` aliases.
 
 ``documenteer.ext.autotypes.compat``
-   Compatibility shims for other packages in the ecosystem: sphinx-automodapi_\ ’s object classification and its locality test for ``Annotated`` aliases, and sphinx-click's ``mock`` import\ [#compat]_.
+   Compatibility shims for other packages in the ecosystem: sphinx-automodapi_\ ’s object classification and its locality test for ``Annotated`` aliases, sphinx-click's ``mock`` import, and the signature guard that keeps callable ``data`` objects in Sphinx 9 builds\ [#compat]_.
 
 ``documenteer.ext.autotypes.xrefs``
    Cross-reference policy: the ``missing-reference`` resolution ladder described above, and the ``py:module`` targets for modules documented by ``automodapi`` with ``:no-main-docstr:``.

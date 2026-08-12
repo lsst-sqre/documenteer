@@ -8,6 +8,7 @@ from sphinx.pycode import ModuleAnalyzer
 from sphinx.testing.util import SphinxTestApp
 
 from documenteer.ext.autotypes._shared import _is_annotated_alias
+from documenteer.ext.autotypes.compat import _suppress_data_signature
 from documenteer.ext.autotypes.documenters import (
     _find_alias_docstring,
     _find_assignment_docstring,
@@ -190,6 +191,47 @@ def test_autotypes_inherited_docstring_degrades(
     prefix = html[: html.index(marker)]
     code_start = prefix.rindex("<code")
     assert "<a" not in prefix[code_start - 120 : code_start]
+
+
+@pytest.mark.sphinx("html", testroot="autotypes-typehints")
+def test_autotypes_callable_singleton(app: SphinxTestApp, warning) -> None:
+    """A module-level callable singleton survives the build."""
+    app.build()
+
+    # Sphinx 9 allocates ``data`` objects no signature slot, while
+    # sphinx-autodoc-typehints returns a signature tuple for any annotated
+    # callable — including this one. Sphinx then indexes into the empty
+    # signature list, and the resulting IndexError is swallowed as a
+    # warning that silently drops the object from the built docs.
+    assert "error while formatting signature" not in warning.getvalue()
+
+    # The singleton is documented (with no signature line, matching
+    # Sphinx 9's own model for data objects).
+    html = (app.outdir / "index.html").read_text()
+    assert 'id="singletonpkg.auth_dependency"' in html
+    assert "The process-wide dependency instance." in html
+
+
+def test_suppress_data_signature() -> None:
+    """Only data and attribute objects short-circuit the signature event."""
+    # ``emit_firstresult`` stops at the first non-``None`` result, so the
+    # two-``None`` tuple is what keeps a later handler from supplying a
+    # signature — and Sphinx's ``isinstance(result[0], str)`` guard then
+    # skips the assignment that would raise ``IndexError``.
+    for what in ("data", "attribute"):
+        assert _suppress_data_signature(
+            None, what, "pkg.thing", object(), None, None, None
+        ) == (None, None)
+
+    # Everything else falls through to the handlers that do compute
+    # signatures, so annotated callables keep theirs.
+    for what in ("module", "class", "method", "function", "property"):
+        assert (
+            _suppress_data_signature(
+                None, what, "pkg.thing", object(), None, None, None
+            )
+            is None
+        )
 
 
 @pytest.mark.parametrize(
