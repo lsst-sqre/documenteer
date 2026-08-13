@@ -17,3 +17,10 @@ annotation.
 
 .. autopydantic_model:: annotatedpkg.Job
    :members:
+
+The same fragment family reaches a *type alias's* own page, where the
+reference node carries only a ``py:module`` context:
+
+.. toctree::
+
+   aliases

@@ -136,6 +136,11 @@ The annotated *type* is deliberately excluded, so it keeps following the ordinar
 
 .. [#source] ``sphinx.util.typing.get_type_hints`` falls back to a class's raw ``__annotations__`` when evaluating them raises, and autodoc first copies each base class's *source* annotations onto the class — which is enough to make that fallback fire on a Pydantic model. Under ``from __future__ import annotations`` those raw annotations are :pep:`563` strings, so the annotation is rendered exactly as written.
 
+The same fragment family reaches a **type alias's own page**, where the reference carries no ``py:class`` context for that rung to read — only the ``py:module`` of the module the alias is documented from.
+Safir's ``type IvoaIsoDatetime = Annotated[datetime, BeforeValidator(…), PlainSerializer(…, when_used="json")]`` is the case that motivated this: Sphinx renders the alias's whole value onto its stub page — and into every signature the alias annotates, since an assignment-style alias knows neither its own name nor its module — leaking ``PydanticUndefined``, the repr of ``BeforeValidator``\ ’s sentinel default, and a bare ``json`` from the unquoted ``when_used`` value.
+A module-scoped sibling index therefore rebuilds the fragments that the ``Annotated`` aliases of the reference's ``py:module`` context render, covering both alias spellings: a :pep:`695` ``type`` statement whose value is (or contains) an ``Annotated`` form, and an assignment-style ``Annotated`` alias.
+It resolves nothing either, and is consulted only after the class-scoped rung has failed as well, so the guardrail is the same one module out — a name that no alias of that module renders keeps warning, and a fragment of one module's alias does not degrade under another module's context.
+
 Anything else is left alone, so genuine mistakes (a typo'd module path that fails to import, a reference to something in this project's public API that should be exported and documented but isn't) still surface as nitpick warnings.
 
 Sub-extensions

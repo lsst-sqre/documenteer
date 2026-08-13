@@ -20,6 +20,8 @@ from documenteer.ext.autotypes.documenters import (
 )
 from documenteer.ext.autotypes.xrefs import (
     _AMBIGUOUS,
+    _alias_fragment_cache,
+    _alias_metadata_fragments,
     _annotated_metadata_fragments,
     _candidate_names,
     _is_mangled_target,
@@ -432,6 +434,94 @@ def test_autotypes_annotated_metadata_negatives(app: SphinxTestApp) -> None:
     # degrade the same name on another model's page.
     assert resolve("Ge", "Job") is None
     assert resolve("ExecutionPhase.PENDING", "SentryConfig") is None
+
+
+def _object_entry(html: str, object_id: str) -> str:
+    """Return the whole markup of one documented object.
+
+    An alias's value is rendered in its *body* rather than in its
+    signature line (the ``py:type`` directive's ``:canonical:`` option
+    becomes an "alias of" paragraph), so the slice runs to the end of the
+    definition rather than to the end of the signature.
+    """
+    start = html.index(f'id="{object_id}"')
+    return html[start : html.index("</dd>", start)]
+
+
+@pytest.mark.sphinx(
+    "html", testroot="autotypes-annotated", srcdir="autotypes-alias-metadata"
+)
+def test_autotypes_alias_metadata(app: SphinxTestApp, warning) -> None:
+    """Fragments of an alias's own Annotated metadata degrade to text."""
+    app.build()
+    assert "reference target not found" not in warning.getvalue()
+
+    html = (app.outdir / "aliases.html").read_text()
+
+    # The rendered alias values below are fully degraded, so the only
+    # anchor in each entry is its own ¶ headerlink.
+    def entry(name: str) -> str:
+        markup = _object_entry(html, f"aliaspkg.{name}")
+        assert markup.count("<a") == markup.count('<a class="headerlink"')
+        return markup
+
+    # The PEP 695 alias: ``PydanticUndefined`` is the repr of a dataclass
+    # metadata field's sentinel default, and ``json`` is another field's
+    # string value, stringified into the rendering without its quotes.
+    iso = entry("IsoDatetime")
+    assert ">PydanticUndefined<" in iso
+    assert ">json<" in iso
+
+    # The assignment-style alias, documented as data. Sphinx renders its
+    # whole value into the signature of the function it annotates — an
+    # assignment alias knows neither its name nor its module — so the same
+    # metadata fragments surface there, under the same module-only context.
+    assert 'id="aliaspkg.TrimmedName"' in html
+    register = entry("register")
+    assert ">PydanticUndefined<" in register
+    assert ">always<" in register
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="autotypes-annotated",
+    srcdir="autotypes-alias-metadata-neg",
+)
+def test_autotypes_alias_metadata_negatives(app: SphinxTestApp) -> None:
+    """Names no alias rendering in the context module produces still warn."""
+    app.build()
+
+    def resolve(target: str, module: str) -> nodes.Element | None:
+        contnode = nodes.literal("", target)
+        node = addnodes.pending_xref(
+            "",
+            contnode,
+            refdomain="py",
+            reftype="class",
+            reftarget=target,
+            **{"py:module": module},
+        )
+        return _missing_reference(app, app.env, node, contnode)
+
+    # The fragments themselves degrade under the module the aliases are
+    # documented from — from the PEP 695 alias and, for ``always``, from
+    # the assignment-style one.
+    assert resolve("PydanticUndefined", "aliaspkg") is not None
+    assert resolve("json", "aliaspkg") is not None
+    assert resolve("always", "aliaspkg") is not None
+
+    # A typo of a fragment is in no alias's rendering, so it still warns.
+    assert resolve("PydanticUndefinde", "aliaspkg") is None
+    assert resolve("jsonl", "aliaspkg") is None
+
+    # The index is per module: ``aliaspkg.legacy``'s own alias renders
+    # neither the sentinel default nor the ``always`` string value, so a
+    # fragment of the package's aliases does not degrade under it.
+    assert resolve("PydanticUndefined", "aliaspkg.legacy") is None
+    assert resolve("always", "aliaspkg.legacy") is None
+
+    # A module with no ``Annotated`` alias at all degrades nothing.
+    assert resolve("PydanticUndefined", "annotatedpkg") is None
 
 
 @pytest.mark.sphinx("html", testroot="autotypes-typehints")
@@ -1174,6 +1264,154 @@ def test_annotated_metadata_fragments_misses() -> None:
         )
         == frozenset()
     )
+
+
+def _iso_normalize(value: str) -> str:
+    """Stand in for Safir's ``normalize_isodatetime`` validator function.
+
+    A module-level function is what the rendering under test needs: Sphinx
+    writes a dataclass metadata field's value with
+    ``stringify_annotation``, which renders a function as its dotted
+    ``module.qualname``. A nested function's qualname carries
+    ``<locals>``, whose angle brackets would make the whole rendering
+    unparseable and leave no fragments at all.
+    """
+    return value
+
+
+def _iso_render(value: object) -> str:
+    """Stand in for Safir's ``isodatetime`` serializer function."""
+    return str(value)
+
+
+def _validator_alias_value() -> object:
+    """Build the ``Annotated`` form of Safir's ``IvoaIsoDatetime``.
+
+    ``BeforeValidator.json_schema_input_type`` defaults to the
+    ``PydanticUndefined`` sentinel and ``PlainSerializer.when_used`` is a
+    string, so Sphinx's field-by-field rendering of these two dataclasses
+    is what emits the ``PydanticUndefined`` and ``json`` targets that
+    issue #385 reports as nitpick warnings.
+    """
+    from datetime import datetime  # noqa: PLC0415
+    from typing import Annotated  # noqa: PLC0415
+
+    from pydantic import BeforeValidator, PlainSerializer  # noqa: PLC0415
+
+    return Annotated[
+        datetime,
+        BeforeValidator(_iso_normalize),
+        PlainSerializer(_iso_render, return_type=str, when_used="json"),
+    ]
+
+
+@pytest.fixture
+def clear_alias_fragment_cache():
+    """Isolate the module-scoped alias fragment index's cache.
+
+    The index is keyed by ``id(env)`` and then by module name, and these
+    unit tests pass no environment at all — so without this they would
+    all share the ``id(None)`` bucket and could be served another test's
+    synthetic module under the same name.
+    """
+    _alias_fragment_cache.clear()
+    yield
+    _alias_fragment_cache.clear()
+
+
+def test_alias_metadata_fragments_type_alias(
+    monkeypatch, clear_alias_fragment_cache
+) -> None:
+    """A PEP 695 alias's own ``Annotated`` metadata supplies fragments."""
+    from typing import TypeAliasType  # noqa: PLC0415
+
+    _install_modules(
+        monkeypatch,
+        {
+            "aliasfragprobe": {
+                "IsoDatetime": TypeAliasType(
+                    "IsoDatetime", _validator_alias_value()
+                )
+            }
+        },
+    )
+
+    fragments = _alias_metadata_fragments("aliasfragprobe")
+
+    # The sentinel-object default and the unquoted string field value.
+    assert {"PydanticUndefined", "json"} <= fragments
+
+    # The annotated type is not metadata, so it keeps following the
+    # ordinary resolution ladder rather than degrading here.
+    assert "datetime.datetime" not in fragments
+
+
+def test_alias_metadata_fragments_assignment_alias(
+    monkeypatch, clear_alias_fragment_cache
+) -> None:
+    """An assignment-style ``Annotated`` module alias contributes too."""
+    from typing import Annotated  # noqa: PLC0415
+
+    from pydantic import BeforeValidator  # noqa: PLC0415
+
+    _install_modules(
+        monkeypatch,
+        {
+            "aliasfragprobe": {
+                "TrimmedName": Annotated[str, BeforeValidator(_iso_normalize)]
+            }
+        },
+    )
+
+    fragments = _alias_metadata_fragments("aliasfragprobe")
+
+    assert "PydanticUndefined" in fragments
+    assert "aliasfragprobe.other" not in fragments
+
+    # ``str`` is the annotated type here, not a metadata rendering.
+    assert "str" not in fragments
+
+
+def test_alias_metadata_fragments_misses(
+    monkeypatch, clear_alias_fragment_cache
+) -> None:
+    """Names no alias rendering in the module produces are not fragments."""
+    from typing import Annotated, TypeAliasType  # noqa: PLC0415
+
+    from pydantic import PlainSerializer  # noqa: PLC0415
+
+    _install_modules(
+        monkeypatch,
+        {
+            "aliasfragprobe": {
+                "IsoDatetime": TypeAliasType(
+                    "IsoDatetime", _validator_alias_value()
+                ),
+                "_Hidden": Annotated[
+                    str,
+                    PlainSerializer(_iso_render, when_used="unless_none"),
+                ],
+                "MAX_LENGTH": 64,
+            },
+            "aliasfragprobe.other": {"Loader": type("Loader", (), {})},
+        },
+    )
+
+    fragments = _alias_metadata_fragments("aliasfragprobe")
+
+    # A typo of a fragment, and a real but unrelated class, keep warning.
+    assert "jsonl" not in fragments
+    assert "ModuleAnalyzer" not in fragments
+
+    # Only public attributes are scanned, so a private alias's own
+    # fragments are not admitted.
+    assert "unless_none" not in fragments
+
+    # The index is per module: a sibling module with no ``Annotated``
+    # alias of its own produces nothing, and neither does a module that
+    # cannot be imported at all.
+    assert _alias_metadata_fragments("aliasfragprobe.other") == frozenset()
+    assert _alias_metadata_fragments("nosuchaliasprobe") == frozenset()
 
 
 def test_strip_bogus_typing_prefix() -> None:
