@@ -20,8 +20,10 @@ be enabled individually:
 ``documenteer.ext.autotypes.xrefs``
     Cross-reference policy: resolving the Python references that the
     autodoc ecosystem emits under names that don't match a documented
-    target, and degrading references that can never have a target to
-    unlinked literal text instead of nitpick warnings.
+    target, and degrading references that can never have a target — type
+    variables, external objects no inventory covers, objects reachable
+    only under private module paths — to unlinked literal text instead of
+    nitpick warnings.
 """
 
 from __future__ import annotations

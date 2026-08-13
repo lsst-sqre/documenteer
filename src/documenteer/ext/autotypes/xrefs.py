@@ -10,18 +10,35 @@ resolution policy:
   don't exactly match a documented target: bare alias names from field
   annotations, private-module paths for objects re-exported from a public
   package, and role mismatches (a ``py:class`` reference to a ``py:data``
-  or ``py:type`` target, locally or in an intersphinx inventory).
+  or ``py:type`` target, locally or in an intersphinx inventory). A bare
+  name that a docstring inherited from an external base class writes
+  about one of that base's own members (``to_bytes`` in
+  ``FormatterV2.write_local_file``'s docstring) is retried under the
+  defining class's fully-qualified name, which the base project's
+  inventory does cover.
 
 - References to module-level :class:`typing.TypeVar` instances,
   undocumented ``Annotated`` aliases, importable objects from external
-  packages absent from every intersphinx inventory, and targets mangled
-  by a leaked ``repr()`` (autodoc-pydantic renders ``Annotated`` field
+  packages absent from every intersphinx inventory, objects this project
+  defines only under private module paths, and targets mangled by a
+  leaked ``repr()`` (autodoc-pydantic renders ``Annotated`` field
   metadata such as lambdas and enum members into cross-reference
   targets) degrade to unlinked literal text instead of nitpick warnings,
-  since there is never a meaningful target for them. Bare names in a
+  since there is never a meaningful target for them. So do bare names of
+  plain-assignment union aliases (``ResourcePathExpression = str | Path``)
+  that only packages sharing a top-level root with this project define —
+  ``lsst.resources`` beside a documented ``lsst.images`` — which the
+  registry of scanned typing objects recognizes by the module it found
+  each alias in, since the alias object itself records none. Bare names in a
   docstring inherited from an external base class (``ConfigDict`` in
   ``pydantic.BaseModel.model_config``'s docstring) are found through the
-  documented class's MRO, so they degrade the same way.
+  documented class's MRO, so they degrade the same way. A leaked
+  ``repr()`` that happens to *parse* as Python is split into fragments
+  instead of mangled, so the fragments of a documented class's own
+  ``Annotated`` metadata (``Ge``, ``file``, ``ExecutionPhase.PENDING``)
+  degrade too. Project-local objects under wholly public module paths
+  keep warning: those are the ones that should be exported and
+  documented, so they stay visible.
 
 - Modules documented with ``automodapi::`` and ``:no-main-docstr:`` get a
   ``py:module`` cross-reference target pointing at the page (automodapi
@@ -31,21 +48,35 @@ resolution policy:
 
 from __future__ import annotations
 
+import ast
+import builtins
 import contextlib
+import dataclasses
 import importlib
 import inspect
 import re
+import types
 import typing
-from typing import TYPE_CHECKING, Any, TypeAliasType, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    NamedTuple,
+    TypeAliasType,
+    TypeVar,
+    cast,
+)
 
 from sphinx.ext.intersphinx import InventoryAdapter
 from sphinx.util.nodes import make_refnode
-from sphinx.util.typing import ExtensionMetadata
+from sphinx.util.typing import ExtensionMetadata, stringify_annotation
 
 from ...version import __version__
 from ._shared import _is_annotated_alias
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from docutils import nodes
     from sphinx.addnodes import pending_xref
     from sphinx.application import Sphinx
@@ -81,10 +112,55 @@ def _record_automodapi_module_pages(
             pages[match.group("mod")] = docname
 
 
-_typing_registry_cache: dict[int, dict[str, list[Any]]] = {}
+def _is_plain_type_alias(value: Any) -> bool:
+    """Return True for a plain-assignment *union* type alias.
+
+    ``ResourcePathExpression = str | ParseResult | ResourcePath | Path`` is
+    the shape: a module attribute bound to a union object, with none of the
+    self-describing identity a :pep:`695` ``type`` statement or a
+    :class:`typing.TypeVar` carries. The object knows neither the name it
+    was assigned to nor the module it was written in, which is why the
+    registry that records these has to remember where it found each one.
+
+    Both spellings are recognized on every supported Python: ``X | Y``
+    builds a :class:`types.UnionType` through 3.13 and a
+    :data:`typing.Union` from 3.14 on, and ``Union[X, Y]`` is the mirror
+    image, so the origin is compared against both.
+
+    Other subscripted generics (``list[int]``, ``Callable[..., None]``) are
+    deliberately excluded. A union is the form a plain-assignment alias
+    takes in practice, and every name this classifies widens what the
+    consuming rung will silence — so the classification stays as narrow as
+    the failure mode it exists for.
+    """
+    try:
+        origin = typing.get_origin(value)
+    except Exception:
+        # Attribute probes on arbitrary module attributes can raise
+        # anything (Pydantic's mock validators raise PydanticUserError).
+        return False
+    return origin is typing.Union or origin is types.UnionType
 
 
-def _collect_type_params(obj: Any, registry: dict[str, list[Any]]) -> None:
+class _TypingEntry(NamedTuple):
+    """A typing object found in a scanned module, with its provenance.
+
+    The module name is the one the value was *found* in, which is the only
+    place a plain alias's origin can come from: unlike a ``TypeVar`` or a
+    :class:`typing.TypeAliasType`, a union object carries no ``__module__``
+    of its own defining module (see :func:`_is_plain_type_alias`).
+    """
+
+    value: Any
+    module: str
+
+
+_typing_registry_cache: dict[int, dict[str, list[_TypingEntry]]] = {}
+
+
+def _collect_type_params(
+    obj: Any, registry: dict[str, list[_TypingEntry]], modname: str
+) -> None:
     """Record an object's PEP 695 scoped type parameters in the registry."""
     try:
         params = getattr(obj, "__type_params__", None)
@@ -97,11 +173,13 @@ def _collect_type_params(obj: Any, registry: dict[str, list[Any]]) -> None:
     for param in params:
         name = getattr(param, "__name__", None)
         if name:
-            registry.setdefault(name, []).append(param)
+            registry.setdefault(name, []).append(_TypingEntry(param, modname))
 
 
-def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
-    """Map bare names to TypeVar/alias objects found in project modules.
+def _project_typing_registry(
+    env: BuildEnvironment,
+) -> dict[str, list[_TypingEntry]]:
+    """Map bare names to typing objects found in project modules.
 
     Autodoc has already imported every documented module (and, through
     them, the private modules where TypeVars and aliases are actually
@@ -109,6 +187,13 @@ def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
     top-level packages as the documented modules. This lets a bare
     reference like ``T`` — whose defining module is not recoverable from
     the reference node — be recognized as a TypeVar.
+
+    Recorded are the objects that are never linkable in themselves
+    (TypeVars, :pep:`695` scoped type parameters, ``TypeAliasType`` and
+    ``Annotated`` aliases) plus plain-assignment union aliases
+    (:func:`_is_plain_type_alias`), whose degrade additionally depends on
+    *where* they were found — so every entry carries the scanned module's
+    name as its provenance.
     """
     import sys  # noqa: PLC0415
 
@@ -122,7 +207,7 @@ def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
     roots.update(
         name.split(".")[0] for name in getattr(env, _ENV_MODULE_PAGES_ATTR, {})
     )
-    registry: dict[str, list[Any]] = {}
+    registry: dict[str, list[_TypingEntry]] = {}
     for modname, module in list(sys.modules.items()):
         top = modname.split(".")[0]
         if top not in roots:
@@ -134,21 +219,25 @@ def _project_typing_registry(env: BuildEnvironment) -> dict[str, list[Any]]:
         for attr, value in attrs.items():
             if attr.startswith("_"):
                 continue
-            if isinstance(value, (TypeVar, TypeAliasType)) or (
-                _is_annotated_alias(value)
+            if (
+                isinstance(value, (TypeVar, TypeAliasType))
+                or _is_annotated_alias(value)
+                or _is_plain_type_alias(value)
             ):
-                registry.setdefault(attr, []).append(value)
+                registry.setdefault(attr, []).append(
+                    _TypingEntry(value, modname)
+                )
                 continue
             # PEP 695 scoped type parameters (``def f[U, V](...)`` /
             # ``class C[T]``) are not module attributes, but they are
             # referenced from docstrings just like module-level TypeVars.
-            _collect_type_params(value, registry)
+            _collect_type_params(value, registry, modname)
             if isinstance(value, type):
                 # Snapshot: attribute access on Pydantic models can
                 # mutate the class __dict__ (deferred model rebuilds).
                 for member in list(vars(value).values()):
                     _collect_type_params(
-                        getattr(member, "__func__", member), registry
+                        getattr(member, "__func__", member), registry, modname
                     )
     _typing_registry_cache.clear()
     _typing_registry_cache[key] = registry
@@ -200,6 +289,10 @@ def _lookup_class_object(
     return obj if isinstance(obj, type) else None
 
 
+_MISSING = object()
+"""Sentinel for "this name was never seen here"."""
+
+
 def _lookup_in_class_mro(name: str, cls: type) -> Any | None:
     """Resolve a bare name in the namespaces of a class's MRO.
 
@@ -222,6 +315,11 @@ def _lookup_in_class_mro(name: str, cls: type) -> Any | None:
     the module-level contexts, where builtin-colliding bare names already
     warn when no Python intersphinx inventory is configured, and leaves
     linking real builtins to intersphinx.
+
+    Failing every module namespace, the MRO's classes are searched for an
+    *attribute* of that name (see :func:`_lookup_mro_attribute`): an
+    inherited docstring writes about its own class's members too, not
+    only about the names its module imports.
     """
     import sys  # noqa: PLC0415
 
@@ -244,13 +342,172 @@ def _lookup_in_class_mro(name: str, cls: type) -> Any | None:
             obj = None
         if obj is not None:
             return obj
+    found = _lookup_mro_attribute(name, cls)
+    return found[0] if found is not None else None
+
+
+def _lookup_mro_attribute(name: str, cls: type) -> tuple[Any, str] | None:
+    """Find a bare name among the attributes a class's MRO defines.
+
+    A docstring inherited from an external base class writes about that
+    base's *own* members by their bare names. ``lsst.daf.butler``'s
+    ``FormatterV2.write_local_file`` is the canonical case: its docstring
+    refers to a bare ``to_bytes``, and a subclass that overrides
+    ``write_local_file`` without writing its own docstring inherits the
+    text — bare reference and all — onto a page whose ``py:module``
+    context is the subclass's package.
+
+    :func:`_lookup_in_class_mro` cannot find those names, because they are
+    attributes *of* an MRO class rather than names in any MRO class's
+    defining-module namespace. This does find them, and reports the
+    fully-qualified name the attribute is documented under —
+    ``{module}.{qualname}.{name}`` of the class that *defines* it, not of
+    the class the reference was rendered inside — so the caller can retry
+    intersphinx with a name the base project's inventory can cover.
+
+    The defining class is found through each MRO class's own ``__dict__``:
+    ``getattr`` alone would report every inherited attribute against the
+    documented subclass, whose name no external inventory knows.
+
+    Names are screened against ``builtins`` twice over. Classes defined in
+    the ``builtins`` module are skipped, for the reason
+    :func:`_lookup_in_class_mro` skips that namespace: every MRO ends at
+    :class:`object`, and a subclass of a builtin type would otherwise
+    resolve bare names like ``get`` or ``items`` on its page. Bare names
+    that *are* builtins are skipped as well, whichever class defines
+    them: a docstring's bare ``dict`` means the builtin type, not the
+    deprecated ``pydantic.BaseModel.dict`` method it happens to collide
+    with, so resolving it here would both silence a possible typo and
+    risk linking the reference to the wrong object entirely.
+    """
+    if hasattr(builtins, name):
+        return None
+    try:
+        mro = cls.__mro__
+    except Exception:
+        return None
+    for base in mro:
+        modname = getattr(base, "__module__", None)
+        if not isinstance(modname, str) or not modname:
+            continue
+        if modname == "builtins":
+            continue
+        try:
+            obj = getattr(base, name) if name in vars(base) else _MISSING
+        except Exception:
+            # Attribute access on a class can run arbitrary descriptor
+            # code (Pydantic's mock validators raise PydanticUserError).
+            obj = _MISSING
+        if obj is _MISSING:
+            continue
+        qualname = getattr(base, "__qualname__", None)
+        if not isinstance(qualname, str) or not qualname:
+            continue
+        return obj, f"{modname}.{qualname}.{name}"
     return None
+
+
+_AMBIGUOUS = object()
+"""Sentinel for a name that names different objects in different modules."""
+
+_mro_namespace_cache: dict[int, dict[frozenset[str], dict[str, Any]]] = {}
+
+
+def _mro_package_roots(cls: type) -> frozenset[str]:
+    """Collect the top-level packages defining a class's MRO.
+
+    ``builtins`` is excluded for the same reason
+    :func:`_lookup_in_class_mro` skips it: every MRO ends at
+    :class:`object`, so including it would make every bare name that
+    collides with a builtin resolve on every class page.
+    """
+    try:
+        mro = cls.__mro__
+    except Exception:
+        return frozenset()
+    roots = set()
+    for base in mro:
+        modname = getattr(base, "__module__", None)
+        if not isinstance(modname, str) or not modname:
+            continue
+        root = modname.split(".")[0]
+        if root != "builtins":
+            roots.add(root)
+    return frozenset(roots)
+
+
+def _mro_root_namespace(
+    roots: frozenset[str], env: BuildEnvironment | None = None
+) -> dict[str, Any]:
+    """Index public names exposed by loaded modules under *roots*.
+
+    Some names are written about in a class's docstrings — or synthesized
+    into its rendered annotations — while being importable from neither
+    the documented module nor any module in the class's MRO. Pydantic's
+    ``FieldInfo`` is the canonical case: the annotation parser splits a
+    field's rendered ``Annotated[str, FieldInfo(...)]`` type into its
+    parts, emitting a bare ``FieldInfo`` reference, yet ``FieldInfo`` is
+    exposed by neither the ``pydantic`` package nor ``pydantic.main`` (the
+    MRO class that supplies the field page's inherited docstrings) — its
+    only home is ``pydantic.fields``.
+
+    Autodoc has already imported every module those packages pull in, so
+    scanning :data:`sys.modules` under the MRO's package roots finds them.
+    The scan is cached per build environment, following
+    :func:`_project_typing_registry`.
+    """
+    import sys  # noqa: PLC0415
+
+    key = id(env)
+    by_roots = _mro_namespace_cache.get(key)
+    if by_roots is None:
+        _mro_namespace_cache.clear()
+        by_roots = {}
+        _mro_namespace_cache[key] = by_roots
+    cached = by_roots.get(roots)
+    if cached is not None:
+        return cached
+    index: dict[str, Any] = {}
+    for modname, module in list(sys.modules.items()):
+        if modname.split(".")[0] not in roots:
+            continue
+        try:
+            attrs = dict(vars(module))
+        except TypeError:
+            continue
+        for attr, value in attrs.items():
+            if attr.startswith("_"):
+                continue
+            found = index.get(attr, _MISSING)
+            if found is _MISSING:
+                index[attr] = value
+            elif found is not value:
+                # The same name meaning different objects in different
+                # modules cannot be resolved to one of them, so the
+                # reference keeps warning.
+                index[attr] = _AMBIGUOUS
+    by_roots[roots] = index
+    return index
+
+
+def _lookup_in_mro_root_packages(
+    name: str, cls: type, env: BuildEnvironment | None = None
+) -> Any | None:
+    """Resolve a bare name against the MRO's top-level packages."""
+    roots = _mro_package_roots(cls)
+    if not roots:
+        return None
+    obj = _mro_root_namespace(roots, env).get(name, _MISSING)
+    if obj is _MISSING or obj is _AMBIGUOUS:
+        return None
+    return obj
 
 
 def _lookup_runtime_object(
     target: str,
     module_context: str | None,
     class_context: str | None = None,
+    env: BuildEnvironment | None = None,
 ) -> Any | None:
     """Find the runtime object a dotted or bare reference points at."""
     if "." in target:
@@ -269,7 +526,13 @@ def _lookup_runtime_object(
         # own module, inherited onto this page.
         cls = _lookup_class_object(module_context, class_context)
         if cls is not None:
-            return _lookup_in_class_mro(target, cls)
+            obj = _lookup_in_class_mro(target, cls)
+            if obj is not None:
+                return obj
+            # Last resort: a name exposed by neither the documented module
+            # nor any MRO class's own module, but by some other module of
+            # the packages those classes come from.
+            return _lookup_in_mro_root_packages(target, cls, env)
     return None
 
 
@@ -287,19 +550,114 @@ def _is_unlinkable_typing_object(obj: Any) -> bool:
     return _is_annotated_alias(obj)
 
 
-def _is_external_runtime_object(env: BuildEnvironment, obj: Any) -> bool:
-    """Return True when *obj* is defined outside this project's modules."""
+def _runtime_object_module(obj: Any) -> str | None:
+    """Return the module path *obj* is defined in, or None."""
     if inspect.ismodule(obj):
         modname = getattr(obj, "__name__", None)
     else:
         modname = getattr(obj, "__module__", None)
     if not isinstance(modname, str) or not modname:
-        return False
+        return None
+    return modname
+
+
+def _is_project_local_module(env: BuildEnvironment, modname: str) -> bool:
+    """Return True when *modname* is under a module this project documents."""
     modules = set(env.domaindata.get("py", {}).get("modules", {}))
     modules.update(getattr(env, _ENV_MODULE_PAGES_ATTR, {}))
-    return not any(
+    return any(
         modname == mod or modname.startswith(f"{mod}.") for mod in modules
     )
+
+
+def _is_external_runtime_object(env: BuildEnvironment, obj: Any) -> bool:
+    """Return True when *obj* is defined outside this project's modules."""
+    modname = _runtime_object_module(obj)
+    if modname is None:
+        return False
+    return not _is_project_local_module(env, modname)
+
+
+def _is_unlinkable_registry_match(
+    env: BuildEnvironment, entries: list[_TypingEntry]
+) -> bool:
+    """Return True when every typing-registry hit for a name is unlinkable.
+
+    Two kinds of hit reach this decision, and they are gated differently.
+
+    Objects that are unlinkable *in themselves* — TypeVars, :pep:`695`
+    scoped type parameters, ``TypeAliasType`` and ``Annotated`` aliases
+    (:func:`_is_unlinkable_typing_object`) — never have a target wherever
+    they were found, so their provenance does not enter into it.
+
+    A plain-assignment union alias (:func:`_is_plain_type_alias`) is
+    different: it *could* be documented as a ``py:data`` or ``py:type``
+    object, and when it is, the rungs above this one link it. It degrades
+    only when every hit for the name lies outside this project's documented
+    module prefixes — an external sibling package that merely shares a
+    scanned top-level root, ``lsst.resources`` beside a documented
+    ``lsst.images``. That external gate is what keeps this rung from
+    silencing the project's *own* undocumented aliases, which should be
+    documented rather than degraded, and it uses the same
+    documented-module-prefix test :func:`_is_external_runtime_object` does
+    — reading the module the value was found in, because a union object's
+    own ``__module__`` only ever says ``types`` or ``typing``.
+
+    Plain-alias hits must additionally all be the identical object — the
+    same ambiguity rule :func:`_mro_root_namespace` applies to its own
+    scan. A re-export chain binds one object under several module names,
+    while a name meaning *different* unions in different modules names
+    nothing in particular and keeps warning.
+    """
+    if not entries:
+        return False
+    aliases = [
+        entry
+        for entry in entries
+        if not _is_unlinkable_typing_object(entry.value)
+    ]
+    if not aliases:
+        return True
+    first = aliases[0].value
+    return all(
+        _is_plain_type_alias(entry.value)
+        and entry.value is first
+        and not _is_project_local_module(env, entry.module)
+        for entry in aliases
+    )
+
+
+def _is_project_private_runtime_object(
+    env: BuildEnvironment, obj: Any
+) -> bool:
+    """Return True when *obj* lives only under a private path of this project.
+
+    A project's own internal modules hold classes that its public API
+    refers to without re-exporting: Pydantic serialization models are the
+    canonical case, since a field's annotation names the model class
+    defined in ``lsst.images._transforms._transform`` while the package
+    exports only the public model that uses it. Sphinx 9 emits a
+    ``py:class`` reference for those names — as a bare name on the field's
+    page, or as a fully-qualified name with no document context at all —
+    where Sphinx 8 rendered the same signature as plain text. The object
+    is real and importable, but it lives where no public documentation
+    target can be created, so nothing can ever link it.
+
+    The gate is the *module path*, not the object: a project-local object
+    is degraded only when some segment of its defining module path starts
+    with an underscore. Project-local objects under wholly public module
+    paths — the ones that should be exported and documented but aren't —
+    keep warning, which is the invariant separating this rung from a
+    blanket "never warn about our own objects" policy. External objects
+    belong to :func:`_is_external_runtime_object`'s rung whether or not
+    their own module paths are private.
+    """
+    modname = _runtime_object_module(obj)
+    if modname is None:
+        return False
+    if not _is_project_local_module(env, modname):
+        return False
+    return any(part.startswith("_") for part in modname.split("."))
 
 
 def _candidate_names(target: str) -> list[str]:
@@ -330,6 +688,16 @@ _PY_ROLE_FALLBACKS = (
     "py:pydantic_field",
     "py:pydantic_validator",
 )
+
+_PY_MEMBER_ROLE_FALLBACKS = ("py:method", "py:property", *_PY_ROLE_FALLBACKS)
+"""Roles to try for a reference rebuilt as a class attribute's full name.
+
+Methods and properties are only searched for those rebuilt names, not for
+every reference: :data:`_PY_ROLE_FALLBACKS` also drives the bare terminal
+name index (:func:`_intersphinx_terminal_index`), where admitting every
+method name in every inventory would broaden bare-name linking well past
+this rung's business.
+"""
 
 
 def _resolve_local(  # noqa: C901, PLR0912
@@ -431,6 +799,7 @@ def _resolve_intersphinx(
     node: pending_xref,
     contnode: nodes.Element,
     target: str,
+    objtypes: Sequence[str] = _PY_ROLE_FALLBACKS,
 ) -> nodes.reference | None:
     """Resolve a target against intersphinx inventories under any py role.
 
@@ -452,7 +821,7 @@ def _resolve_intersphinx(
         return newnode
 
     candidates = [target, *_candidate_names(target)]
-    for objtype in _PY_ROLE_FALLBACKS:
+    for objtype in objtypes:
         try:
             entries = inventory[objtype]
         except KeyError:
@@ -567,6 +936,248 @@ def _strip_bogus_typing_prefix(base: str) -> str:
     return name
 
 
+_STRINGIFY_MODE: Literal["fully-qualified-except-typing"] = (
+    "fully-qualified-except-typing"
+)
+"""Rendering mode Sphinx uses for the parts of an ``Annotated`` metadata."""
+
+
+def _ast_dotted_name(node: ast.AST) -> str | None:
+    """Return the dotted name an AST node spells, or None.
+
+    This mirrors Sphinx's own annotation unparser, which renders an
+    ``ast.Name`` as its id and an ``ast.Attribute`` chain as one dotted
+    string — and then turns each such string into a cross-reference. Any
+    other node (a call, a subscript, a literal) is rendered as structure
+    rather than as a reference target, so it has no name of its own.
+    """
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        value = _ast_dotted_name(node.value)
+        return f"{value}.{node.attr}" if value else None
+    return None
+
+
+def _expression_names(node: ast.AST) -> set[str]:
+    """Collect every name Sphinx's unparser would emit for *node*."""
+    names: set[str] = set()
+    stack: list[ast.AST] = [node]
+    while stack:
+        current = stack.pop()
+        name = _ast_dotted_name(current)
+        if name is not None:
+            names.add(name)
+            continue
+        stack.extend(ast.iter_child_nodes(current))
+    return names
+
+
+def _parse_expression(text: str) -> ast.expr | None:
+    """Parse *text* as a Python expression, or return None."""
+    try:
+        return ast.parse(text.strip(), mode="eval").body
+    except (SyntaxError, ValueError, MemoryError, RecursionError):
+        return None
+
+
+def _is_annotated_subscript(node: ast.expr) -> bool:
+    """Return True when *node* subscripts an ``Annotated`` name."""
+    name = _ast_dotted_name(node)
+    return name is not None and name.rsplit(".", 1)[-1] == "Annotated"
+
+
+def _source_metadata_names(text: str) -> set[str]:
+    """Collect the names in the metadata positions of a source annotation.
+
+    A module that has not evaluated its annotations (``from __future__
+    import annotations``, or an explicitly quoted annotation) leaves
+    Sphinx rendering the annotation's own *source text*, which it then
+    unparses into cross-references exactly as written. Only the elements
+    after the first belong to the metadata: the first is the annotated
+    type, which keeps following the ordinary resolution ladder.
+    """
+    tree = _parse_expression(text)
+    if tree is None:
+        return set()
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Subscript):
+            continue
+        if not _is_annotated_subscript(node.value):
+            continue
+        subscript = node.slice
+        if not isinstance(subscript, ast.Tuple):
+            continue
+        for element in subscript.elts[1:]:
+            names |= _expression_names(element)
+    return names
+
+
+def _render_metadata_object(obj: Any) -> list[str]:
+    """Render an ``Annotated`` metadata object the ways Sphinx renders it.
+
+    ``sphinx.util.typing.stringify_annotation`` writes a metadata object
+    into the rendered annotation as its ``repr()``, except for a
+    dataclass, whose fields it stringifies one by one — so a string field
+    value loses its quotes and is left looking like a bare name
+    (``PathType(path_type=file)`` for Pydantic's ``FilePath``). Both
+    renderings are produced, since the reference could have come from
+    either.
+    """
+
+    def render(value: Any) -> str:
+        return stringify_annotation(value, _STRINGIFY_MODE)
+
+    renderings: list[str] = []
+    with contextlib.suppress(Exception):
+        renderings.append(repr(obj))
+    if not isinstance(obj, type) and dataclasses.is_dataclass(obj):
+        with contextlib.suppress(Exception):
+            fields = ", ".join(
+                f"{field.name}={render(getattr(obj, field.name))}"
+                for field in dataclasses.fields(obj)
+                if field.repr
+            )
+            renderings.append(f"{render(type(obj))}({fields})")
+    return renderings
+
+
+def _iter_annotated_metadata(value: Any, seen: set[int]) -> list[Any]:
+    """Collect the metadata objects of every ``Annotated`` form in *value*.
+
+    ``Annotated`` forms nest: Pydantic expands a ``FilePath`` field into
+    ``Annotated[Annotated[Path, PathType('file')] | None, FieldInfo(...)]``,
+    and Sphinx renders the metadata of both.
+    """
+    if id(value) in seen:
+        return []
+    seen.add(id(value))
+    metadata = getattr(value, "__metadata__", None)
+    if isinstance(metadata, tuple):
+        found = list(metadata)
+        origin = getattr(value, "__origin__", None)
+        if origin is not None:
+            found.extend(_iter_annotated_metadata(origin, seen))
+        return found
+    try:
+        args = typing.get_args(value)
+    except Exception:
+        return []
+    found = []
+    for arg in args:
+        found.extend(_iter_annotated_metadata(arg, seen))
+    return found
+
+
+def _own_annotations(base: type) -> dict[str, Any] | None:
+    """Return a class's own annotations, raw, or None.
+
+    On Python 3.13 and earlier this is the class dict's
+    ``__annotations__`` — strings under :pep:`563`, evaluated objects
+    otherwise. :pep:`649` (Python 3.14) stops storing that key in the
+    class dict, so the read goes through :func:`inspect.get_annotations`,
+    which computes deferred annotations on demand; when computing them
+    raises (a deferred annotation naming something undefined),
+    ``annotationlib`` recovers their *source text*, which feeds the same
+    string path :pep:`563` annotations do.
+    """
+    try:
+        return inspect.get_annotations(base) or None
+    except Exception:
+        try:
+            import annotationlib  # noqa: PLC0415
+        except ImportError:
+            return None
+    with contextlib.suppress(Exception):
+        return (
+            annotationlib.get_annotations(
+                base, format=annotationlib.Format.STRING
+            )
+            or None
+        )
+    return None
+
+
+def _class_annotation_values(cls: type) -> list[Any]:
+    """Collect the annotation values Sphinx renders for a class's members.
+
+    Both sources Sphinx itself falls back through are read: the raw
+    ``__annotations__`` of every class in the MRO (which is what
+    ``sphinx.util.typing.get_type_hints`` returns when evaluation fails,
+    and which holds unevaluated *strings* under :pep:`563`), and the
+    evaluated hints when they are available.
+    """
+    values: list[Any] = []
+    try:
+        mro = cls.__mro__
+    except Exception:
+        return values
+    for base in mro:
+        if base is object:
+            continue
+        annotations = _own_annotations(base)
+        if annotations is not None:
+            values.extend(annotations.values())
+    with contextlib.suppress(Exception):
+        values.extend(typing.get_type_hints(cls, include_extras=True).values())
+    return values
+
+
+_annotated_fragment_cache: dict[int, dict[int, frozenset[str]]] = {}
+
+
+def _annotated_metadata_fragments(
+    cls: type, env: BuildEnvironment | None = None
+) -> frozenset[str]:
+    """Index the names a class's ``Annotated`` metadata can synthesize.
+
+    Sphinx renders a field's ``Annotated`` metadata into the field's type
+    and then unparses the result, so every name in that rendering becomes
+    a cross-reference target. When the rendering is not valid Python the
+    whole target is mangled and :func:`_is_mangled_target` catches it; when
+    it *is* valid Python the target is split into syntactically clean
+    fragments instead — a constraint class from the ``repr()`` of a
+    Pydantic ``FieldInfo`` (``Ge``, ``Le``), a dataclass field's
+    unquoted string value (``file``), or an enum member written into the
+    metadata of a source-text annotation (``ExecutionPhase.PENDING``).
+
+    Those fragments describe how a value is validated; they are not
+    references to anything, and the first two are not even names of
+    objects. Rebuilding the set of fragments *this* class can produce is
+    what lets them degrade without a blanket rule that would silence
+    genuine mistakes elsewhere: a name that no metadata rendering of this
+    class contains is left to warn.
+
+    The index resolves nothing, so it adds no lookup surface and no
+    ambiguity question: it is consulted only after every resolution rung
+    has already failed. It is cached per build environment and class,
+    following :func:`_mro_root_namespace`.
+    """
+    key = id(env)
+    by_class = _annotated_fragment_cache.get(key)
+    if by_class is None:
+        _annotated_fragment_cache.clear()
+        by_class = {}
+        _annotated_fragment_cache[key] = by_class
+    cached = by_class.get(id(cls))
+    if cached is not None:
+        return cached
+    fragments: set[str] = set()
+    for value in _class_annotation_values(cls):
+        if isinstance(value, str):
+            fragments |= _source_metadata_names(value)
+            continue
+        for metadata in _iter_annotated_metadata(value, set()):
+            for rendering in _render_metadata_object(metadata):
+                tree = _parse_expression(rendering)
+                if tree is not None:
+                    fragments |= _expression_names(tree)
+    result = frozenset(fragments)
+    by_class[id(cls)] = result
+    return result
+
+
 def _missing_reference(  # noqa: C901, PLR0912
     app: Sphinx,
     env: BuildEnvironment,
@@ -626,15 +1237,47 @@ def _missing_reference(  # noqa: C901, PLR0912
     if terminal.startswith("__") and terminal.endswith("__"):
         return contnode
 
+    # The class the reference was rendered inside, when it names one: the
+    # rungs below read its MRO and its ``Annotated`` metadata.
+    cls = _lookup_class_object(node.get("py:module"), node.get("py:class"))
+
+    # A bare name from a docstring inherited from an external base class,
+    # naming one of that base's own members (``to_bytes`` in
+    # ``FormatterV2.write_local_file``'s docstring, inherited onto a
+    # subclass's override): the external project documents it under its
+    # defining class, so retry intersphinx with the name rebuilt from the
+    # MRO. The bare name on its own gets nowhere — a member name like
+    # ``to_bytes`` is rarely unique across the configured inventories.
+    if "." not in base and cls is not None:
+        attribute = _lookup_mro_attribute(base, cls)
+        if attribute is not None:
+            resolved = _resolve_intersphinx(
+                app,
+                env,
+                node,
+                contnode,
+                attribute[1],
+                objtypes=_PY_MEMBER_ROLE_FALLBACKS,
+            )
+            if resolved is not None:
+                return resolved
+
     # TypeVars and undocumented aliases: unlinked literal, not a warning.
     obj = _lookup_runtime_object(
-        base, node.get("py:module"), node.get("py:class")
+        base, node.get("py:module"), node.get("py:class"), env
     )
     if obj is not None and _is_unlinkable_typing_object(obj):
         return contnode
+    # A bare name the typing registry knows: a TypeVar or undocumented
+    # alias of this project's, or a plain-assignment union alias that only
+    # an external package under a shared top-level root defines
+    # (``ResourcePathExpression`` from ``lsst.resources``, written into a
+    # documented ``lsst.images`` annotation). Neither the reference node nor
+    # the alias object itself says where such an alias came from, so the
+    # registry's record of the module it was found in is what decides.
     if "." not in base:
         found = _project_typing_registry(env).get(base)
-        if found and all(_is_unlinkable_typing_object(o) for o in found):
+        if found and _is_unlinkable_registry_match(env, found):
             return contnode
 
     # An importable object from an external package (``HttpUrl`` in a
@@ -643,6 +1286,33 @@ def _missing_reference(  # noqa: C901, PLR0912
     # link it. Unlinked literal, not a warning. Names that fail to import
     # (typos, uninstalled packages) still warn.
     if obj is not None and _is_external_runtime_object(env, obj):
+        return contnode
+
+    # An object this project defines only under a private module path (a
+    # Pydantic serialization model in ``pkg._transforms._transform``,
+    # referenced by a field annotation as a bare name or as a
+    # fully-qualified name with no document context at all): the object is
+    # real, but no public documentation target for it can exist, so
+    # nothing can ever link it. Unlinked literal, not a warning. This
+    # reinterprets an object the rungs above already resolved; it does not
+    # widen what resolves. Project-local objects under wholly public
+    # module paths keep warning, since those should be exported and
+    # documented.
+    if obj is not None and _is_project_private_runtime_object(env, obj):
+        return contnode
+
+    # A fragment of an ``Annotated`` metadata expression that Sphinx wrote
+    # into the field's rendered type and then unparsed: a constraint class
+    # from a ``FieldInfo`` repr (``Ge``), a dataclass metadata field's
+    # unquoted string value (``file``), or an enum member named by
+    # attribute path in a source-text annotation
+    # (``ExecutionPhase.PENDING``). These describe how a value is
+    # validated rather than referring to anything, and the last rungs
+    # could not resolve them because they are names in no scanned
+    # namespace — or, for a value fragment, names of nothing at all.
+    # Unlinked literal, not a warning. Only fragments *this* class's own
+    # metadata renders count, so names from elsewhere keep warning.
+    if cls is not None and base in _annotated_metadata_fragments(cls, env):
         return contnode
 
     return None

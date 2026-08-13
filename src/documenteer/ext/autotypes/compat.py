@@ -17,6 +17,18 @@ be removed once its upstream home ships a fix:
   ``sphinx.ext.autodoc.mock`` *module* instead of the ``mock()`` context
   manager on Sphinx 9 (upstream: sphinx-click).
 
+- Sphinx 9 crashes formatting the signature of a callable ``data`` or
+  ``attribute`` object when another extension supplies one, dropping the
+  object from the built documentation (upstream: sphinx, with
+  sphinx-autodoc-typehints as the trigger).
+
+- Sphinx 9 leaves its own built-in documenters out of the legacy
+  class-based registry, so a third-party legacy documenter — most
+  importantly autodoc-pydantic's model documenter — finds nothing able to
+  document an ordinary method, property, or attribute and drops those
+  members from the page (upstream: sphinx, with autodoc-pydantic as the
+  trigger).
+
 Nothing else in Documenteer should depend on this module: it exists only
 so that the rest of `documenteer.ext.autotypes` can assume a working
 ecosystem.
@@ -173,6 +185,102 @@ def _patch_sphinx_click_mock(app: Sphinx) -> None:
         pass
 
 
+def _restore_legacy_member_documenters(app: Sphinx) -> None:
+    """Keep non-field members on autodoc-pydantic model pages on Sphinx 9.
+
+    autodoc-pydantic's model documenter subclasses autodoc's legacy
+    class-based ``ClassDocumenter``, whose ``document_members`` picks a
+    documenter for each member by asking every class in
+    ``app.registry.documenters`` whether it ``can_document_member``, and
+    silently skips the member when none can. Sphinx 9 populates that
+    registry with its own built-in documenters only when
+    ``autodoc_use_legacy_class_based`` is enabled; by default the registry
+    holds nothing but third-party entries. autodoc-pydantic's own
+    documenters cover fields, validators, and config, so those survive,
+    while every ordinary method, classmethod, property, and attribute
+    (Safir's ``build_uws_config``, lsst.images' ``deserialize``) vanishes
+    from the model page — taking prose references to it down as nitpick
+    warnings, which is what forced adopters to pin ``sphinx<9``.
+
+    Registering the built-in documenters restores the candidate pool
+    without switching the build over to the legacy API: the ``autoclass``,
+    ``automethod``, … directives keep dispatching to Sphinx 9's native
+    implementation, because only ``Sphinx.add_autodocumenter`` rebinds
+    those directive names and this registers the documenters alone.
+    ``setdefault`` leaves any documenter another extension registered for
+    the same object type in place, so third-party overrides still win.
+
+    Retire this once autodoc-pydantic documents members through Sphinx 9's
+    native autodoc API, or Sphinx populates the legacy registry whenever a
+    legacy documenter is in use.
+    """
+    try:
+        from sphinx.ext.autodoc import (  # noqa: PLC0415
+            AttributeDocumenter,
+            ClassDocumenter,
+            DataDocumenter,
+            DecoratorDocumenter,
+            ExceptionDocumenter,
+            FunctionDocumenter,
+            MethodDocumenter,
+            ModuleDocumenter,
+            PropertyDocumenter,
+        )
+    except ImportError:
+        return
+
+    documenters = app.registry.documenters
+    for documenter in (
+        ModuleDocumenter,
+        ClassDocumenter,
+        ExceptionDocumenter,
+        DataDocumenter,
+        FunctionDocumenter,
+        DecoratorDocumenter,
+        MethodDocumenter,
+        AttributeDocumenter,
+        PropertyDocumenter,
+    ):
+        documenters.setdefault(documenter.objtype, documenter)
+
+
+def _suppress_data_signature(
+    app: Sphinx,
+    what: str,
+    name: str,
+    obj: Any,
+    options: Any,
+    signature: str | None,
+    return_annotation: str | None,
+) -> tuple[None, None] | None:
+    """Keep callable singletons from vanishing out of Sphinx 9 autodoc.
+
+    Sphinx 9 allocates ``data`` objects no signature slot, but
+    sphinx-autodoc-typehints' ``autodoc-process-signature`` handler returns
+    a signature tuple for *any* annotated callable — including a
+    module-level instance of a ``__call__``-defining class, the shape
+    Safir's ``*_dependency`` injection helpers use. Sphinx then executes
+    ``signatures[0] = ...`` against that empty list; the ``IndexError`` is
+    caught and logged as ``error while formatting signature ...
+    [autodoc]``, and the object is dropped from the built docs entirely.
+
+    This listener is connected ahead of the typehints handler, and
+    ``emit_firstresult`` stops at the first non-``None`` result, so
+    returning ``(None, None)`` for the affected object types keeps any
+    later handler from supplying a signature Sphinx has nowhere to put.
+    Sphinx's own ``isinstance(result[0], str)`` guard then skips the fatal
+    assignment and the object documents without a signature line — which
+    is what Sphinx 9 models for a data object anyway.
+
+    Retire this once Sphinx guards the empty-signatures assignment, or
+    sphinx-autodoc-typehints stops returning signature tuples for data
+    objects.
+    """
+    if what in {"data", "attribute"}:
+        return None, None
+    return None
+
+
 def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the autotypes compatibility sub-extension."""
     if not SPHINX_LT_9:
@@ -183,6 +291,18 @@ def setup(app: Sphinx) -> ExtensionMetadata:
         # All extensions are loaded by builder-inited, so sphinx-click's
         # import state is settled by then.
         app.connect("builder-inited", _patch_sphinx_click_mock)
+        # ``autodoc-process-signature`` is autodoc's event, so autodoc has
+        # to be set up before anything can listen for it.
+        app.setup_extension("sphinx.ext.autodoc")
+        # Fill the legacy documenter registry now rather than from an
+        # event: ``setdefault`` never displaces a documenter another
+        # extension registers, whenever that extension's setup runs.
+        _restore_legacy_member_documenters(app)
+        # Priority below the default 500 so this runs before
+        # sphinx-autodoc-typehints' own handler.
+        app.connect(
+            "autodoc-process-signature", _suppress_data_signature, priority=400
+        )
     _patch_find_mod_objs()
 
     return {
