@@ -309,7 +309,7 @@ EXAMPLE_INTERSPHINX_CACHE = """
 title = "Documenteer"
 base_url = "https://documenteer.lsst.io"
 
-[sphinx.intersphinx_cache]
+[sphinx.intersphinx.cache]
 use_service = false
 service_url = "https://roundtable-dev.lsst.cloud/ook"
 disk_cache_ttl = 0
@@ -331,7 +331,7 @@ def test_intersphinx_cache_defaults() -> None:
 
 
 def test_intersphinx_cache_settings() -> None:
-    """[sphinx.intersphinx_cache] settings override the defaults."""
+    """[sphinx.intersphinx.cache] settings override the defaults."""
     config = DocumenteerConfig.load(EXAMPLE_INTERSPHINX_CACHE)
     assert config.intersphinx_cache_use_service is False
     assert (
@@ -347,7 +347,7 @@ EXAMPLE_NEGATIVE_TTL = """
 title = "Documenteer"
 base_url = "https://documenteer.lsst.io"
 
-[sphinx.intersphinx_cache]
+[sphinx.intersphinx.cache]
 disk_cache_ttl = -1
 """
 

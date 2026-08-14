@@ -171,14 +171,6 @@ class ProjectModel(BaseModel):
     openapi: OpenApiDocsModel | None = Field(None)
 
 
-class IntersphinxModel(BaseModel):
-    """Model for Intersphinx configurations in documenteer.toml."""
-
-    projects: dict[str, HttpUrl] = Field(
-        description="Mapping of projects and their URLs.", default_factory=dict
-    )
-
-
 class IntersphinxCacheModel(BaseModel):
     """Model for the Ook intersphinx inventory cache configuration in
     documenteer.toml.
@@ -212,6 +204,16 @@ class IntersphinxCacheModel(BaseModel):
             "with Ook."
         ),
     )
+
+
+class IntersphinxModel(BaseModel):
+    """Model for Intersphinx configurations in documenteer.toml."""
+
+    projects: dict[str, HttpUrl] = Field(
+        description="Mapping of projects and their URLs.", default_factory=dict
+    )
+
+    cache: IntersphinxCacheModel = Field(default_factory=IntersphinxCacheModel)
 
 
 class LinkCheckModel(BaseModel):
@@ -353,10 +355,6 @@ class SphinxModel(BaseModel):
     theme: ThemeModel = Field(default_factory=ThemeModel)
 
     intersphinx: IntersphinxModel = Field(default_factory=IntersphinxModel)
-
-    intersphinx_cache: IntersphinxCacheModel = Field(
-        default_factory=IntersphinxCacheModel
-    )
 
     linkcheck: LinkCheckModel = Field(default_factory=LinkCheckModel)
 
@@ -555,7 +553,7 @@ class DocumenteerConfig:
         [sphinx] table is not set.
         """
         if self.conf.sphinx:
-            return self.conf.sphinx.intersphinx_cache
+            return self.conf.sphinx.intersphinx.cache
         return IntersphinxCacheModel()
 
     @property
