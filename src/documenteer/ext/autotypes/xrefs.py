@@ -36,8 +36,11 @@ resolution policy:
   ``repr()`` that happens to *parse* as Python is split into fragments
   instead of mangled, so the fragments of a documented class's own
   ``Annotated`` metadata (``Ge``, ``file``, ``ExecutionPhase.PENDING``)
-  degrade too. Project-local objects under wholly public module paths
-  keep warning: those are the ones that should be exported and
+  degrade too — as do the fragments of a *type alias's* own ``Annotated``
+  value (``PydanticUndefined``, ``json``), which surface on pages carrying
+  only a ``py:module`` context and are therefore recognized per module
+  rather than per class. Project-local objects under wholly public module
+  paths keep warning: those are the ones that should be exported and
   documented, so they stay visible.
 
 - Modules documented with ``automodapi::`` and ``:no-main-docstr:`` get a
@@ -244,10 +247,20 @@ def _project_typing_registry(
     return registry
 
 
+def _import_module(modname: str) -> types.ModuleType | None:
+    """Import ``modname``, or return None."""
+    try:
+        return importlib.import_module(modname)
+    except Exception:
+        return None
+
+
 def _import_from_module(modname: str, attrname: str) -> Any | None:
     """Import ``modname`` and return its ``attrname`` attribute, or None."""
+    module = _import_module(modname)
+    if module is None:
+        return None
     try:
-        module = importlib.import_module(modname)
         return getattr(module, attrname, None)
     except Exception:
         return None
@@ -1168,13 +1181,112 @@ def _annotated_metadata_fragments(
         if isinstance(value, str):
             fragments |= _source_metadata_names(value)
             continue
-        for metadata in _iter_annotated_metadata(value, set()):
-            for rendering in _render_metadata_object(metadata):
-                tree = _parse_expression(rendering)
-                if tree is not None:
-                    fragments |= _expression_names(tree)
+        fragments |= _runtime_metadata_fragments(value)
     result = frozenset(fragments)
     by_class[id(cls)] = result
+    return result
+
+
+def _runtime_metadata_fragments(value: Any) -> set[str]:
+    """Collect the names Sphinx's rendering of *value*'s metadata emits.
+
+    Every ``Annotated`` form nested in *value* contributes the names of
+    both renderings its metadata objects can take
+    (:func:`_render_metadata_object`), for the renderings that parse as
+    Python — the ones Sphinx's annotation parser splits into fragments
+    rather than mangling whole (:func:`_is_mangled_target`).
+    """
+    fragments: set[str] = set()
+    for metadata in _iter_annotated_metadata(value, set()):
+        for rendering in _render_metadata_object(metadata):
+            tree = _parse_expression(rendering)
+            if tree is not None:
+                fragments |= _expression_names(tree)
+    return fragments
+
+
+def _module_alias_values(modname: str) -> list[Any]:
+    """Collect the alias values a module exposes publicly.
+
+    Both alias shapes a module can publish are read, since Sphinx renders
+    the metadata of either into the alias's own page: a :pep:`695`
+    ``type`` statement, whose ``TypeAliasType`` is unwrapped to the
+    (lazily evaluated) value it stands for, and an assignment-style
+    ``Annotated`` alias, which *is* its value
+    (:func:`~documenteer.ext.autotypes._shared._is_annotated_alias`).
+
+    Only public attributes count, and every probe is guarded: evaluating
+    a lazy alias value can raise (a ``type`` statement naming something
+    undefined), and reading an arbitrary module attribute can raise
+    anything at all (Pydantic's mock validators raise
+    ``PydanticUserError``).
+    """
+    module = _import_module(modname)
+    if module is None:
+        return []
+    try:
+        attrs = dict(vars(module))
+    except TypeError:
+        return []
+    values: list[Any] = []
+    for attr, value in attrs.items():
+        if attr.startswith("_"):
+            continue
+        if isinstance(value, TypeAliasType):
+            with contextlib.suppress(Exception):
+                values.append(value.__value__)
+        elif _is_annotated_alias(value):
+            values.append(value)
+    return values
+
+
+_alias_fragment_cache: dict[int, dict[str, frozenset[str]]] = {}
+
+
+def _alias_metadata_fragments(
+    modname: str, env: BuildEnvironment | None = None
+) -> frozenset[str]:
+    """Index the names a module's alias ``Annotated`` metadata synthesizes.
+
+    This is the module-scoped sibling of
+    :func:`_annotated_metadata_fragments`, and it exists because the same
+    fragments surface in a second place: a type alias's *own* page.
+    Sphinx renders the alias's value there, metadata and all, and unparses
+    the result into cross-references — so Safir's ``IvoaIsoDatetime``,
+    whose value carries a ``BeforeValidator`` and a ``PlainSerializer``,
+    emits a ``PydanticUndefined`` (the repr of a sentinel default) and a
+    ``json`` (the unquoted string value of ``when_used="json"``) target.
+    Those describe how a value is validated and serialized; neither names
+    anything that could be documented.
+
+    The class-scoped rung cannot cover them: an alias page carries no
+    ``py:class`` context at all, only the ``py:module`` of the module the
+    alias is documented from. That module — not the alias's defining
+    module — is therefore what this is indexed by, and it is the whole
+    guardrail: a name that no alias of *this* module renders keeps
+    warning, and a fragment of one module's alias does not degrade under
+    another module's context.
+
+    Like its class-scoped sibling the index resolves nothing, so it adds
+    no lookup surface: it is consulted only after every resolution rung,
+    and the class-scoped rung, have already failed. It is cached per
+    build environment and module, following
+    :func:`_annotated_metadata_fragments`.
+    """
+    key = id(env)
+    by_module = _alias_fragment_cache.get(key)
+    if by_module is None:
+        _alias_fragment_cache.clear()
+        by_module = {}
+        _alias_fragment_cache[key] = by_module
+    cached = by_module.get(modname)
+    if cached is not None:
+        return cached
+    fragments: set[str] = set()
+    for value in _module_alias_values(modname):
+        fragments |= _runtime_metadata_fragments(value)
+    result = frozenset(fragments)
+    by_module[modname] = result
     return result
 
 
@@ -1313,6 +1425,21 @@ def _missing_reference(  # noqa: C901, PLR0912
     # Unlinked literal, not a warning. Only fragments *this* class's own
     # metadata renders count, so names from elsewhere keep warning.
     if cls is not None and base in _annotated_metadata_fragments(cls, env):
+        return contnode
+
+    # The same fragment family on a *type alias's* own page, where the
+    # reference carries no ``py:class`` context for the rung above to read
+    # — only the ``py:module`` of the module the alias is documented from.
+    # Safir's ``IvoaIsoDatetime`` is the case: its value's
+    # ``BeforeValidator``/``PlainSerializer`` metadata renders a
+    # ``PydanticUndefined`` sentinel repr and an unquoted ``json`` string
+    # value into the alias's rendered value, and Sphinx unparses both into
+    # targets. Unlinked literal, not a warning. Only names some alias of
+    # *this* module renders count, so names from elsewhere keep warning.
+    module_context = node.get("py:module")
+    if module_context and base in _alias_metadata_fragments(
+        module_context, env
+    ):
         return contnode
 
     return None
