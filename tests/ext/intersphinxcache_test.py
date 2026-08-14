@@ -945,7 +945,7 @@ def test_guide_preset_registers_extension(
     monkeypatch: Any,
 ) -> None:
     """The guide preset registers the intersphinxcache extension and wires
-    the [sphinx.intersphinx_cache] settings through to its config values.
+    the [sphinx.intersphinx.cache] settings through to its config values.
     """
     monkeypatch.delenv("OOK_TOKEN", raising=False)
 

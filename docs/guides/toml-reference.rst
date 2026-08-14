@@ -503,7 +503,7 @@ The values are URLs to the root of Sphinx documentation projects.
 
 See the Intersphinx_ documentation for details on linking to other Sphinx projects.
 
-[sphinx.intersphinx_cache]
+[sphinx.intersphinx.cache]
 ==========================
 
 |optional|
@@ -543,7 +543,7 @@ Set this to ``false`` as an escape hatch to disable prefetching so Intersphinx_ 
 
 .. code-block:: toml
 
-   [sphinx.intersphinx_cache]
+   [sphinx.intersphinx.cache]
    use_service = false
 
 With ``use_service = false`` the service is never contacted, even when an ``OOK_TOKEN`` is set.
@@ -576,7 +576,7 @@ Set ``disk_cache_ttl`` to ``0`` to disable this fast path so every build revalid
 
 .. code-block:: toml
 
-   [sphinx.intersphinx_cache]
+   [sphinx.intersphinx.cache]
    disk_cache_ttl = 0
 
 The TTL governs only the client-to-Ook hop; whether Ook's own cached copy is current relative to the origin site remains Ook's concern.
