@@ -76,6 +76,7 @@ __all__ = [
     "documenteer_intersphinx_cache_use_service",
     "documenteer_intersphinx_cache_service_url",
     "documenteer_intersphinx_cache_disk_cache_ttl",
+    "documenteer_intersphinx_cache_warn_on_permanent_redirect",
     # LINKCHECK
     "linkcheck_retries",
     "linkcheck_ignore",
@@ -271,6 +272,9 @@ documenteer_intersphinx_cache_use_service = _conf.intersphinx_cache_use_service
 documenteer_intersphinx_cache_service_url = _conf.intersphinx_cache_service_url
 documenteer_intersphinx_cache_disk_cache_ttl = (
     _conf.intersphinx_cache_disk_cache_ttl
+)
+documenteer_intersphinx_cache_warn_on_permanent_redirect = (
+    _conf.intersphinx_cache_warn_on_permanent_redirect
 )
 
 

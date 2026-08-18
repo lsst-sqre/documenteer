@@ -13,7 +13,12 @@ import pytest_responses  # noqa: F401
 from responses import RequestsMock, matchers
 from sphinx.testing.util import SphinxTestApp
 
-from documenteer.ext.intersphinxcache import CACHE_DIRNAME, _inventory_filename
+from documenteer.ext.intersphinxcache import (
+    CACHE_DIRNAME,
+    REDIRECT_WARNING_SUBTYPE,
+    REDIRECT_WARNING_TYPE,
+    _inventory_filename,
+)
 from documenteer.services.intersphinxreport import MOVED_FLAG, REPORT_HEADING
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
@@ -724,9 +729,10 @@ def test_permanent_redirect_notice_names_the_guide_config(
     build says so at info level — naming the mapping key, the URL the project
     configures, where it now lives, and the guide's own configuration file to
     change — and flags that row in the summary block. A mapping entry that
-    has not moved gets neither the notice nor the flag. The notice is info,
-    not a warning, so this ``-W`` build succeeds, and both entries are still
-    rewritten to their local cache files.
+    has not moved gets neither the notice nor the flag. Escalation is off by
+    default, so the notice is info, not a warning, this ``-W`` build
+    succeeds, and both entries are still rewritten to their local cache
+    files.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     responses.get(
@@ -764,8 +770,14 @@ def test_permanent_redirect_notice_names_the_guide_config(
     assert "[sphinx.intersphinx.projects]" in notice
     assert "documenteer.toml" in notice
     assert PYTHON_INV_URL not in notice
-    # Info, not a warning: this build ran with -W and still succeeded.
+    # Info, not a warning: escalation defaults off, so this build ran with -W
+    # and still succeeded.
+    assert (
+        app.config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+        is False
+    )
     assert "permanently moved" not in app.warning.getvalue()
+    assert app.statuscode == 0
 
     rows = _summary_rows(app, 2)
     assert rows[0].startswith(
@@ -928,6 +940,189 @@ def test_permanent_redirect_reported_on_revalidation(
     location = _inventory_locations(app2, "testproj")[0]
     assert "://" not in location
     assert Path(location).is_file()
+
+
+def _redirect_warnings(app: SphinxTestApp) -> list[str]:
+    """Return every permanent-redirect notice on the build's warning stream.
+
+    The mirror of `_redirect_notices` for the opt-in escalated form, so a
+    test can assert which stream the notice landed on rather than only that
+    the text exists somewhere.
+    """
+    return [
+        line
+        for line in app.warning.getvalue().splitlines()
+        if "has permanently moved" in line
+    ]
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-guide",
+    srcdir="intersphinx-cache-redirect-warn-guide",
+    confoverrides={
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect": True
+    },
+    warningiserror=True,
+)
+def test_permanent_redirect_warning_opt_in_fails_a_strict_build(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A project that opts into escalation gets the redirect notice as a
+    warning — carrying the suppress_warnings key — and its ``-W`` build fails.
+
+    The escalation governs only the dedicated notice: the summary block stays
+    at info level, so opting in never turns the whole block into a build
+    failure. Nothing else changes — the wording still names the guide's own
+    configuration file, and both entries are still rewritten to their local
+    cache files.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+        match=[matchers.query_param_matcher({"url": PYTHON_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The moved entry warns, once, on the warning stream and not the status
+    # stream, with the wording and the suppress_warnings key.
+    (warning,) = _redirect_warnings(app)
+    assert "'pydantic'" in warning
+    assert PYDANTIC_INV_URL in warning
+    assert PYDANTIC_MOVED_URL in warning
+    assert "[sphinx.intersphinx.projects]" in warning
+    assert f"[{REDIRECT_WARNING_TYPE}.{REDIRECT_WARNING_SUBTYPE}]" in warning
+    assert _redirect_notices(app) == []
+
+    # The build ran with -W and failed on that warning.
+    assert app.statuscode == 1
+
+    # Only the notice escalated: the summary block is still on the status
+    # stream at info level, with its row still flagged.
+    assert REPORT_HEADING not in app.warning.getvalue()
+    rows = _summary_rows(app, 2)
+    assert rows[0].endswith(f"  {MOVED_FLAG}")
+    assert MOVED_FLAG not in rows[1]
+
+    # The prefetch is unchanged: a moved URL is reported, not routed around.
+    for name in ("pydantic", "python"):
+        location = _inventory_locations(app, name)[0]
+        assert "://" not in location
+        assert Path(location).is_file()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-technote",
+    srcdir="intersphinx-cache-redirect-warn-technote",
+    confoverrides={
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect": True
+    },
+    warningiserror=True,
+)
+def test_permanent_redirect_warning_opt_in_from_technote_conf_py(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A technote reaches the escalation through the Sphinx config value in
+    its ``conf.py`` — Documenteer adds no keys to ``technote.toml`` — and the
+    escalated notice still names the technote's own configuration file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    (warning,) = _redirect_warnings(app)
+    assert PYDANTIC_MOVED_URL in warning
+    assert "[technote.sphinx.intersphinx]" in warning
+    assert "documenteer.toml" not in warning
+    assert app.statuscode == 1
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-guide",
+    srcdir="intersphinx-cache-redirect-suppressed",
+    confoverrides={
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect": True,
+        "suppress_warnings": [
+            f"{REDIRECT_WARNING_TYPE}.{REDIRECT_WARNING_SUBTYPE}"
+        ],
+    },
+    warningiserror=True,
+)
+def test_permanent_redirect_warning_can_be_suppressed(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """The escalated notice carries a warning type/subtype, so a project that
+    knows about one moved inventory can silence just that warning and keep
+    its ``-W`` build passing without giving up the escalation elsewhere.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+        match=[matchers.query_param_matcher({"url": PYTHON_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    assert _redirect_warnings(app) == []
+    assert app.statuscode == 0
+    # The summary block still reports the move; only the warning is silenced.
+    assert _summary_rows(app, 1)[0].endswith(f"  {MOVED_FLAG}")
 
 
 def _etag_sidecar(inv_path: Path) -> Path:
@@ -1598,6 +1793,10 @@ def test_guide_preset_registers_extension(
         OOK_BASE_URL
     )
     assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600
+    assert (
+        app.config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+        is False
+    )
 
 
 @pytest.mark.skipif(
@@ -1626,3 +1825,9 @@ def test_technote_preset_registers_extension(
         OOK_BASE_URL
     )
     assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600
+    # A technote overrides this in conf.py; Documenteer adds no keys to
+    # technote.toml, so the preset leaves the extension's default in place.
+    assert (
+        app.config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+        is False
+    )

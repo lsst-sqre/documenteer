@@ -581,6 +581,38 @@ Set ``disk_cache_ttl`` to ``0`` to disable this fast path so every build revalid
 
 The TTL governs only the client-to-Ook hop; whether Ook's own cached copy is current relative to the origin site remains Ook's concern.
 
+.. _guide-sphinx-intersphinx-cache-warn-on-permanent-redirect:
+
+warn_on_permanent_redirect
+--------------------------
+
+|optional|
+
+Whether to report a permanently-moved intersphinx inventory URL as a Sphinx warning rather than at the ``INFO`` log level.
+Default is ``false``.
+
+When the Ook_ service reports that one of your configured inventory URLs now redirects permanently to a new location, Documenteer tells you so in the build log, naming the mapping key, the URL you configure, where it now lives, and the ``[sphinx.intersphinx.projects]`` entry to update.
+By default that notice is logged at ``INFO``: the move originates upstream, outside your control, and Rubin documentation builds run with warnings-as-errors (``-W``), so warning about it would fail your builds on a third party's schedule.
+
+Set this to ``true`` if you would rather your build fail than carry a stale inventory URL:
+
+.. code-block:: toml
+
+   [sphinx.intersphinx.cache]
+   warn_on_permanent_redirect = true
+
+The setting escalates only that one notice.
+The inventory summary block stays at ``INFO`` either way, so opting in never turns a block of pure status reporting into a build failure, and prefetching is unaffected — the mapping entry is still rewritten to the locally cached inventory whether or not escalation is enabled.
+
+The escalated notice carries the warning subtype ``documenteer.intersphinx_permanent_redirect``, so you can silence a move you already know about — one you can't act on yet, for instance — while keeping the warning for every other inventory:
+
+.. code-block:: python
+
+   # conf.py
+   suppress_warnings = ["documenteer.intersphinx_permanent_redirect"]
+
+Note that Ook reports the redirect chain it observed at *its* last successful fetch of the inventory, not at your build time.
+
 [sphinx.linkcheck]
 ==================
 

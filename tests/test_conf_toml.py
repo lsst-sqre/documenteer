@@ -313,14 +313,25 @@ base_url = "https://documenteer.lsst.io"
 use_service = false
 service_url = "https://roundtable-dev.lsst.cloud/ook"
 disk_cache_ttl = 0
+warn_on_permanent_redirect = true
+"""
+
+EXAMPLE_INTERSPHINX_CACHE_EMPTY = """
+
+[project]
+title = "Documenteer"
+base_url = "https://documenteer.lsst.io"
+
+[sphinx.intersphinx.cache]
 """
 
 
 def test_intersphinx_cache_defaults() -> None:
     """The intersphinx cache settings have production-ready defaults, even
-    without a [sphinx] table.
+    without a [sphinx] table, and with the table present but empty.
     """
-    for example in (EXAMPLE, EXAMPLE_NO_SPHINX):
+    examples = (EXAMPLE, EXAMPLE_NO_SPHINX, EXAMPLE_INTERSPHINX_CACHE_EMPTY)
+    for example in examples:
         config = DocumenteerConfig.load(example)
         assert config.intersphinx_cache_use_service is True
         assert (
@@ -328,6 +339,9 @@ def test_intersphinx_cache_defaults() -> None:
             == "https://roundtable.lsst.cloud/ook"
         )
         assert config.intersphinx_cache_disk_cache_ttl == 600
+        # Escalating the permanent-redirect notice to a warning is opt-in:
+        # Rubin builds run with -W, and the move is not the author's doing.
+        assert config.intersphinx_cache_warn_on_permanent_redirect is False
 
 
 def test_intersphinx_cache_settings() -> None:
@@ -339,6 +353,7 @@ def test_intersphinx_cache_settings() -> None:
         == "https://roundtable-dev.lsst.cloud/ook"
     )
     assert config.intersphinx_cache_disk_cache_ttl == 0
+    assert config.intersphinx_cache_warn_on_permanent_redirect is True
 
 
 EXAMPLE_NEGATIVE_TTL = """

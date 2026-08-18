@@ -66,11 +66,23 @@ That notice is INFO, not WARNING, in company with everything else here. A
 permanent redirect is the author's configuration going stale, but the move
 originates upstream and outside their control, and Rubin builds run with
 ``-W`` (warnings-as-errors), so warning about it would fail builds on a third
-party's schedule. Escalating it to a warning is opt-in and configured
-separately. Note also that Ook reports the redirect chain observed at *its*
-last successful fetch and keeps serving a failing row's last-known-good
+party's schedule. Note also that Ook reports the redirect chain observed at
+*its* last successful fetch and keeps serving a failing row's last-known-good
 target, which is why the summary pairs the moved flag with that fetch time
 rather than presenting the move as current fact.
+
+A project that wants enforcement — one that would rather fail its build than
+carry a stale inventory URL — opts in with
+``documenteer_intersphinx_cache_warn_on_permanent_redirect`` (default
+`False`), reachable from ``[sphinx.intersphinx.cache]`` in
+``documenteer.toml`` for a guide and from ``conf.py`` for a technote. The
+setting escalates *only* the dedicated notice, and the escalated notice
+carries a Sphinx warning type and subtype
+(``documenteer.intersphinx_permanent_redirect``) so a project that knows
+about one moved inventory can silence just that warning via
+``suppress_warnings`` and keep enforcement everywhere else. The summary block
+stays at INFO unconditionally: opting into escalation must never turn a block
+of pure status reporting into a build failure.
 
 The extension is a complete no-op when ``OOK_TOKEN`` is unset (forks, local
 builds) or when disabled via ``documenteer_intersphinx_cache_use_service``.
@@ -154,6 +166,18 @@ _REDIRECT_REMEDY = {
 
 Only the message text lives here; which kind of project is being built is
 `documenteer.conf._configsource.detect_config_source`'s job.
+"""
+
+REDIRECT_WARNING_TYPE = "documenteer"
+"""Sphinx warning type for the escalated permanent-redirect notice."""
+
+REDIRECT_WARNING_SUBTYPE = "intersphinx_permanent_redirect"
+"""Sphinx warning subtype for the escalated permanent-redirect notice.
+
+Paired with `REDIRECT_WARNING_TYPE`, this is the ``suppress_warnings`` key
+(``documenteer.intersphinx_permanent_redirect``) a project adds to silence
+the warning for a move it already knows about, without giving up escalation
+for the rest of its inventories.
 """
 
 
@@ -272,25 +296,46 @@ def _report_permanent_redirect(
     origin_url: str,
     permanent_redirect_url: str | None,
     config_source: ConfigSource,
+    *,
+    warn: bool,
 ) -> None:
     """Tell the author that a configured inventory URL has permanently moved.
 
     Does nothing when Ook reported no move, which is the overwhelmingly
-    common case. Logged at info level (not as a warning) for the same
-    warnings-as-errors reason as the rest of this module: the redirect
+    common case. Logged at info level (not as a warning) by default, for the
+    same warnings-as-errors reason as the rest of this module: the redirect
     originates upstream, outside the author's control, and Rubin builds run
-    with ``-W``. Escalating this to a warning is a separate, opt-in setting.
+    with ``-W``.
+
+    ``warn`` is the project's opt-in escalation
+    (``documenteer_intersphinx_cache_warn_on_permanent_redirect``). When set,
+    the same message is logged as a warning carrying a type and subtype, so a
+    ``-W`` build fails on it and a project that knows about one moved
+    inventory can silence just that warning with ``suppress_warnings =
+    ["documenteer.intersphinx_permanent_redirect"]``. Only this notice
+    escalates; the summary block stays at info level either way.
     """
     if permanent_redirect_url is None:
         return
-    logger.info(
+    message = (
         "The intersphinx inventory URL for %r has permanently moved: %s "
-        "now redirects to %s. %s",
+        "now redirects to %s. %s"
+    )
+    args = (
         name,
         origin_url,
         permanent_redirect_url,
         _REDIRECT_REMEDY[config_source],
     )
+    if warn:
+        logger.warning(
+            message,
+            *args,
+            type=REDIRECT_WARNING_TYPE,
+            subtype=REDIRECT_WARNING_SUBTYPE,
+        )
+    else:
+        logger.info(message, *args)
 
 
 def _revalidate_inventory(
@@ -301,6 +346,7 @@ def _revalidate_inventory(
     etag_path: Path,
     *,
     config_source: ConfigSource,
+    warn_on_permanent_redirect: bool,
 ) -> tuple[str | None, InventoryReportEntry]:
     """Fetch or revalidate one inventory, returning the local path to map to
     and the facts for its row in the build's summary block.
@@ -315,7 +361,8 @@ def _revalidate_inventory(
 
     ``config_source`` is the kind of Documenteer project being built, used
     only to word the permanent-redirect notice for whichever configuration
-    file the author actually has.
+    file the author actually has, and ``warn_on_permanent_redirect`` is the
+    project's opt-in escalation of that notice to a warning.
     """
     request_etag: str | None = None
     if inv_path.is_file() and etag_path.is_file():
@@ -382,7 +429,11 @@ def _revalidate_inventory(
             name,
         )
         _report_permanent_redirect(
-            name, origin_url, result.permanent_redirect_url, config_source
+            name,
+            origin_url,
+            result.permanent_redirect_url,
+            config_source,
+            warn=warn_on_permanent_redirect,
         )
         return str(inv_path), InventoryReportEntry(
             name=name,
@@ -432,7 +483,11 @@ def _revalidate_inventory(
         len(content),
     )
     _report_permanent_redirect(
-        name, origin_url, result.permanent_redirect_url, config_source
+        name,
+        origin_url,
+        result.permanent_redirect_url,
+        config_source,
+        warn=warn_on_permanent_redirect,
     )
     return str(inv_path), InventoryReportEntry(
         name=name,
@@ -475,6 +530,13 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
     # rather than once per message, and used only to word the
     # permanent-redirect notice for a file the author actually has.
     config_source = detect_config_source(app.confdir)
+
+    # Whether this project asked for the permanent-redirect notice to be a
+    # warning (and so, under -W, a build failure). Off by default; it governs
+    # that one notice and nothing else in this module.
+    warn_on_permanent_redirect = (
+        config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+    )
 
     # Accumulates one row per mapping entry the extension considers, rendered
     # as a single at-a-glance block once the loop is done. The per-entry INFO
@@ -526,6 +588,7 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
             inv_path,
             etag_path,
             config_source=config_source,
+            warn_on_permanent_redirect=warn_on_permanent_redirect,
         )
         report.add(entry)
         if local_path is not None:
@@ -564,6 +627,11 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     )
     app.add_config_value(
         "documenteer_intersphinx_cache_disk_cache_ttl", 600, ""
+    )
+    # Escalation is opt-in: the default keeps the permanent-redirect notice at
+    # info level so a -W build never fails on a third party's move.
+    app.add_config_value(
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect", False, ""
     )
 
     return {
