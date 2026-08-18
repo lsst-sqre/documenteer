@@ -40,6 +40,27 @@ TESTROOT_EXTERNAL_URLS = [
 ]
 
 
+def _warning_message(app: SphinxTestApp, needle: str) -> str:
+    """Return the one warning message containing ``needle``.
+
+    Sphinx writes each warning into the stream as ``WARNING: <message>``,
+    and a message can span several lines — a service error embeds the
+    underlying client error verbatim, and the test roots are not Git
+    repositories, so every build also carries a multi-line
+    sphinx-last-updated-by-git warning. Splitting the stream on those
+    markers scopes an assertion to a single message, so a check that a
+    message does *not* name some file cannot be defeated by a different
+    warning in the same build.
+    """
+    blocks = [
+        block
+        for block in app.warning.getvalue().split("WARNING: ")
+        if needle in block
+    ]
+    assert len(blocks) == 1, app.warning.getvalue()
+    return blocks[0]
+
+
 def _mock_builtin_head_ok(responses: RequestsMock, urls: list[str]) -> None:
     """Register 200 HEAD responses for the built-in linkcheck fallback.
 
@@ -401,6 +422,94 @@ def test_technote_linkcheck_happy_path(
         in status_output
     )
     assert "ok: 2" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-no-origin",
+    confoverrides={"documenteer_linkcheck_origin_base_url": None},
+)
+def test_guide_missing_origin_names_documenteer_toml(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A guide with no origin base URL still gets the message naming the
+    keys of its own configuration file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+
+    app.build()
+
+    assert app.statuscode == 0
+    assert not responses.calls
+
+    message = _warning_message(app, "No origin base URL is available")
+    assert "documenteer.toml" in message
+    assert "project.base_url" in message
+    assert "[sphinx.linkcheck] origin_base_url" in message
+
+
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service-bare",
+    srcdir="linkcheck-service-bare-no-origin",
+)
+def test_bare_missing_origin_names_sphinx_config_value(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A project configured from ``conf.py`` alone — with neither TOML
+    file beside it — is pointed at the Sphinx config value, naming no
+    file it does not have.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+
+    app.build()
+
+    assert app.statuscode == 0
+    assert not responses.calls
+
+    message = _warning_message(app, "No origin base URL is available")
+    assert "documenteer_linkcheck_origin_base_url" in message
+    assert "conf.py" in message
+    assert "documenteer.toml" not in message
+    assert "technote.toml" not in message
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="technote-linkcheck-service",
+    srcdir="technote-linkcheck-service-no-origin",
+    confoverrides={"documenteer_linkcheck_origin_base_url": None},
+)
+def test_technote_missing_origin_names_technote_toml(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A technote with no derivable origin base URL is told to set keys
+    that exist in its own configuration file, not a ``documenteer.toml``
+    it does not have.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+
+    app.build()
+
+    # The missing-origin path returns before any submission.
+    assert app.statuscode == 0
+    assert not responses.calls
+
+    message = _warning_message(app, "No origin base URL is available")
+    assert "technote.toml" in message
+    assert "[technote] canonical_url" in message
+    assert "[technote] id" in message
+    # A technote has no documenteer.toml, so the message must never name
+    # one — nor the guide-only keys that live in it.
+    assert "documenteer.toml" not in message
+    assert "project.base_url" not in message
 
 
 @pytest.mark.skipif(
@@ -855,6 +964,11 @@ def test_unreachable_service_degrades(
     assert "Link check skipped" in warning_output
     assert "Could not reach the Ook link-check service" in warning_output
 
+    # A guide is invited to turn on strict mode through the TOML key that
+    # actually governs it in its own configuration file.
+    message = _warning_message(app, "Link check skipped")
+    assert "[sphinx.linkcheck] strict = true in documenteer.toml" in message
+
 
 @pytest.mark.skipif(
     not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
@@ -1050,6 +1164,97 @@ def test_unreachable_service_strict_fails(
     warning_output = app.warning.getvalue()
     assert "Link check failed" in warning_output
     assert "Could not reach the Ook link-check service" in warning_output
+
+    # A guide is told about the TOML key that actually governs strict
+    # mode in its own configuration file.
+    message = _warning_message(app, "Link check failed")
+    assert "[sphinx.linkcheck] strict = true in documenteer.toml" in message
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="technote-linkcheck-service",
+    srcdir="technote-linkcheck-service-strict-unreachable",
+    confoverrides={"documenteer_linkcheck_strict": True},
+)
+def test_technote_strict_failure_names_conf_py(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A technote's strict-mode failure names the conf.py setting that
+    turned strict mode on, not a TOML key that does not exist.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # No mocked responses are registered, so the submission raises a
+    # connection error, standing in for an unreachable service.
+
+    app.build()
+
+    # Strict mode still fails the build, exactly as for a guide.
+    assert app.statuscode == 1
+
+    message = _warning_message(app, "Link check failed")
+    assert "documenteer_linkcheck_strict = True in conf.py" in message
+    assert "documenteer.toml" not in message
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="technote-linkcheck-service",
+    srcdir="technote-linkcheck-service-unreachable",
+)
+def test_technote_skip_names_conf_py(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A technote's non-strict skip message — the one that actively
+    invites the author to act — points at the conf.py setting rather than
+    a file the technote does not have.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # No mocked responses are registered, so the submission raises a
+    # connection error, standing in for an unreachable service.
+
+    app.build()
+
+    # Degrading gracefully still exits zero, exactly as for a guide.
+    assert app.statuscode == 0
+
+    message = _warning_message(app, "Link check skipped")
+    assert "documenteer_linkcheck_strict = True in conf.py" in message
+    assert "documenteer.toml" not in message
+
+
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service-bare",
+    srcdir="linkcheck-service-bare-unreachable",
+    confoverrides={
+        "documenteer_linkcheck_origin_base_url": "https://example.lsst.io"
+    },
+)
+def test_bare_skip_names_conf_py(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A project configured from ``conf.py`` alone is pointed at the
+    conf.py strict setting, naming no TOML file it does not have.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # No mocked responses are registered, so the submission raises a
+    # connection error, standing in for an unreachable service.
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    message = _warning_message(app, "Link check skipped")
+    assert "documenteer_linkcheck_strict = True in conf.py" in message
+    assert "documenteer.toml" not in message
+    assert "technote.toml" not in message
 
 
 @pytest.mark.skipif(

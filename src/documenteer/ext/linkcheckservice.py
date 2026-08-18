@@ -22,6 +22,7 @@ from sphinx.builders.linkcheck import (
 )
 from sphinx.util import logging
 
+from ..conf._configsource import ConfigSource, detect_config_source
 from ..storage.linkcheckclient import (
     DEFAULT_BASE_URL,
     CheckedUrl,
@@ -65,6 +66,34 @@ DEFAULT_BRANCH_FLAG_ENV_VAR = "DOCUMENTEER_LINKCHECK_DEFAULT_BRANCH"
 Set to ``true`` or ``false`` to force the flag either way regardless of
 the GitHub Actions environment.
 """
+
+_ORIGIN_BASE_URL_REMEDY = {
+    ConfigSource.GUIDE: (
+        "Set project.base_url or [sphinx.linkcheck] origin_base_url in "
+        "documenteer.toml."
+    ),
+    # A technote's origin base URL is derived rather than authored:
+    # get_technote_origin_base_url() prefers the canonical URL and falls
+    # back to https://<id>.lsst.io, so it is empty only when both of
+    # these technote.toml keys are missing.
+    ConfigSource.TECHNOTE: (
+        "Set [technote] canonical_url or [technote] id in technote.toml."
+    ),
+    ConfigSource.UNKNOWN: (
+        "Set documenteer_linkcheck_origin_base_url in conf.py."
+    ),
+}
+"""How to supply a missing origin base URL, per kind of project."""
+
+_STRICT_SETTING = {
+    ConfigSource.GUIDE: "[sphinx.linkcheck] strict = true in documenteer.toml",
+    # Technotes get the conf.py form rather than a TOML key because
+    # technote.toml's schema belongs to the technote package, not to
+    # Documenteer.
+    ConfigSource.TECHNOTE: "documenteer_linkcheck_strict = True in conf.py",
+    ConfigSource.UNKNOWN: "documenteer_linkcheck_strict = True in conf.py",
+}
+"""How strict mode is spelled, per kind of project."""
 
 
 def resolve_default_branch_flag(
@@ -196,12 +225,22 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
     #: `ReferencingPagesCollector` during the write phase.
     _referencing_pages: dict[str, set[str]]
 
+    #: Which kind of Documenteer project is being built, used to word the
+    #: build-log messages that name configuration settings.
+    _config_source: ConfigSource
+
     def init(self) -> None:
         """Initialize the builder, adding the referencing-pages mapping the
-        `ReferencingPagesCollector` post-transform populates.
+        `ReferencingPagesCollector` post-transform populates and resolving
+        the kind of project being built.
+
+        The project kind is resolved once here, rather than once per
+        message, from ``self.confdir`` (which `~sphinx.builders.Builder`
+        sets from ``app.confdir``).
         """
         super().init()
         self._referencing_pages = {}
+        self._config_source = detect_config_source(self.confdir)
 
     def finish(self) -> None:
         """Submit the collected hyperlinks to the link-check service and
@@ -213,14 +252,14 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         runs for projects that aren't using the service. Other service
         problems — an unreachable service or an exhausted polling budget —
         are routed to `_handle_service_error`, which skips by default and
-        fails only under ``[sphinx.linkcheck] strict = true``.
+        fails only in strict mode.
         """
         origin_base_url = self.config.documenteer_linkcheck_origin_base_url
         if not origin_base_url:
             logger.warning(
                 "No origin base URL is available for the link-check "
-                "service. Set project.base_url or [sphinx.linkcheck] "
-                "origin_base_url in documenteer.toml."
+                "service. %s",
+                _ORIGIN_BASE_URL_REMEDY[self._config_source],
             )
             return
 
@@ -304,25 +343,29 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
 
         By default the build degrades gracefully: a warning is emitted
         and the build continues with a zero exit status, so documentation
-        builds do not fail on a transient service problem. With
-        ``[sphinx.linkcheck] strict = true`` in ``documenteer.toml`` the
-        same conditions fail the build instead. A missing or rejected
+        builds do not fail on a transient service problem. Strict mode
+        makes the same conditions fail the build instead — set with
+        ``[sphinx.linkcheck] strict = true`` in a guide's
+        ``documenteer.toml``, or ``documenteer_linkcheck_strict = True``
+        in a technote's ``conf.py``. Each message names whichever of the
+        two the project being built actually uses. A missing or rejected
         ``OOK_TOKEN`` is handled separately by `_fall_back_to_builtin`, not
         here.
         """
+        strict_setting = _STRICT_SETTING[self._config_source]
         if self.config.documenteer_linkcheck_strict:
             logger.warning(
-                "Link check failed: %s The build fails because "
-                "[sphinx.linkcheck] strict = true in documenteer.toml.",
+                "Link check failed: %s The build fails because %s.",
                 error,
+                strict_setting,
             )
             self._set_failure_status()
         else:
             logger.warning(
-                "Link check skipped: %s The build continues; set "
-                "[sphinx.linkcheck] strict = true in documenteer.toml to "
+                "Link check skipped: %s The build continues; set %s to "
                 "fail the build on link-check service problems instead.",
                 error,
+                strict_setting,
             )
 
     def _referencing_page_sets(self) -> dict[str, set[str]]:
@@ -465,10 +508,13 @@ def _apply_builder_override(app: Sphinx, config: Config) -> None:
 
     The override decision needs the resolved configuration, so it runs on
     ``config-inited`` (which Sphinx emits after extension setup but
-    before the builder is instantiated). With ``[sphinx.linkcheck]
-    use_service = false`` in ``documenteer.toml`` the override is not
+    before the builder is instantiated). When
+    ``documenteer_linkcheck_use_service`` is false the override is not
     applied and Sphinx's built-in ``linkcheck`` builder runs as-is — the
-    escape hatch for projects that want in-process link checking.
+    escape hatch for projects that want in-process link checking. A guide
+    turns it off with ``[sphinx.linkcheck] use_service = false`` in
+    ``documenteer.toml``; a technote sets
+    ``documenteer_linkcheck_use_service = False`` in its ``conf.py``.
     """
     if not config.documenteer_linkcheck_use_service:
         return
