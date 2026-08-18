@@ -485,6 +485,8 @@ Set this to ``false`` to hide the timestamp:
 
 Configurations related to Intersphinx_ for linking to other Sphinx projects.
 
+.. _guide-sphinx-intersphinx-projects:
+
 [sphinx.intersphinx.projects]
 =============================
 
@@ -524,10 +526,78 @@ While a cached inventory is younger than the TTL, it is reused without contactin
 
 .. note::
 
-   **Technotes** also prefetch intersphinx inventories from the service, but technotes don't read :file:`documenteer.toml`, so the settings below don't apply to them; the defaults are used.
+   **Technotes** also prefetch intersphinx inventories from the service, and get the same summary block and permanent-redirect notice described here.
+   But technotes don't read :file:`documenteer.toml`, so the settings in this section don't apply to them; the defaults are used.
 
-   A technote can override these settings through the corresponding ``documenteer_intersphinx_cache_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
-   For example, ``documenteer_intersphinx_cache_use_service = False`` disables prefetching.
+   A technote overrides any of these settings through the corresponding ``documenteer_intersphinx_cache_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
+   See :ref:`technote-conf-intersphinx-cache` for those settings.
+
+.. _guide-sphinx-intersphinx-cache-summary:
+
+The inventory prefetch summary
+------------------------------
+
+Once the prefetch is done, Documenteer logs one summary block naming every mapping entry it considered, in :ref:`[sphinx.intersphinx.projects] <guide-sphinx-intersphinx-projects>` order — the order you see in your own configuration file:
+
+.. code-block:: text
+
+   Intersphinx inventory prefetch summary (Ook cache status):
+     python    hit           fetched 2026-08-18T17:58:24Z (26 minutes ago)
+     sphinx    stale         fetched 2026-08-18T15:24:30Z (3 hours ago)
+     numpy     miss          fetched 2026-08-18T18:24:28Z (just now)
+     pydantic  hit           fetched 2026-08-09T18:24:30Z (9 days ago)      -> moved
+     astropy   served        fetch time unavailable
+     safir     disk cache    (Ook was not contacted)
+     requests  direct fetch  (Ook could not be reached)
+
+The whole block is logged at ``INFO``, so it never affects a warnings-as-errors (``-W``) build: none of what it reports is yours to fix.
+Entries Documenteer doesn't prefetch at all — a local target URI, or an inventory location that's already a local path — get no row.
+
+The second column is how that inventory was obtained.
+Three of its values come from Ook, passed through verbatim, and describe the state of *Ook's* copy:
+
+``hit``
+   Ook served its cached copy, which was still within its own freshness lifetime.
+
+``stale``
+   Ook served its cached copy, which is past its freshness lifetime.
+   On its own this is a normal Ook serve, not an error — see :ref:`below <guide-sphinx-intersphinx-cache-stale>`.
+
+``miss``
+   Ook had no usable cached copy, so it fetched the inventory from the origin site to answer the request.
+
+The remaining values are Documenteer's own, and describe what the *client* did:
+
+``served``
+   Ook answered but sent no cache-status header, so all that's known is that Ook served the inventory.
+   This is what an Ook deployment older than the cache-status header looks like.
+
+``disk cache``
+   Documenteer's own on-disk TTL fast path answered this entry and Ook was never contacted for it — see :ref:`disk_cache_ttl <guide-sphinx-intersphinx-cache-disk-cache-ttl>`.
+
+``direct fetch``
+   The prefetch fell back to the origin: Documenteer left this mapping entry untouched, so Intersphinx_ fetched :file:`objects.inv` from the upstream site itself, exactly as it would without the service.
+   The reason is in parentheses on the same row, and the matching per-entry ``INFO`` line above the block carries the full error.
+
+The third column is when Ook last **confirmed** that inventory with its origin site — *not* when the bytes it served to you were downloaded.
+A background refresh that the origin answered with ``304 Not Modified`` keeps Ook's stored bytes and still advances this time.
+It's reported as the absolute UTC instant, so a row can be correlated with Ook's own logs, followed by a humanized age for eyeballing.
+Rows that explain themselves in parentheses (``disk cache`` and ``direct fetch``) report no fetch time, because Ook was either never asked or never served the inventory; an Ook-served row for which the service sent no usable time reads ``fetch time unavailable`` rather than showing a placeholder that would read as an age.
+
+A ``-> moved`` flag marks a row whose configured inventory URL Ook reports as permanently moved.
+The destination URL, and what to do about it, are in that entry's own notice rather than in the table; see :ref:`warn_on_permanent_redirect <guide-sphinx-intersphinx-cache-warn-on-permanent-redirect>`.
+
+.. _guide-sphinx-intersphinx-cache-stale:
+
+.. important::
+
+   A ``stale`` row on its own is **not** a problem, and there's nothing to do about it.
+   Ook deliberately keeps serving a copy that's past its freshness lifetime while a background job revalidates it, so that a slow or briefly unavailable origin site can't break your build.
+   That availability is the entire point of the cache.
+
+   What's worth acting on is ``stale`` **paired with an old fetch time**.
+   That combination means Ook's refreshes for that inventory have been failing for as long as the fetch time is old, so the copy you're building against really is drifting from the origin.
+   Report it in `#square-docs-support`_ on Slack.
 
 .. _guide-sphinx-intersphinx-cache-use-service:
 
