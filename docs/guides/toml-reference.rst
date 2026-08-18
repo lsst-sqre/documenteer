@@ -602,11 +602,11 @@ Links the service reports as broken always fail the build, regardless of the ``s
 .. note::
 
    **Technotes** use the same service-backed ``linkcheck`` builder, but technotes don't read :file:`documenteer.toml`, so the settings below don't apply to them.
-   Instead, the technote configuration preset derives the origin base URL from the ``canonical_url`` setting in the ``[technote]`` table of :file:`technote.toml`, falling back to the technote's handle as ``https://<handle>.lsst.io``.
+   Instead, the technote configuration preset derives the origin base URL from the ``canonical_url`` setting in the ``[technote]`` table of :file:`technote.toml`, falling back to the technote's handle from the ``id`` setting as ``https://<id>.lsst.io``.
    The other settings keep their defaults.
 
-   A technote can override any of these settings through the corresponding ``documenteer_linkcheck_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
-   For example, ``documenteer_linkcheck_use_service = False`` restores Sphinx's built-in linkcheck builder, and ``documenteer_linkcheck_strict = True`` enables strict mode.
+   A technote overrides any of these settings through the corresponding ``documenteer_linkcheck_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
+   See :ref:`technote-conf-linkcheck` for those settings.
 
 ignore
 ------
