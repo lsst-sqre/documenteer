@@ -10,6 +10,7 @@ import requests
 from documenteer._requestsutils import requests_retry_session
 
 __all__ = [
+    "CACHE_STATUS_HEADER",
     "DEFAULT_BASE_URL",
     "TOKEN_ENV_VAR",
     "IntersphinxCacheClient",
@@ -25,6 +26,10 @@ DEFAULT_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
 TOKEN_ENV_VAR = "OOK_TOKEN"
 """Environment variable holding the bearer token for the Ook API."""
+
+CACHE_STATUS_HEADER = "X-Ook-Inventory-Cache-Status"
+"""Response header carrying how Ook served the inventory (e.g. ``hit``,
+``stale``, ``miss``). Sent on both ``200`` and ``304`` responses."""
 
 
 @dataclass(frozen=True)
@@ -47,6 +52,14 @@ class InventoryFetchResult:
 
     etag: str | None
     """The entity tag to persist, or `None` when the server sent none."""
+
+    cache_status: str | None = None
+    """How Ook served the inventory, from `CACHE_STATUS_HEADER`, or `None`
+    when the response carried no such header.
+
+    Carried as a plain string rather than an enum so a value Ook adds later
+    reaches the build-log summary verbatim instead of being silently dropped.
+    """
 
 
 class IntersphinxCacheError(ValueError):
@@ -133,6 +146,8 @@ class IntersphinxCacheClient:
             The fetch outcome: either new bytes plus the response ETag
             (``not_modified=False``), or a not-modified signal that echoes the
             revalidated ``etag`` (``not_modified=True``, ``content=None``).
+            Either way, ``cache_status`` carries Ook's
+            `CACHE_STATUS_HEADER` value when the response sent one.
 
         Raises
         ------
@@ -191,7 +206,10 @@ class IntersphinxCacheClient:
             # the caller keeps its on-disk copy. Echo back the ETag it
             # revalidated with.
             return InventoryFetchResult(
-                not_modified=True, content=None, etag=etag
+                not_modified=True,
+                content=None,
+                etag=etag,
+                cache_status=r.headers.get(CACHE_STATUS_HEADER),
             )
         if r.status_code >= 500:
             raise IntersphinxCacheServerError(
@@ -214,4 +232,5 @@ class IntersphinxCacheClient:
             not_modified=False,
             content=r.content,
             etag=r.headers.get("ETag"),
+            cache_status=r.headers.get(CACHE_STATUS_HEADER),
         )

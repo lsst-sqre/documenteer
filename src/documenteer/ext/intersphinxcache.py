@@ -34,6 +34,16 @@ Ook that returns no ``ETag`` header the behavior is exactly the pre-ETag
 path — a full download with no sidecar — and a ``200`` without an ETag clears
 any stale sidecar.
 
+After the prefetch loop the extension logs one summary block naming every
+mapping entry it considered, in ``intersphinx_mapping`` order, with how each
+inventory was obtained: Ook's own cache status passed through verbatim
+(``hit``, ``stale``, ``miss``, or anything else it sends), ``served`` when
+Ook answered but sent no cache-status header, ``disk cache`` for the TTL fast
+path where Ook was never contacted, and ``direct fetch`` with the reason for
+each fallback. The per-entry INFO lines narrate the build as it happens; the
+block is the at-a-glance view. Entries the extension does not prefetch at all
+(a local target URI, an already-local inventory path) get no row.
+
 The extension is a complete no-op when ``OOK_TOKEN`` is unset (forks, local
 builds) or when disabled via ``documenteer_intersphinx_cache_use_service``.
 Any per-inventory client error (unauthorized, unreachable, 5xx, 404,
@@ -59,11 +69,22 @@ from typing import TYPE_CHECKING
 
 from sphinx.util import logging
 
+from ..services.intersphinxreport import (
+    DISK_CACHE_DETAIL,
+    STATUS_DIRECT_FETCH,
+    STATUS_DISK_CACHE,
+    STATUS_SERVED,
+    InventoryPrefetchReport,
+    InventoryReportEntry,
+)
 from ..storage.intersphinxcacheclient import (
     DEFAULT_BASE_URL,
     TOKEN_ENV_VAR,
     IntersphinxCacheClient,
     IntersphinxCacheError,
+    IntersphinxCacheServerError,
+    IntersphinxCacheUnauthorizedError,
+    IntersphinxCacheUnreachableError,
 )
 from ..version import __version__
 
@@ -186,21 +207,39 @@ def _store_etag(etag_path: Path, etag: str | None) -> None:
         pass
 
 
+def _fallback_reason(error: IntersphinxCacheError) -> str:
+    """Return a short phrase naming why an inventory fell back to a direct
+    origin fetch.
+
+    Kept short because it lands in the summary block's one-line row; the
+    full exception text is already on the per-entry INFO line above it.
+    """
+    if isinstance(error, IntersphinxCacheUnauthorizedError):
+        return "Ook rejected the request as unauthorized"
+    if isinstance(error, IntersphinxCacheUnreachableError):
+        return "Ook could not be reached"
+    if isinstance(error, IntersphinxCacheServerError):
+        return "Ook returned a server error"
+    return "Ook returned an error"
+
+
 def _revalidate_inventory(
     client: IntersphinxCacheClient,
     name: str,
     origin_url: str,
     inv_path: Path,
     etag_path: Path,
-) -> str | None:
-    """Fetch or revalidate one inventory and return the local path to map to.
+) -> tuple[str | None, InventoryReportEntry]:
+    """Fetch or revalidate one inventory, returning the local path to map to
+    and the facts for its row in the build's summary block.
 
     Sends ``If-None-Match`` only when both a cached inventory and its ETag
-    sidecar exist, so a ``304`` can safely reuse the on-disk bytes. Returns
-    the local file path to rewrite the mapping entry to, or `None` to leave
-    the entry untouched (a client error or a cache write failure), so stock
+    sidecar exist, so a ``304`` can safely reuse the on-disk bytes. The path
+    is the local file to rewrite the mapping entry to, or `None` to leave the
+    entry untouched (a client error or a cache write failure), so stock
     intersphinx fetches the origin directly and the build is never worse than
-    without the service.
+    without the service. The entry is returned on every path so the summary
+    block has a row for each mapping entry the extension considered.
     """
     request_etag: str | None = None
     if inv_path.is_file() and etag_path.is_file():
@@ -220,7 +259,16 @@ def _revalidate_inventory(
             e,
             origin_url,
         )
-        return None
+        return None, InventoryReportEntry(
+            name=name,
+            status=STATUS_DIRECT_FETCH,
+            detail=_fallback_reason(e),
+        )
+
+    # Ook answered. Its cache status passes through verbatim so a value Ook
+    # adds later still reaches the summary; an Ook old enough to send no
+    # header at all is reported as simply having served the inventory.
+    ook_status = result.cache_status or STATUS_SERVED
 
     if result.not_modified:
         # 304 Not Modified: the on-disk bytes are current and no body was
@@ -241,7 +289,11 @@ def _revalidate_inventory(
                 name,
                 origin_url,
             )
-            return None
+            return None, InventoryReportEntry(
+                name=name,
+                status=STATUS_DIRECT_FETCH,
+                detail="Ook answered 304 without a usable cached inventory",
+            )
         # Refresh the file's mtime to restart the TTL window (best-effort; a
         # failed refresh only means the next build revalidates sooner) and
         # map to the local file. Reported at info level so build logs show
@@ -253,13 +305,19 @@ def _revalidate_inventory(
             "(HTTP 304 Not Modified); reusing the on-disk copy.",
             name,
         )
-        return str(inv_path)
+        return str(inv_path), InventoryReportEntry(
+            name=name, status=ook_status
+        )
 
     content = result.content
     if content is None:
         # Defensive: a non-304 response always carries bytes. Treat an empty
         # payload as a fallback rather than writing a truncated inventory.
-        return None
+        return None, InventoryReportEntry(
+            name=name,
+            status=STATUS_DIRECT_FETCH,
+            detail="Ook returned an empty response",
+        )
     try:
         inv_path.parent.mkdir(parents=True, exist_ok=True)
         inv_path.write_bytes(content)
@@ -274,7 +332,11 @@ def _revalidate_inventory(
             e,
             origin_url,
         )
-        return None
+        return None, InventoryReportEntry(
+            name=name,
+            status=STATUS_DIRECT_FETCH,
+            detail="the prefetched inventory could not be cached on disk",
+        )
     # Reconcile the ETag sidecar with the freshly written bytes: store the new
     # ETag, or clear any stale sidecar when the server sent none (older-server
     # graceful degradation).
@@ -287,7 +349,7 @@ def _revalidate_inventory(
         name,
         len(content),
     )
-    return str(inv_path)
+    return str(inv_path), InventoryReportEntry(name=name, status=ook_status)
 
 
 def _prefetch_inventories(app: Sphinx, config: Config) -> None:
@@ -319,6 +381,11 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
 
     ttl = config.documenteer_intersphinx_cache_disk_cache_ttl
 
+    # Accumulates one row per mapping entry the extension considers, rendered
+    # as a single at-a-glance block once the loop is done. The per-entry INFO
+    # lines above it narrate the build as it happens; this is the summary.
+    report = InventoryPrefetchReport()
+
     for name, value in list(mapping.items()):
         if not isinstance(value, (tuple, list)) or len(value) != 2:
             # An unexpected entry shape is left for intersphinx to validate.
@@ -343,6 +410,13 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
                 "(younger than disk_cache_ttl).",
                 name,
             )
+            report.add(
+                InventoryReportEntry(
+                    name=name,
+                    status=STATUS_DISK_CACHE,
+                    detail=DISK_CACHE_DETAIL,
+                )
+            )
             mapping[name] = (target_uri, str(inv_path))
             continue
 
@@ -350,11 +424,20 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         # Ook; on success rewrite only the inventory location (the target URI
         # is left unchanged so resolved links still point at the upstream
         # site). A None result leaves the entry untouched as a fallback.
-        local_path = _revalidate_inventory(
+        local_path, entry = _revalidate_inventory(
             client, name, origin_url, inv_path, etag_path
         )
+        report.add(entry)
         if local_path is not None:
             mapping[name] = (target_uri, local_path)
+
+    # One summary block, at info level: none of what it reports is the
+    # author's to fix, and Rubin builds run with ``-W``. Rendered as a single
+    # pre-formatted argument so a ``%`` in any detail is not read as a
+    # logging format specifier.
+    lines = report.render()
+    if lines:
+        logger.info("%s", "\n".join(lines))
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:

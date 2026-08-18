@@ -79,6 +79,27 @@ def test_get_inventory_returns_etag(
     assert result.etag == '"abc123"'
 
 
+def test_get_inventory_returns_cache_status(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 response's ``X-Ook-Inventory-Cache-Status`` header is surfaced
+    verbatim as ``cache_status``.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "miss"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.cache_status == "miss"
+
+
 def test_get_inventory_conditional_not_modified(
     responses: RequestsMock, monkeypatch: Any
 ) -> None:
@@ -100,6 +121,46 @@ def test_get_inventory_conditional_not_modified(
     assert result.etag == '"abc123"'
     api_request = responses.calls[0].request
     assert api_request.headers["If-None-Match"] == '"abc123"'
+
+
+def test_not_modified_returns_cache_status(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 304 response also carries Ook's cache-status header, so a
+    revalidation that transfers no body still reports how Ook served it.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        status=304,
+        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL, etag='"abc123"')
+
+    assert result.not_modified is True
+    assert result.cache_status == "hit"
+
+
+def test_missing_cache_status_header_is_none(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Against an older Ook that sends no cache-status header, the fetch
+    result reports `None` rather than raising.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.cache_status is None
 
 
 def test_missing_token(monkeypatch: Any) -> None:
