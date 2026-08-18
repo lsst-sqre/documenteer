@@ -27,6 +27,10 @@ INVENTORY_URL = "https://docs.python.org/3/objects.inv"
 INVENTORY_BYTES = b"# Sphinx inventory version 2\nbinary-payload\x00\x01\x02"
 """Opaque inventory bytes the cache returns, treated as an opaque blob."""
 
+MOVED_URL = "https://pydantic.dev/docs/validation/latest/objects.inv"
+"""Where a permanently-moved inventory URL now lives (a real instance:
+``https://docs.pydantic.dev/latest/objects.inv`` 301s to this)."""
+
 
 def test_get_inventory_success(
     responses: RequestsMock, monkeypatch: Any
@@ -271,6 +275,92 @@ def test_naive_date_fetched_is_read_as_utc(
     result = client.get_inventory(INVENTORY_URL)
 
     assert result.date_fetched == datetime(2026, 8, 18, 17, 58, 24, tzinfo=UTC)
+
+
+def test_get_inventory_returns_permanent_redirect(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 response's ``X-Ook-Inventory-Permanent-Redirect`` header is
+    surfaced as the URL the requested inventory has permanently moved to.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Permanent-Redirect": MOVED_URL},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.permanent_redirect_url == MOVED_URL
+
+
+def test_not_modified_returns_permanent_redirect(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 304 response also carries Ook's permanent-redirect header, so a
+    build that holds current bytes and only revalidates still learns that
+    its configured URL has moved.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        status=304,
+        headers={"X-Ook-Inventory-Permanent-Redirect": MOVED_URL},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL, etag='"abc123"')
+
+    assert result.not_modified is True
+    assert result.permanent_redirect_url == MOVED_URL
+
+
+def test_missing_permanent_redirect_header_is_none(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Absence of the header is how Ook says an inventory URL has not moved,
+    so an older Ook that never sends it behaves exactly as today.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.permanent_redirect_url is None
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_blank_permanent_redirect_is_none(
+    responses: RequestsMock, monkeypatch: Any, value: str
+) -> None:
+    """A header that is present but blank reads as "not moved" rather than as
+    an empty destination: a header Ook gets wrong must never be reported to an
+    author as somewhere to move their configuration to.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Permanent-Redirect": value},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.permanent_redirect_url is None
+    assert result.content == INVENTORY_BYTES
 
 
 def test_missing_token(monkeypatch: Any) -> None:

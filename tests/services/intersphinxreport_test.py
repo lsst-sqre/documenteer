@@ -8,6 +8,7 @@ import pytest
 
 from documenteer.services.intersphinxreport import (
     DISK_CACHE_DETAIL,
+    MOVED_FLAG,
     NO_FETCH_TIME_DETAIL,
     STATUS_DIRECT_FETCH,
     STATUS_DISK_CACHE,
@@ -193,6 +194,89 @@ def test_fetch_time_renders_in_utc() -> None:
 
     assert report.render(now=NOW)[1] == (
         "  python  hit  fetched 2026-08-18T17:58:24Z (26 minutes ago)"
+    )
+
+
+def test_moved_entry_is_flagged() -> None:
+    """A row whose inventory URL has permanently moved is flagged, so the
+    block shows at a glance which configured URL is stale. The destination
+    itself is not in the row: it belongs to the dedicated notice, which has
+    room for it and for what to do about it.
+    """
+    report = InventoryPrefetchReport()
+    report.add(
+        InventoryReportEntry(
+            name="pydantic",
+            status="hit",
+            date_fetched=FETCHED,
+            permanent_redirect_url=(
+                "https://pydantic.dev/docs/validation/latest/objects.inv"
+            ),
+        )
+    )
+
+    (row,) = report.render(now=NOW)[1:]
+    assert row == (
+        "  pydantic  hit  fetched 2026-08-18T17:58:24Z (26 minutes ago)"
+        f"  {MOVED_FLAG}"
+    )
+    assert "pydantic.dev/docs" not in row
+
+
+def test_unmoved_entry_carries_no_flag_and_no_padding() -> None:
+    """An entry that has not moved is unflagged, and a block that flags no
+    entry at all renders exactly as it did before the flag existed — no
+    trailing whitespace where a flag would have gone.
+    """
+    report = InventoryPrefetchReport()
+    report.add(
+        InventoryReportEntry(name="python", status="hit", date_fetched=FETCHED)
+    )
+
+    assert report.render(now=NOW)[1] == (
+        "  python  hit  fetched 2026-08-18T17:58:24Z (26 minutes ago)"
+    )
+
+
+def test_flags_line_up_across_mixed_rows() -> None:
+    """With rows of differing annotation lengths, the flag column is padded
+    into alignment, and the unflagged rows keep no trailing whitespace.
+    """
+    report = InventoryPrefetchReport()
+    report.add(
+        InventoryReportEntry(
+            name="pydantic",
+            status="hit",
+            date_fetched=FETCHED,
+            permanent_redirect_url="https://example.com/moved/objects.inv",
+        )
+    )
+    report.add(InventoryReportEntry(name="python", status=STATUS_SERVED))
+
+    rows = report.render(now=NOW)[1:]
+    assert rows == [
+        "  pydantic  hit     fetched 2026-08-18T17:58:24Z (26 minutes ago)"
+        f"  {MOVED_FLAG}",
+        "  python    served  fetch time unavailable",
+    ]
+
+
+def test_a_moved_entry_with_a_detail_keeps_both() -> None:
+    """A flagged row whose status explains itself with a detail keeps the
+    detail *and* the flag: the two answer different questions.
+    """
+    report = InventoryPrefetchReport()
+    report.add(
+        InventoryReportEntry(
+            name="pydantic",
+            status=STATUS_DISK_CACHE,
+            detail=DISK_CACHE_DETAIL,
+            permanent_redirect_url="https://example.com/moved/objects.inv",
+        )
+    )
+
+    assert report.render(now=NOW)[1] == (
+        f"  pydantic  disk cache  (Ook was not contacted)  {MOVED_FLAG}"
     )
 
 

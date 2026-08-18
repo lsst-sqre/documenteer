@@ -14,10 +14,16 @@ from responses import RequestsMock, matchers
 from sphinx.testing.util import SphinxTestApp
 
 from documenteer.ext.intersphinxcache import CACHE_DIRNAME, _inventory_filename
-from documenteer.services.intersphinxreport import REPORT_HEADING
+from documenteer.services.intersphinxreport import MOVED_FLAG, REPORT_HEADING
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 INVENTORY_ENDPOINT = f"{OOK_BASE_URL}/intersphinx/inventory"
+
+# Two real instances of a permanently-moved inventory URL and one that has
+# not moved, used by the permanent-redirect tests below.
+PYDANTIC_INV_URL = "https://docs.pydantic.dev/latest/objects.inv"
+PYDANTIC_MOVED_URL = "https://pydantic.dev/docs/validation/latest/objects.inv"
+PYTHON_INV_URL = "https://docs.python.org/3/objects.inv"
 
 # Whether the guide preset's theme is importable; the guide test root builds
 # the full user-guide stack (``from documenteer.conf.guide import *``), which
@@ -680,6 +686,248 @@ def test_summary_block_does_not_fail_a_warnings_as_errors_build(
     app.build()
 
     assert "  testproj  miss" in app.status.getvalue()
+
+
+def _redirect_notices(app: SphinxTestApp) -> list[str]:
+    """Return every permanent-redirect notice on the build's status stream.
+
+    Each notice is a single line, so scoping an assertion to one of them
+    keeps a check that the notice does *not* name some file from being
+    defeated by an unrelated line elsewhere in the same build.
+    """
+    return [
+        line
+        for line in app.status.getvalue().splitlines()
+        if "has permanently moved" in line
+    ]
+
+
+def _summary_rows(app: SphinxTestApp, count: int) -> list[str]:
+    """Return the first ``count`` rows of the build's summary block."""
+    status = app.status.getvalue()
+    return status[status.index(REPORT_HEADING) :].splitlines()[1 : count + 1]
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-guide",
+    srcdir="intersphinx-cache-redirect-guide",
+    warningiserror=True,
+)
+def test_permanent_redirect_notice_names_the_guide_config(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """When Ook reports that an inventory URL has permanently moved, the
+    build says so at info level — naming the mapping key, the URL the project
+    configures, where it now lives, and the guide's own configuration file to
+    change — and flags that row in the summary block. A mapping entry that
+    has not moved gets neither the notice nor the flag. The notice is info,
+    not a warning, so this ``-W`` build succeeds, and both entries are still
+    rewritten to their local cache files.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
+        match=[matchers.query_param_matcher({"url": PYTHON_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # Exactly one entry moved, so exactly one notice, naming both URLs.
+    (notice,) = _redirect_notices(app)
+    assert "'pydantic'" in notice
+    assert PYDANTIC_INV_URL in notice
+    assert PYDANTIC_MOVED_URL in notice
+    assert "[sphinx.intersphinx.projects]" in notice
+    assert "documenteer.toml" in notice
+    assert PYTHON_INV_URL not in notice
+    # Info, not a warning: this build ran with -W and still succeeded.
+    assert "permanently moved" not in app.warning.getvalue()
+
+    rows = _summary_rows(app, 2)
+    assert rows[0].startswith(
+        "  pydantic  hit  fetched 2026-08-18T17:58:24Z ("
+    )
+    assert rows[0].endswith(f"  {MOVED_FLAG}")
+    assert rows[1].startswith(
+        "  python    hit  fetched 2026-08-18T17:58:24Z ("
+    )
+    assert MOVED_FLAG not in rows[1]
+
+    # Both entries are still rewritten to the local cache file: a moved URL
+    # is reported, not routed around.
+    for name in ("pydantic", "python"):
+        location = _inventory_locations(app, name)[0]
+        assert "://" not in location
+        assert Path(location).is_file()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-technote",
+    srcdir="intersphinx-cache-redirect-technote",
+)
+def test_permanent_redirect_notice_names_the_technote_config(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A technote author is sent to the keys of their own configuration file,
+    never to a ``documenteer.toml`` their project does not have.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    (notice,) = _redirect_notices(app)
+    assert PYDANTIC_INV_URL in notice
+    assert PYDANTIC_MOVED_URL in notice
+    assert "[technote.sphinx.intersphinx]" in notice
+    assert "technote.toml" in notice
+    assert "documenteer.toml" not in notice
+    assert _summary_rows(app, 1)[0].endswith(f"  {MOVED_FLAG}")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-redirect-bare",
+)
+def test_permanent_redirect_notice_without_a_config_file(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A project with neither TOML file beside its ``conf.py`` is pointed at
+    the Sphinx setting it actually has, naming no file it does not.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    moved_url = "https://example.net/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "miss",
+            "X-Ook-Inventory-Permanent-Redirect": moved_url,
+        },
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    (notice,) = _redirect_notices(app)
+    assert "'testproj'" in notice
+    assert origin_inv_url in notice
+    assert moved_url in notice
+    assert "intersphinx_mapping" in notice
+    assert "conf.py" in notice
+    assert "documenteer.toml" not in notice
+    assert "technote.toml" not in notice
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-redirect-304",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+    warningiserror=True,
+)
+def test_permanent_redirect_reported_on_revalidation(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """The notice rides Ook's ``304`` as well as its ``200``: a second build
+    forced past the disk-cache TTL, which transfers no body at all, still
+    tells the author their configured URL has moved and still flags the row.
+    The mapping is rewritten to the local file on this branch too, and the
+    ``-W`` build succeeds.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    moved_url = "https://example.net/project/objects.inv"
+    etag = '"v1etag"'
+    # The 304 (registered first) is chosen only when If-None-Match is sent;
+    # the initial build has no such header and falls through to the 200.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": moved_url,
+        },
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": etag}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": etag, "X-Ook-Inventory-Cache-Status": "miss"},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert _redirect_notices(app1) == []
+
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+
+    (notice,) = _redirect_notices(app2)
+    assert origin_inv_url in notice
+    assert moved_url in notice
+    assert "permanently moved" not in app2.warning.getvalue()
+    assert _summary_rows(app2, 1)[0].endswith(f"  {MOVED_FLAG}")
+
+    location = _inventory_locations(app2, "testproj")[0]
+    assert "://" not in location
+    assert Path(location).is_file()
 
 
 def _etag_sidecar(inv_path: Path) -> Path:

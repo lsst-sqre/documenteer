@@ -51,6 +51,27 @@ freshness. A row Ook served without a usable fetch time says the time is
 unavailable rather than showing a placeholder; a ``disk cache`` or ``direct
 fetch`` row has no fetch to report and keeps its own reason instead.
 
+When Ook reports that an inventory URL has permanently moved, that entry also
+gets a dedicated notice naming the mapping key, the URL the project
+configures, and where it now lives, plus which of the *author's own*
+configuration files to change — resolved with
+`documenteer.conf._configsource.detect_config_source`, so a technote author
+is never sent to a ``documenteer.toml`` they do not have. This module owns
+only the message text; the helper owns the detection. The notice rides both
+the ``200`` and the ``304`` branch, so a build that holds current bytes and
+only ever revalidates still sees it, and the matching summary row is flagged
+``-> moved`` — the flag in the table, the URL in the notice.
+
+That notice is INFO, not WARNING, in company with everything else here. A
+permanent redirect is the author's configuration going stale, but the move
+originates upstream and outside their control, and Rubin builds run with
+``-W`` (warnings-as-errors), so warning about it would fail builds on a third
+party's schedule. Escalating it to a warning is opt-in and configured
+separately. Note also that Ook reports the redirect chain observed at *its*
+last successful fetch and keeps serving a failing row's last-known-good
+target, which is why the summary pairs the moved flag with that fetch time
+rather than presenting the move as current fact.
+
 The extension is a complete no-op when ``OOK_TOKEN`` is unset (forks, local
 builds) or when disabled via ``documenteer_intersphinx_cache_use_service``.
 Any per-inventory client error (unauthorized, unreachable, 5xx, 404,
@@ -76,6 +97,7 @@ from typing import TYPE_CHECKING
 
 from sphinx.util import logging
 
+from ..conf._configsource import ConfigSource, detect_config_source
 from ..services.intersphinxreport import (
     DISK_CACHE_DETAIL,
     STATUS_DIRECT_FETCH,
@@ -118,6 +140,21 @@ mirroring how ``.doctrees`` is conventionally excluded."""
 
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 """Characters not allowed in a generated inventory filename stem."""
+
+_REDIRECT_REMEDY = {
+    ConfigSource.GUIDE: (
+        "Update its URL in [sphinx.intersphinx.projects] in documenteer.toml."
+    ),
+    ConfigSource.TECHNOTE: (
+        "Update its URL in [technote.sphinx.intersphinx] in technote.toml."
+    ),
+    ConfigSource.UNKNOWN: "Update its URL in intersphinx_mapping in conf.py.",
+}
+"""Where to change a moved inventory URL, per kind of project.
+
+Only the message text lives here; which kind of project is being built is
+`documenteer.conf._configsource.detect_config_source`'s job.
+"""
 
 
 def _inventory_filename(name: str, origin_url: str) -> str:
@@ -230,12 +267,40 @@ def _fallback_reason(error: IntersphinxCacheError) -> str:
     return "Ook returned an error"
 
 
+def _report_permanent_redirect(
+    name: str,
+    origin_url: str,
+    permanent_redirect_url: str | None,
+    config_source: ConfigSource,
+) -> None:
+    """Tell the author that a configured inventory URL has permanently moved.
+
+    Does nothing when Ook reported no move, which is the overwhelmingly
+    common case. Logged at info level (not as a warning) for the same
+    warnings-as-errors reason as the rest of this module: the redirect
+    originates upstream, outside the author's control, and Rubin builds run
+    with ``-W``. Escalating this to a warning is a separate, opt-in setting.
+    """
+    if permanent_redirect_url is None:
+        return
+    logger.info(
+        "The intersphinx inventory URL for %r has permanently moved: %s "
+        "now redirects to %s. %s",
+        name,
+        origin_url,
+        permanent_redirect_url,
+        _REDIRECT_REMEDY[config_source],
+    )
+
+
 def _revalidate_inventory(
     client: IntersphinxCacheClient,
     name: str,
     origin_url: str,
     inv_path: Path,
     etag_path: Path,
+    *,
+    config_source: ConfigSource,
 ) -> tuple[str | None, InventoryReportEntry]:
     """Fetch or revalidate one inventory, returning the local path to map to
     and the facts for its row in the build's summary block.
@@ -247,6 +312,10 @@ def _revalidate_inventory(
     intersphinx fetches the origin directly and the build is never worse than
     without the service. The entry is returned on every path so the summary
     block has a row for each mapping entry the extension considered.
+
+    ``config_source`` is the kind of Documenteer project being built, used
+    only to word the permanent-redirect notice for whichever configuration
+    file the author actually has.
     """
     request_etag: str | None = None
     if inv_path.is_file() and etag_path.is_file():
@@ -312,10 +381,14 @@ def _revalidate_inventory(
             "(HTTP 304 Not Modified); reusing the on-disk copy.",
             name,
         )
+        _report_permanent_redirect(
+            name, origin_url, result.permanent_redirect_url, config_source
+        )
         return str(inv_path), InventoryReportEntry(
             name=name,
             status=ook_status,
             date_fetched=result.date_fetched,
+            permanent_redirect_url=result.permanent_redirect_url,
         )
 
     content = result.content
@@ -358,8 +431,14 @@ def _revalidate_inventory(
         name,
         len(content),
     )
+    _report_permanent_redirect(
+        name, origin_url, result.permanent_redirect_url, config_source
+    )
     return str(inv_path), InventoryReportEntry(
-        name=name, status=ook_status, date_fetched=result.date_fetched
+        name=name,
+        status=ook_status,
+        date_fetched=result.date_fetched,
+        permanent_redirect_url=result.permanent_redirect_url,
     )
 
 
@@ -391,6 +470,11 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
     cache_dir = Path(app.doctreedir).parent / CACHE_DIRNAME
 
     ttl = config.documenteer_intersphinx_cache_disk_cache_ttl
+
+    # Which kind of Documenteer project this is, resolved once per build
+    # rather than once per message, and used only to word the
+    # permanent-redirect notice for a file the author actually has.
+    config_source = detect_config_source(app.confdir)
 
     # Accumulates one row per mapping entry the extension considers, rendered
     # as a single at-a-glance block once the loop is done. The per-entry INFO
@@ -436,7 +520,12 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         # is left unchanged so resolved links still point at the upstream
         # site). A None result leaves the entry untouched as a fallback.
         local_path, entry = _revalidate_inventory(
-            client, name, origin_url, inv_path, etag_path
+            client,
+            name,
+            origin_url,
+            inv_path,
+            etag_path,
+            config_source=config_source,
         )
         report.add(entry)
         if local_path is not None:

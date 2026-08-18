@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 __all__ = [
     "DISK_CACHE_DETAIL",
+    "MOVED_FLAG",
     "NO_FETCH_TIME_DETAIL",
     "REPORT_HEADING",
     "STATUS_DIRECT_FETCH",
@@ -42,6 +43,14 @@ than showing a placeholder that would read as an age. This mirrors Ook's own
 choice to omit the header entirely for an inventory it has not fetched,
 unlike the standard ``Age`` header, whose ``0`` fallback would report a copy
 of unknown age as freshly fetched.
+"""
+
+MOVED_FLAG = "-> moved"
+"""What a row says when Ook reports its inventory URL has permanently moved.
+
+Only the flag lives in the table: the destination URL, and what the author
+should do about it, go in that entry's dedicated notice, which has room for
+both without widening every row.
 """
 
 _MINUTE = 60
@@ -101,6 +110,14 @@ class InventoryReportEntry:
     """When Ook last confirmed this inventory with its origin, or `None` when
     Ook sent no usable fetch time (or was never asked)."""
 
+    permanent_redirect_url: str | None = None
+    """Where this entry's configured inventory URL has permanently moved to,
+    or `None` when it has not moved (or Ook was never asked).
+
+    Its presence is what flags the row; the URL itself is reported in the
+    entry's own notice rather than in the table.
+    """
+
 
 class InventoryPrefetchReport:
     """An accumulating summary of how each intersphinx inventory was
@@ -144,26 +161,33 @@ class InventoryPrefetchReport:
             return []
         if now is None:
             now = datetime.now(tz=UTC)
+        annotations = [
+            self._render_annotation(entry, now) for entry in self._entries
+        ]
         name_width = max(len(entry.name) for entry in self._entries)
         status_width = max(len(entry.status) for entry in self._entries)
+        annotation_width = max(len(annotation) for annotation in annotations)
         return [
             REPORT_HEADING,
             *(
-                self._render_entry(entry, name_width, status_width, now)
-                for entry in self._entries
+                self._render_entry(
+                    entry,
+                    annotation,
+                    name_width,
+                    status_width,
+                    annotation_width,
+                )
+                for entry, annotation in zip(
+                    self._entries, annotations, strict=True
+                )
             ),
         ]
 
     @classmethod
-    def _render_entry(
-        cls,
-        entry: InventoryReportEntry,
-        name_width: int,
-        status_width: int,
-        now: datetime,
+    def _render_annotation(
+        cls, entry: InventoryReportEntry, now: datetime
     ) -> str:
-        """Render one row, padding the name and status columns so the
-        annotations line up.
+        """Render one row's annotation: the reason it looks the way it does.
 
         A row that explains itself with a ``detail`` — the TTL fast path or a
         fallback — keeps that detail and reports no fetch time: Ook either was
@@ -171,14 +195,30 @@ class InventoryPrefetchReport:
         report. Every other row came from Ook, so it reports the time Ook last
         confirmed the inventory, or says that time is unavailable.
         """
+        if entry.detail is not None:
+            return f"({entry.detail})"
+        return cls._render_fetch_time(entry.date_fetched, now)
+
+    @staticmethod
+    def _render_entry(
+        entry: InventoryReportEntry,
+        annotation: str,
+        name_width: int,
+        status_width: int,
+        annotation_width: int,
+    ) -> str:
+        """Render one row, padding every column so a moved flag in the last
+        one lines up across rows.
+
+        The trailing padding is stripped from the rendered line, so a block
+        that flags nothing carries no trailing whitespace and reads exactly as
+        it did before the flag existed.
+        """
         name = f"{entry.name:<{name_width}}"
         status = f"{entry.status:<{status_width}}"
-        annotation = (
-            f"({entry.detail})"
-            if entry.detail is not None
-            else cls._render_fetch_time(entry.date_fetched, now)
-        )
-        return f"  {name}  {status}  {annotation}"
+        padded_annotation = f"{annotation:<{annotation_width}}"
+        flag = f"  {MOVED_FLAG}" if entry.permanent_redirect_url else ""
+        return f"  {name}  {status}  {padded_annotation}{flag}".rstrip()
 
     @staticmethod
     def _render_fetch_time(when: datetime | None, now: datetime) -> str:

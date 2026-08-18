@@ -1,0 +1,6 @@
+# Present so that detect_config_source resolves this project as a guide.
+# Its contents are never read: conf.py above does not load the guide preset.
+[project]
+title = "Intersphinx Cache Guide Wording Test"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
