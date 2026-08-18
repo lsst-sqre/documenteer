@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import requests
 
@@ -11,6 +12,7 @@ from documenteer._requestsutils import requests_retry_session
 
 __all__ = [
     "CACHE_STATUS_HEADER",
+    "DATE_FETCHED_HEADER",
     "DEFAULT_BASE_URL",
     "TOKEN_ENV_VAR",
     "IntersphinxCacheClient",
@@ -30,6 +32,35 @@ TOKEN_ENV_VAR = "OOK_TOKEN"
 CACHE_STATUS_HEADER = "X-Ook-Inventory-Cache-Status"
 """Response header carrying how Ook served the inventory (e.g. ``hit``,
 ``stale``, ``miss``). Sent on both ``200`` and ``304`` responses."""
+
+DATE_FETCHED_HEADER = "X-Ook-Inventory-Date-Fetched"
+"""Response header carrying the RFC 3339 UTC time when Ook last confirmed the
+inventory with its origin. Sent on both ``200`` and ``304`` responses.
+
+Unlike the standard ``Age`` header, which rides the ``200`` alone, this header
+also rides the ``304`` — so for a client that holds current bytes and only ever
+revalidates, it is the only freshness signal it ever sees.
+"""
+
+
+def _parse_date_fetched(value: str | None) -> datetime | None:
+    """Parse the `DATE_FETCHED_HEADER` value into an aware datetime.
+
+    A missing header yields `None`, and so does a value that cannot be
+    parsed: a header Ook gets wrong must never be able to fail a
+    documentation build. A value carrying no UTC offset is read as UTC (Ook
+    sends UTC) rather than left naive, so comparing it with the build
+    machine's clock cannot raise either.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip())
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
 
 
 @dataclass(frozen=True)
@@ -59,6 +90,16 @@ class InventoryFetchResult:
 
     Carried as a plain string rather than an enum so a value Ook adds later
     reaches the build-log summary verbatim instead of being silently dropped.
+    """
+
+    date_fetched: datetime | None = None
+    """When Ook last *confirmed* the inventory with its origin, from
+    `DATE_FETCHED_HEADER`, or `None` when the response carried no such header
+    or the header could not be parsed.
+
+    This is not when the served bytes were downloaded: a background refresh
+    that the origin answered ``304 Not Modified`` keeps the stored bytes and
+    still advances this anchor.
     """
 
 
@@ -147,7 +188,8 @@ class IntersphinxCacheClient:
             (``not_modified=False``), or a not-modified signal that echoes the
             revalidated ``etag`` (``not_modified=True``, ``content=None``).
             Either way, ``cache_status`` carries Ook's
-            `CACHE_STATUS_HEADER` value when the response sent one.
+            `CACHE_STATUS_HEADER` value and ``date_fetched`` its
+            `DATE_FETCHED_HEADER` value, when the response sent them.
 
         Raises
         ------
@@ -210,6 +252,9 @@ class IntersphinxCacheClient:
                 content=None,
                 etag=etag,
                 cache_status=r.headers.get(CACHE_STATUS_HEADER),
+                date_fetched=_parse_date_fetched(
+                    r.headers.get(DATE_FETCHED_HEADER)
+                ),
             )
         if r.status_code >= 500:
             raise IntersphinxCacheServerError(
@@ -233,4 +278,7 @@ class IntersphinxCacheClient:
             content=r.content,
             etag=r.headers.get("ETag"),
             cache_status=r.headers.get(CACHE_STATUS_HEADER),
+            date_fetched=_parse_date_fetched(
+                r.headers.get(DATE_FETCHED_HEADER)
+            ),
         )

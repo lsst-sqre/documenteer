@@ -44,6 +44,13 @@ each fallback. The per-entry INFO lines narrate the build as it happens; the
 block is the at-a-glance view. Entries the extension does not prefetch at all
 (a local target URI, an already-local inventory path) get no row.
 
+Each Ook-served row also carries when Ook last confirmed that inventory with
+its origin — the absolute UTC instant Ook reported plus a humanized relative
+age, so the row can both be correlated with Ook's own logs and eyeballed for
+freshness. A row Ook served without a usable fetch time says the time is
+unavailable rather than showing a placeholder; a ``disk cache`` or ``direct
+fetch`` row has no fetch to report and keeps its own reason instead.
+
 The extension is a complete no-op when ``OOK_TOKEN`` is unset (forks, local
 builds) or when disabled via ``documenteer_intersphinx_cache_use_service``.
 Any per-inventory client error (unauthorized, unreachable, 5xx, 404,
@@ -306,7 +313,9 @@ def _revalidate_inventory(
             name,
         )
         return str(inv_path), InventoryReportEntry(
-            name=name, status=ook_status
+            name=name,
+            status=ook_status,
+            date_fetched=result.date_fetched,
         )
 
     content = result.content
@@ -349,7 +358,9 @@ def _revalidate_inventory(
         name,
         len(content),
     )
-    return str(inv_path), InventoryReportEntry(name=name, status=ook_status)
+    return str(inv_path), InventoryReportEntry(
+        name=name, status=ook_status, date_fetched=result.date_fetched
+    )
 
 
 def _prefetch_inventories(app: Sphinx, config: Config) -> None:

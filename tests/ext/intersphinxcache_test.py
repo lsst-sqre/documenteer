@@ -346,7 +346,9 @@ def test_summary_block_reports_hit_on_revalidation(
     monkeypatch: Any,
 ) -> None:
     """A rebuild past the disk TTL that Ook answers from its own cache
-    reports ``hit``, where the first (cold) build reported ``miss``.
+    reports ``hit``, where the first (cold) build reported ``miss``, and
+    carries the fetch time Ook sent on the 304 — the only freshness signal a
+    build that only ever revalidates gets to see.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     origin_inv_url = "https://example.com/project/objects.inv"
@@ -356,7 +358,10 @@ def test_summary_block_reports_hit_on_revalidation(
     responses.get(
         INVENTORY_ENDPOINT,
         status=304,
-        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
         match=[
             matchers.query_param_matcher({"url": origin_inv_url}),
             matchers.header_matcher({"If-None-Match": etag}),
@@ -377,7 +382,85 @@ def test_summary_block_reports_hit_on_revalidation(
 
     app2 = _make_app(make_app, app_params)
     app2.build()
-    assert "  testproj  hit" in app2.status.getvalue()
+    assert (
+        "  testproj  hit  fetched 2026-08-18T17:58:24Z ("
+        in app2.status.getvalue()
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-fetched",
+)
+def test_summary_block_reports_the_fetch_time(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """An Ook-served row carries the absolute time Ook last confirmed the
+    inventory with its origin, plus a relative age, so the author can both
+    correlate with Ook's own logs and eyeball how fresh the copy is.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "miss",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    status = app.status.getvalue()
+    # The absolute timestamp is asserted exactly; the relative age is left to
+    # the report module's own tests, which inject a fixed ``now``.
+    assert "  testproj  miss  fetched 2026-08-18T17:58:24Z (" in status
+    assert "fetched" not in app.warning.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-bad-date",
+    warningiserror=True,
+)
+def test_unparseable_fetch_time_says_unavailable(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A malformed fetch-time header from Ook cannot fail a build: the row
+    says the fetch time is unavailable and a warnings-as-errors build still
+    succeeds.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "miss",
+            "X-Ook-Inventory-Date-Fetched": "yesterday afternoon",
+        },
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    assert "  testproj  miss  fetch time unavailable" in app.status.getvalue()
 
 
 @pytest.mark.sphinx(
@@ -413,7 +496,7 @@ def test_summary_block_reports_the_disk_cache_fast_path(
     app2.build()
     assert len(responses.calls) == 1
     assert (
-        "  testproj  disk cache (Ook was not contacted)"
+        "  testproj  disk cache  (Ook was not contacted)"
         in app2.status.getvalue()
     )
 
@@ -460,8 +543,10 @@ def test_summary_block_reports_a_fallback_with_its_reason(
     responses: RequestsMock,
     monkeypatch: Any,
 ) -> None:
-    """An entry whose fetch failed reports ``direct fetch`` with the reason,
-    and the block keeps ``intersphinx_mapping`` order rather than sorting.
+    """An entry whose fetch failed reports ``direct fetch`` with the reason
+    and no fetch time (there was no successful fetch to report), while the
+    entry Ook served reports its own. The block keeps ``intersphinx_mapping``
+    order rather than sorting.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     proja_inv_url = "https://a.example.com/objects.inv"
@@ -478,7 +563,10 @@ def test_summary_block_reports_a_fallback_with_its_reason(
         body=_make_inventory(),
         status=200,
         content_type="application/octet-stream",
-        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
         match=[matchers.query_param_matcher({"url": projb_inv_url})],
     )
     # proja falls back to a direct origin fetch, which succeeds.
@@ -489,11 +577,13 @@ def test_summary_block_reports_a_fallback_with_its_reason(
 
     status = app.status.getvalue()
     block = status[status.index(REPORT_HEADING) :].splitlines()[:3]
-    assert block == [
+    assert block[:2] == [
         REPORT_HEADING,
-        "  proja  direct fetch (Ook returned a server error)",
-        "  projb  hit",
+        "  proja  direct fetch  (Ook returned a server error)",
     ]
+    assert block[2].startswith(
+        "  projb  hit           fetched 2026-08-18T17:58:24Z ("
+    )
 
 
 @pytest.mark.sphinx(
@@ -548,7 +638,10 @@ def test_local_entries_are_absent_from_the_block(
 
     status = app.status.getvalue()
     block = status[status.index(REPORT_HEADING) :].splitlines()[:2]
-    assert block == [REPORT_HEADING, "  remoteproj  miss"]
+    assert block == [
+        REPORT_HEADING,
+        "  remoteproj  miss  fetch time unavailable",
+    ]
     assert "  localtarget" not in status
     assert "  localinv" not in status
 

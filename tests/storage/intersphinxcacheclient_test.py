@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -161,6 +162,115 @@ def test_missing_cache_status_header_is_none(
     result = client.get_inventory(INVENTORY_URL)
 
     assert result.cache_status is None
+
+
+def test_get_inventory_returns_date_fetched(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 response's ``X-Ook-Inventory-Date-Fetched`` header is parsed into
+    a timezone-aware datetime.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched == datetime(2026, 8, 18, 17, 58, 24, tzinfo=UTC)
+
+
+def test_not_modified_returns_date_fetched(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 304 response also carries Ook's fetch-time header. This is the only
+    freshness signal a client that just revalidates ever sees, so it must be
+    read on this branch too, not only on the 200.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        status=304,
+        headers={"X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL, etag='"abc123"')
+
+    assert result.not_modified is True
+    assert result.date_fetched == datetime(2026, 8, 18, 17, 58, 24, tzinfo=UTC)
+
+
+def test_missing_date_fetched_header_is_none(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Against an older Ook that sends no fetch-time header, the fetch result
+    reports `None` rather than raising.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched is None
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["not a timestamp", "", "2026-13-45T99:99:99Z", "1755539904"],
+)
+def test_unparseable_date_fetched_is_none(
+    responses: RequestsMock, monkeypatch: Any, value: str
+) -> None:
+    """A malformed fetch-time header yields `None` without raising: a header
+    Ook gets wrong must never be able to fail a documentation build.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Date-Fetched": value},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched is None
+    assert result.content == INVENTORY_BYTES
+
+
+def test_naive_date_fetched_is_read_as_utc(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A fetch-time value with no offset is read as UTC rather than left
+    naive, so comparing it with the build machine's clock cannot raise.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched == datetime(2026, 8, 18, 17, 58, 24, tzinfo=UTC)
 
 
 def test_missing_token(monkeypatch: Any) -> None:
