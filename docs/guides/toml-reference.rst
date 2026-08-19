@@ -599,15 +599,6 @@ If instead the service is unreachable or the polling budget is exhausted, the bu
 Set :ref:`strict <guide-sphinx-linkcheck-strict>` to ``true`` to fail the build on those service problems instead.
 Links the service reports as broken always fail the build, regardless of the ``strict`` setting.
 
-.. note::
-
-   **Technotes** use the same service-backed ``linkcheck`` builder, but technotes don't read :file:`documenteer.toml`, so the settings below don't apply to them.
-   Instead, the technote configuration preset derives the origin base URL from the ``canonical_url`` setting in the ``[technote]`` table of :file:`technote.toml`, falling back to the technote's handle from the ``id`` setting as ``https://<id>.lsst.io``.
-   The other settings keep their defaults.
-
-   A technote overrides any of these settings through the corresponding ``documenteer_linkcheck_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
-   See :ref:`technote-conf-linkcheck` for those settings.
-
 ignore
 ------
 
