@@ -36,7 +36,20 @@ Verify the suggestion before using it; it never changes whether the command pass
 How to fix it
 =============
 
-Replace the ``internal_id`` with the author's actual ID from `authordb.yaml`_, then synchronize the author's metadata:
+When the entry declares an ``orcid``, run :command:`documenteer technote sync-authors`:
+
+.. prompt:: bash
+
+   documenteer technote sync-authors
+
+It resolves the same ORCID and rewrites the wrong ``internal_id`` in place, naming the ID it replaced:
+
+.. code-block:: text
+
+   Synchronized authors to technote.toml:
+   - R. Lynne Jones (lynnej → jonesrl, matched by ORCID)
+
+Otherwise, replace the ``internal_id`` with the author's actual ID from `authordb.yaml`_ by hand, then run the same command to synchronize the author's metadata:
 
 .. code-block:: toml
 

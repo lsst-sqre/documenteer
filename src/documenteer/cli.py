@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import click
 
-from documenteer.services.technoteauthor import TechnoteAuthorService
+from documenteer.services.technoteauthor import (
+    AuthorSyncOutcome,
+    SyncAction,
+    TechnoteAuthorService,
+)
 from documenteer.services.technotelint import (
     LintContext,
     LintFinding,
@@ -159,24 +164,65 @@ def technote_add_author(
     help="Path to technote.toml file",
 )
 def technote_sync_authors(technote_toml: str) -> None:
-    """Sync author info from authordb.yaml to technote.toml."""
+    """Sync author info from authordb.yaml to technote.toml.
+
+    An author whose internal_id is wrong or missing is repaired from the
+    ORCID the entry declares. An author who cannot be resolved at all is
+    reported as a warning and left as declared; the rest are still
+    synchronized and written, and the command exits non-zero.
+    """
     toml_path = Path(technote_toml)
     toml_file = TechnoteTomlFile.open(toml_path)
     author_db = AuthorDb()
 
     service = TechnoteAuthorService(toml_file, author_db)
-    updated_authors = service.sync_authors()
+    outcomes = service.sync_authors()
     service.write_toml(toml_path)
 
-    if len(updated_authors) == 0:
-        click.echo("No authors to update")
-        return
-    else:
+    reports = [
+        line
+        for line in (_describe_sync_outcome(o) for o in outcomes)
+        if line is not None
+    ]
+    skipped_reasons = [
+        o.reason for o in outcomes if o.action is SyncAction.skipped
+    ]
+
+    if reports:
         click.echo(f"Synchronized authors to {toml_path}:")
-        for a in updated_authors:
-            click.echo(
-                f"- {a.given_name or ''} {a.family_name} ({a.internal_id})"
-            )
+        for line in reports:
+            click.echo(f"- {line}")
+    elif not skipped_reasons:
+        click.echo("No authors to update")
+
+    for reason in skipped_reasons:
+        click.echo(f"Warning: {reason}", err=True)
+    if skipped_reasons:
+        sys.exit(1)
+
+
+def _describe_sync_outcome(outcome: AuthorSyncOutcome) -> str | None:
+    """Phrase one synchronized author for the sync-authors report.
+
+    An outcome that wrote nothing yields `None`: it has nothing to report
+    under "Synchronized authors", and is warned about separately.
+
+    A repaired or filled-in ``internal_id`` is called out along with the
+    basis for it. That is a change to the technote's own metadata, which the
+    writer should see and verify, rather than a routine refresh.
+    """
+    author = outcome.author
+    if author is None:
+        return None
+    name = f"{author.given_name or ''} {author.family_name}"
+    if outcome.action is SyncAction.repaired:
+        return (
+            f"{name} ({outcome.previous_internal_id} → "
+            f"{author.internal_id}, matched by ORCID)"
+        )
+    if outcome.action is SyncAction.filled:
+        return f"{name} ({author.internal_id}, matched by ORCID)"
+    return f"{name} ({author.internal_id})"
 
 
 @technote.command(name="migrate")

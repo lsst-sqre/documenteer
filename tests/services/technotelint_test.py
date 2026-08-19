@@ -199,7 +199,7 @@ orcid = "https://orcid.org/0009-0008-9216-7516"
     assert findings[0].message == (
         "Author Yusra AlSayyad is missing an internal_id. Did you mean "
         "'alsayyady' (matched by ORCID)? Run 'documenteer technote "
-        "sync-authors' after adding it."
+        "sync-authors' to add it."
     )
 
 
@@ -1280,7 +1280,7 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
     assert findings[0].message == (
         "Author Lynne Jones is missing an internal_id. Did you mean "
         "'jonesrl' (R. Lynne Jones, matched by ORCID)? Run 'documenteer "
-        "technote sync-authors' after adding it."
+        "technote sync-authors' to add it."
     )
     # No name search is registered: a hit on the exact lookup short-circuits
     # it, which is what makes this case suggestable at all.

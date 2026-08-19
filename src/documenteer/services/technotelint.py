@@ -197,6 +197,19 @@ class _AuthorSuggestion:
             f"({self.name}, matched by {self.basis})?"
         )
 
+    def fix_hint(self) -> str:
+        """Name the command that acts on this suggestion.
+
+        An ORCID match is one ``sync-authors`` can act on by itself: it
+        resolves the *same* declared ORCID and fills the ``internal_id`` in,
+        so the message sends the writer straight there. A name match is only
+        a suggestion for a human to verify and type in, so the sync still
+        comes after that edit.
+        """
+        if self.basis == "ORCID":
+            return "Run 'documenteer technote sync-authors' to add it."
+        return "Run 'documenteer technote sync-authors' after adding it."
+
 
 @dataclass(frozen=True)
 class LintFinding:
@@ -408,8 +421,7 @@ class TechnoteLintService:
                 suggestion = self._suggest_internal_id(author)
                 if suggestion is not None:
                     message += (
-                        f" {suggestion.describe(name)} Run 'documenteer "
-                        f"technote sync-authors' after adding it."
+                        f" {suggestion.describe(name)} {suggestion.fix_hint()}"
                     )
                 findings.append(LintFinding.from_check("TN101", message))
                 continue

@@ -7,9 +7,10 @@ from typing import cast
 import pytest_responses  # noqa: F401
 import tomlkit
 import tomlkit.items
+from pydantic import HttpUrl
 from responses import RequestsMock
 
-from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.authordb import Author, AuthorDb
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
 BASIC_TECHNOTE_TOML = """
@@ -334,3 +335,52 @@ def test_author_with_multiple_null_fields(responses: RequestsMock) -> None:
     assert cast("str", affiliation["internal_id"]) == "UnknownOrg"
     # ROR should not be present when null
     assert "ror" not in affiliation
+
+
+AUTHORS_TECHNOTE_TOML = """
+[technote]
+title = "A Test Technote"
+
+[[technote.authors]]
+name = {given = "Lynne", family = "Jones"}
+internal_id = "lynnej"
+orcid = "https://orcid.org/0000-0001-5916-0031"
+
+[[technote.authors]]
+name = {given = "Yusra", family = "AlSayyad"}
+orcid = "https://orcid.org/0000-0002-4913-6541"
+"""
+
+
+def test_author_entries_expose_declared_identifiers() -> None:
+    """Each [[technote.authors]] table yields a handle on its identifiers."""
+    technote = TechnoteTomlFile(AUTHORS_TECHNOTE_TOML)
+
+    entries = technote.author_entries
+
+    assert [e.name for e in entries] == ["Lynne Jones", "Yusra AlSayyad"]
+    assert [e.internal_id for e in entries] == ["lynnej", None]
+    assert [e.orcid for e in entries] == [
+        "https://orcid.org/0000-0001-5916-0031",
+        "https://orcid.org/0000-0002-4913-6541",
+    ]
+
+
+def test_author_entry_update_rewrites_the_id_in_place() -> None:
+    """Updating an entry corrects its ID rather than appending a new entry."""
+    technote = TechnoteTomlFile(AUTHORS_TECHNOTE_TOML)
+    entry = technote.author_entries[0]
+
+    entry.update(
+        Author(
+            internal_id="jonesrl",
+            given_name="R. Lynne",
+            family_name="Jones",
+            orcid=HttpUrl("https://orcid.org/0000-0001-5916-0031"),
+        )
+    )
+
+    assert len(technote.authors_aot) == 2
+    assert technote.author_ids == ["jonesrl"]
+    name = cast("tomlkit.items.Table", technote.authors_aot[0]["name"])
+    assert cast("str", name["given"]) == "R. Lynne"

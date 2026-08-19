@@ -106,6 +106,34 @@ To update the author metadata in your technote, run:
 
    make sync-authors
 
+Each ``[[technote.authors]]`` entry is looked up by its ``internal_id`` and rewritten from the database.
+
+Repairing an author ID
+----------------------
+
+An entry whose ``internal_id`` is wrong, or missing altogether, is repaired from the ``orcid`` the entry declares.
+ORCIDs are globally unique, so the lookup identifies the author exactly, and the command writes the right ID into that entry — it does not add a second one.
+The report says so, and names the ID it replaced:
+
+.. code-block:: text
+
+   Synchronized authors to technote.toml:
+   - R. Lynne Jones (lynnej → jonesrl, matched by ORCID)
+   - Yusra AlSayyad (alsayyady, matched by ORCID)
+   - Jonathan Sick (sickj)
+
+This is the fix for :doc:`TN101 <lint/tn101>` and :doc:`TN102 <lint/tn102>` findings on an author who declares an ORCID: run :command:`make sync-authors` rather than editing the ID by hand.
+
+An author who resolves to nobody at all — no usable ``internal_id`` and no ``orcid`` that the author database knows — is reported as a warning and left exactly as you declared them:
+
+.. code-block:: text
+
+   Warning: Could not sync author No Body: internal_id 'nobody' is not in the Rubin author database, and the entry declares no ORCID to fall back on.
+
+Every other author is still synchronized and written, so one unknown author no longer costs the rest their update.
+The command exits non-zero, so a CI job still fails on it.
+Fix such an author by adding them to `authordb.yaml`_, or by correcting the ``internal_id`` or ``orcid`` in :file:`technote.toml`.
+
 Related documentation
 =====================
 
