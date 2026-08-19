@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from documenteer.storage.authordb import Author, AuthorDb
+from documenteer.storage.authordb import Author, AuthorDb, AuthorNotFoundError
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
 
@@ -24,6 +24,32 @@ class TechnoteAuthorService:
     def add_author_by_id(self, author_id: str) -> Author:
         """Add an author to the technote.toml file."""
         author = self.author_db.get_author(author_id)
+
+        self.toml_file.upsert_author(author)
+
+        return author
+
+    def add_author_by_orcid(self, orcid: str) -> Author:
+        """Add an author to the technote.toml file by their ORCID.
+
+        ORCID is globally unique and author-supplied, so a writer who knows
+        an author's ORCID — from a paper, a profile page, or the author
+        themselves — can add them without first hunting down their Rubin
+        internal ID in authordb.yaml.
+
+        Raises
+        ------
+        AuthorNotFoundError
+            If no author in the Rubin author database holds this ORCID. The
+            storage tier reports that miss as `None` rather than as an error,
+            because a miss is an ordinary outcome of a query; adding an author
+            who does not exist is not, so it is raised here.
+        """
+        author = self.author_db.get_author_by_orcid(orcid)
+        if author is None:
+            raise AuthorNotFoundError(
+                f"No author in the Rubin author database has ORCID {orcid}"
+            )
 
         self.toml_file.upsert_author(author)
 

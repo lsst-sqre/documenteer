@@ -15,7 +15,11 @@ from documenteer.services.technotelint import (
     rule_url,
 )
 from documenteer.services.technotemigration import TechnoteMigrationService
-from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.authordb import (
+    AuthorDb,
+    AuthorNotFoundError,
+    InvalidOrcidError,
+)
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
 
@@ -85,8 +89,15 @@ def technote() -> None:
     "--author-id",
     "author_id",
     nargs=1,
-    required=True,
-    prompt="Author ID",
+    default=None,
+    help="Author ID: a key in the authors map in authordb.yaml.",
+)
+@click.option(
+    "--orcid",
+    "orcid",
+    nargs=1,
+    default=None,
+    help="ORCID of the author, bare or as an orcid.org URL.",
 )
 @click.option(
     "--toml",
@@ -96,18 +107,42 @@ def technote() -> None:
     default="technote.toml",
     help="Path to technote.toml file",
 )
-def technote_add_author(author_id: str, technote_toml: str) -> None:
+def technote_add_author(
+    author_id: str | None, orcid: str | None, technote_toml: str
+) -> None:
     """Add an author to technote.toml from the Rubin author DB.
 
-    Author IDs are the keys in the "authors" map in authordb.yaml. See
+    Identify the author either by their author ID (-a/--author-id), a key in
+    the "authors" map in authordb.yaml, or by their ORCID (--orcid). With
+    neither option the command prompts for an author ID. See
     https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
     """
+    if author_id is not None and orcid is not None:
+        raise click.UsageError(
+            "Use either -a/--author-id or --orcid to identify the author, "
+            "not both."
+        )
+
     toml_path = Path(technote_toml)
     toml_file = TechnoteTomlFile.open(toml_path)
     author_db = AuthorDb()
 
     service = TechnoteAuthorService(toml_file, author_db)
-    author = service.add_author_by_id(author_id)
+    try:
+        if orcid is not None:
+            author = service.add_author_by_orcid(orcid)
+        else:
+            # Prompt here rather than through the option's own `prompt=`
+            # handler, which would go on demanding an author ID even when
+            # --orcid already identifies the author.
+            author = service.add_author_by_id(
+                author_id or click.prompt("Author ID")
+            )
+    except (AuthorNotFoundError, InvalidOrcidError) as e:
+        # A mistyped or unknown identifier is user error, not a Documenteer
+        # bug: report it plainly and exit 1 rather than dumping a traceback.
+        raise click.ClickException(str(e)) from e
+
     click.echo(
         f"Added author {author.given_name} {author.family_name} to {toml_path}"
     )

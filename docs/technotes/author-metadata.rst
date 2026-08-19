@@ -59,6 +59,16 @@ Given an author ID from `authordb.yaml`_, you can add that author to the technot
 
 That command prompts you for the author ID, and then appends the author to the end of the author listing in :file:`technote.toml` (existing authors are updated in place).
 
+If you know the author's ORCID but not their author ID, identify them with the ``--orcid`` option of the underlying :command:`documenteer technote add-author` command instead:
+
+.. prompt:: bash
+
+   documenteer technote add-author --orcid 0000-0003-3001-676X
+
+ORCIDs are globally unique, so this looks the author up exactly, where a name can be spelled several ways.
+Write the ORCID either bare, as above, or as an ``https://orcid.org/`` URL.
+The author still needs an entry in `authordb.yaml`_ that records that ORCID; if no entry does, the command says so and leaves :file:`technote.toml` unchanged.
+
 Authors are represented in :file:`technote.toml` as as individual tables under the ``technote.authors`` *array of tables*.
 A technote with Sick as the first author and Economou as the second author would look like:
 
