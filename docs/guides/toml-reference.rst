@@ -524,14 +524,6 @@ An Ook outage can never make a build worse than a build without the service.
 To avoid re-downloading inventories on every build, Documenteer caches each prefetched :file:`objects.inv` on disk and only revalidates it with Ook after a short time-to-live (see :ref:`disk_cache_ttl <guide-sphinx-intersphinx-cache-disk-cache-ttl>` below).
 While a cached inventory is younger than the TTL, it is reused without contacting Ook at all; once the TTL has expired, Documenteer revalidates conditionally with an ``If-None-Match`` request, and a ``304 Not Modified`` reuses the on-disk copy with no inventory body transferred.
 
-.. note::
-
-   **Technotes** also prefetch intersphinx inventories from the service, and get the same summary block and permanent-redirect notice described here.
-   But technotes don't read :file:`documenteer.toml`, so the settings in this section don't apply to them; the defaults are used.
-
-   A technote overrides any of these settings through the corresponding ``documenteer_intersphinx_cache_*`` configuration values in :file:`conf.py`, after the ``from documenteer.conf.technote import *`` line.
-   See :ref:`technote-conf-intersphinx-cache` for those settings.
-
 .. _guide-sphinx-intersphinx-cache-summary:
 
 The inventory prefetch summary
