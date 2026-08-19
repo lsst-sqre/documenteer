@@ -143,7 +143,10 @@ Suggested author IDs
 ====================
 
 An author ``internal_id`` that is missing (:doc:`TN101 <tn101>`) or unknown (:doc:`TN102 <tn102>`) is a dead end on its own, so the linter tries to name the ID you probably want.
-It searches the author database for the author's name and appends a suggestion when exactly one entry matches confidently:
+It queries the author database twice at most and appends a suggestion when one entry matches confidently:
+
+#. If the author entry declares an ``orcid``, the linter asks the author database which author holds exactly that ORCID.
+#. Otherwise — or when nobody holds it — the linter searches the database for the author's name.
 
 .. code-block:: text
 
@@ -152,8 +155,10 @@ It searches the author database for the author's name and appends a suggestion w
 
 The message states what the match is based on:
 
-- **matched by ORCID** — the ``orcid`` in your :file:`technote.toml` author entry is the same as that entry's ORCID. This is the strongest evidence, and holds even when the two spell the name differently.
+- **matched by ORCID** — the author database holds the author with the ``orcid`` in your :file:`technote.toml` author entry. ORCID is globally unique and author-supplied, so this is the strongest evidence there is: the lookup is exact, and it succeeds however differently your technote and the author database spell the name.
 - **matched by name** — a single near-exact name match, whose ORCID (if it has one) does not contradict yours.
+
+Declaring an ``orcid`` for an author is therefore the surest way to get a usable suggestion, and the only one that works when the author database spells the name differently than you do.
 
 The suggestion is deliberately conservative and best-effort: an ambiguous search (several equally good matches, as a common family name gives) or a match contradicted by a differing ORCID adds nothing to the message, and a failed lookup leaves the finding exactly as it would otherwise read.
 A suggestion never changes whether the command passes or fails — verify it before you use it.

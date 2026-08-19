@@ -13,7 +13,36 @@ __all__ = [
     "AuthorDbUnreachableError",
     "AuthorNotFoundError",
     "AuthorSearchResult",
+    "InvalidOrcidError",
+    "normalize_orcid",
 ]
+
+
+def normalize_orcid(value: object) -> str | None:
+    """Reduce an ORCID URL to its bare identifier.
+
+    This is a lenient *reducer*, not a validator: it strips a trailing slash,
+    keeps the last path segment, and uppercases the result. Ook owns the ORCID
+    grammar and answers ``422`` for anything it does not recognize, so
+    Documenteer deliberately does not re-implement the check here and the two
+    cannot drift.
+
+    Reducing is load-bearing rather than cosmetic. The ``technote`` package's
+    ``Person.orcid`` validator re-prefixes any value that does not literally
+    start with ``https://orcid``, so ``technote.toml`` yields forms such as
+    ``https://orcid.org/http://orcid.org/0000-0003-3001-676X``; every one of
+    them reduces to the bare identifier Ook expects. It also makes a
+    comparison of two ORCIDs insensitive to the ``http``/``https`` scheme and
+    to a trailing slash.
+
+    Returns
+    -------
+    str or None
+        The bare identifier, or `None` if ``value`` is `None`.
+    """
+    if value is None:
+        return None
+    return str(value).rstrip("/").rsplit("/", maxsplit=1)[-1].upper()
 
 
 class AuthorNotFoundError(ValueError):
@@ -22,6 +51,15 @@ class AuthorNotFoundError(ValueError):
     This corresponds to an HTTP 404 response from the author API, as opposed
     to a transport failure (an unreachable database), which is signalled with
     an `AuthorDbUnreachableError`.
+    """
+
+
+class InvalidOrcidError(ValueError):
+    """Raised when the author database rejects an ORCID as malformed.
+
+    This corresponds to an HTTP 422 response from the author API. It is bad
+    input rather than an unreachable database, so it is kept distinct from
+    `AuthorDbUnreachableError`.
     """
 
 
@@ -124,6 +162,9 @@ class AuthorSearchResult(Author):
 _SEARCH_RESULTS_ADAPTER = TypeAdapter(list[AuthorSearchResult])
 """Validator for Ook's author-search response body."""
 
+_AUTHORS_ADAPTER = TypeAdapter(list[Author])
+"""Validator for Ook's ORCID-lookup response body, which carries no score."""
+
 
 class AuthorDb:
     """An interface to Ook's author API."""
@@ -155,6 +196,53 @@ class AuthorDb:
                 f"Failed to search authors for '{query}' at {url}"
             ) from e
         return _SEARCH_RESULTS_ADAPTER.validate_json(r.text)
+
+    def get_author_by_orcid(self, orcid: str) -> Author | None:
+        """Look an author up by ORCID, exactly.
+
+        ORCID is the one globally unique, author-supplied identifier in this
+        ecosystem, so this exact lookup succeeds where `search_authors`
+        cannot — however differently the technote and the author database
+        spell the name. ``orcid`` is reduced with `normalize_orcid` before
+        it goes on the wire.
+
+        Returns
+        -------
+        Author or None
+            The matching author, or `None` when no author holds this ORCID.
+            A miss is an ordinary outcome here, rather than the definitive
+            404 `get_author` reports.
+
+        Raises
+        ------
+        InvalidOrcidError
+            If the author database rejects the ORCID as malformed (422).
+        AuthorDbUnreachableError
+            If the author database could not be queried, whether from a
+            transport failure or any other HTTP error status.
+        """
+        url = "https://roundtable.lsst.cloud/ook/authors"
+        # normalize_orcid only returns None for a None input, which this
+        # method's str parameter excludes.
+        params = {"orcid": normalize_orcid(orcid) or orcid}
+        try:
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 422:
+                raise InvalidOrcidError(
+                    f"The author database rejected ORCID '{orcid}' as "
+                    f"malformed"
+                ) from e
+            raise AuthorDbUnreachableError(
+                f"Failed to look up ORCID '{orcid}' at {url}"
+            ) from e
+        except requests.RequestException as e:
+            raise AuthorDbUnreachableError(
+                f"Failed to look up ORCID '{orcid}' at {url}"
+            ) from e
+        authors = _AUTHORS_ADAPTER.validate_json(r.text)
+        return authors[0] if authors else None
 
     def get_author(self, author_id: str) -> Author:
         """Get an author entry by ID."""
