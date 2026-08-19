@@ -95,6 +95,23 @@ _STRICT_SETTING = {
 }
 """How strict mode is spelled, per kind of project."""
 
+_USE_SERVICE_SETTING = {
+    ConfigSource.GUIDE: (
+        "[sphinx.linkcheck] use_service = false in documenteer.toml"
+    ),
+    # Technotes get the conf.py form rather than a TOML key because
+    # technote.toml's schema belongs to the technote package, not to
+    # Documenteer.
+    ConfigSource.TECHNOTE: (
+        "documenteer_linkcheck_use_service = False in conf.py"
+    ),
+    ConfigSource.UNKNOWN: (
+        "documenteer_linkcheck_use_service = False in conf.py"
+    ),
+}
+"""How the link-check service is switched off in favor of Sphinx's
+built-in builder, per kind of project."""
+
 
 def resolve_default_branch_flag(
     env: Mapping[str, str], default_branch: str
@@ -322,6 +339,12 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         raises before any request, so no wasted network call is made to the
         service.
 
+        The message names whichever way of selecting the built-in builder
+        explicitly the project being built actually has: a guide's
+        ``[sphinx.linkcheck] use_service = false`` in ``documenteer.toml``,
+        or a technote's ``documenteer_linkcheck_use_service = False`` in
+        ``conf.py``.
+
         The message is logged at info level (not a warning) so a
         warnings-as-errors (``-W``) build does not fail on this success
         path, which is hit on every token-less build (mirrors the ``-W``
@@ -330,10 +353,10 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         logger.info(
             "Ook API token unavailable (%s); falling back to Sphinx's "
             "built-in in-process link checker so link checking still runs. "
-            "Set OOK_TOKEN to use the Ook link-check service, or "
-            "[sphinx.linkcheck] use_service = false to select the built-in "
-            "builder explicitly.",
+            "Set OOK_TOKEN to use the Ook link-check service, or set %s to "
+            "select the built-in builder explicitly.",
             error,
+            _USE_SERVICE_SETTING[self._config_source],
         )
         super().finish()
 

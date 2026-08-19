@@ -61,6 +61,22 @@ def _warning_message(app: SphinxTestApp, needle: str) -> str:
     return blocks[0]
 
 
+def _status_message(app: SphinxTestApp, needle: str) -> str:
+    """Return the one status-stream line containing ``needle``.
+
+    Info-level messages share the status stream with the build's ordinary
+    progress output, so an assertion that a message does *not* name some
+    file has to be scoped to that message rather than run over the whole
+    stream. Each ``logger.info`` call writes one line, so the line
+    carrying the needle is the whole message.
+    """
+    lines = [
+        line for line in app.status.getvalue().splitlines() if needle in line
+    ]
+    assert len(lines) == 1, app.status.getvalue()
+    return lines[0]
+
+
 def _mock_builtin_head_ok(responses: RequestsMock, urls: list[str]) -> None:
     """Register 200 HEAD responses for the built-in linkcheck fallback.
 
@@ -1088,6 +1104,91 @@ def test_rejected_token_falls_back_to_builtin(
 
     # The fallback is announced at info level.
     assert "falling back to Sphinx's built-in" in app.status.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-no-token-wording",
+)
+def test_guide_fallback_names_documenteer_toml(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A guide's built-in fallback names the TOML key, in the file the
+    guide actually has, that selects the built-in builder explicitly.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+    _mock_builtin_head_ok(responses, TESTROOT_EXTERNAL_URLS)
+
+    app.build()
+
+    message = _status_message(app, "falling back to Sphinx's built-in")
+    assert "[sphinx.linkcheck] use_service = false in documenteer.toml" in (
+        message
+    )
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE_DEPS, reason="technote dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="technote-linkcheck-service",
+    srcdir="technote-linkcheck-service-no-token",
+)
+def test_technote_fallback_names_conf_py(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A technote's built-in fallback names the conf.py setting that
+    selects the built-in builder, not a ``documenteer.toml`` key in a file
+    the technote does not have.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+    # The technote's linkcheck_ignore drops https://ls.st/, so the
+    # built-in checker requests only the other two links.
+    _mock_builtin_head_ok(
+        responses, ["https://example.com/page", "https://www.lsst.io/"]
+    )
+
+    app.build()
+
+    # Falling back is still the success path: the built-in check ran and
+    # every link resolved.
+    assert app.statuscode == 0
+
+    message = _status_message(app, "falling back to Sphinx's built-in")
+    assert "documenteer_linkcheck_use_service = False in conf.py" in message
+    assert "documenteer.toml" not in message
+
+
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service-bare",
+    srcdir="linkcheck-service-bare-no-token",
+    confoverrides={
+        "documenteer_linkcheck_origin_base_url": "https://example.lsst.io"
+    },
+)
+def test_bare_fallback_names_conf_py(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A project configured from ``conf.py`` alone is pointed at the
+    conf.py setting, naming no TOML file it does not have.
+    """
+    monkeypatch.delenv("OOK_TOKEN", raising=False)
+    _mock_builtin_head_ok(responses, ["https://example.com/page"])
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    message = _status_message(app, "falling back to Sphinx's built-in")
+    assert "documenteer_linkcheck_use_service = False in conf.py" in message
+    assert "documenteer.toml" not in message
+    assert "technote.toml" not in message
 
 
 @pytest.mark.skipif(
