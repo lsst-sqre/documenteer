@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import click
+from pydantic import ValidationError
 
 from documenteer.services.technoteauthor import (
     AuthorSyncOutcome,
@@ -136,14 +137,15 @@ def technote_add_author(
     service = TechnoteAuthorService(toml_file, author_db)
     try:
         if orcid is not None:
+            identifier = f"ORCID {orcid}"
             author = service.add_author_by_orcid(orcid)
         else:
             # Prompt here rather than through the option's own `prompt=`
             # handler, which would go on demanding an author ID even when
             # --orcid already identifies the author.
-            author = service.add_author_by_id(
-                author_id or click.prompt("Author ID")
-            )
+            resolved_id = author_id or click.prompt("Author ID")
+            identifier = f"internal_id '{resolved_id}'"
+            author = service.add_author_by_id(resolved_id)
     except (
         AuthorNotFoundError,
         InvalidOrcidError,
@@ -154,6 +156,15 @@ def technote_add_author(
         # a Documenteer bug. Report them plainly and exit 1 rather than
         # dumping a traceback, as sync-authors does for the same conditions.
         raise click.ClickException(str(e)) from e
+    except ValidationError as e:
+        # A 200 whose body is not an author record. pydantic's own message
+        # is a field-by-field dump of what failed to validate, which tells a
+        # writer nothing they can act on, so report the condition itself —
+        # the same one sync-authors reports as a skipped entry.
+        raise click.ClickException(
+            f"The Rubin author database returned a malformed record for "
+            f"{identifier}."
+        ) from e
 
     click.echo(
         f"Added author {author.given_name} {author.family_name} to {toml_path}"

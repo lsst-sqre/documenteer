@@ -4,4 +4,4 @@
 
 ### Bug fixes
 
-- `documenteer technote add-author` now reports an author it cannot find, and an author database it cannot reach, as a plain error message and exits 1, rather than printing a traceback. Previously an author ID with no entry in the Rubin author database, or a network failure or server error reaching the database, escaped as an unhandled exception.
+- `documenteer technote add-author` now reports an author it cannot find, an author database it cannot reach, and a malformed record the database answers with, as a plain error message and exits 1, rather than printing a traceback. Previously an author ID with no entry in the Rubin author database, a network failure or server error reaching the database, or a 200 response that is not an author record escaped as an unhandled exception.

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest_responses  # noqa: F401
 import requests
 from click.testing import CliRunner
-from responses import RequestsMock
+from responses import RequestsMock, matchers
 
 from documenteer.cli import main
 
@@ -172,4 +172,71 @@ def test_add_author_unreachable_db(
     # A reported error, not a traceback from an uncaught transport failure.
     assert result.exception is None or isinstance(result.exception, SystemExit)
     # The file is left exactly as it was found.
+    assert toml_path.read_text() == MISSING_ID_TOML
+
+
+def test_add_author_malformed_id_record(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A 200 that is not an author record exits 1 plainly, not with a trace."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body='{"not": "an author"}',
+        content_type="application/json",
+        status=200,
+    )
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["technote", "add-author", "-a", "sickj", "-t", str(toml_path)],
+    )
+    assert result.exit_code == 1
+    assert (
+        "The Rubin author database returned a malformed record for "
+        "internal_id 'sickj'." in result.output
+    )
+    # A reported error, not a traceback from an uncaught ValidationError, and
+    # not pydantic's field-by-field dump either.
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "validation error" not in result.output
+    # The file is left exactly as it was found.
+    assert toml_path.read_text() == MISSING_ID_TOML
+
+
+def test_add_author_malformed_orcid_record(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A malformed ORCID-lookup body exits 1 plainly, not with a traceback."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body='{"not": "a listing"}',
+        content_type="application/json",
+        status=200,
+        match=[matchers.query_param_matcher({"orcid": "0000-0003-3001-676X"})],
+    )
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "technote",
+            "add-author",
+            "--orcid",
+            "0000-0003-3001-676X",
+            "-t",
+            str(toml_path),
+        ],
+    )
+    assert result.exit_code == 1
+    assert (
+        "The Rubin author database returned a malformed record for "
+        "ORCID 0000-0003-3001-676X." in result.output
+    )
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "validation error" not in result.output
     assert toml_path.read_text() == MISSING_ID_TOML
