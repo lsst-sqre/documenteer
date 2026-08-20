@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import requests
 
 from documenteer._requestsutils import requests_retry_session
 
 __all__ = [
+    "CACHE_STATUS_HEADER",
+    "DATE_FETCHED_HEADER",
     "DEFAULT_BASE_URL",
+    "PERMANENT_REDIRECT_HEADER",
     "TOKEN_ENV_VAR",
     "IntersphinxCacheClient",
     "IntersphinxCacheError",
@@ -25,6 +29,59 @@ DEFAULT_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
 TOKEN_ENV_VAR = "OOK_TOKEN"
 """Environment variable holding the bearer token for the Ook API."""
+
+CACHE_STATUS_HEADER = "X-Ook-Inventory-Cache-Status"
+"""Response header carrying how Ook served the inventory (e.g. ``hit``,
+``stale``, ``miss``). Sent on both ``200`` and ``304`` responses."""
+
+DATE_FETCHED_HEADER = "X-Ook-Inventory-Date-Fetched"
+"""Response header carrying the RFC 3339 UTC time when Ook last confirmed the
+inventory with its origin. Sent on both ``200`` and ``304`` responses.
+
+Unlike the standard ``Age`` header, which rides the ``200`` alone, this header
+also rides the ``304`` — so for a client that holds current bytes and only ever
+revalidates, it is the only freshness signal it ever sees.
+"""
+
+PERMANENT_REDIRECT_HEADER = "X-Ook-Inventory-Permanent-Redirect"
+"""Response header carrying the URL the requested inventory URL has
+permanently moved to — the end of the ``301``/``308`` chain Ook observed at
+its last successful fetch. Sent on both ``200`` and ``304`` responses, and
+omitted entirely when the URL has not moved.
+"""
+
+
+def _parse_date_fetched(value: str | None) -> datetime | None:
+    """Parse the `DATE_FETCHED_HEADER` value into an aware datetime.
+
+    A missing header yields `None`, and so does a value that cannot be
+    parsed: a header Ook gets wrong must never be able to fail a
+    documentation build. A value carrying no UTC offset is read as UTC (Ook
+    sends UTC) rather than left naive, so comparing it with the build
+    machine's clock cannot raise either.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip())
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def _parse_permanent_redirect(value: str | None) -> str | None:
+    """Normalize the `PERMANENT_REDIRECT_HEADER` value.
+
+    A missing header — how Ook says an inventory URL has *not* moved — and a
+    header that is present but blank both yield `None`, so an empty value can
+    never be reported to an author as somewhere to move their configuration
+    to.
+    """
+    if value is None:
+        return None
+    return value.strip() or None
 
 
 @dataclass(frozen=True)
@@ -47,6 +104,33 @@ class InventoryFetchResult:
 
     etag: str | None
     """The entity tag to persist, or `None` when the server sent none."""
+
+    cache_status: str | None = None
+    """How Ook served the inventory, from `CACHE_STATUS_HEADER`, or `None`
+    when the response carried no such header.
+
+    Carried as a plain string rather than an enum so a value Ook adds later
+    reaches the build-log summary verbatim instead of being silently dropped.
+    """
+
+    date_fetched: datetime | None = None
+    """When Ook last *confirmed* the inventory with its origin, from
+    `DATE_FETCHED_HEADER`, or `None` when the response carried no such header
+    or the header could not be parsed.
+
+    This is not when the served bytes were downloaded: a background refresh
+    that the origin answered ``304 Not Modified`` keeps the stored bytes and
+    still advances this anchor.
+    """
+
+    permanent_redirect_url: str | None = None
+    """The URL the requested inventory URL has permanently moved to, from
+    `PERMANENT_REDIRECT_HEADER`, or `None` when the response carried no such
+    header — which is how Ook says the URL has not moved.
+
+    Like ``date_fetched``, this describes the chain Ook saw at *its* last
+    successful fetch, not necessarily the origin's behavior right now.
+    """
 
 
 class IntersphinxCacheError(ValueError):
@@ -97,6 +181,20 @@ class IntersphinxCacheClient:
         An existing requests session to use. By default a session with
         retries is created with
         `documenteer._requestsutils.requests_retry_session`.
+
+    Notes
+    -----
+    The client sends no HTTP caching adapter with its requests and reads
+    Ook's ``X-Ook-Inventory-*`` headers off each response directly, which is
+    what makes :rfc:`9111` §4.3.4 a non-issue here. That rule has a cache
+    update a stored response's header fields from a ``304`` while *never*
+    deleting a stored field the ``304`` omits — and Ook withdraws the
+    permanent-redirect signal precisely by omitting
+    `PERMANENT_REDIRECT_HEADER`. A spec-compliant HTTP cache in front of
+    this client would therefore learn the flag and never unlearn it, telling
+    an author their URL had moved long after the origin stopped redirecting.
+    Anyone adding a caching adapter here must handle that withdrawal
+    explicitly rather than inheriting it from the cache.
     """
 
     def __init__(
@@ -133,6 +231,10 @@ class IntersphinxCacheClient:
             The fetch outcome: either new bytes plus the response ETag
             (``not_modified=False``), or a not-modified signal that echoes the
             revalidated ``etag`` (``not_modified=True``, ``content=None``).
+            Either way, ``cache_status`` carries Ook's
+            `CACHE_STATUS_HEADER` value, ``date_fetched`` its
+            `DATE_FETCHED_HEADER` value, and ``permanent_redirect_url`` its
+            `PERMANENT_REDIRECT_HEADER` value, when the response sent them.
 
         Raises
         ------
@@ -191,7 +293,16 @@ class IntersphinxCacheClient:
             # the caller keeps its on-disk copy. Echo back the ETag it
             # revalidated with.
             return InventoryFetchResult(
-                not_modified=True, content=None, etag=etag
+                not_modified=True,
+                content=None,
+                etag=etag,
+                cache_status=r.headers.get(CACHE_STATUS_HEADER),
+                date_fetched=_parse_date_fetched(
+                    r.headers.get(DATE_FETCHED_HEADER)
+                ),
+                permanent_redirect_url=_parse_permanent_redirect(
+                    r.headers.get(PERMANENT_REDIRECT_HEADER)
+                ),
             )
         if r.status_code >= 500:
             raise IntersphinxCacheServerError(
@@ -214,4 +325,11 @@ class IntersphinxCacheClient:
             not_modified=False,
             content=r.content,
             etag=r.headers.get("ETag"),
+            cache_status=r.headers.get(CACHE_STATUS_HEADER),
+            date_fetched=_parse_date_fetched(
+                r.headers.get(DATE_FETCHED_HEADER)
+            ),
+            permanent_redirect_url=_parse_permanent_redirect(
+                r.headers.get(PERMANENT_REDIRECT_HEADER)
+            ),
         )

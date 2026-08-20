@@ -205,6 +205,20 @@ class IntersphinxCacheModel(BaseModel):
         ),
     )
 
+    warn_on_permanent_redirect: bool = Field(
+        False,
+        description=(
+            "Report an intersphinx inventory URL that has permanently moved "
+            "as a Sphinx warning rather than an informational message, so a "
+            "warnings-as-errors (-W) build fails until the URL is updated. "
+            "The warning carries the subtype "
+            "documenteer.intersphinx_permanent_redirect, so it can be "
+            "silenced per-project with suppress_warnings. Default is false "
+            "because the move originates upstream, outside the author's "
+            "control."
+        ),
+    )
+
 
 class IntersphinxModel(BaseModel):
     """Model for Intersphinx configurations in documenteer.toml."""
@@ -576,6 +590,14 @@ class DocumenteerConfig:
         revalidates it with Ook (0 disables the fast path).
         """
         return self._intersphinx_cache.disk_cache_ttl
+
+    @property
+    def intersphinx_cache_warn_on_permanent_redirect(self) -> bool:
+        """Whether a permanently-moved intersphinx inventory URL is reported
+        as a Sphinx warning (failing a ``-W`` build) rather than at info
+        level.
+        """
+        return self._intersphinx_cache.warn_on_permanent_redirect
 
     def append_linkcheck_ignore(self, link_patterns: list[str]) -> None:
         """Append URL patterns for sphinx.linkcheck.ignore to existing

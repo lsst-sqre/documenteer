@@ -13,10 +13,22 @@ import pytest_responses  # noqa: F401
 from responses import RequestsMock, matchers
 from sphinx.testing.util import SphinxTestApp
 
-from documenteer.ext.intersphinxcache import CACHE_DIRNAME, _inventory_filename
+from documenteer.ext.intersphinxcache import (
+    CACHE_DIRNAME,
+    REDIRECT_WARNING_SUBTYPE,
+    REDIRECT_WARNING_TYPE,
+    _inventory_filename,
+)
+from documenteer.services.intersphinxreport import MOVED_FLAG, REPORT_HEADING
 
 OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 INVENTORY_ENDPOINT = f"{OOK_BASE_URL}/intersphinx/inventory"
+
+# Two real instances of a permanently-moved inventory URL and one that has
+# not moved, used by the permanent-redirect tests below.
+PYDANTIC_INV_URL = "https://docs.pydantic.dev/latest/objects.inv"
+PYDANTIC_MOVED_URL = "https://pydantic.dev/docs/validation/latest/objects.inv"
+PYTHON_INV_URL = "https://docs.python.org/3/objects.inv"
 
 # Whether the guide preset's theme is importable; the guide test root builds
 # the full user-guide stack (``from documenteer.conf.guide import *``), which
@@ -289,6 +301,828 @@ def test_ttl_fast_path_logged_at_info(
         "(younger than disk_cache_ttl)." in status
     )
     assert "Reusing" not in app2.warning.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-miss",
+)
+def test_summary_block_reports_ook_cache_status(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A build that fetches from Ook logs one summary block after the
+    per-entry prefetch lines, carrying Ook's cache status for the entry.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "miss"},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The block is on the status stream (info level), not the warning stream,
+    # so a warnings-as-errors ``-W`` build is unaffected by it.
+    status = app.status.getvalue()
+    assert REPORT_HEADING in status
+    assert "  testproj  miss" in status
+    assert REPORT_HEADING not in app.warning.getvalue()
+
+    # The block comes after the per-entry line that narrates the download.
+    assert status.index("Downloaded the intersphinx inventory") < status.index(
+        REPORT_HEADING
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-hit",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+)
+def test_summary_block_reports_hit_on_revalidation(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A rebuild past the disk TTL that Ook answers from its own cache
+    reports ``hit``, where the first (cold) build reported ``miss``, and
+    carries the fetch time Ook sent on the 304 — the only freshness signal a
+    build that only ever revalidates gets to see.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    etag = '"v1etag"'
+    # The 304 (registered first) is chosen only when If-None-Match is sent;
+    # the initial build has no such header and falls through to the 200.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": etag}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": etag, "X-Ook-Inventory-Cache-Status": "miss"},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert "  testproj  miss" in app1.status.getvalue()
+
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert (
+        "  testproj  hit  fetched 2026-08-18T17:58:24Z ("
+        in app2.status.getvalue()
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-fetched",
+)
+def test_summary_block_reports_the_fetch_time(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """An Ook-served row carries the absolute time Ook last confirmed the
+    inventory with its origin, plus a relative age, so the author can both
+    correlate with Ook's own logs and eyeball how fresh the copy is.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "miss",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    status = app.status.getvalue()
+    # The absolute timestamp is asserted exactly; the relative age is left to
+    # the report module's own tests, which inject a fixed ``now``.
+    assert "  testproj  miss  fetched 2026-08-18T17:58:24Z (" in status
+    assert "fetched" not in app.warning.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-bad-date",
+    warningiserror=True,
+)
+def test_unparseable_fetch_time_says_unavailable(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A malformed fetch-time header from Ook cannot fail a build: the row
+    says the fetch time is unavailable and a warnings-as-errors build still
+    succeeds.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "miss",
+            "X-Ook-Inventory-Date-Fetched": "yesterday afternoon",
+        },
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    assert "  testproj  miss  fetch time unavailable" in app.status.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-disk",
+)
+def test_summary_block_reports_the_disk_cache_fast_path(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """An entry served from the TTL fast path reports ``disk cache`` and says
+    Ook was not contacted, so the row is not mistaken for an Ook cache hit.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "miss"},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+
+    # The second build (within the default TTL) never contacts Ook.
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+    assert len(responses.calls) == 1
+    assert (
+        "  testproj  disk cache  (Ook was not contacted)"
+        in app2.status.getvalue()
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-served",
+)
+def test_summary_block_reports_served_without_the_header(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """Against an Ook that sends no cache-status header, the row reads
+    ``served`` and the build completes without a traceback.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    assert "  testproj  served" in app.status.getvalue()
+    assert "Traceback" not in app.warning.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-multi",
+    srcdir="intersphinx-cache-summary-fallback",
+)
+def test_summary_block_reports_a_fallback_with_its_reason(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """An entry whose fetch failed reports ``direct fetch`` with the reason
+    and no fetch time (there was no successful fetch to report), while the
+    entry Ook served reports its own. The block keeps ``intersphinx_mapping``
+    order rather than sorting.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    proja_inv_url = "https://a.example.com/objects.inv"
+    projb_inv_url = "https://b.example.com/objects.inv"
+    # Ook fails for proja (a cold-miss 502) but serves projb from its cache.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        json={"detail": "upstream unavailable"},
+        status=502,
+        match=[matchers.query_param_matcher({"url": proja_inv_url})],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
+        match=[matchers.query_param_matcher({"url": projb_inv_url})],
+    )
+    # proja falls back to a direct origin fetch, which succeeds.
+    responses.get(proja_inv_url, body=_make_inventory(), status=200)
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    status = app.status.getvalue()
+    block = status[status.index(REPORT_HEADING) :].splitlines()[:3]
+    assert block[:2] == [
+        REPORT_HEADING,
+        "  proja  direct fetch  (Ook returned a server error)",
+    ]
+    assert block[2].startswith(
+        "  projb  hit           fetched 2026-08-18T17:58:24Z ("
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-empty",
+    srcdir="intersphinx-cache-summary-empty",
+)
+def test_no_block_when_the_mapping_is_empty(
+    make_app: Any,
+    app_params: Any,
+    monkeypatch: Any,
+) -> None:
+    """With nothing to prefetch, the extension logs no summary block at all
+    rather than an empty one.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    assert REPORT_HEADING not in app.status.getvalue()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-local",
+    srcdir="intersphinx-cache-summary-local",
+)
+def test_local_entries_are_absent_from_the_block(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A mapping entry with a local target URI, or an inventory location that
+    is already a local path, is not prefetched and so gets no row: the block
+    reports only the entries the extension actually considered.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "miss"},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    status = app.status.getvalue()
+    block = status[status.index(REPORT_HEADING) :].splitlines()[:2]
+    assert block == [
+        REPORT_HEADING,
+        "  remoteproj  miss  fetch time unavailable",
+    ]
+    assert "  localtarget" not in status
+    assert "  localinv" not in status
+
+    # Only the remote entry was fetched from Ook; the local ones were left
+    # entirely alone.
+    assert len(responses.calls) == 1
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-summary-warningiserror",
+    warningiserror=True,
+)
+def test_summary_block_does_not_fail_a_warnings_as_errors_build(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """The block is logged at info level, so a ``-W`` build succeeds with it
+    present — none of what it reports is the author's to fix.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "miss"},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    assert "  testproj  miss" in app.status.getvalue()
+
+
+def _redirect_notices(app: SphinxTestApp) -> list[str]:
+    """Return every permanent-redirect notice on the build's status stream.
+
+    Each notice is a single line, so scoping an assertion to one of them
+    keeps a check that the notice does *not* name some file from being
+    defeated by an unrelated line elsewhere in the same build.
+    """
+    return [
+        line
+        for line in app.status.getvalue().splitlines()
+        if "has permanently moved" in line
+    ]
+
+
+def _summary_rows(app: SphinxTestApp, count: int) -> list[str]:
+    """Return the first ``count`` rows of the build's summary block."""
+    status = app.status.getvalue()
+    return status[status.index(REPORT_HEADING) :].splitlines()[1 : count + 1]
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-guide",
+    srcdir="intersphinx-cache-redirect-guide",
+    warningiserror=True,
+)
+def test_permanent_redirect_notice_names_the_guide_config(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """When Ook reports that an inventory URL has permanently moved, the
+    build says so at info level — naming the mapping key, the URL the project
+    configures, where it now lives, and the guide's own configuration file to
+    change — and flags that row in the summary block. A mapping entry that
+    has not moved gets neither the notice nor the flag. Escalation is off by
+    default, so the notice is info, not a warning, this ``-W`` build
+    succeeds, and both entries are still rewritten to their local cache
+    files.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z",
+        },
+        match=[matchers.query_param_matcher({"url": PYTHON_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # Exactly one entry moved, so exactly one notice, naming both URLs.
+    (notice,) = _redirect_notices(app)
+    assert "'pydantic'" in notice
+    assert PYDANTIC_INV_URL in notice
+    assert PYDANTIC_MOVED_URL in notice
+    assert "[sphinx.intersphinx.projects]" in notice
+    assert "documenteer.toml" in notice
+    assert PYTHON_INV_URL not in notice
+    # Info, not a warning: escalation defaults off, so this build ran with -W
+    # and still succeeded.
+    assert (
+        app.config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+        is False
+    )
+    assert "permanently moved" not in app.warning.getvalue()
+    assert app.statuscode == 0
+
+    rows = _summary_rows(app, 2)
+    assert rows[0].startswith(
+        "  pydantic  hit  fetched 2026-08-18T17:58:24Z ("
+    )
+    assert rows[0].endswith(f"  {MOVED_FLAG}")
+    assert rows[1].startswith(
+        "  python    hit  fetched 2026-08-18T17:58:24Z ("
+    )
+    assert MOVED_FLAG not in rows[1]
+
+    # Both entries are still rewritten to the local cache file: a moved URL
+    # is reported, not routed around.
+    for name in ("pydantic", "python"):
+        location = _inventory_locations(app, name)[0]
+        assert "://" not in location
+        assert Path(location).is_file()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-technote",
+    srcdir="intersphinx-cache-redirect-technote",
+)
+def test_permanent_redirect_notice_names_the_technote_config(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A technote author is sent to the keys of their own configuration file,
+    never to a ``documenteer.toml`` their project does not have.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    (notice,) = _redirect_notices(app)
+    assert PYDANTIC_INV_URL in notice
+    assert PYDANTIC_MOVED_URL in notice
+    assert "[technote.sphinx.intersphinx.projects]" in notice
+    assert "technote.toml" in notice
+    assert "documenteer.toml" not in notice
+    assert _summary_rows(app, 1)[0].endswith(f"  {MOVED_FLAG}")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-redirect-bare",
+)
+def test_permanent_redirect_notice_without_a_config_file(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A project with neither TOML file beside its ``conf.py`` is pointed at
+    the Sphinx setting it actually has, naming no file it does not.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    moved_url = "https://example.net/project/objects.inv"
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "miss",
+            "X-Ook-Inventory-Permanent-Redirect": moved_url,
+        },
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    (notice,) = _redirect_notices(app)
+    assert "'testproj'" in notice
+    assert origin_inv_url in notice
+    assert moved_url in notice
+    assert "intersphinx_mapping" in notice
+    assert "conf.py" in notice
+    assert "documenteer.toml" not in notice
+    assert "technote.toml" not in notice
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache",
+    srcdir="intersphinx-cache-redirect-304",
+    confoverrides={"documenteer_intersphinx_cache_disk_cache_ttl": 0},
+    warningiserror=True,
+)
+def test_permanent_redirect_reported_on_revalidation(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """The notice rides Ook's ``304`` as well as its ``200``: a second build
+    forced past the disk-cache TTL, which transfers no body at all, still
+    tells the author their configured URL has moved and still flags the row.
+    The mapping is rewritten to the local file on this branch too, and the
+    ``-W`` build succeeds.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    origin_inv_url = "https://example.com/project/objects.inv"
+    moved_url = "https://example.net/project/objects.inv"
+    etag = '"v1etag"'
+    # The 304 (registered first) is chosen only when If-None-Match is sent;
+    # the initial build has no such header and falls through to the 200.
+    responses.get(
+        INVENTORY_ENDPOINT,
+        status=304,
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": moved_url,
+        },
+        match=[
+            matchers.query_param_matcher({"url": origin_inv_url}),
+            matchers.header_matcher({"If-None-Match": etag}),
+        ],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"ETag": etag, "X-Ook-Inventory-Cache-Status": "miss"},
+        match=[matchers.query_param_matcher({"url": origin_inv_url})],
+    )
+
+    app1 = _make_app(make_app, app_params)
+    app1.build()
+    assert _redirect_notices(app1) == []
+
+    app2 = _make_app(make_app, app_params)
+    app2.build()
+
+    (notice,) = _redirect_notices(app2)
+    assert origin_inv_url in notice
+    assert moved_url in notice
+    assert "permanently moved" not in app2.warning.getvalue()
+    assert _summary_rows(app2, 1)[0].endswith(f"  {MOVED_FLAG}")
+
+    location = _inventory_locations(app2, "testproj")[0]
+    assert "://" not in location
+    assert Path(location).is_file()
+
+
+def _redirect_warnings(app: SphinxTestApp) -> list[str]:
+    """Return every permanent-redirect notice on the build's warning stream.
+
+    The mirror of `_redirect_notices` for the opt-in escalated form, so a
+    test can assert which stream the notice landed on rather than only that
+    the text exists somewhere.
+    """
+    return [
+        line
+        for line in app.warning.getvalue().splitlines()
+        if "has permanently moved" in line
+    ]
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-guide",
+    srcdir="intersphinx-cache-redirect-warn-guide",
+    confoverrides={
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect": True
+    },
+    warningiserror=True,
+)
+def test_permanent_redirect_warning_opt_in_fails_a_strict_build(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A project that opts into escalation gets the redirect notice as a
+    warning — carrying the suppress_warnings key — and its ``-W`` build fails.
+
+    The escalation governs only the dedicated notice: the summary block stays
+    at info level, so opting in never turns the whole block into a build
+    failure. Nothing else changes — the wording still names the guide's own
+    configuration file, and both entries are still rewritten to their local
+    cache files.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+        match=[matchers.query_param_matcher({"url": PYTHON_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    # The moved entry warns, once, on the warning stream and not the status
+    # stream, with the wording and the suppress_warnings key.
+    (warning,) = _redirect_warnings(app)
+    assert "'pydantic'" in warning
+    assert PYDANTIC_INV_URL in warning
+    assert PYDANTIC_MOVED_URL in warning
+    assert "[sphinx.intersphinx.projects]" in warning
+    assert f"[{REDIRECT_WARNING_TYPE}.{REDIRECT_WARNING_SUBTYPE}]" in warning
+    assert _redirect_notices(app) == []
+
+    # The build ran with -W and failed on that warning.
+    assert app.statuscode == 1
+
+    # Only the notice escalated: the summary block is still on the status
+    # stream at info level, with its row still flagged.
+    assert REPORT_HEADING not in app.warning.getvalue()
+    rows = _summary_rows(app, 2)
+    assert rows[0].endswith(f"  {MOVED_FLAG}")
+    assert MOVED_FLAG not in rows[1]
+
+    # The prefetch is unchanged: a moved URL is reported, not routed around.
+    for name in ("pydantic", "python"):
+        location = _inventory_locations(app, name)[0]
+        assert "://" not in location
+        assert Path(location).is_file()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-technote",
+    srcdir="intersphinx-cache-redirect-warn-technote",
+    confoverrides={
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect": True
+    },
+    warningiserror=True,
+)
+def test_permanent_redirect_warning_opt_in_from_technote_conf_py(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """A technote reaches the escalation through the Sphinx config value in
+    its ``conf.py`` — Documenteer adds no keys to ``technote.toml`` — and the
+    escalated notice still names the technote's own configuration file.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    (warning,) = _redirect_warnings(app)
+    assert PYDANTIC_MOVED_URL in warning
+    assert "[technote.sphinx.intersphinx.projects]" in warning
+    assert "documenteer.toml" not in warning
+    assert app.statuscode == 1
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="intersphinx-cache-guide",
+    srcdir="intersphinx-cache-redirect-suppressed",
+    confoverrides={
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect": True,
+        "suppress_warnings": [
+            f"{REDIRECT_WARNING_TYPE}.{REDIRECT_WARNING_SUBTYPE}"
+        ],
+    },
+    warningiserror=True,
+)
+def test_permanent_redirect_warning_can_be_suppressed(
+    make_app: Any,
+    app_params: Any,
+    responses: RequestsMock,
+    monkeypatch: Any,
+) -> None:
+    """The escalated notice carries a warning type/subtype, so a project that
+    knows about one moved inventory can silence just that warning and keep
+    its ``-W`` build passing without giving up the escalation elsewhere.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={
+            "X-Ook-Inventory-Cache-Status": "hit",
+            "X-Ook-Inventory-Permanent-Redirect": PYDANTIC_MOVED_URL,
+        },
+        match=[matchers.query_param_matcher({"url": PYDANTIC_INV_URL})],
+    )
+    responses.get(
+        INVENTORY_ENDPOINT,
+        body=_make_inventory(),
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+        match=[matchers.query_param_matcher({"url": PYTHON_INV_URL})],
+    )
+
+    app = _make_app(make_app, app_params)
+    app.build()
+
+    assert _redirect_warnings(app) == []
+    assert app.statuscode == 0
+    # The summary block still reports the move; only the warning is silenced.
+    assert _summary_rows(app, 1)[0].endswith(f"  {MOVED_FLAG}")
 
 
 def _etag_sidecar(inv_path: Path) -> Path:
@@ -889,11 +1723,12 @@ def test_no_token_is_noop(
     # The mapping is untouched: the inventory location is still None.
     assert _inventory_locations(app, "testproj") == (None,)
 
-    # Ook was never contacted.
+    # Ook was never contacted and no summary block was logged.
     assert not any(
         (call.request.url or "").startswith(INVENTORY_ENDPOINT)
         for call in responses.calls
     )
+    assert REPORT_HEADING not in app.status.getvalue()
     # Stock intersphinx resolved the cross-reference from the direct fetch.
     html = (Path(app.outdir) / "index.html").read_text()
     assert "https://example.com/project/api.html#example.func" in html
@@ -928,11 +1763,12 @@ def test_use_service_false_disables_extension(
     # The mapping is untouched despite the token being present.
     assert _inventory_locations(app, "testproj") == (None,)
 
-    # Ook was never contacted.
+    # Ook was never contacted and no summary block was logged.
     assert not any(
         (call.request.url or "").startswith(INVENTORY_ENDPOINT)
         for call in responses.calls
     )
+    assert REPORT_HEADING not in app.status.getvalue()
 
 
 @pytest.mark.skipif(
@@ -957,6 +1793,10 @@ def test_guide_preset_registers_extension(
         OOK_BASE_URL
     )
     assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600
+    assert (
+        app.config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+        is False
+    )
 
 
 @pytest.mark.skipif(
@@ -985,3 +1825,9 @@ def test_technote_preset_registers_extension(
         OOK_BASE_URL
     )
     assert app.config.documenteer_intersphinx_cache_disk_cache_ttl == 600
+    # A technote overrides this in conf.py; Documenteer adds no keys to
+    # technote.toml, so the preset leaves the extension's default in place.
+    assert (
+        app.config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+        is False
+    )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -25,6 +26,10 @@ INVENTORY_URL = "https://docs.python.org/3/objects.inv"
 
 INVENTORY_BYTES = b"# Sphinx inventory version 2\nbinary-payload\x00\x01\x02"
 """Opaque inventory bytes the cache returns, treated as an opaque blob."""
+
+MOVED_URL = "https://pydantic.dev/docs/validation/latest/objects.inv"
+"""Where a permanently-moved inventory URL now lives (a real instance:
+``https://docs.pydantic.dev/latest/objects.inv`` 301s to this)."""
 
 
 def test_get_inventory_success(
@@ -79,6 +84,27 @@ def test_get_inventory_returns_etag(
     assert result.etag == '"abc123"'
 
 
+def test_get_inventory_returns_cache_status(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 response's ``X-Ook-Inventory-Cache-Status`` header is surfaced
+    verbatim as ``cache_status``.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Cache-Status": "miss"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.cache_status == "miss"
+
+
 def test_get_inventory_conditional_not_modified(
     responses: RequestsMock, monkeypatch: Any
 ) -> None:
@@ -100,6 +126,241 @@ def test_get_inventory_conditional_not_modified(
     assert result.etag == '"abc123"'
     api_request = responses.calls[0].request
     assert api_request.headers["If-None-Match"] == '"abc123"'
+
+
+def test_not_modified_returns_cache_status(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 304 response also carries Ook's cache-status header, so a
+    revalidation that transfers no body still reports how Ook served it.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        status=304,
+        headers={"X-Ook-Inventory-Cache-Status": "hit"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL, etag='"abc123"')
+
+    assert result.not_modified is True
+    assert result.cache_status == "hit"
+
+
+def test_missing_cache_status_header_is_none(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Against an older Ook that sends no cache-status header, the fetch
+    result reports `None` rather than raising.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.cache_status is None
+
+
+def test_get_inventory_returns_date_fetched(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 response's ``X-Ook-Inventory-Date-Fetched`` header is parsed into
+    a timezone-aware datetime.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched == datetime(2026, 8, 18, 17, 58, 24, tzinfo=UTC)
+
+
+def test_not_modified_returns_date_fetched(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 304 response also carries Ook's fetch-time header. This is the only
+    freshness signal a client that just revalidates ever sees, so it must be
+    read on this branch too, not only on the 200.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        status=304,
+        headers={"X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24Z"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL, etag='"abc123"')
+
+    assert result.not_modified is True
+    assert result.date_fetched == datetime(2026, 8, 18, 17, 58, 24, tzinfo=UTC)
+
+
+def test_missing_date_fetched_header_is_none(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Against an older Ook that sends no fetch-time header, the fetch result
+    reports `None` rather than raising.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched is None
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["not a timestamp", "", "2026-13-45T99:99:99Z", "1755539904"],
+)
+def test_unparseable_date_fetched_is_none(
+    responses: RequestsMock, monkeypatch: Any, value: str
+) -> None:
+    """A malformed fetch-time header yields `None` without raising: a header
+    Ook gets wrong must never be able to fail a documentation build.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Date-Fetched": value},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched is None
+    assert result.content == INVENTORY_BYTES
+
+
+def test_naive_date_fetched_is_read_as_utc(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A fetch-time value with no offset is read as UTC rather than left
+    naive, so comparing it with the build machine's clock cannot raise.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Date-Fetched": "2026-08-18T17:58:24"},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.date_fetched == datetime(2026, 8, 18, 17, 58, 24, tzinfo=UTC)
+
+
+def test_get_inventory_returns_permanent_redirect(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 response's ``X-Ook-Inventory-Permanent-Redirect`` header is
+    surfaced as the URL the requested inventory has permanently moved to.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Permanent-Redirect": MOVED_URL},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.permanent_redirect_url == MOVED_URL
+
+
+def test_not_modified_returns_permanent_redirect(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 304 response also carries Ook's permanent-redirect header, so a
+    build that holds current bytes and only revalidates still learns that
+    its configured URL has moved.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        status=304,
+        headers={"X-Ook-Inventory-Permanent-Redirect": MOVED_URL},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL, etag='"abc123"')
+
+    assert result.not_modified is True
+    assert result.permanent_redirect_url == MOVED_URL
+
+
+def test_missing_permanent_redirect_header_is_none(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Absence of the header is how Ook says an inventory URL has not moved,
+    so an older Ook that never sends it behaves exactly as today.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.permanent_redirect_url is None
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_blank_permanent_redirect_is_none(
+    responses: RequestsMock, monkeypatch: Any, value: str
+) -> None:
+    """A header that is present but blank reads as "not moved" rather than as
+    an empty destination: a header Ook gets wrong must never be reported to an
+    author as somewhere to move their configuration to.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/intersphinx/inventory",
+        body=INVENTORY_BYTES,
+        status=200,
+        content_type="application/octet-stream",
+        headers={"X-Ook-Inventory-Permanent-Redirect": value},
+    )
+
+    client = IntersphinxCacheClient()
+    result = client.get_inventory(INVENTORY_URL)
+
+    assert result.permanent_redirect_url is None
+    assert result.content == INVENTORY_BYTES
 
 
 def test_missing_token(monkeypatch: Any) -> None:

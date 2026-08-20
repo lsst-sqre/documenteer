@@ -34,6 +34,56 @@ Ook that returns no ``ETag`` header the behavior is exactly the pre-ETag
 path — a full download with no sidecar — and a ``200`` without an ETag clears
 any stale sidecar.
 
+After the prefetch loop the extension logs one summary block naming every
+mapping entry it considered, in ``intersphinx_mapping`` order, with how each
+inventory was obtained: Ook's own cache status passed through verbatim
+(``hit``, ``stale``, ``miss``, or anything else it sends), ``served`` when
+Ook answered but sent no cache-status header, ``disk cache`` for the TTL fast
+path where Ook was never contacted, and ``direct fetch`` with the reason for
+each fallback. The per-entry INFO lines narrate the build as it happens; the
+block is the at-a-glance view. Entries the extension does not prefetch at all
+(a local target URI, an already-local inventory path) get no row.
+
+Each Ook-served row also carries when Ook last confirmed that inventory with
+its origin — the absolute UTC instant Ook reported plus a humanized relative
+age, so the row can both be correlated with Ook's own logs and eyeballed for
+freshness. A row Ook served without a usable fetch time says the time is
+unavailable rather than showing a placeholder; a ``disk cache`` or ``direct
+fetch`` row has no fetch to report and keeps its own reason instead.
+
+When Ook reports that an inventory URL has permanently moved, that entry also
+gets a dedicated notice naming the mapping key, the URL the project
+configures, and where it now lives, plus which of the *author's own*
+configuration files to change — resolved with
+`documenteer.conf._configsource.detect_config_source`, so a technote author
+is never sent to a ``documenteer.toml`` they do not have. This module owns
+only the message text; the helper owns the detection. The notice rides both
+the ``200`` and the ``304`` branch, so a build that holds current bytes and
+only ever revalidates still sees it, and the matching summary row is flagged
+``-> moved`` — the flag in the table, the URL in the notice.
+
+That notice is INFO, not WARNING, in company with everything else here. A
+permanent redirect is the author's configuration going stale, but the move
+originates upstream and outside their control, and Rubin builds run with
+``-W`` (warnings-as-errors), so warning about it would fail builds on a third
+party's schedule. Note also that Ook reports the redirect chain observed at
+*its* last successful fetch and keeps serving a failing row's last-known-good
+target, which is why the summary pairs the moved flag with that fetch time
+rather than presenting the move as current fact.
+
+A project that wants enforcement — one that would rather fail its build than
+carry a stale inventory URL — opts in with
+``documenteer_intersphinx_cache_warn_on_permanent_redirect`` (default
+`False`), reachable from ``[sphinx.intersphinx.cache]`` in
+``documenteer.toml`` for a guide and from ``conf.py`` for a technote. The
+setting escalates *only* the dedicated notice, and the escalated notice
+carries a Sphinx warning type and subtype
+(``documenteer.intersphinx_permanent_redirect``) so a project that knows
+about one moved inventory can silence just that warning via
+``suppress_warnings`` and keep enforcement everywhere else. The summary block
+stays at INFO unconditionally: opting into escalation must never turn a block
+of pure status reporting into a build failure.
+
 The extension is a complete no-op when ``OOK_TOKEN`` is unset (forks, local
 builds) or when disabled via ``documenteer_intersphinx_cache_use_service``.
 Any per-inventory client error (unauthorized, unreachable, 5xx, 404,
@@ -59,11 +109,23 @@ from typing import TYPE_CHECKING
 
 from sphinx.util import logging
 
+from ..conf._configsource import ConfigSource, detect_config_source
+from ..services.intersphinxreport import (
+    DISK_CACHE_DETAIL,
+    STATUS_DIRECT_FETCH,
+    STATUS_DISK_CACHE,
+    STATUS_SERVED,
+    InventoryPrefetchReport,
+    InventoryReportEntry,
+)
 from ..storage.intersphinxcacheclient import (
     DEFAULT_BASE_URL,
     TOKEN_ENV_VAR,
     IntersphinxCacheClient,
     IntersphinxCacheError,
+    IntersphinxCacheServerError,
+    IntersphinxCacheUnauthorizedError,
+    IntersphinxCacheUnreachableError,
 )
 from ..version import __version__
 
@@ -90,6 +152,41 @@ mirroring how ``.doctrees`` is conventionally excluded."""
 
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 """Characters not allowed in a generated inventory filename stem."""
+
+_REDIRECT_REMEDY = {
+    ConfigSource.GUIDE: (
+        "Update its URL in [sphinx.intersphinx.projects] in documenteer.toml."
+    ),
+    ConfigSource.TECHNOTE: (
+        "Update its URL in [technote.sphinx.intersphinx.projects] in "
+        "technote.toml."
+    ),
+    ConfigSource.UNKNOWN: "Update its URL in intersphinx_mapping in conf.py.",
+}
+"""Where to change a moved inventory URL, per kind of project.
+
+Each value names the exact table the author edits, down to the sub-table
+holding the mapping entries: a technote's URLs live in
+``[technote.sphinx.intersphinx.projects]``, not in its
+``[technote.sphinx.intersphinx]`` parent, and a key added to the parent is
+silently ignored rather than rejected — so naming the parent would send the
+author to make a change that does nothing.
+
+Only the message text lives here; which kind of project is being built is
+`documenteer.conf._configsource.detect_config_source`'s job.
+"""
+
+REDIRECT_WARNING_TYPE = "documenteer"
+"""Sphinx warning type for the escalated permanent-redirect notice."""
+
+REDIRECT_WARNING_SUBTYPE = "intersphinx_permanent_redirect"
+"""Sphinx warning subtype for the escalated permanent-redirect notice.
+
+Paired with `REDIRECT_WARNING_TYPE`, this is the ``suppress_warnings`` key
+(``documenteer.intersphinx_permanent_redirect``) a project adds to silence
+the warning for a move it already knows about, without giving up escalation
+for the rest of its inventories.
+"""
 
 
 def _inventory_filename(name: str, origin_url: str) -> str:
@@ -186,21 +283,94 @@ def _store_etag(etag_path: Path, etag: str | None) -> None:
         pass
 
 
+def _fallback_reason(error: IntersphinxCacheError) -> str:
+    """Return a short phrase naming why an inventory fell back to a direct
+    origin fetch.
+
+    Kept short because it lands in the summary block's one-line row; the
+    full exception text is already on the per-entry INFO line above it.
+    """
+    if isinstance(error, IntersphinxCacheUnauthorizedError):
+        return "Ook rejected the request as unauthorized"
+    if isinstance(error, IntersphinxCacheUnreachableError):
+        return "Ook could not be reached"
+    if isinstance(error, IntersphinxCacheServerError):
+        return "Ook returned a server error"
+    return "Ook returned an error"
+
+
+def _report_permanent_redirect(
+    name: str,
+    origin_url: str,
+    permanent_redirect_url: str | None,
+    config_source: ConfigSource,
+    *,
+    warn: bool,
+) -> None:
+    """Tell the author that a configured inventory URL has permanently moved.
+
+    Does nothing when Ook reported no move, which is the overwhelmingly
+    common case. Logged at info level (not as a warning) by default, for the
+    same warnings-as-errors reason as the rest of this module: the redirect
+    originates upstream, outside the author's control, and Rubin builds run
+    with ``-W``.
+
+    ``warn`` is the project's opt-in escalation
+    (``documenteer_intersphinx_cache_warn_on_permanent_redirect``). When set,
+    the same message is logged as a warning carrying a type and subtype, so a
+    ``-W`` build fails on it and a project that knows about one moved
+    inventory can silence just that warning with ``suppress_warnings =
+    ["documenteer.intersphinx_permanent_redirect"]``. Only this notice
+    escalates; the summary block stays at info level either way.
+    """
+    if permanent_redirect_url is None:
+        return
+    message = (
+        "The intersphinx inventory URL for %r has permanently moved: %s "
+        "now redirects to %s. %s"
+    )
+    args = (
+        name,
+        origin_url,
+        permanent_redirect_url,
+        _REDIRECT_REMEDY[config_source],
+    )
+    if warn:
+        logger.warning(
+            message,
+            *args,
+            type=REDIRECT_WARNING_TYPE,
+            subtype=REDIRECT_WARNING_SUBTYPE,
+        )
+    else:
+        logger.info(message, *args)
+
+
 def _revalidate_inventory(
     client: IntersphinxCacheClient,
     name: str,
     origin_url: str,
     inv_path: Path,
     etag_path: Path,
-) -> str | None:
-    """Fetch or revalidate one inventory and return the local path to map to.
+    *,
+    config_source: ConfigSource,
+    warn_on_permanent_redirect: bool,
+) -> tuple[str | None, InventoryReportEntry]:
+    """Fetch or revalidate one inventory, returning the local path to map to
+    and the facts for its row in the build's summary block.
 
     Sends ``If-None-Match`` only when both a cached inventory and its ETag
-    sidecar exist, so a ``304`` can safely reuse the on-disk bytes. Returns
-    the local file path to rewrite the mapping entry to, or `None` to leave
-    the entry untouched (a client error or a cache write failure), so stock
+    sidecar exist, so a ``304`` can safely reuse the on-disk bytes. The path
+    is the local file to rewrite the mapping entry to, or `None` to leave the
+    entry untouched (a client error or a cache write failure), so stock
     intersphinx fetches the origin directly and the build is never worse than
-    without the service.
+    without the service. The entry is returned on every path so the summary
+    block has a row for each mapping entry the extension considered.
+
+    ``config_source`` is the kind of Documenteer project being built, used
+    only to word the permanent-redirect notice for whichever configuration
+    file the author actually has, and ``warn_on_permanent_redirect`` is the
+    project's opt-in escalation of that notice to a warning.
     """
     request_etag: str | None = None
     if inv_path.is_file() and etag_path.is_file():
@@ -220,7 +390,16 @@ def _revalidate_inventory(
             e,
             origin_url,
         )
-        return None
+        return None, InventoryReportEntry(
+            name=name,
+            status=STATUS_DIRECT_FETCH,
+            detail=_fallback_reason(e),
+        )
+
+    # Ook answered. Its cache status passes through verbatim so a value Ook
+    # adds later still reaches the summary; an Ook old enough to send no
+    # header at all is reported as simply having served the inventory.
+    ook_status = result.cache_status or STATUS_SERVED
 
     if result.not_modified:
         # 304 Not Modified: the on-disk bytes are current and no body was
@@ -241,7 +420,11 @@ def _revalidate_inventory(
                 name,
                 origin_url,
             )
-            return None
+            return None, InventoryReportEntry(
+                name=name,
+                status=STATUS_DIRECT_FETCH,
+                detail="Ook answered 304 without a usable cached inventory",
+            )
         # Refresh the file's mtime to restart the TTL window (best-effort; a
         # failed refresh only means the next build revalidates sooner) and
         # map to the local file. Reported at info level so build logs show
@@ -253,13 +436,29 @@ def _revalidate_inventory(
             "(HTTP 304 Not Modified); reusing the on-disk copy.",
             name,
         )
-        return str(inv_path)
+        _report_permanent_redirect(
+            name,
+            origin_url,
+            result.permanent_redirect_url,
+            config_source,
+            warn=warn_on_permanent_redirect,
+        )
+        return str(inv_path), InventoryReportEntry(
+            name=name,
+            status=ook_status,
+            date_fetched=result.date_fetched,
+            permanent_redirect_url=result.permanent_redirect_url,
+        )
 
     content = result.content
     if content is None:
         # Defensive: a non-304 response always carries bytes. Treat an empty
         # payload as a fallback rather than writing a truncated inventory.
-        return None
+        return None, InventoryReportEntry(
+            name=name,
+            status=STATUS_DIRECT_FETCH,
+            detail="Ook returned an empty response",
+        )
     try:
         inv_path.parent.mkdir(parents=True, exist_ok=True)
         inv_path.write_bytes(content)
@@ -274,7 +473,11 @@ def _revalidate_inventory(
             e,
             origin_url,
         )
-        return None
+        return None, InventoryReportEntry(
+            name=name,
+            status=STATUS_DIRECT_FETCH,
+            detail="the prefetched inventory could not be cached on disk",
+        )
     # Reconcile the ETag sidecar with the freshly written bytes: store the new
     # ETag, or clear any stale sidecar when the server sent none (older-server
     # graceful degradation).
@@ -287,7 +490,19 @@ def _revalidate_inventory(
         name,
         len(content),
     )
-    return str(inv_path)
+    _report_permanent_redirect(
+        name,
+        origin_url,
+        result.permanent_redirect_url,
+        config_source,
+        warn=warn_on_permanent_redirect,
+    )
+    return str(inv_path), InventoryReportEntry(
+        name=name,
+        status=ook_status,
+        date_fetched=result.date_fetched,
+        permanent_redirect_url=result.permanent_redirect_url,
+    )
 
 
 def _prefetch_inventories(app: Sphinx, config: Config) -> None:
@@ -319,6 +534,23 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
 
     ttl = config.documenteer_intersphinx_cache_disk_cache_ttl
 
+    # Which kind of Documenteer project this is, resolved once per build
+    # rather than once per message, and used only to word the
+    # permanent-redirect notice for a file the author actually has.
+    config_source = detect_config_source(app.confdir)
+
+    # Whether this project asked for the permanent-redirect notice to be a
+    # warning (and so, under -W, a build failure). Off by default; it governs
+    # that one notice and nothing else in this module.
+    warn_on_permanent_redirect = (
+        config.documenteer_intersphinx_cache_warn_on_permanent_redirect
+    )
+
+    # Accumulates one row per mapping entry the extension considers, rendered
+    # as a single at-a-glance block once the loop is done. The per-entry INFO
+    # lines above it narrate the build as it happens; this is the summary.
+    report = InventoryPrefetchReport()
+
     for name, value in list(mapping.items()):
         if not isinstance(value, (tuple, list)) or len(value) != 2:
             # An unexpected entry shape is left for intersphinx to validate.
@@ -343,6 +575,13 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
                 "(younger than disk_cache_ttl).",
                 name,
             )
+            report.add(
+                InventoryReportEntry(
+                    name=name,
+                    status=STATUS_DISK_CACHE,
+                    detail=DISK_CACHE_DETAIL,
+                )
+            )
             mapping[name] = (target_uri, str(inv_path))
             continue
 
@@ -350,11 +589,26 @@ def _prefetch_inventories(app: Sphinx, config: Config) -> None:
         # Ook; on success rewrite only the inventory location (the target URI
         # is left unchanged so resolved links still point at the upstream
         # site). A None result leaves the entry untouched as a fallback.
-        local_path = _revalidate_inventory(
-            client, name, origin_url, inv_path, etag_path
+        local_path, entry = _revalidate_inventory(
+            client,
+            name,
+            origin_url,
+            inv_path,
+            etag_path,
+            config_source=config_source,
+            warn_on_permanent_redirect=warn_on_permanent_redirect,
         )
+        report.add(entry)
         if local_path is not None:
             mapping[name] = (target_uri, local_path)
+
+    # One summary block, at info level: none of what it reports is the
+    # author's to fix, and Rubin builds run with ``-W``. Rendered as a single
+    # pre-formatted argument so a ``%`` in any detail is not read as a
+    # logging format specifier.
+    lines = report.render()
+    if lines:
+        logger.info("%s", "\n".join(lines))
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:
@@ -381,6 +635,11 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     )
     app.add_config_value(
         "documenteer_intersphinx_cache_disk_cache_ttl", 600, ""
+    )
+    # Escalation is opt-in: the default keeps the permanent-redirect notice at
+    # info level so a -W build never fails on a third party's move.
+    app.add_config_value(
+        "documenteer_intersphinx_cache_warn_on_permanent_redirect", False, ""
     )
 
     return {

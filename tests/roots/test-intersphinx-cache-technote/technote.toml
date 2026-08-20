@@ -1,0 +1,7 @@
+# Present so that detect_config_source resolves this project as a technote.
+# Its contents are never read: conf.py above does not load the technote
+# preset.
+[technote]
+id = "SQR-000"
+series_id = "SQR"
+canonical_url = "https://sqr-000.lsst.io/"
