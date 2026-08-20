@@ -54,6 +54,30 @@ ORCID_JSON = """
 """
 
 
+UNFILTERED_JSON = """
+[
+    {
+        "affiliations": [],
+        "family_name": "Economou",
+        "given_name": "Frossie",
+        "internal_id": "economouf",
+        "notes": [],
+        "orcid": null
+    },
+    {
+        "affiliations": [],
+        "family_name": "Sick",
+        "given_name": "Jonathan",
+        "internal_id": "sickj",
+        "notes": [],
+        "orcid": "https://orcid.org/0000-0003-3001-676X"
+    }
+]
+"""
+"""An author listing, as a server that ignores the ``orcid`` parameter
+answers it: several authors, in no particular relation to the query."""
+
+
 def test_from_yaml(responses: RequestsMock) -> None:
     response_data = """
 {
@@ -216,6 +240,46 @@ def test_get_author_by_orcid_miss(responses: RequestsMock) -> None:
 
     author_db = AuthorDb()
     assert author_db.get_author_by_orcid("0000-0001-5916-0032") is None
+
+
+def test_get_author_by_orcid_rejects_unfiltered_listing(
+    responses: RequestsMock,
+) -> None:
+    """A response nobody in it declares the ORCID is a miss, not a match.
+
+    An author API that does not recognize the ``orcid`` query parameter
+    answers with an ordinary author listing, which validates just as a
+    filtered one does. Reporting its first record as the ORCID's owner would
+    write an arbitrary author's ``internal_id`` into a technote.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=UNFILTERED_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    assert author_db.get_author_by_orcid("0000-0001-5916-0031") is None
+
+
+def test_get_author_by_orcid_picks_the_declaring_record(
+    responses: RequestsMock,
+) -> None:
+    """A multi-record response resolves to the record holding the ORCID."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=UNFILTERED_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    author = author_db.get_author_by_orcid(
+        "https://orcid.org/0000-0003-3001-676X"
+    )
+    assert author is not None
+    assert author.internal_id == "sickj"
 
 
 def test_get_author_by_orcid_invalid(responses: RequestsMock) -> None:

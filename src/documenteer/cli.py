@@ -22,6 +22,7 @@ from documenteer.services.technotelint import (
 from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.storage.authordb import (
     AuthorDb,
+    AuthorDbUnreachableError,
     AuthorNotFoundError,
     InvalidOrcidError,
 )
@@ -143,9 +144,15 @@ def technote_add_author(
             author = service.add_author_by_id(
                 author_id or click.prompt("Author ID")
             )
-    except (AuthorNotFoundError, InvalidOrcidError) as e:
-        # A mistyped or unknown identifier is user error, not a Documenteer
-        # bug: report it plainly and exit 1 rather than dumping a traceback.
+    except (
+        AuthorNotFoundError,
+        InvalidOrcidError,
+        AuthorDbUnreachableError,
+    ) as e:
+        # A mistyped or unknown identifier is user error, and an author
+        # database that cannot be reached is the network's doing; neither is
+        # a Documenteer bug. Report them plainly and exit 1 rather than
+        # dumping a traceback, as sync-authors does for the same conditions.
         raise click.ClickException(str(e)) from e
 
     click.echo(

@@ -274,3 +274,125 @@ orcid = "{SICK_ORCID}"
     path = tmp_path / "technote.toml"
     service.write_toml(path)
     assert path.read_text() == content
+
+
+def test_sync_authors_skips_a_malformed_id_record(
+    responses: RequestsMock,
+) -> None:
+    """A 200 that is not an author record skips that entry, not the run."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body='{"not": "an author"}',
+        content_type="application/json",
+        status=200,
+    )
+    _mock_author_lookup(
+        responses,
+        "jonesrl",
+        _author_record("jonesrl", "R. Lynne", "Jones", orcid=JONES_ORCID),
+    )
+    service = _service(
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = {given = "Jon", family = "Sick"}
+internal_id = "sickj"
+
+[[technote.authors]]
+name = {given = "Lynne", family = "Jones"}
+internal_id = "jonesrl"
+"""
+    )
+
+    outcomes = service.sync_authors()
+
+    assert [o.action for o in outcomes] == [
+        SyncAction.skipped,
+        SyncAction.synced,
+    ]
+    assert outcomes[0].reason == (
+        "Could not sync author Jon Sick: the Rubin author database returned "
+        "a malformed record for internal_id 'sickj'."
+    )
+    # The other author is still synchronized: one bad record is not the run.
+    assert service.toml_file.authors_aot[1]["name"]["given"] == "R. Lynne"
+
+
+def test_sync_authors_skips_a_malformed_orcid_record(
+    responses: RequestsMock,
+) -> None:
+    """A malformed ORCID-lookup body skips that entry, not the run."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body='{"not": "a listing"}',
+        content_type="application/json",
+        status=200,
+        match=[matchers.query_param_matcher({"orcid": "0000-0001-5916-0031"})],
+    )
+    service = _service(
+        f"""
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = {{given = "Lynne", family = "Jones"}}
+orcid = "{JONES_ORCID}"
+"""
+    )
+
+    outcomes = service.sync_authors()
+
+    assert [o.action for o in outcomes] == [SyncAction.skipped]
+    assert outcomes[0].reason == (
+        "Could not sync author Lynne Jones: the Rubin author database "
+        f"returned a malformed record for ORCID {JONES_ORCID}."
+    )
+    assert service.toml_file.author_ids == []
+
+
+def test_sync_authors_skips_a_repair_that_duplicates_an_entry(
+    responses: RequestsMock,
+) -> None:
+    """A repair onto an ID another entry declares is reported, not written."""
+    _mock_author_lookup(
+        responses,
+        "jonesrl",
+        _author_record("jonesrl", "R. Lynne", "Jones", orcid=JONES_ORCID),
+    )
+    _mock_author_lookup(responses, "lynnej", None)
+    _mock_orcid_lookup(
+        responses,
+        "0000-0001-5916-0031",
+        [_author_record("jonesrl", "R. Lynne", "Jones", orcid=JONES_ORCID)],
+    )
+    service = _service(
+        f"""
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = {{given = "R. Lynne", family = "Jones"}}
+internal_id = "jonesrl"
+
+[[technote.authors]]
+name = {{given = "Lynne", family = "Jones"}}
+internal_id = "lynnej"
+orcid = "{JONES_ORCID}"
+"""
+    )
+
+    outcomes = service.sync_authors()
+
+    assert [o.action for o in outcomes] == [
+        SyncAction.synced,
+        SyncAction.skipped,
+    ]
+    assert outcomes[1].reason == (
+        "Could not sync author Lynne Jones: their ORCID resolves to "
+        "internal_id 'jonesrl', which another author entry already declares. "
+        "Remove whichever of the two entries is the duplicate."
+    )
+    # The technote is left with the duplicate it declared, not two jonesrl.
+    assert service.toml_file.author_ids == ["jonesrl", "lynnej"]

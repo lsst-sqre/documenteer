@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest_responses  # noqa: F401
+import requests
 from click.testing import CliRunner
 from responses import RequestsMock
 
@@ -148,3 +149,27 @@ def test_lint_corrupt_notebook_reports_tn203(
     assert "[TN203]" in result.output
     # A coded finding, not a traceback from an uncaught JSONDecodeError.
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_add_author_unreachable_db(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An unreachable author database exits 1 with a message, not a trace."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=requests.ConnectionError("connection refused"),
+    )
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["technote", "add-author", "-a", "sickj", "-t", str(toml_path)],
+    )
+    assert result.exit_code == 1
+    assert "Failed to fetch author sickj" in result.output
+    # A reported error, not a traceback from an uncaught transport failure.
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    # The file is left exactly as it was found.
+    assert toml_path.read_text() == MISSING_ID_TOML

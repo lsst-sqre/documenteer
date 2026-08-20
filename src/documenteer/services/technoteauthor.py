@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+
+from pydantic import ValidationError
 
 from documenteer.storage.authordb import (
     Author,
@@ -118,6 +121,11 @@ class TechnoteAuthorService:
         all is reported and left untouched rather than abandoning the whole
         run, so one bad entry no longer costs every other author their update.
 
+        Independence is what makes the run reportable, so every way one entry
+        can fail — an unknown ID, an unreachable database, an ORCID the
+        database rejects, a record it returns malformed — is a skipped
+        outcome for that entry alone, never an exception out of the run.
+
         Returns
         -------
         list of AuthorSyncOutcome
@@ -125,42 +133,108 @@ class TechnoteAuthorService:
             `SyncAction.skipped` outcome as a failure of the run as a whole,
             even though the other entries were synchronized and written.
         """
-        return [
-            self._sync_entry(entry) for entry in self.toml_file.author_entries
-        ]
+        entries = self.toml_file.author_entries
+        return [self._sync_entry(entry, entries) for entry in entries]
 
-    def _sync_entry(self, entry: TechnoteAuthorEntry) -> AuthorSyncOutcome:
-        """Synchronize one author entry, repairing its ID where needed."""
+    def _sync_entry(
+        self,
+        entry: TechnoteAuthorEntry,
+        entries: Sequence[TechnoteAuthorEntry],
+    ) -> AuthorSyncOutcome:
+        """Synchronize one author entry, repairing its ID where needed.
+
+        ``entries`` is every entry in the file, including ``entry`` itself,
+        so that a repair can tell whether the ID it resolved is already
+        spoken for.
+        """
         declared_id = entry.internal_id
         if declared_id is not None:
-            try:
-                author = self.author_db.get_author(declared_id)
-            except AuthorNotFoundError:
-                pass  # Fall through to the ORCID repair below.
-            except AuthorDbUnreachableError as e:
-                return _skip(entry, f"the lookup failed: {e}")
-            else:
-                entry.update(author)
-                return AuthorSyncOutcome(SyncAction.synced, author=author)
+            outcome = self._sync_declared_id(entry, declared_id)
+            if outcome is not None:
+                return outcome
+        return self._repair_from_orcid(entry, entries, declared_id)
 
+    def _sync_declared_id(
+        self, entry: TechnoteAuthorEntry, declared_id: str
+    ) -> AuthorSyncOutcome | None:
+        """Resolve an entry by the ``internal_id`` it declares.
+
+        Returns
+        -------
+        AuthorSyncOutcome or None
+            What became of the entry, or `None` when the declared ID is not
+            in the author database at all and the ORCID repair should take
+            over.
+        """
+        try:
+            author = self.author_db.get_author(declared_id)
+        except AuthorNotFoundError:
+            return None  # Hand off to the ORCID repair.
+        except AuthorDbUnreachableError as e:
+            return _skip(entry, f"the lookup failed: {e}")
+        except ValidationError:
+            # A 200 whose body is not an author record: the database has
+            # answered for this ID, so there is nothing to repair from, and
+            # the ORCID lookup would only ask the same broken service again.
+            return _skip(entry, _malformed_id_reason(declared_id))
+        entry.update(author)
+        return AuthorSyncOutcome(SyncAction.synced, author=author)
+
+    def _repair_from_orcid(
+        self,
+        entry: TechnoteAuthorEntry,
+        entries: Sequence[TechnoteAuthorEntry],
+        declared_id: str | None,
+    ) -> AuthorSyncOutcome:
+        """Resolve an entry by its declared ORCID, writing the right ID.
+
+        ``declared_id`` is the ID the entry declared and that did not
+        resolve, which distinguishes a repair from a fill and names the ID
+        the report says was replaced.
+        """
         declared_orcid = entry.orcid
         if declared_orcid is None:
             return _skip(entry, _no_orcid_reason(declared_id))
         try:
-            orcid_author = self.author_db.get_author_by_orcid(declared_orcid)
+            author = self.author_db.get_author_by_orcid(declared_orcid)
         except (AuthorDbUnreachableError, InvalidOrcidError) as e:
             return _skip(entry, f"the ORCID lookup failed: {e}")
-        if orcid_author is None:
+        except ValidationError:
+            return _skip(entry, _malformed_orcid_reason(declared_orcid))
+        if author is None:
             return _skip(entry, _orcid_miss_reason(declared_id))
+        if _declares_id(entries, author.internal_id, excluding=entry):
+            # Writing the resolved ID here would list the same author twice.
+            # The duplicate is the technote's own doing, and only a human can
+            # say which of the two entries to drop.
+            return _skip(entry, _duplicate_id_reason(author.internal_id))
 
-        entry.update(orcid_author)
+        entry.update(author)
         return AuthorSyncOutcome(
             SyncAction.repaired
             if declared_id is not None
             else SyncAction.filled,
-            author=orcid_author,
+            author=author,
             previous_internal_id=declared_id,
         )
+
+
+def _declares_id(
+    entries: Sequence[TechnoteAuthorEntry],
+    internal_id: str,
+    *,
+    excluding: TechnoteAuthorEntry,
+) -> bool:
+    """Whether an entry other than ``excluding`` declares ``internal_id``.
+
+    The entries are compared by identity, which is why `sync_authors` hands
+    the same handle objects to every call: `TechnoteTomlFile.author_entries`
+    mints fresh handles on each access.
+    """
+    return any(
+        other is not excluding and other.internal_id == internal_id
+        for other in entries
+    )
 
 
 def _skip(entry: TechnoteAuthorEntry, reason: str) -> AuthorSyncOutcome:
@@ -198,4 +272,29 @@ def _orcid_miss_reason(declared_id: str | None) -> str:
     return (
         f"neither internal_id '{declared_id}' nor its ORCID matches an entry "
         f"in the Rubin author database."
+    )
+
+
+def _malformed_id_reason(declared_id: str) -> str:
+    """Explain a by-ID lookup the author database answered unusably."""
+    return (
+        f"the Rubin author database returned a malformed record for "
+        f"internal_id '{declared_id}'."
+    )
+
+
+def _malformed_orcid_reason(declared_orcid: str) -> str:
+    """Explain an ORCID lookup the author database answered unusably."""
+    return (
+        f"the Rubin author database returned a malformed record for ORCID "
+        f"{declared_orcid}."
+    )
+
+
+def _duplicate_id_reason(internal_id: str) -> str:
+    """Explain a repair that another entry has already claimed."""
+    return (
+        f"their ORCID resolves to internal_id '{internal_id}', which another "
+        f"author entry already declares. Remove whichever of the two entries "
+        f"is the duplicate."
     )

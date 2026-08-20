@@ -1260,7 +1260,14 @@ def test_orcid_lookup_beats_unusable_name_search(
     _mock_orcid_lookup(
         responses,
         "0000-0001-5916-0031",
-        [_author_record("jonesrl", "R. Lynne", "Jones")],
+        [
+            _author_record(
+                "jonesrl",
+                "R. Lynne",
+                "Jones",
+                orcid="https://orcid.org/0000-0001-5916-0031",
+            )
+        ],
     )
     context = _write_technote(
         tmp_path,

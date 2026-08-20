@@ -206,12 +206,18 @@ class AuthorDb:
         spell the name. ``orcid`` is reduced with `normalize_orcid` before
         it goes on the wire.
 
+        The response is trusted only as far as the identifier it carries: a
+        record counts as the answer when it declares the very ORCID that was
+        asked for, never merely by being the first one listed. See the
+        comment on the check itself for why that matters.
+
         Returns
         -------
         Author or None
-            The matching author, or `None` when no author holds this ORCID.
-            A miss is an ordinary outcome here, rather than the definitive
-            404 `get_author` reports.
+            The author holding this ORCID, or `None` when the database
+            returns no record that declares it. A miss is an ordinary
+            outcome here, rather than the definitive 404 `get_author`
+            reports.
 
         Raises
         ------
@@ -242,7 +248,23 @@ class AuthorDb:
                 f"Failed to look up ORCID '{orcid}' at {url}"
             ) from e
         authors = _AUTHORS_ADAPTER.validate_json(r.text)
-        return authors[0] if authors else None
+        # Match on the identifier rather than on the ordering. An author API
+        # that does not recognize the `orcid` query parameter answers with an
+        # ordinary author listing, which validates exactly as a filtered one
+        # does, so `authors[0]` would be an arbitrary author reported as this
+        # ORCID's owner — and a caller writes that ID into technote.toml.
+        # Requiring the record to declare the ORCID closes that off whatever
+        # the server does, and picks the right record out of a response that
+        # carries several.
+        requested = normalize_orcid(orcid)
+        return next(
+            (
+                author
+                for author in authors
+                if normalize_orcid(author.orcid) == requested
+            ),
+            None,
+        )
 
     def get_author(self, author_id: str) -> Author:
         """Get an author entry by ID."""
