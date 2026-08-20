@@ -830,7 +830,7 @@ def test_permanent_redirect_notice_names_the_technote_config(
     (notice,) = _redirect_notices(app)
     assert PYDANTIC_INV_URL in notice
     assert PYDANTIC_MOVED_URL in notice
-    assert "[technote.sphinx.intersphinx]" in notice
+    assert "[technote.sphinx.intersphinx.projects]" in notice
     assert "technote.toml" in notice
     assert "documenteer.toml" not in notice
     assert _summary_rows(app, 1)[0].endswith(f"  {MOVED_FLAG}")
@@ -1068,7 +1068,7 @@ def test_permanent_redirect_warning_opt_in_from_technote_conf_py(
 
     (warning,) = _redirect_warnings(app)
     assert PYDANTIC_MOVED_URL in warning
-    assert "[technote.sphinx.intersphinx]" in warning
+    assert "[technote.sphinx.intersphinx.projects]" in warning
     assert "documenteer.toml" not in warning
     assert app.statuscode == 1
 

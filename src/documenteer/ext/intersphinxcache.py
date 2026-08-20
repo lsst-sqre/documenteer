@@ -158,11 +158,19 @@ _REDIRECT_REMEDY = {
         "Update its URL in [sphinx.intersphinx.projects] in documenteer.toml."
     ),
     ConfigSource.TECHNOTE: (
-        "Update its URL in [technote.sphinx.intersphinx] in technote.toml."
+        "Update its URL in [technote.sphinx.intersphinx.projects] in "
+        "technote.toml."
     ),
     ConfigSource.UNKNOWN: "Update its URL in intersphinx_mapping in conf.py.",
 }
 """Where to change a moved inventory URL, per kind of project.
+
+Each value names the exact table the author edits, down to the sub-table
+holding the mapping entries: a technote's URLs live in
+``[technote.sphinx.intersphinx.projects]``, not in its
+``[technote.sphinx.intersphinx]`` parent, and a key added to the parent is
+silently ignored rather than rejected — so naming the parent would send the
+author to make a change that does nothing.
 
 Only the message text lives here; which kind of project is being built is
 `documenteer.conf._configsource.detect_config_source`'s job.

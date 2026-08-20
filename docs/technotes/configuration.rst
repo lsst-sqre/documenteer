@@ -109,7 +109,7 @@ Technotes prefetch their Intersphinx_ object inventories (:file:`objects.inv`) f
 A technote build therefore logs the same :ref:`inventory prefetch summary <guide-sphinx-intersphinx-cache-summary>` a user guide does, and gets the same notice when Ook reports that one of its configured inventory URLs has permanently moved.
 
 The Intersphinx *projects* a technote links to aren't set here.
-They live in the :external+technote:ref:`[technote.sphinx.intersphinx] <toml-technote-sphinx-intersphinx>` table of :file:`technote.toml` — which is also the file a permanent-redirect notice sends you to when a URL you configure has moved.
+They live in the :external+technote:ref:`[technote.sphinx.intersphinx.projects] <toml-technote-sphinx-intersphinx-projects>` table of :file:`technote.toml` — which is also the table a permanent-redirect notice names when a URL you configure has moved.
 
 The *cache* settings are a different matter.
 Guides configure them through the ``[sphinx.intersphinx.cache]`` table of a :file:`documenteer.toml` file, but technotes don't have that file, and Documenteer adds no keys to :file:`technote.toml`, whose schema belongs to the Technote_ package rather than to Documenteer.
