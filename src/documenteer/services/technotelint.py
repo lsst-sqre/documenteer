@@ -18,10 +18,12 @@ from pydantic import ValidationError
 from technote.sources.tomlsettings import Person, TechnoteToml
 
 from documenteer.storage.authordb import (
+    Author,
     AuthorDb,
     AuthorDbUnreachableError,
     AuthorNotFoundError,
     AuthorSearchResult,
+    normalize_orcid,
 )
 
 __all__ = [
@@ -194,6 +196,19 @@ class _AuthorSuggestion:
             f"Did you mean '{self.internal_id}' "
             f"({self.name}, matched by {self.basis})?"
         )
+
+    def fix_hint(self) -> str:
+        """Name the command that acts on this suggestion.
+
+        An ORCID match is one ``sync-authors`` can act on by itself: it
+        resolves the *same* declared ORCID and fills the ``internal_id`` in,
+        so the message sends the writer straight there. A name match is only
+        a suggestion for a human to verify and type in, so the sync still
+        comes after that edit.
+        """
+        if self.basis == "ORCID":
+            return "Run 'documenteer technote sync-authors' to add it."
+        return "Run 'documenteer technote sync-authors' after adding it."
 
 
 @dataclass(frozen=True)
@@ -406,8 +421,7 @@ class TechnoteLintService:
                 suggestion = self._suggest_internal_id(author)
                 if suggestion is not None:
                     message += (
-                        f" {suggestion.describe(name)} Run 'documenteer "
-                        f"technote sync-authors' after adding it."
+                        f" {suggestion.describe(name)} {suggestion.fix_hint()}"
                     )
                 findings.append(LintFinding.from_check("TN101", message))
                 continue
@@ -445,14 +459,25 @@ class TechnoteLintService:
     def _suggest_internal_id(self, author: Person) -> _AuthorSuggestion | None:
         """Look up the ``internal_id`` an author most likely meant.
 
-        Searches the author database by name (Ook's author API has no ORCID
-        lookup) and accepts a candidate only on a confident match: the same
-        ORCID, or a single near-exact name match with no conflicting ORCID.
-        Anything ambiguous, and any failure of the lookup itself, yields
-        `None` so the finding keeps its plain message — a suggestion is a
-        convenience and must never turn a working lint run into a
-        failing one.
+        A declared ORCID is tried first, against the author database's exact
+        ORCID lookup: it is the one globally unique, author-supplied
+        identifier here, so a hit is a match however differently the technote
+        and the database spell the name. Anything else — no declared ORCID, an
+        ORCID nobody holds, or a failed lookup — falls back to a name search,
+        which suggests only a single near-exact match with no conflicting
+        ORCID.
+
+        Anything ambiguous, and any failure of either lookup, yields `None` so
+        the finding keeps its plain message — a suggestion is a convenience
+        and must never turn a working lint run into a failing one.
         """
+        declared_orcid = (
+            str(author.orcid) if author.orcid is not None else None
+        )
+        if declared_orcid is not None:
+            match = self._lookup_by_orcid(declared_orcid)
+            if match is not None:
+                return _suggestion_from(match, basis="ORCID")
         query = ", ".join(
             part for part in (author.name.family, author.name.given) if part
         )
@@ -465,44 +490,43 @@ class TechnoteLintService:
             # malformed search response (pydantic ValidationError) are
             # ValueErrors, and neither should disturb the primary check.
             return None
-        declared_orcid = (
-            str(author.orcid) if author.orcid is not None else None
-        )
         return _match_author(results, orcid=declared_orcid)
+
+    def _lookup_by_orcid(self, orcid: str) -> Author | None:
+        """Resolve a declared ORCID exactly, or `None` if it does not."""
+        try:
+            return self._context.author_db.get_author_by_orcid(orcid)
+        except ValueError:
+            # An ORCID the database rejects (InvalidOrcidError), an
+            # unreachable database (AuthorDbUnreachableError), and a malformed
+            # response (pydantic ValidationError) are all ValueErrors, and
+            # none of them should disturb the primary check.
+            return None
 
 
 def _match_author(
     results: list[AuthorSearchResult], *, orcid: str | None
 ) -> _AuthorSuggestion | None:
-    """Pick the one author search result that confidently matches.
+    """Pick the one author search result that confidently matches by name.
 
-    An ORCID declared in ``technote.toml`` is the strongest evidence: a single
-    result carrying the same ORCID is a match however its name is spelled.
-    Otherwise a single result in the search's near-exact score band matches by
-    name, unless it declares a *different* ORCID than the technote does, which
+    A single result in the search's near-exact score band matches by name,
+    unless it declares a *different* ORCID than the technote does, which
     proves the two are different people. Every other outcome — no results,
     several equally-good ones, a name match contradicted by an ORCID — is
     ambiguous and returns `None`.
-    """
-    declared_orcid = _normalize_orcid(orcid)
-    if declared_orcid is not None:
-        orcid_matches = [
-            result
-            for result in results
-            if _normalize_orcid(result.orcid) == declared_orcid
-        ]
-        if len(orcid_matches) == 1:
-            return _suggestion_from(orcid_matches[0], basis="ORCID")
-        if orcid_matches:
-            return None
 
+    A declared ORCID does not select a result here: the exact ORCID lookup
+    runs before this fallback, so a name-search result carrying the declared
+    ORCID has already been found by identifier.
+    """
+    declared_orcid = normalize_orcid(orcid)
     name_matches = [
         result for result in results if result.score >= _NAME_MATCH_SCORE
     ]
     if len(name_matches) != 1:
         return None
     candidate = name_matches[0]
-    candidate_orcid = _normalize_orcid(candidate.orcid)
+    candidate_orcid = normalize_orcid(candidate.orcid)
     if (
         declared_orcid is not None
         and candidate_orcid is not None
@@ -512,27 +536,14 @@ def _match_author(
     return _suggestion_from(candidate, basis="name")
 
 
-def _suggestion_from(
-    result: AuthorSearchResult, *, basis: str
-) -> _AuthorSuggestion:
-    """Build a suggestion from an author search result."""
+def _suggestion_from(author: Author, *, basis: str) -> _AuthorSuggestion:
+    """Build a suggestion from an author database record."""
     name = " ".join(
-        part for part in (result.given_name, result.family_name) if part
+        part for part in (author.given_name, author.family_name) if part
     )
     return _AuthorSuggestion(
-        internal_id=result.internal_id, name=name, basis=basis
+        internal_id=author.internal_id, name=name, basis=basis
     )
-
-
-def _normalize_orcid(orcid: object) -> str | None:
-    """Reduce an ORCID URL to its bare identifier for comparison.
-
-    Comparing identifiers rather than URLs makes the match insensitive to the
-    ``http``/``https`` scheme and to a trailing slash.
-    """
-    if orcid is None:
-        return None
-    return str(orcid).rstrip("/").rsplit("/", maxsplit=1)[-1].upper()
 
 
 def _normalize_name(name: str) -> str:

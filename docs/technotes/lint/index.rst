@@ -31,7 +31,7 @@ The command prints each issue it finds, prefixed with its stable rule code (for 
 
 .. code-block:: text
 
-   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' after adding it.
+   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
    Found 1 error(s) and 0 warning(s).
    Learn more:
      TN101: https://documenteer.lsst.io/technotes/lint/tn101.html
@@ -143,17 +143,24 @@ Suggested author IDs
 ====================
 
 An author ``internal_id`` that is missing (:doc:`TN101 <tn101>`) or unknown (:doc:`TN102 <tn102>`) is a dead end on its own, so the linter tries to name the ID you probably want.
-It searches the author database for the author's name and appends a suggestion when exactly one entry matches confidently:
+It queries the author database twice at most and appends a suggestion when one entry matches confidently:
+
+#. If the author entry declares an ``orcid``, the linter asks the author database which author holds exactly that ORCID.
+#. Otherwise — or when nobody holds it — the linter searches the database for the author's name.
 
 .. code-block:: text
 
-   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' after adding it.
+   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
    [TN102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
 
 The message states what the match is based on:
 
-- **matched by ORCID** — the ``orcid`` in your :file:`technote.toml` author entry is the same as that entry's ORCID. This is the strongest evidence, and holds even when the two spell the name differently.
+- **matched by ORCID** — the author database holds the author with the ``orcid`` in your :file:`technote.toml` author entry. ORCID is globally unique and author-supplied, so this is the strongest evidence there is: the lookup is exact, and it succeeds however differently your technote and the author database spell the name.
 - **matched by name** — a single near-exact name match, whose ORCID (if it has one) does not contradict yours.
+
+Declaring an ``orcid`` for an author is therefore the surest way to get a usable suggestion, and the only one that works when the author database spells the name differently than you do.
+It also changes what a TN101 finding asks of you: an ORCID match is one :command:`documenteer technote sync-authors` can act on by itself — it resolves the same ORCID and writes the ``internal_id`` in for you — so the message reads *Run 'documenteer technote sync-authors' to add it*.
+A name match is only a suggestion for you to verify and type in, so its message reads *… after adding it*.
 
 The suggestion is deliberately conservative and best-effort: an ambiguous search (several equally good matches, as a common family name gives) or a match contradicted by a differing ORCID adds nothing to the message, and a failed lookup leaves the finding exactly as it would otherwise read.
 A suggestion never changes whether the command passes or fails — verify it before you use it.

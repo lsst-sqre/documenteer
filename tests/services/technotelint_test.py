@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest_responses  # noqa: F401
 import requests
-from responses import RequestsMock
+from responses import RequestsMock, matchers
 
 from documenteer.services.technotelint import (
     CHECKS,
@@ -49,6 +49,56 @@ def _search_result(
         "orcid": orcid,
         "score": score,
     }
+
+
+def _author_record(
+    internal_id: str,
+    given_name: str,
+    family_name: str,
+    orcid: str | None = None,
+) -> dict[str, object]:
+    """Build one entry of an Ook ORCID-lookup response body.
+
+    Unlike a name-search result, an ORCID lookup's records carry no score.
+    """
+    return {
+        "affiliations": [],
+        "family_name": family_name,
+        "given_name": given_name,
+        "internal_id": internal_id,
+        "notes": [],
+        "orcid": orcid,
+    }
+
+
+def _mock_orcid_lookup(
+    responses: RequestsMock,
+    orcid: str,
+    records: list[dict[str, object]],
+) -> None:
+    """Register Ook's exact ORCID lookup, which the linter tries first."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=json.dumps(records),
+        content_type="application/json",
+        status=200,
+        match=[matchers.query_param_matcher({"orcid": orcid})],
+    )
+
+
+def _mock_name_search(
+    responses: RequestsMock, results: list[dict[str, object]]
+) -> None:
+    """Register Ook's fuzzy name search, the linter's fallback."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=json.dumps(results),
+        content_type="application/json",
+        status=200,
+        match=[
+            matchers.query_param_matcher({"limit": "10"}, strict_match=False)
+        ],
+    )
 
 
 def _write_technote(tmp_path: Path, toml_content: str) -> LintContext:
@@ -119,22 +169,17 @@ def test_missing_internal_id_suggests_orcid_match(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
     """A TN101 author whose ORCID is in the DB gets a suggested ID."""
-    responses.get(
-        "https://roundtable.lsst.cloud/ook/authors",
-        body=json.dumps(
-            [
-                _search_result(
-                    "alsayyady",
-                    "Yusra",
-                    "AlSayyad",
-                    90.0,
-                    orcid="https://orcid.org/0009-0008-9216-7516",
-                ),
-                _search_result("aliee", "Eman E.", "Ali", 40.0),
-            ]
-        ),
-        content_type="application/json",
-        status=200,
+    _mock_orcid_lookup(
+        responses,
+        "0009-0008-9216-7516",
+        [
+            _author_record(
+                "alsayyady",
+                "Yusra",
+                "AlSayyad",
+                orcid="https://orcid.org/0009-0008-9216-7516",
+            )
+        ],
     )
     context = _write_technote(
         tmp_path,
@@ -154,7 +199,7 @@ orcid = "https://orcid.org/0009-0008-9216-7516"
     assert findings[0].message == (
         "Author Yusra AlSayyad is missing an internal_id. Did you mean "
         "'alsayyady' (matched by ORCID)? Run 'documenteer technote "
-        "sync-authors' after adding it."
+        "sync-authors' to add it."
     )
 
 
@@ -293,21 +338,18 @@ def test_conflicting_orcid_keeps_plain_message(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
     """A name match whose ORCID differs is a different person, so no hint."""
-    responses.get(
-        "https://roundtable.lsst.cloud/ook/authors",
-        body=json.dumps(
-            [
-                _search_result(
-                    "jonesd",
-                    "Derek",
-                    "Jones",
-                    90.0,
-                    orcid="https://orcid.org/0000-0001-5916-0031",
-                )
-            ]
-        ),
-        content_type="application/json",
-        status=200,
+    _mock_orcid_lookup(responses, "0000-0003-3001-676X", [])
+    _mock_name_search(
+        responses,
+        [
+            _search_result(
+                "jonesd",
+                "Derek",
+                "Jones",
+                90.0,
+                orcid="https://orcid.org/0000-0001-5916-0031",
+            )
+        ],
     )
     context = _write_technote(
         tmp_path,
@@ -1203,3 +1245,162 @@ def test_every_rule_has_a_docs_landing_page() -> None:
             f"{page} does not title the {code} rule"
         )
         assert rule_url(code).endswith(f"/technotes/lint/{code.lower()}.html")
+
+
+def test_orcid_lookup_beats_unusable_name_search(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An exact ORCID lookup suggests where the name search cannot.
+
+    This is the lsst/rtn-077 case: the technote spells the author's given
+    name differently from the author database, so a name search returns
+    several equally-good Joneses and suggests nothing, but the declared
+    ORCID resolves exactly.
+    """
+    _mock_orcid_lookup(
+        responses,
+        "0000-0001-5916-0031",
+        [
+            _author_record(
+                "jonesrl",
+                "R. Lynne",
+                "Jones",
+                orcid="https://orcid.org/0000-0001-5916-0031",
+            )
+        ],
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Lynne"
+name.family = "Jones"
+orcid = "https://orcid.org/0000-0001-5916-0031"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN101"]
+    assert findings[0].message == (
+        "Author Lynne Jones is missing an internal_id. Did you mean "
+        "'jonesrl' (R. Lynne Jones, matched by ORCID)? Run 'documenteer "
+        "technote sync-authors' to add it."
+    )
+    # No name search is registered: a hit on the exact lookup short-circuits
+    # it, which is what makes this case suggestable at all.
+    assert len(responses.calls) == 1
+
+
+def test_orcid_miss_falls_back_to_name_search(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An ORCID nobody holds falls through to the name search."""
+    _mock_orcid_lookup(responses, "0000-0001-5916-0031", [])
+    _mock_name_search(
+        responses,
+        [
+            _search_result("jonesrl", "R. Lynne", "Jones", 90.0),
+            _search_result("jonesd", "Derek", "Jones", 70.0),
+        ],
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Lynne"
+name.family = "Jones"
+orcid = "https://orcid.org/0000-0001-5916-0031"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN101"]
+    assert findings[0].message == (
+        "Author Lynne Jones is missing an internal_id. Did you mean "
+        "'jonesrl' (R. Lynne Jones, matched by name)? Run 'documenteer "
+        "technote sync-authors' after adding it."
+    )
+
+
+def test_invalid_orcid_falls_back_to_name_search(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An ORCID the database rejects still leaves the name search.
+
+    The technote package's ORCID validator is looser than Ook's, so a
+    schema-valid ``technote.toml`` can still declare an identifier the author
+    database answers 422 for.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body='{"detail": "Input should be a valid ORCID"}',
+        content_type="application/json",
+        status=422,
+        match=[
+            matchers.query_param_matcher(
+                {"orcid": "0000-0003-3001-676X-EXTRA"}
+            )
+        ],
+    )
+    _mock_name_search(
+        responses, [_search_result("jonesrl", "R. Lynne", "Jones", 90.0)]
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Lynne"
+name.family = "Jones"
+orcid = "https://orcid.org/0000-0003-3001-676X-extra"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN101"]
+    assert "matched by name" in findings[0].message
+
+
+def test_both_lookups_failing_keeps_plain_tn102_message(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A TN102 finding is untouched when every suggestion lookup fails."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/lynnej",
+        body="Not found",
+        status=404,
+    )
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body="Internal server error",
+        status=500,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name.given = "Lynne"
+name.family = "Jones"
+internal_id = "lynnej"
+orcid = "https://orcid.org/0000-0001-5916-0031"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN102"]
+    assert findings[0].severity is Severity.error
+    assert findings[0].message == (
+        "Author Lynne Jones has internal_id 'lynnej', which is not in the "
+        "author database."
+    )

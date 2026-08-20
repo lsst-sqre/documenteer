@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import click
+from pydantic import ValidationError
 
-from documenteer.services.technoteauthor import TechnoteAuthorService
+from documenteer.services.technoteauthor import (
+    AuthorSyncOutcome,
+    SyncAction,
+    TechnoteAuthorService,
+)
 from documenteer.services.technotelint import (
     LintContext,
     LintFinding,
@@ -15,7 +21,12 @@ from documenteer.services.technotelint import (
     rule_url,
 )
 from documenteer.services.technotemigration import TechnoteMigrationService
-from documenteer.storage.authordb import AuthorDb
+from documenteer.storage.authordb import (
+    AuthorDb,
+    AuthorDbUnreachableError,
+    AuthorNotFoundError,
+    InvalidOrcidError,
+)
 from documenteer.storage.technotetoml import TechnoteTomlFile
 
 
@@ -85,8 +96,15 @@ def technote() -> None:
     "--author-id",
     "author_id",
     nargs=1,
-    required=True,
-    prompt="Author ID",
+    default=None,
+    help="Author ID: a key in the authors map in authordb.yaml.",
+)
+@click.option(
+    "--orcid",
+    "orcid",
+    nargs=1,
+    default=None,
+    help="ORCID of the author, bare or as an orcid.org URL.",
 )
 @click.option(
     "--toml",
@@ -96,18 +114,58 @@ def technote() -> None:
     default="technote.toml",
     help="Path to technote.toml file",
 )
-def technote_add_author(author_id: str, technote_toml: str) -> None:
+def technote_add_author(
+    author_id: str | None, orcid: str | None, technote_toml: str
+) -> None:
     """Add an author to technote.toml from the Rubin author DB.
 
-    Author IDs are the keys in the "authors" map in authordb.yaml. See
+    Identify the author either by their author ID (-a/--author-id), a key in
+    the "authors" map in authordb.yaml, or by their ORCID (--orcid). With
+    neither option the command prompts for an author ID. See
     https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
     """
+    if author_id is not None and orcid is not None:
+        raise click.UsageError(
+            "Use either -a/--author-id or --orcid to identify the author, "
+            "not both."
+        )
+
     toml_path = Path(technote_toml)
     toml_file = TechnoteTomlFile.open(toml_path)
     author_db = AuthorDb()
 
     service = TechnoteAuthorService(toml_file, author_db)
-    author = service.add_author_by_id(author_id)
+    try:
+        if orcid is not None:
+            identifier = f"ORCID {orcid}"
+            author = service.add_author_by_orcid(orcid)
+        else:
+            # Prompt here rather than through the option's own `prompt=`
+            # handler, which would go on demanding an author ID even when
+            # --orcid already identifies the author.
+            resolved_id = author_id or click.prompt("Author ID")
+            identifier = f"internal_id '{resolved_id}'"
+            author = service.add_author_by_id(resolved_id)
+    except (
+        AuthorNotFoundError,
+        InvalidOrcidError,
+        AuthorDbUnreachableError,
+    ) as e:
+        # A mistyped or unknown identifier is user error, and an author
+        # database that cannot be reached is the network's doing; neither is
+        # a Documenteer bug. Report them plainly and exit 1 rather than
+        # dumping a traceback, as sync-authors does for the same conditions.
+        raise click.ClickException(str(e)) from e
+    except ValidationError as e:
+        # A 200 whose body is not an author record. pydantic's own message
+        # is a field-by-field dump of what failed to validate, which tells a
+        # writer nothing they can act on, so report the condition itself —
+        # the same one sync-authors reports as a skipped entry.
+        raise click.ClickException(
+            f"The Rubin author database returned a malformed record for "
+            f"{identifier}."
+        ) from e
+
     click.echo(
         f"Added author {author.given_name} {author.family_name} to {toml_path}"
     )
@@ -124,24 +182,65 @@ def technote_add_author(author_id: str, technote_toml: str) -> None:
     help="Path to technote.toml file",
 )
 def technote_sync_authors(technote_toml: str) -> None:
-    """Sync author info from authordb.yaml to technote.toml."""
+    """Sync author info from authordb.yaml to technote.toml.
+
+    An author whose internal_id is wrong or missing is repaired from the
+    ORCID the entry declares. An author who cannot be resolved at all is
+    reported as a warning and left as declared; the rest are still
+    synchronized and written, and the command exits non-zero.
+    """
     toml_path = Path(technote_toml)
     toml_file = TechnoteTomlFile.open(toml_path)
     author_db = AuthorDb()
 
     service = TechnoteAuthorService(toml_file, author_db)
-    updated_authors = service.sync_authors()
+    outcomes = service.sync_authors()
     service.write_toml(toml_path)
 
-    if len(updated_authors) == 0:
-        click.echo("No authors to update")
-        return
-    else:
+    reports = [
+        line
+        for line in (_describe_sync_outcome(o) for o in outcomes)
+        if line is not None
+    ]
+    skipped_reasons = [
+        o.reason for o in outcomes if o.action is SyncAction.skipped
+    ]
+
+    if reports:
         click.echo(f"Synchronized authors to {toml_path}:")
-        for a in updated_authors:
-            click.echo(
-                f"- {a.given_name or ''} {a.family_name} ({a.internal_id})"
-            )
+        for line in reports:
+            click.echo(f"- {line}")
+    elif not skipped_reasons:
+        click.echo("No authors to update")
+
+    for reason in skipped_reasons:
+        click.echo(f"Warning: {reason}", err=True)
+    if skipped_reasons:
+        sys.exit(1)
+
+
+def _describe_sync_outcome(outcome: AuthorSyncOutcome) -> str | None:
+    """Phrase one synchronized author for the sync-authors report.
+
+    An outcome that wrote nothing yields `None`: it has nothing to report
+    under "Synchronized authors", and is warned about separately.
+
+    A repaired or filled-in ``internal_id`` is called out along with the
+    basis for it. That is a change to the technote's own metadata, which the
+    writer should see and verify, rather than a routine refresh.
+    """
+    author = outcome.author
+    if author is None:
+        return None
+    name = f"{author.given_name or ''} {author.family_name}"
+    if outcome.action is SyncAction.repaired:
+        return (
+            f"{name} ({outcome.previous_internal_id} → "
+            f"{author.internal_id}, matched by ORCID)"
+        )
+    if outcome.action is SyncAction.filled:
+        return f"{name} ({author.internal_id}, matched by ORCID)"
+    return f"{name} ({author.internal_id})"
 
 
 @technote.command(name="migrate")

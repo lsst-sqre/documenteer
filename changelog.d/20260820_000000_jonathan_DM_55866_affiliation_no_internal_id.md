@@ -1,0 +1,3 @@
+### Bug fixes
+
+- `documenteer technote sync-authors` no longer crashes on an author whose `technote.toml` declares a `[[technote.authors.affiliations]]` table without an `internal_id`, as hand-written and legacy technotes commonly do. Previously such a table raised `tomlkit.exceptions.NonExistentKey` while matching an affiliation the author database also lists, printing a traceback and leaving `technote.toml` unwritten. An affiliation with no `internal_id` cannot match a database record, so it is now skipped and left exactly as declared, while affiliations matching by `internal_id` are still updated in place and unmatched ones are still appended.

@@ -13,6 +13,7 @@ from documenteer.storage.authordb import (
     AuthorDb,
     AuthorDbUnreachableError,
     AuthorNotFoundError,
+    InvalidOrcidError,
 )
 
 SEARCH_JSON = """
@@ -37,6 +38,44 @@ SEARCH_JSON = """
     }
 ]
 """
+
+
+ORCID_JSON = """
+[
+    {
+        "affiliations": [],
+        "family_name": "Jones",
+        "given_name": "R. Lynne",
+        "internal_id": "jonesrl",
+        "notes": [],
+        "orcid": "https://orcid.org/0000-0001-5916-0031"
+    }
+]
+"""
+
+
+UNFILTERED_JSON = """
+[
+    {
+        "affiliations": [],
+        "family_name": "Economou",
+        "given_name": "Frossie",
+        "internal_id": "economouf",
+        "notes": [],
+        "orcid": null
+    },
+    {
+        "affiliations": [],
+        "family_name": "Sick",
+        "given_name": "Jonathan",
+        "internal_id": "sickj",
+        "notes": [],
+        "orcid": "https://orcid.org/0000-0003-3001-676X"
+    }
+]
+"""
+"""An author listing, as a server that ignores the ``orcid`` parameter
+answers it: several authors, in no particular relation to the query."""
 
 
 def test_from_yaml(responses: RequestsMock) -> None:
@@ -168,3 +207,147 @@ def test_get_author_server_error(responses: RequestsMock) -> None:
         author_db.get_author("sickj")
     assert isinstance(exc_info.value, AuthorDbUnreachableError)
     assert not isinstance(exc_info.value, AuthorNotFoundError)
+
+
+def test_get_author_by_orcid(responses: RequestsMock) -> None:
+    """An ORCID lookup that hits returns the one matching author."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=ORCID_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    author = author_db.get_author_by_orcid(
+        "https://orcid.org/0000-0001-5916-0031"
+    )
+    assert author is not None
+    assert author.internal_id == "jonesrl"
+    assert author.given_name == "R. Lynne"
+    query = parse_qs(urlparse(responses.calls[0].request.url or "").query)
+    assert query == {"orcid": ["0000-0001-5916-0031"]}
+
+
+def test_get_author_by_orcid_miss(responses: RequestsMock) -> None:
+    """A well-formed ORCID nobody holds is an ordinary miss, not an error."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body="[]",
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    assert author_db.get_author_by_orcid("0000-0001-5916-0032") is None
+
+
+def test_get_author_by_orcid_rejects_unfiltered_listing(
+    responses: RequestsMock,
+) -> None:
+    """A response nobody in it declares the ORCID is a miss, not a match.
+
+    An author API that does not recognize the ``orcid`` query parameter
+    answers with an ordinary author listing, which validates just as a
+    filtered one does. Reporting its first record as the ORCID's owner would
+    write an arbitrary author's ``internal_id`` into a technote.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=UNFILTERED_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    assert author_db.get_author_by_orcid("0000-0001-5916-0031") is None
+
+
+def test_get_author_by_orcid_picks_the_declaring_record(
+    responses: RequestsMock,
+) -> None:
+    """A multi-record response resolves to the record holding the ORCID."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=UNFILTERED_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    author = author_db.get_author_by_orcid(
+        "https://orcid.org/0000-0003-3001-676X"
+    )
+    assert author is not None
+    assert author.internal_id == "sickj"
+
+
+def test_get_author_by_orcid_invalid(responses: RequestsMock) -> None:
+    """A 422 response means bad input, not an unreachable database."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body='{"detail": "Input should be a valid ORCID"}',
+        content_type="application/json",
+        status=422,
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(InvalidOrcidError):
+        author_db.get_author_by_orcid("not-an-orcid")
+
+
+def test_get_author_by_orcid_server_error(responses: RequestsMock) -> None:
+    """A 5xx response raises ``AuthorDbUnreachableError``."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body="Internal server error",
+        status=500,
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(AuthorDbUnreachableError) as exc_info:
+        author_db.get_author_by_orcid("0000-0001-5916-0031")
+    assert not isinstance(exc_info.value, InvalidOrcidError)
+
+
+def test_get_author_by_orcid_transport_error(responses: RequestsMock) -> None:
+    """A connection error raises ``AuthorDbUnreachableError``."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body=requests.ConnectionError("connection refused"),
+    )
+
+    author_db = AuthorDb()
+    with pytest.raises(AuthorDbUnreachableError):
+        author_db.get_author_by_orcid("0000-0001-5916-0031")
+
+
+@pytest.mark.parametrize(
+    "declared",
+    [
+        # str(Person.orcid) for each form technote.toml can declare. The
+        # technote package's validator re-prefixes anything that does not
+        # literally start with "https://orcid", so the last two are what a
+        # http:// URL and a foreign-host URL become.
+        "https://orcid.org/0000-0003-3001-676X",
+        "https://orcid.org/0000-0003-3001-676X/",
+        "https://orcid.org/http://orcid.org/0000-0003-3001-676X",
+        "https://orcid.org/https://example.com/0000-0003-3001-676X",
+        "0000-0003-3001-676x",
+    ],
+)
+def test_get_author_by_orcid_normalizes(
+    responses: RequestsMock, declared: str
+) -> None:
+    """Every declared ORCID form puts the bare identifier on the wire."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors",
+        body="[]",
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    author_db.get_author_by_orcid(declared)
+    query = parse_qs(urlparse(responses.calls[0].request.url or "").query)
+    assert query == {"orcid": ["0000-0003-3001-676X"]}

@@ -59,6 +59,16 @@ Given an author ID from `authordb.yaml`_, you can add that author to the technot
 
 That command prompts you for the author ID, and then appends the author to the end of the author listing in :file:`technote.toml` (existing authors are updated in place).
 
+If you know the author's ORCID but not their author ID, identify them with the ``--orcid`` option of the underlying :command:`documenteer technote add-author` command instead:
+
+.. prompt:: bash
+
+   documenteer technote add-author --orcid 0000-0003-3001-676X
+
+ORCIDs are globally unique, so this looks the author up exactly, where a name can be spelled several ways.
+Write the ORCID either bare, as above, or as an ``https://orcid.org/`` URL.
+The author still needs an entry in `authordb.yaml`_ that records that ORCID; if no entry does, the command says so and leaves :file:`technote.toml` unchanged.
+
 Authors are represented in :file:`technote.toml` as as individual tables under the ``technote.authors`` *array of tables*.
 A technote with Sick as the first author and Economou as the second author would look like:
 
@@ -95,6 +105,41 @@ To update the author metadata in your technote, run:
 .. prompt:: bash
 
    make sync-authors
+
+Each ``[[technote.authors]]`` entry is looked up by its ``internal_id`` and rewritten from the database.
+
+Repairing an author ID
+----------------------
+
+An entry whose ``internal_id`` is wrong, or missing altogether, is repaired from the ``orcid`` the entry declares.
+ORCIDs are globally unique, so the lookup identifies the author exactly, and the command writes the right ID into that entry — it does not add a second one.
+The report says so, and names the ID it replaced:
+
+.. code-block:: text
+
+   Synchronized authors to technote.toml:
+   - R. Lynne Jones (lynnej → jonesrl, matched by ORCID)
+   - Yusra AlSayyad (alsayyady, matched by ORCID)
+   - Jonathan Sick (sickj)
+
+This is the fix for :doc:`TN101 <lint/tn101>` and :doc:`TN102 <lint/tn102>` findings on an author who declares an ORCID: run :command:`make sync-authors` rather than editing the ID by hand.
+
+One repair the command will not make for you is one that would list the same author twice.
+If the ID an entry's ORCID resolves to is already declared by another entry — the same person listed once under the right ID and once under a wrong one — the entry is reported as a warning and left as you declared it, because only you can say which of the two entries is the duplicate to drop:
+
+.. code-block:: text
+
+   Warning: Could not sync author Lynne Jones: their ORCID resolves to internal_id 'jonesrl', which another author entry already declares. Remove whichever of the two entries is the duplicate.
+
+An author who resolves to nobody at all — no usable ``internal_id`` and no ``orcid`` that the author database knows — is reported as a warning and left exactly as you declared them:
+
+.. code-block:: text
+
+   Warning: Could not sync author No Body: internal_id 'nobody' is not in the Rubin author database, and the entry declares no ORCID to fall back on.
+
+Every other author is still synchronized and written, so one unknown author no longer costs the rest their update.
+The command exits non-zero, so a CI job still fails on it.
+Fix such an author by adding them to `authordb.yaml`_, or by correcting the ``internal_id`` or ``orcid`` in :file:`technote.toml`.
 
 Related documentation
 =====================
