@@ -384,3 +384,94 @@ def test_author_entry_update_rewrites_the_id_in_place() -> None:
     assert technote.author_ids == ["jonesrl"]
     name = cast("tomlkit.items.Table", technote.authors_aot[0]["name"])
     assert cast("str", name["given"]) == "R. Lynne"
+
+
+LEGACY_AFFILIATION_TECHNOTE_TOML = """
+[technote]
+title = "A Test Technote"
+
+[[technote.authors]]
+name = {given = "Jonathan", family = "Sick"}
+internal_id = "sickj"
+orcid = "https://orcid.org/0000-0003-3001-676X"
+
+[[technote.authors.affiliations]]
+name = "A Legacy Institution"
+
+[[technote.authors.affiliations]]
+name = "J.Sick Codes"
+internal_id = "JSickCodes"
+"""
+
+
+def test_upsert_author_with_idless_affiliation(
+    responses: RequestsMock,
+) -> None:
+    """An affiliation table declaring no internal_id is skipped, not fatal."""
+    author_response_data = """
+{
+    "affiliations": [
+        {
+            "address": {
+                "city": "Ontario",
+                "country": "Canada",
+                "postal_code": null,
+                "state": null,
+                "street": "Penetanguishene"
+            },
+            "department": null,
+            "internal_id": "JSickCodes",
+            "name": "J.Sick Codes Inc.",
+            "ror": null
+        },
+        {
+            "address": {
+                "city": "Tucson",
+                "country": "USA",
+                "postal_code": "85719",
+                "state": "AZ",
+                "street": "950 N. Cherry Ave."
+            },
+            "department": null,
+            "internal_id": "RubinObs",
+            "name": "Vera C. Rubin Observatory Project Office",
+            "ror": "https://ror.org/048g3cy84"
+        }
+    ],
+    "family_name": "Sick",
+    "given_name": "Jonathan",
+    "internal_id": "sickj",
+    "notes": [],
+    "orcid": "https://orcid.org/0000-0003-3001-676X"
+}
+"""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=author_response_data,
+        content_type="application/json",
+        status=200,
+    )
+
+    author_db = AuthorDb()
+    author = author_db.get_author("sickj")
+
+    technote = TechnoteTomlFile(LEGACY_AFFILIATION_TECHNOTE_TOML)
+    technote.upsert_author(author)
+    first_pass = tomlkit.dumps(technote.doc)
+
+    affiliations_aot = cast(
+        "tomlkit.items.AoT", technote.authors_aot[0]["affiliations"]
+    )
+    # The affiliation without an internal_id is left untouched.
+    assert cast("str", affiliations_aot[0]["name"]) == "A Legacy Institution"
+    assert "internal_id" not in affiliations_aot[0]
+    # The affiliation matching by internal_id is updated in place.
+    assert cast("str", affiliations_aot[1]["name"]) == "J.Sick Codes Inc."
+    assert cast("str", affiliations_aot[1]["internal_id"]) == "JSickCodes"
+    # The unmatched database affiliation is appended.
+    assert cast("str", affiliations_aot[2]["internal_id"]) == "RubinObs"
+    assert len(affiliations_aot) == 3
+
+    # A second sync is a no-op on the file.
+    technote.upsert_author(author)
+    assert tomlkit.dumps(technote.doc) == first_pass

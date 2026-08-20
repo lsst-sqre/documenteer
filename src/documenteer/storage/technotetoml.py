@@ -188,7 +188,10 @@ def _update_author_table(table: tomlkit.items.Table, author: Author) -> None:
         else:
             # Update existing affiliation
             for t in affiliations_aot:
-                if t["internal_id"] == affiliation.internal_id:
+                # A hand-written affiliation table may declare no
+                # internal_id; it can never match, so skip rather than
+                # raise NonExistentKey.
+                if t.get("internal_id") == affiliation.internal_id:
                     _update_affiliation_table(t, affiliation)
                     break
 
