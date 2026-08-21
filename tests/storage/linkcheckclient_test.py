@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -13,13 +14,19 @@ from responses import RequestsMock
 from documenteer.storage.linkcheckclient import (
     CheckRunStatus,
     CheckUrlStatus,
+    ContributedResult,
+    ContributionEnvironment,
+    ContributionProvider,
+    ContributionRejectionReason,
     LinkCheckClient,
+    LinkCheckContributionError,
     LinkCheckRequest,
     LinkCheckTimeoutError,
     LinkCheckUnauthorizedError,
     LinkCheckUnreachableError,
     SubmittedUrl,
 )
+from documenteer.version import __version__
 
 BASE_URL = "https://roundtable.lsst.cloud/ook"
 
@@ -67,6 +74,59 @@ def make_check_payload(
         "summary": summary,
         "urls": urls,
     }
+
+
+CONTRIBUTIONS_URL = f"{BASE_URL}/linkcheck/checks/{CHECK_ID}/contributions"
+
+CHECKED_AT = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
+"""When the contributing client observed its results."""
+
+
+def make_contribution_payload(
+    *,
+    accepted: list[dict[str, Any]] | None = None,
+    rejected: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Create a contribution report payload matching the Ook API."""
+    if accepted is None:
+        accepted = [{"url": "https://example.com/guarded", "status": "ok"}]
+    return {
+        "check_id": CHECK_ID,
+        "provenance": {
+            "provider": "github_actions",
+            "repository": "lsst-sqre/documenteer",
+            "run_id": "42",
+            "workflow_ref": (
+                "lsst-sqre/documenteer/.github/workflows/ci.yaml@refs/heads/main"
+            ),
+            "run_url": (
+                "https://github.com/lsst-sqre/documenteer/actions/runs/42"
+            ),
+            "checker_version": "documenteer 2.5.0",
+        },
+        "accepted": accepted,
+        "rejected": rejected if rejected is not None else [],
+    }
+
+
+def make_environment() -> ContributionEnvironment:
+    """Create the advisory environment block for testing."""
+    return ContributionEnvironment(
+        repository="lsst-sqre/documenteer",
+        run_url="https://github.com/lsst-sqre/documenteer/actions/runs/42",
+        checker_version="documenteer 2.5.0",
+    )
+
+
+def make_results() -> list[ContributedResult]:
+    """Create the per-URL local observations to contribute."""
+    return [
+        ContributedResult(
+            url="https://example.com/guarded",
+            status_code=200,
+            checked_at=CHECKED_AT,
+        )
+    ]
 
 
 def make_request() -> LinkCheckRequest:
@@ -382,6 +442,247 @@ def test_blocked_status_parses(
     assert check.summary.broken == 0
 
 
+def test_contribute_results(responses: RequestsMock, monkeypatch: Any) -> None:
+    """A contribution POSTs the local observations with the OIDC id token
+    in the body — the endpoint's provenance attestation — alongside the
+    Gafaelfawr bearer token the ingress requires, and reports back the
+    status each accepted URL reached.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.post(
+        CONTRIBUTIONS_URL, json=make_contribution_payload(), status=200
+    )
+
+    client = LinkCheckClient()
+    report = client.contribute_results(
+        CHECK_ID,
+        make_results(),
+        id_token="a.b.c",
+        environment=make_environment(),
+    )
+
+    assert report.check_id == CHECK_ID
+    assert report.provenance.repository == "lsst-sqre/documenteer"
+    assert report.provenance.run_id == "42"
+    assert [entry.url for entry in report.accepted] == [
+        "https://example.com/guarded"
+    ]
+    assert report.accepted[0].status is CheckUrlStatus.ok
+    assert report.rejected == []
+
+    api_request = responses.calls[0].request
+    assert api_request.headers["Authorization"] == "Bearer test-token"
+    assert api_request.body is not None
+    assert json.loads(api_request.body) == {
+        "id_token": "a.b.c",
+        "environment": {
+            "provider": "github_actions",
+            "repository": "lsst-sqre/documenteer",
+            "run_url": (
+                "https://github.com/lsst-sqre/documenteer/actions/runs/42"
+            ),
+            "checker_version": "documenteer 2.5.0",
+        },
+        "results": [
+            {
+                "url": "https://example.com/guarded",
+                "status_code": 200,
+                "redirect_status_code": None,
+                "redirect_url": None,
+                "error": None,
+                "checked_at": "2026-07-06T12:00:00Z",
+            }
+        ],
+    }
+
+
+def test_contribute_results_partial_accept(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The service applies a batch entry by entry, so a report can carry
+    both applied and declined entries; each declined entry parses with the
+    typed reason the caller reports per URL.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.post(
+        CONTRIBUTIONS_URL,
+        json=make_contribution_payload(
+            rejected=[
+                {
+                    "url": "https://example.com/open",
+                    "reason": "not_blocked",
+                    "message": "Ook resolved this URL itself.",
+                }
+            ],
+        ),
+        status=200,
+    )
+
+    client = LinkCheckClient()
+    report = client.contribute_results(
+        CHECK_ID,
+        make_results(),
+        id_token="a.b.c",
+        environment=make_environment(),
+    )
+
+    assert len(report.accepted) == 1
+    assert [entry.url for entry in report.rejected] == [
+        "https://example.com/open"
+    ]
+    rejection = report.rejected[0]
+    assert rejection.reason is ContributionRejectionReason.not_blocked
+    assert rejection.message == "Ook resolved this URL itself."
+
+
+def test_contribute_results_unknown_rejection_reason(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A rejection reason this client does not know about still parses.
+
+    Rejection reasons are an open diagnostic vocabulary the service can
+    extend. An unrecognized one arrives as its plain string so the caller
+    can still report it, rather than costing the whole report its parse.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.post(
+        CONTRIBUTIONS_URL,
+        json=make_contribution_payload(
+            rejected=[
+                {
+                    "url": "https://example.com/open",
+                    "reason": "some_future_reason",
+                    "message": "Something this client has not heard of.",
+                }
+            ],
+        ),
+        status=200,
+    )
+
+    client = LinkCheckClient()
+    report = client.contribute_results(
+        CHECK_ID,
+        make_results(),
+        id_token="a.b.c",
+        environment=make_environment(),
+    )
+
+    assert report.rejected[0].reason == "some_future_reason"
+
+
+def test_contribute_results_retries_bad_gateway(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 502 means the service could not reach GitHub's signing keys to
+    verify the id token, which it documents as worth retrying; the
+    contribution is resent after a backoff and succeeds.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "documenteer.storage.linkcheckclient.time.sleep", sleeps.append
+    )
+    responses.post(CONTRIBUTIONS_URL, json={"detail": "JWKS"}, status=502)
+    responses.post(
+        CONTRIBUTIONS_URL, json=make_contribution_payload(), status=200
+    )
+
+    client = LinkCheckClient()
+    report = client.contribute_results(
+        CHECK_ID,
+        make_results(),
+        id_token="a.b.c",
+        environment=make_environment(),
+    )
+
+    assert len(report.accepted) == 1
+    assert len(responses.calls) == 2
+    assert sleeps == [0.5]
+
+
+def test_contribute_results_retry_exhausted(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A service that keeps answering 502 outlasts the retry ladder: the
+    contribution is retried three times, on a backoff that doubles, and
+    then surfaces as the typed error the caller downgrades to a warning.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "documenteer.storage.linkcheckclient.time.sleep", sleeps.append
+    )
+    responses.post(CONTRIBUTIONS_URL, json={"detail": "JWKS"}, status=502)
+
+    client = LinkCheckClient()
+    with pytest.raises(LinkCheckContributionError, match="4 attempts"):
+        client.contribute_results(
+            CHECK_ID,
+            make_results(),
+            id_token="a.b.c",
+            environment=make_environment(),
+        )
+
+    # The original attempt plus three retries.
+    assert len(responses.calls) == 4
+    assert sleeps == [0.5, 1.0, 2.0]
+
+
+def test_contribute_results_retries_connection_error(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A connection failure is as transient as a 502, so it is retried on
+    the same ladder rather than abandoning the contribution outright.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    monkeypatch.setattr(
+        "documenteer.storage.linkcheckclient.time.sleep", lambda _: None
+    )
+    responses.post(
+        CONTRIBUTIONS_URL, body=RequestsConnectionError("Connection refused")
+    )
+    responses.post(
+        CONTRIBUTIONS_URL, json=make_contribution_payload(), status=200
+    )
+
+    client = LinkCheckClient()
+    report = client.contribute_results(
+        CHECK_ID,
+        make_results(),
+        id_token="a.b.c",
+        environment=make_environment(),
+    )
+
+    assert len(report.accepted) == 1
+    assert len(responses.calls) == 2
+
+
+def test_contribute_results_unprocessable_is_not_retried(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 422 rejects the batch itself — an oversized batch or an
+    unverifiable token — so resending it would fail identically. It is
+    surfaced on the first response instead.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.post(
+        CONTRIBUTIONS_URL,
+        json={"detail": [{"msg": "Invalid id token", "type": "value_error"}]},
+        status=422,
+    )
+
+    client = LinkCheckClient()
+    with pytest.raises(LinkCheckContributionError):
+        client.contribute_results(
+            CHECK_ID,
+            make_results(),
+            id_token="a.b.c",
+            environment=make_environment(),
+        )
+
+    assert len(responses.calls) == 1
+
+
 def test_base_url_override(responses: RequestsMock, monkeypatch: Any) -> None:
     """The service base URL is configurable (trailing slash tolerated)."""
     monkeypatch.setenv("OOK_TOKEN", "test-token")
@@ -394,3 +695,49 @@ def test_base_url_override(responses: RequestsMock, monkeypatch: Any) -> None:
     client = LinkCheckClient(base_url="https://roundtable-dev.lsst.cloud/ook/")
     check = client.get_check(CHECK_ID)
     assert check.id == CHECK_ID
+
+
+def test_oidc_audience_is_the_normalized_base_url() -> None:
+    """The audience to mint an id token for is the service's own base URL,
+    normalized without a trailing slash.
+
+    The service requires the audience to be its public base URL, which is
+    what scopes a token to one deployment: pointing the builder at the
+    development Ook mints a token that production will not accept.
+    """
+    client = LinkCheckClient(base_url="https://roundtable-dev.lsst.cloud/ook/")
+
+    assert client.oidc_audience == "https://roundtable-dev.lsst.cloud/ook"
+
+
+def test_environment_from_github_actions() -> None:
+    """The advisory environment block describes the workflow run, composing
+    the run URL from the pieces GitHub Actions exports separately.
+    """
+    environment = ContributionEnvironment.from_github_actions(
+        {
+            "GITHUB_REPOSITORY": "lsst-sqre/documenteer",
+            "GITHUB_SERVER_URL": "https://github.com",
+            "GITHUB_RUN_ID": "42",
+        }
+    )
+
+    assert environment.provider is ContributionProvider.github_actions
+    assert environment.repository == "lsst-sqre/documenteer"
+    assert environment.run_url == (
+        "https://github.com/lsst-sqre/documenteer/actions/runs/42"
+    )
+    assert environment.checker_version == f"documenteer {__version__}"
+
+
+def test_environment_outside_github_actions() -> None:
+    """Outside GitHub Actions there is no run to describe, so the
+    descriptive fields are simply empty rather than half-composed from
+    whichever variables happen to be set.
+    """
+    environment = ContributionEnvironment.from_github_actions(
+        {"GITHUB_REPOSITORY": "lsst-sqre/documenteer"}
+    )
+
+    assert environment.repository == "lsst-sqre/documenteer"
+    assert environment.run_url is None

@@ -6,27 +6,43 @@ import os
 import time
 from datetime import datetime
 from enum import StrEnum
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, Self
 
 import requests
 from pydantic import BaseModel, Field
 
 from documenteer._requestsutils import requests_retry_session
 
+from ..version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
 __all__ = [
     "DEFAULT_BASE_URL",
     "TOKEN_ENV_VAR",
+    "AcceptedContribution",
     "CheckRunStatus",
     "CheckUrlStatus",
     "CheckedUrl",
+    "ContributedResult",
+    "ContributionEnvironment",
+    "ContributionProvenance",
+    "ContributionProvider",
+    "ContributionRejectionReason",
+    "ContributionReport",
     "LinkCheck",
     "LinkCheckClient",
+    "LinkCheckContributionError",
+    "LinkCheckContributionRequest",
+    "LinkCheckHttpError",
     "LinkCheckRequest",
     "LinkCheckServiceError",
     "LinkCheckSummary",
     "LinkCheckTimeoutError",
     "LinkCheckUnauthorizedError",
     "LinkCheckUnreachableError",
+    "RejectedContribution",
     "SubmittedCheck",
     "SubmittedUrl",
 ]
@@ -36,6 +52,22 @@ DEFAULT_BASE_URL = "https://roundtable.lsst.cloud/ook"
 
 TOKEN_ENV_VAR = "OOK_TOKEN"
 """Environment variable holding the bearer token for the Ook API."""
+
+_CONTRIBUTION_RETRIES = 3
+"""How many times a contribution POST is resent after a retryable failure
+before it is given up on."""
+
+_CONTRIBUTION_INITIAL_BACKOFF = 0.5
+"""Seconds to wait before the first contribution retry; the wait doubles
+with each further retry."""
+
+_CONTRIBUTION_RETRY_STATUS_CODES = frozenset({502})
+"""Response status codes that make a contribution worth resending.
+
+The service answers with a 502 when it could not fetch GitHub's OIDC
+signing keys to verify the id token — a failure in a third service, which
+it documents as retryable.
+"""
 
 
 class LinkCheckServiceError(ValueError):
@@ -52,6 +84,28 @@ class LinkCheckUnauthorizedError(LinkCheckServiceError):
 
 class LinkCheckTimeoutError(LinkCheckServiceError):
     """The link check did not complete within the polling budget."""
+
+
+class LinkCheckHttpError(LinkCheckServiceError):
+    """An error response from the Ook link-check service.
+
+    Carries the response's status code so a caller can tell a failure
+    worth retrying from one that will fail the same way every time.
+    """
+
+    def __init__(self, message: str, *, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        """The HTTP status code the service responded with."""
+
+
+class LinkCheckContributionError(LinkCheckServiceError):
+    """A batch of contributed results could not be delivered.
+
+    Raised as its own type because a contribution is optional: the caller
+    downgrades this to a warning and reports the check it already has,
+    rather than failing a build over an improvement it could not send.
+    """
 
 
 class CheckRunStatus(StrEnum):
@@ -236,6 +290,257 @@ class LinkCheck(BaseModel):
     )
 
 
+class ContributionProvider(StrEnum):
+    """The kind of client environment a contribution was observed from."""
+
+    github_actions = "github_actions"
+
+
+class ContributionRejectionReason(StrEnum):
+    """Why one contributed result was not applied to its URL."""
+
+    not_a_member = "not_a_member"
+    """The URL is not one of the check's member URLs."""
+
+    not_blocked = "not_blocked"
+    """The URL's status is not ``blocked``, so Ook's own vantage point
+    already settled it."""
+
+    unsupported_url = "unsupported_url"
+    """The URL is not a checkable http(s) URL."""
+
+    duplicate = "duplicate"
+    """An earlier entry in the same batch already contributed a result for
+    this URL."""
+
+
+class ContributionEnvironment(BaseModel):
+    """The client environment a batch of contributed results came from.
+
+    Every field here is advisory. The repository a contribution is recorded
+    under comes from the verified id token, never from this block; these
+    fields are recorded for display in the service's reports.
+    """
+
+    provider: ContributionProvider = Field(
+        ContributionProvider.github_actions,
+        description=(
+            "The kind of client environment the results were observed "
+            "from. Only GitHub Actions runs can contribute, because the "
+            "provenance attestation is an Actions OIDC id token."
+        ),
+    )
+
+    repository: str | None = Field(
+        None,
+        description=(
+            "The ``owner/name`` of the repository the client believes it is "
+            "running in."
+        ),
+    )
+
+    run_url: str | None = Field(
+        None, description="URL of the workflow run that observed the results."
+    )
+
+    checker_version: str | None = Field(
+        None, description="Version of the client that performed the checks."
+    )
+
+    @classmethod
+    def from_github_actions(cls, env: Mapping[str, str] | None = None) -> Self:
+        """Describe the current GitHub Actions run.
+
+        Parameters
+        ----------
+        env
+            The process environment to read the run's identity from.
+            Defaults to `os.environ`.
+
+        Returns
+        -------
+        ContributionEnvironment
+            The advisory environment block, with whatever of the run's
+            identity the environment supplies. Outside GitHub Actions the
+            descriptive fields are simply empty; the block still names this
+            client's version, and the service ignores the rest in favor of
+            the id token's claims regardless.
+        """
+        env = env if env is not None else os.environ
+        repository = env.get("GITHUB_REPOSITORY")
+        server_url = env.get("GITHUB_SERVER_URL")
+        run_id = env.get("GITHUB_RUN_ID")
+        run_url = (
+            f"{server_url.rstrip('/')}/{repository}/actions/runs/{run_id}"
+            if server_url and repository and run_id
+            else None
+        )
+        return cls(
+            provider=ContributionProvider.github_actions,
+            repository=repository,
+            run_url=run_url,
+            checker_version=f"documenteer {__version__}",
+        )
+
+
+class ContributedResult(BaseModel):
+    """One URL's result as observed by the contributing client."""
+
+    url: str = Field(description="The URL the client checked.")
+
+    status_code: int | None = Field(
+        None,
+        description=(
+            "Final HTTP status code the client received, or null if it "
+            "received no response at all."
+        ),
+    )
+
+    redirect_status_code: int | None = Field(
+        None,
+        description=(
+            "HTTP status code of the redirect (e.g. 301, 302), if the URL "
+            "redirected."
+        ),
+    )
+
+    redirect_url: str | None = Field(
+        None, description="Final resolved location, if the URL redirected."
+    )
+
+    error: str | None = Field(
+        None,
+        description=(
+            "Description of the failure, if the client's check failed."
+        ),
+    )
+
+    checked_at: datetime = Field(
+        description="Time the client performed the check."
+    )
+
+
+class LinkCheckContributionRequest(BaseModel):
+    """The submission payload for a batch of contributed results."""
+
+    id_token: str = Field(
+        description=(
+            "A GitHub Actions OIDC id token, minted for the deployment's "
+            "audience by the workflow run that observed the results. Its "
+            "claims are what the contribution is recorded under."
+        )
+    )
+
+    environment: ContributionEnvironment = Field(
+        description="The client environment the results came from."
+    )
+
+    results: list[ContributedResult] = Field(
+        description="The per-URL results the client observed."
+    )
+
+
+class ContributionProvenance(BaseModel):
+    """Where the service recorded a batch of results as coming from."""
+
+    provider: ContributionProvider = Field(
+        description="The kind of client environment."
+    )
+
+    repository: str = Field(
+        description=(
+            "The ``owner/name`` of the repository whose CI observed the "
+            "results, from the verified id token."
+        )
+    )
+
+    run_id: str = Field(
+        description=(
+            "The workflow run that observed the results, from the verified "
+            "id token."
+        )
+    )
+
+    workflow_ref: str = Field(
+        description=(
+            "The fully-qualified reference of the workflow that observed "
+            "the results, from the verified id token."
+        )
+    )
+
+    run_url: str | None = Field(
+        None, description="The run URL the client reported, if any."
+    )
+
+    checker_version: str | None = Field(
+        None, description="The client version the client reported, if any."
+    )
+
+
+class AcceptedContribution(BaseModel):
+    """A contributed result that was applied to its URL."""
+
+    url: str = Field(description="The canonical URL the result applied to.")
+
+    status: CheckUrlStatus = Field(
+        description=(
+            "The URL's status after the contributed result ran through the "
+            "service's status-transition engine."
+        )
+    )
+
+
+class RejectedContribution(BaseModel):
+    """A contributed result that was not applied, and why."""
+
+    url: str = Field(description="The URL as it was submitted.")
+
+    reason: ContributionRejectionReason | str = Field(
+        description="Why the result was not applied.",
+        union_mode="left_to_right",
+    )
+
+    message: str = Field(
+        description="A human-readable explanation of the rejection."
+    )
+
+
+class ContributionReport(BaseModel):
+    """The outcome of a batch of contributed results.
+
+    The service applies a batch entry by entry, so a report can carry both
+    accepted and rejected entries: an entry the service declines does not
+    cost the rest of the batch.
+    """
+
+    check_id: str = Field(
+        description="The check the results were contributed against."
+    )
+
+    provenance: ContributionProvenance = Field(
+        description=(
+            "Where the results were recorded as coming from, taken from the "
+            "verified id token."
+        )
+    )
+
+    accepted: list[AcceptedContribution] = Field(
+        default_factory=list,
+        description=(
+            "The results that were applied, with the status each URL "
+            "reached, in submission order."
+        ),
+    )
+
+    rejected: list[RejectedContribution] = Field(
+        default_factory=list,
+        description=(
+            "The results that were not applied, each with its reason, in "
+            "submission order."
+        ),
+    )
+
+
 class SubmittedCheck(NamedTuple):
     """The outcome of submitting a link check to the service."""
 
@@ -277,6 +582,19 @@ class LinkCheckClient:
         self._session = (
             session if session is not None else requests_retry_session()
         )
+
+    @property
+    def oidc_audience(self) -> str:
+        """The audience an OIDC id token must be minted for to attest to a
+        contribution to this service.
+
+        The service requires the audience to be its own public base URL,
+        which is what scopes a minted token to one deployment: a token
+        minted for the development Ook is not replayable against
+        production. This is the configured service URL normalized without
+        a trailing slash.
+        """
+        return self._base_url
 
     def submit_check(self, request: LinkCheckRequest) -> SubmittedCheck:
         """Submit a link check to the service.
@@ -368,6 +686,84 @@ class LinkCheckClient:
             time.sleep(interval)
             interval = min(interval * 2.0, max_interval)
 
+    def contribute_results(
+        self,
+        check_id: str,
+        results: Sequence[ContributedResult],
+        *,
+        id_token: str,
+        environment: ContributionEnvironment,
+    ) -> ContributionReport:
+        """Contribute locally-observed results for a check's blocked URLs.
+
+        Parameters
+        ----------
+        check_id
+            Identifier of the link check the results belong to.
+        results
+            The per-URL observations to contribute.
+        id_token
+            A GitHub Actions OIDC id token minted for this service's
+            `oidc_audience`, from
+            `~documenteer.storage.githuboidc.GitHubOidcTokenFetcher`. It
+            attests to where the results were observed, and the service
+            records its claims as the contribution's provenance.
+        environment
+            The advisory description of the client environment.
+
+        Returns
+        -------
+        ContributionReport
+            What the service did with each result: the entries it applied
+            and the entries it declined, each with a reason.
+
+        Raises
+        ------
+        LinkCheckContributionError
+            Raised if the contribution could not be delivered, including
+            when the retryable failures below outlast the retry ladder.
+
+        Notes
+        -----
+        The service answers a request it could not verify against GitHub's
+        signing keys with a 502, which it documents as worth retrying, so
+        that and a connection failure are resent up to
+        `_CONTRIBUTION_RETRIES` times on a doubling backoff. Anything else
+        — a 422 for a malformed batch or an unverifiable token, say — will
+        fail identically however many times it is sent, so it is surfaced
+        immediately.
+        """
+        url = f"{self._base_url}/linkcheck/checks/{check_id}/contributions"
+        request = LinkCheckContributionRequest(
+            id_token=id_token,
+            environment=environment,
+            results=list(results),
+        )
+        payload = request.model_dump(mode="json")
+        backoff = _CONTRIBUTION_INITIAL_BACKOFF
+        attempts = _CONTRIBUTION_RETRIES + 1
+        last_error: LinkCheckServiceError
+        for attempt in range(1, attempts + 1):
+            try:
+                r = self._request("POST", url, json_payload=payload)
+            except LinkCheckUnreachableError as e:
+                last_error = e
+            except LinkCheckHttpError as e:
+                if e.status_code not in _CONTRIBUTION_RETRY_STATUS_CODES:
+                    raise LinkCheckContributionError(
+                        f"Could not contribute link-check results: {e}"
+                    ) from e
+                last_error = e
+            else:
+                return ContributionReport.model_validate_json(r.text)
+            if attempt < attempts:
+                time.sleep(backoff)
+                backoff *= 2.0
+        raise LinkCheckContributionError(
+            f"Could not contribute link-check results after {attempts} "
+            f"attempts: {last_error}"
+        ) from last_error
+
     def _get_check(self, url: str) -> LinkCheck:
         """Get a link check at its API URL."""
         r = self._request("GET", url)
@@ -407,7 +803,8 @@ class LinkCheckClient:
         try:
             r.raise_for_status()
         except requests.HTTPError as e:
-            raise LinkCheckServiceError(
-                f"Error from the Ook link-check service at {url}: {e}"
+            raise LinkCheckHttpError(
+                f"Error from the Ook link-check service at {url}: {e}",
+                status_code=r.status_code,
             ) from e
         return r
