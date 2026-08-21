@@ -84,11 +84,11 @@ Set any of them after the ``from documenteer.conf.technote import *`` line:
    If the budget is exhausted before the service completes the check, the build emits a warning and continues — or fails, if ``documenteer_linkcheck_strict`` is ``True``.
 
 ``documenteer_linkcheck_recheck_blocked``
-   Whether URLs the service reports as blocked by bot protection are rechecked from the build's own vantage point, with what the build observes merged into that build's report.
+   Whether URLs the service reports as blocked by bot protection are rechecked from the build's own vantage point, with what the build observes merged into that build's report and contributed back to the service.
    Default is ``True``.
-   Set it to ``False`` to skip the recheck and report the service's verdict as-is.
+   Set it to ``False`` to skip the recheck, and the contribution along with it, and report the service's verdict as-is.
 
-   See :ref:`recheck_blocked <guide-sphinx-linkcheck-recheck-blocked>` for what the recheck does and how each outcome is reported.
+   See :ref:`recheck_blocked <guide-sphinx-linkcheck-recheck-blocked>` for what the recheck does and how each outcome is reported, and :ref:`guide-sphinx-linkcheck-contributions` for what is sent back to the service.
 
 For example, to make service problems fail the technote's build:
 
@@ -106,6 +106,12 @@ For example, to make service problems fail the technote's build:
    Documenteer takes it from :external+technote:ref:`[technote] canonical_url <toml-technote-canonical-url>` in :file:`technote.toml`, falling back to the technote's handle as ``https://<id>.lsst.io`` from :external+technote:ref:`[technote] id <toml-technote-id>`.
    Technotes therefore rarely need to set the ``documenteer_linkcheck_origin_base_url`` configuration value directly.
    If a build reports that no origin base URL is available for the link-check service, set ``canonical_url`` or ``id`` in :file:`technote.toml`, which is what that message asks for.
+
+.. note::
+
+   Contributing rechecked results back to the service needs the ``id-token: write`` permission in the GitHub Actions job that builds the technote, and technote builds run through the reusable workflow in `rubin-sphinx-technote-workflows <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows>`__ (see :doc:`how-your-technote-gets-published`).
+   A reusable workflow can't ask for a permission of its own, so it has to be granted on the calling job in the technote's own :file:`.github/workflows/ci.yaml` *and* passed through by the shared workflow rather than narrowed away — a change to coordinate with that workflow's maintainers.
+   Until both are in place, a technote build behaves the way any build without the permission does: the local recheck still runs and still informs the technote's own report, and only the contribution is skipped, with a note at the ``INFO`` log level.
 
 .. _technote-conf-intersphinx-cache:
 
