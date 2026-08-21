@@ -269,7 +269,7 @@ class CheckedUrl(BaseModel):
         description="Description of the failure, if the check failed.",
     )
 
-    checked_at: datetime | None = Field(
+    date_checked: datetime | None = Field(
         None,
         description=(
             "Time of the check that produced this result, or null while the "
@@ -460,7 +460,7 @@ class ContributedResult(BaseModel):
         ),
     )
 
-    checked_at: datetime = Field(
+    date_checked: datetime = Field(
         description="Time the client performed the check."
     )
 

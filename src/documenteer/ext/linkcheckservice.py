@@ -254,7 +254,7 @@ def _merge_local_result(
             "redirect_status_code": local.redirect_status_code,
             "redirect_url": local.redirect_url,
             "error": local.error,
-            "checked_at": local.checked_at,
+            "date_checked": local.date_checked,
         }
     )
 

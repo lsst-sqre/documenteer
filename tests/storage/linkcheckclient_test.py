@@ -52,7 +52,7 @@ def make_check_payload(
                 "redirect_status_code": None,
                 "redirect_url": None,
                 "error": None,
-                "checked_at": (
+                "date_checked": (
                     "2026-07-06T12:00:00Z" if status == "complete" else None
                 ),
             }
@@ -125,7 +125,7 @@ def make_results() -> list[ContributedResult]:
         ContributedResult(
             url="https://example.com/guarded",
             status_code=200,
-            checked_at=CHECKED_AT,
+            date_checked=CHECKED_AT,
         )
     ]
 
@@ -372,7 +372,7 @@ def test_checked_url_origin_paths_from_response(
                 "redirect_status_code": None,
                 "redirect_url": None,
                 "error": None,
-                "checked_at": "2026-07-06T12:00:00Z",
+                "date_checked": "2026-07-06T12:00:00Z",
                 "origin_paths": ["guide", "index"],
             }
         ],
@@ -407,6 +407,38 @@ def test_checked_url_origin_paths_default_empty(
     assert check.urls[0].origin_paths == []
 
 
+def test_checked_url_date_checked_parses(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A per-URL result's check time is read from Ook's ``date_checked``
+    field — the ``date_``-prefixed spelling lsst-sqre/ook#366 normalized
+    every datetime-valued link-check field onto.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    payload = make_check_payload(
+        urls=[
+            {
+                "url": "https://example.com/page",
+                "status": "ok",
+                "status_code": 200,
+                "redirect_status_code": None,
+                "redirect_url": None,
+                "error": None,
+                "date_checked": "2026-07-06T12:00:00Z",
+                "origin_paths": ["index"],
+            }
+        ],
+    )
+    responses.get(
+        f"{BASE_URL}/linkcheck/checks/{CHECK_ID}", json=payload, status=200
+    )
+
+    client = LinkCheckClient()
+    check = client.get_check(CHECK_ID)
+
+    assert check.urls[0].date_checked == CHECKED_AT
+
+
 def test_blocked_status_parses(
     responses: RequestsMock, monkeypatch: Any
 ) -> None:
@@ -424,7 +456,7 @@ def test_blocked_status_parses(
                 "redirect_status_code": None,
                 "redirect_url": None,
                 "error": "403 Forbidden",
-                "checked_at": "2026-07-06T12:00:00Z",
+                "date_checked": "2026-07-06T12:00:00Z",
                 "origin_paths": ["index"],
             }
         ],
@@ -491,7 +523,7 @@ def test_contribute_results(responses: RequestsMock, monkeypatch: Any) -> None:
                 "redirect_status_code": None,
                 "redirect_url": None,
                 "error": None,
-                "checked_at": "2026-07-06T12:00:00Z",
+                "date_checked": "2026-07-06T12:00:00Z",
             }
         ],
     }

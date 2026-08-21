@@ -129,7 +129,7 @@ def _checked_url(url: str, status: str = "ok", **overrides: Any) -> dict:
         "redirect_status_code": None,
         "redirect_url": None,
         "error": None,
-        "checked_at": "2026-07-06T12:00:00Z",
+        "date_checked": "2026-07-06T12:00:00Z",
         "origin_paths": ["index"],
     }
     result.update(overrides)
@@ -171,7 +171,7 @@ def _mock_submit_check(
             **url,
             "status": "pending",
             "status_code": None,
-            "checked_at": None,
+            "date_checked": None,
         }
         for url in urls
     ]
@@ -792,7 +792,7 @@ def test_non_broken_statuses_pass_build(
             _checked_url(
                 "https://example.org/resource",
                 status="unsupported",
-                checked_at=None,
+                date_checked=None,
             ),
         ],
     )
@@ -867,7 +867,7 @@ def test_non_broken_statuses_pass_warningiserror(
             _checked_url(
                 "https://example.org/resource",
                 status="unsupported",
-                checked_at=None,
+                date_checked=None,
             ),
         ],
     )
@@ -1320,7 +1320,7 @@ def test_local_recheck_contributes_results(
     assert result["url"] == "https://example.com/page"
     assert result["status_code"] == 200
     assert result["error"] is None
-    assert result["checked_at"] is not None
+    assert result["date_checked"] is not None
 
     # What the service did with the batch is reported.
     assert "Contributed 1 link-check result" in app.status.getvalue()
@@ -1780,6 +1780,9 @@ def test_local_recheck_json_artifact_merged(
     assert verified["locally_rechecked"] is True
     # The pages the URL occurs on survive the merge.
     assert verified["pages"] == ["index"]
+    # The merged result reports when the build rechecked the URL, not the
+    # stale time the service's own blocked verdict came from.
+    assert verified["date_checked"] != "2026-07-06T12:00:00Z"
 
 
 @pytest.mark.skipif(
@@ -2085,7 +2088,7 @@ def test_poll_budget_exhaustion_degrades(
             "https://example.com/page",
             status="pending",
             status_code=None,
-            checked_at=None,
+            date_checked=None,
         )
     ]
     responses.post(
@@ -2288,7 +2291,7 @@ def test_poll_budget_exhaustion_strict_fails(
             "https://example.com/page",
             status="pending",
             status_code=None,
-            checked_at=None,
+            date_checked=None,
         )
     ]
     responses.post(
@@ -2470,6 +2473,9 @@ def test_json_artifact(
     assert redirected["redirect_status_code"] == 301
     assert redirected["redirect_url"] == "https://example.com/new-page"
     assert redirected["pages"] == ["index"]
+    # The check time keeps the ``date_``-prefixed spelling the artifact's
+    # own date_created/date_completed already use.
+    assert redirected["date_checked"] == "2026-07-06T12:00:00Z"
 
     broken = results["https://www.lsst.io/"]
     assert broken["status"] == "broken"

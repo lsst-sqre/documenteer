@@ -105,7 +105,7 @@ class LocalCheckResult(BaseModel):
         description="Description of the failure, or null if the URL resolved.",
     )
 
-    checked_at: datetime = Field(
+    date_checked: datetime = Field(
         description="Time the local check was performed."
     )
 
@@ -207,5 +207,5 @@ class LocalLinkChecker:
             redirect_status_code=redirect_status_code,
             redirect_url=redirect_url,
             error=error or None,
-            checked_at=datetime.now(tz=UTC),
+            date_checked=datetime.now(tz=UTC),
         )
