@@ -23,11 +23,14 @@ from sphinx.builders.linkcheck import (
 from sphinx.util import logging
 
 from ..conf._configsource import ConfigSource, detect_config_source
+from ..storage.githuboidc import GitHubOidcTokenFetcher
 from ..storage.linkcheckclient import (
     DEFAULT_BASE_URL,
     CheckedUrl,
     CheckRunStatus,
     CheckUrlStatus,
+    ContributedResult,
+    ContributionEnvironment,
     LinkCheck,
     LinkCheckClient,
     LinkCheckRequest,
@@ -40,7 +43,7 @@ from ..storage.locallinkchecker import LocalCheckResult, LocalLinkChecker
 from ..version import __version__
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
 
     from docutils import nodes
     from sphinx.application import Sphinx
@@ -419,14 +422,18 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         except LinkCheckServiceError as e:
             self._handle_service_error(e)
             return
-        locally_rechecked: set[str] = set()
+        local_results: dict[str, LocalCheckResult] = {}
         if self.config.documenteer_linkcheck_recheck_blocked:
-            check, locally_rechecked = self._recheck_blocked_urls(check)
-        self._report(check, locally_rechecked=locally_rechecked)
+            check, local_results = self._recheck_blocked_urls(check)
+            if local_results:
+                self._contribute_local_results(
+                    client, check.id, local_results.values()
+                )
+        self._report(check, locally_rechecked=set(local_results))
 
     def _recheck_blocked_urls(
         self, check: LinkCheck
-    ) -> tuple[LinkCheck, set[str]]:
+    ) -> tuple[LinkCheck, dict[str, LocalCheckResult]]:
         """Recheck the check's bot-blocked URLs from this build's own
         vantage point and fold what it observes into the results.
 
@@ -441,8 +448,8 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         Returns
         -------
         tuple
-            The check with the local observations merged in, and the set
-            of URLs that were rechecked.
+            The check with the local observations merged in, and the local
+            observations themselves, keyed by URL.
         """
         blocked = [
             result.url
@@ -450,7 +457,7 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             if result.status is CheckUrlStatus.blocked
         ]
         if not blocked:
-            return check, set()
+            return check, {}
 
         logger.info(
             "Rechecking bot-blocked URLs from this build's own vantage point"
@@ -463,9 +470,84 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             local.url: local for local in checker.check_urls(blocked)
         }
         merged = _merge_local_results(check, local_results)
-        rechecked = set(blocked)
-        self._log_recheck_outcome(merged, rechecked)
-        return merged, rechecked
+        self._log_recheck_outcome(merged, set(blocked))
+        return merged, local_results
+
+    def _contribute_local_results(
+        self,
+        client: LinkCheckClient,
+        check_id: str,
+        local_results: Iterable[LocalCheckResult],
+    ) -> None:
+        """Hand the build's own observations back to the link-check service.
+
+        What this build learned about a URL Ook could only report as
+        blocked is worth more than this one report: contributed back, it
+        improves the service's stored state for every project that
+        references the same URL. Successes and failures alike are sent —
+        the service treats a contributed observation exactly as it treats
+        one of its own checks.
+
+        The contribution is attested by a GitHub Actions OIDC id token
+        minted for the service's own base URL, so the service records the
+        workflow run's verified claims as the provenance. That token only
+        exists inside a workflow job holding the ``id-token: write``
+        permission; anywhere else the contribution is simply skipped, and
+        the recheck still informs this build's own report.
+
+        Nothing here can fail the build. A contribution is an improvement
+        to somebody else's future build, so every way it can go wrong —
+        no token to attest with, a service that will not take the batch,
+        an entry the service declines — is reported and left at that.
+        """
+        token = GitHubOidcTokenFetcher().fetch_id_token(client.oidc_audience)
+        if token.token is None:
+            logger.info(
+                "Not contributing the local recheck's results to the "
+                "link-check service: %s",
+                token.unavailable_reason,
+            )
+            return
+        results = [
+            ContributedResult.model_validate(local, from_attributes=True)
+            for local in local_results
+        ]
+        try:
+            report = client.contribute_results(
+                check_id,
+                results,
+                id_token=token.token,
+                environment=ContributionEnvironment.from_github_actions(),
+            )
+        except LinkCheckServiceError as e:
+            logger.warning(
+                "Could not contribute the local recheck's results to the "
+                "link-check service: %s The build is unaffected.",
+                e,
+            )
+            return
+        logger.info(
+            "Contributed %d link-check result%s to %s (%d accepted, "
+            "%d rejected)",
+            len(results),
+            "" if len(results) == 1 else "s",
+            report.provenance.repository,
+            len(report.accepted),
+            len(report.rejected),
+        )
+        for rejection in report.rejected:
+            # A rejection is the service declining one entry, not a
+            # problem with the documentation being built, so it is
+            # reported at info level like the other unactionable
+            # link-check outcomes. The reason renders as its wire value
+            # whether it is a known ContributionRejectionReason (a
+            # StrEnum) or a plain string the service has since added.
+            logger.info(
+                "Contribution rejected for %s (%s): %s",
+                rejection.url,
+                rejection.reason,
+                rejection.message,
+            )
 
     @staticmethod
     def _log_recheck_outcome(merged: LinkCheck, rechecked: set[str]) -> None:

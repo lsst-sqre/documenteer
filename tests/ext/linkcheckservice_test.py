@@ -6,6 +6,7 @@ import importlib.util
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import pytest
 import pytest_responses  # noqa: F401
@@ -14,6 +15,7 @@ from sphinx.builders.linkcheck import CheckExternalLinksBuilder
 from sphinx.testing.util import SphinxTestApp
 
 from documenteer.ext.linkcheckservice import resolve_default_branch_flag
+from documenteer.version import __version__
 
 # Whether the guide preset's dependencies are importable; the test root
 # builds the full user-guide stack (``from documenteer.conf.guide import *``).
@@ -30,6 +32,15 @@ OOK_BASE_URL = "https://roundtable.lsst.cloud/ook"
 # client (never parsed as a number).
 OOK_CHECK_ID = "a1b2-c3d4-e5f6-g7h8"
 
+# Where a build contributes its local observations for that check.
+CONTRIBUTIONS_URL = (
+    f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}/contributions"
+)
+
+# The GitHub Actions id-token endpoint, registered with ``responses``
+# without a query string so it matches whatever query the fetcher adds.
+OIDC_TOKEN_ENDPOINT = "https://token.actions.githubusercontent.com/req"
+
 # The external http(s) URLs the shared ``linkcheck-service`` test root
 # references that Sphinx's built-in checker actually requests (the guide
 # preset's linkcheck_ignore drops https://ls.st/, so it is never fetched).
@@ -38,6 +49,20 @@ TESTROOT_EXTERNAL_URLS = [
     "https://www.lsst.io/",
     "https://example.org/resource",
 ]
+
+
+@pytest.fixture(autouse=True)
+def _outside_actions_oidc(monkeypatch: Any) -> None:
+    """Keep every build in this module out of a workflow job that can mint
+    an OIDC id token unless the test opts back in.
+
+    These two variables exist in the ambient environment whenever the suite
+    itself runs in a GitHub Actions job holding ``id-token: write``, which
+    would silently turn every recheck test into a contributing one. Clearing
+    them by default makes contribution something a test asks for.
+    """
+    monkeypatch.delenv("ACTIONS_ID_TOKEN_REQUEST_URL", raising=False)
+    monkeypatch.delenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", raising=False)
 
 
 def _warning_message(app: SphinxTestApp, needle: str) -> str:
@@ -177,6 +202,58 @@ def _mock_local_recheck(
     responses.head(url, status=status)
     if status >= 400:
         responses.get(url, status=status)
+
+
+def _set_actions_oidc_env(monkeypatch: Any) -> None:
+    """Put the build in a GitHub Actions job that can mint an id token.
+
+    These are the variables GitHub exports to a workflow job that requests
+    the ``id-token: write`` permission, plus the run identity the advisory
+    environment block is composed from.
+    """
+    monkeypatch.setenv(
+        "ACTIONS_ID_TOKEN_REQUEST_URL",
+        f"{OIDC_TOKEN_ENDPOINT}?api-version=2.0",
+    )
+    monkeypatch.setenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "request-token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "lsst-sqre/documenteer")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_RUN_ID", "42")
+
+
+def _mock_oidc_token(responses: RequestsMock, token: str = "a.b.c") -> None:
+    """Register the Actions id-token endpoint's response."""
+    responses.get(OIDC_TOKEN_ENDPOINT, json={"value": token}, status=200)
+
+
+def _contribution_report(
+    *,
+    accepted: list[dict[str, Any]] | None = None,
+    rejected: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Create a contribution report payload matching the Ook API.
+
+    The provenance block is the service's own record of the verified id
+    token's claims, so it is fixed here rather than derived from what the
+    client sent.
+    """
+    return {
+        "check_id": OOK_CHECK_ID,
+        "provenance": {
+            "provider": "github_actions",
+            "repository": "lsst-sqre/documenteer",
+            "run_id": "42",
+            "workflow_ref": (
+                "lsst-sqre/documenteer/.github/workflows/ci.yaml@refs/heads/main"
+            ),
+            "run_url": (
+                "https://github.com/lsst-sqre/documenteer/actions/runs/42"
+            ),
+            "checker_version": f"documenteer {__version__}",
+        },
+        "accepted": accepted if accepted is not None else [],
+        "rejected": rejected if rejected is not None else [],
+    }
 
 
 def _mock_submit_check_completed(
@@ -1099,6 +1176,340 @@ def test_local_recheck_only_visits_blocked_urls(
     # The redirected URL is untouched by the recheck.
     assert "redirected: 1" in status_output
     assert "redirects to https://example.org/moved" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute",
+)
+def test_local_recheck_contributes_results(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """In a GitHub Actions job that can mint an id token, the local
+    observations are contributed back to the service in exactly one POST,
+    attested by an OIDC token minted for the service's own base URL and
+    described by the run's advisory environment block.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+    _mock_oidc_token(responses)
+    responses.post(
+        CONTRIBUTIONS_URL,
+        json=_contribution_report(
+            accepted=[{"url": "https://example.com/page", "status": "ok"}]
+        ),
+        status=200,
+    )
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    # Ook's submit and poll, the local recheck, the id token, then exactly
+    # one contribution POST. The token is minted for the service's own
+    # base URL, which is what scopes it to this one deployment.
+    audience = quote(OOK_BASE_URL, safe="")
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+        "https://example.com/page",
+        f"{OIDC_TOKEN_ENDPOINT}?api-version=2.0&audience={audience}",
+        CONTRIBUTIONS_URL,
+    ]
+
+    contribution = responses.calls[-1].request
+    # The ingress is Gafaelfawr-protected, so the existing bearer token
+    # rides along with the id token in the body.
+    assert contribution.headers["Authorization"] == "Bearer test-token"
+    assert contribution.body is not None
+    payload = json.loads(contribution.body)
+    assert payload["id_token"] == "a.b.c"
+    assert payload["environment"] == {
+        "provider": "github_actions",
+        "repository": "lsst-sqre/documenteer",
+        "run_url": "https://github.com/lsst-sqre/documenteer/actions/runs/42",
+        "checker_version": f"documenteer {__version__}",
+    }
+    # The batch carries the build's own observation of the blocked URL,
+    # and only that URL.
+    assert len(payload["results"]) == 1
+    result = payload["results"][0]
+    assert result["url"] == "https://example.com/page"
+    assert result["status_code"] == 200
+    assert result["error"] is None
+    assert result["checked_at"] is not None
+
+    # What the service did with the batch is reported.
+    assert "Contributed 1 link-check result" in app.status.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-rejected",
+)
+def test_contribution_rejections_reported(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Every local observation is contributed — the URL the build resolved
+    and the one it was blocked from alike — and an entry the service
+    declines is reported per URL with its reason, leaving the build's own
+    result untouched.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url(
+                "https://example.org/resource",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+    _mock_local_recheck(responses, "https://example.org/resource", status=403)
+    _mock_oidc_token(responses)
+    responses.post(
+        CONTRIBUTIONS_URL,
+        json=_contribution_report(
+            accepted=[{"url": "https://example.com/page", "status": "ok"}],
+            rejected=[
+                {
+                    "url": "https://example.org/resource",
+                    "reason": "not_blocked",
+                    "message": "Ook resolved this URL itself.",
+                }
+            ],
+        ),
+        status=200,
+    )
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    contribution = responses.calls[-1].request
+    assert contribution.body is not None
+    contributed = {
+        result["url"]: result
+        for result in json.loads(contribution.body)["results"]
+    }
+    # The batch carries what the build observed for both blocked URLs: the
+    # service treats a contributed failure exactly as it treats one of its
+    # own checks, so a still-blocked URL is worth sending too.
+    assert set(contributed) == {
+        "https://example.com/page",
+        "https://example.org/resource",
+    }
+    assert contributed["https://example.com/page"]["status_code"] == 200
+    assert contributed["https://example.org/resource"]["status_code"] == 403
+    assert contributed["https://example.org/resource"]["error"] is not None
+
+    status_output = app.status.getvalue()
+    assert (
+        "Contributed 2 link-check results to lsst-sqre/documenteer "
+        "(1 accepted, 1 rejected)" in status_output
+    )
+    # The declined entry is named, with the reason and the service's
+    # explanation.
+    assert (
+        "Contribution rejected for https://example.org/resource "
+        "(not_blocked): Ook resolved this URL itself." in status_output
+    )
+
+    # A rejection is the service declining an improvement, not a problem
+    # with the documentation: it is never a warning, and the build's own
+    # merged report is unaffected.
+    assert "Contribution rejected" not in app.warning.getvalue()
+    assert "ok: 2" in status_output
+    assert "blocked: 1" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-no-oidc",
+)
+def test_contribution_skipped_without_oidc(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Outside a workflow job that can mint an id token — a laptop build,
+    or a workflow that never asked for ``id-token: write`` — there is
+    nothing to attest a contribution with, so it is skipped with an info
+    note naming the permission. The recheck still informs this build's own
+    report, and nothing about the skip touches the build's result.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # The autouse fixture leaves the Actions id-token variables unset.
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+
+    app.build()
+
+    # A contribution that was never possible costs the build nothing.
+    assert app.statuscode == 0
+
+    # Ook's submit and poll and the local recheck: no token request, no
+    # contribution POST.
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+        "https://example.com/page",
+    ]
+
+    # The skip is announced at info level, naming the permission that
+    # would supply the token — the one thing an operator can act on.
+    message = _status_message(app, "Not contributing")
+    assert "id-token: write" in message
+    assert "Not contributing" not in app.warning.getvalue()
+
+    # The recheck still informed the report: the blocked URL is verified.
+    status_output = app.status.getvalue()
+    assert "Local recheck: 1 verified, 0 still blocked, 0 failing" in (
+        status_output
+    )
+    assert "blocked: 0" in status_output
+    assert "ok: 2" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-failed",
+)
+def test_contribution_failure_warns_without_failing_build(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A service that keeps answering 502 outlasts the retry ladder. The
+    contribution is given up on with a warning, and the build — whose own
+    report the recheck already informed — is unaffected.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    # The retry ladder's backoff is real time this test has no use for.
+    monkeypatch.setattr(
+        "documenteer.storage.linkcheckclient.time.sleep", lambda _: None
+    )
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+    _mock_oidc_token(responses)
+    # The 502 the service documents as retryable: it could not fetch
+    # GitHub's signing keys to verify the id token.
+    responses.post(CONTRIBUTIONS_URL, json={"detail": "JWKS"}, status=502)
+
+    app.build()
+
+    # A contribution that could not be delivered never fails the build.
+    assert app.statuscode == 0
+
+    # The original attempt plus three retries.
+    contribution_calls = [
+        call
+        for call in responses.calls
+        if call.request.url == CONTRIBUTIONS_URL
+    ]
+    assert len(contribution_calls) == 4
+
+    message = _warning_message(app, "Could not contribute")
+    assert "4 attempts" in message
+    assert "The build is unaffected." in message
+
+    # The local recheck's verdict still stands in this build's report.
+    status_output = app.status.getvalue()
+    assert "blocked: 0" in status_output
+    assert "ok: 2" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-nothing",
+)
+def test_no_blocked_urls_contributes_nothing(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A check with no blocked URLs has nothing to recheck and so nothing
+    to contribute: even in a workflow job that could mint one, no id token
+    is requested. Most builds take this path, so it must stay free.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(url)
+            for url in ("https://example.com/page", "https://www.lsst.io/")
+        ],
+    )
+
+    app.build()
+
+    assert app.statuscode == 0
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+    ]
 
 
 @pytest.mark.skipif(
