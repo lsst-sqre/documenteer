@@ -32,9 +32,11 @@ from ..storage.linkcheckclient import (
     LinkCheckClient,
     LinkCheckRequest,
     LinkCheckServiceError,
+    LinkCheckSummary,
     LinkCheckUnauthorizedError,
     SubmittedUrl,
 )
+from ..storage.locallinkchecker import LocalCheckResult, LocalLinkChecker
 from ..version import __version__
 
 if TYPE_CHECKING:
@@ -112,6 +114,25 @@ _USE_SERVICE_SETTING = {
 """How the link-check service is switched off in favor of Sphinx's
 built-in builder, per kind of project."""
 
+_BOT_BLOCK_STATUS_CODES = frozenset({403, 429})
+"""HTTP status codes that read as bot protection rather than a broken
+link.
+
+Cloudflare's edge answers a blocked client with a 403 (and a 429 when it
+is rate-limiting instead), which is exactly the signal that made Ook
+report the URL ``blocked`` in the first place. A local recheck that lands
+on one of these has confirmed the block, not a broken link.
+"""
+
+_PERMANENT_REDIRECT_STATUS_CODES = frozenset({301, 308})
+"""Redirect status codes that make a working URL ``redirected`` rather
+than plain ``ok``, matching Ook's definition of that status (a URL that
+works via a *permanent* redirect)."""
+
+_DEFAULT_LOCAL_RECHECK_TIMEOUT = 30.0
+"""Per-request timeout for the local recheck, in seconds, used when the
+project does not set ``linkcheck_timeout``."""
+
 
 def resolve_default_branch_flag(
     env: Mapping[str, str], default_branch: str
@@ -172,6 +193,83 @@ def _is_checkable_uri(uri: str) -> bool:
     if len(uri) == 0 or uri.startswith(("#", "mailto:", "tel:")):
         return False
     return uri.startswith(("http:", "https:"))
+
+
+def _local_verdict(local: LocalCheckResult) -> CheckUrlStatus:
+    """Translate a local observation into the status it warrants for a
+    URL Ook could only report as ``blocked``.
+
+    Returns
+    -------
+    CheckUrlStatus
+        ``ok`` (or ``redirected``, when the URL works only through a
+        permanent redirect) when the build's own vantage point resolved
+        the URL; ``blocked`` when the build was blocked too; ``broken``
+        when the build got a definite failure the service could not see.
+    """
+    if local.is_ok:
+        if local.redirect_status_code in _PERMANENT_REDIRECT_STATUS_CODES:
+            return CheckUrlStatus.redirected
+        return CheckUrlStatus.ok
+    if local.status_code in _BOT_BLOCK_STATUS_CODES:
+        return CheckUrlStatus.blocked
+    return CheckUrlStatus.broken
+
+
+def _merge_local_result(
+    result: CheckedUrl, local: LocalCheckResult
+) -> CheckedUrl:
+    """Fold one local observation into the service's result for that URL.
+
+    A local observation only overwrites the service's evidence when it
+    changes the verdict. A URL that is blocked from the build's vantage
+    point too is left exactly as the service reported it — nothing was
+    learned, so nothing is rewritten — while a URL the build resolved or
+    definitively failed is restated with the local evidence.
+    """
+    status = _local_verdict(local)
+    if status is CheckUrlStatus.blocked:
+        return result
+    return result.model_copy(
+        update={
+            "status": status,
+            "status_code": local.status_code,
+            "redirect_status_code": local.redirect_status_code,
+            "redirect_url": local.redirect_url,
+            "error": local.error,
+            "checked_at": local.checked_at,
+        }
+    )
+
+
+def _merge_local_results(
+    check: LinkCheck, local_results: Mapping[str, LocalCheckResult]
+) -> LinkCheck:
+    """Rebuild a completed check with local observations folded in.
+
+    The summary is adjusted rather than recomputed: each URL whose verdict
+    the recheck changed moves from the ``blocked`` count into its new
+    status's count, leaving the service's own counts for every other URL
+    untouched.
+    """
+    counts = check.summary.model_dump()
+    urls: list[CheckedUrl] = []
+    for result in check.urls:
+        local = local_results.get(result.url)
+        if local is None:
+            urls.append(result)
+            continue
+        merged = _merge_local_result(result, local)
+        if merged.status is not result.status:
+            counts[result.status.value] -= 1
+            counts[merged.status.value] += 1
+        urls.append(merged)
+    return check.model_copy(
+        update={
+            "urls": urls,
+            "summary": LinkCheckSummary.model_validate(counts),
+        }
+    )
 
 
 class ReferencingPagesCollector(HyperlinkCollector):
@@ -321,7 +419,68 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         except LinkCheckServiceError as e:
             self._handle_service_error(e)
             return
-        self._report(check)
+        locally_rechecked: set[str] = set()
+        if self.config.documenteer_linkcheck_recheck_blocked:
+            check, locally_rechecked = self._recheck_blocked_urls(check)
+        self._report(check, locally_rechecked=locally_rechecked)
+
+    def _recheck_blocked_urls(
+        self, check: LinkCheck
+    ) -> tuple[LinkCheck, set[str]]:
+        """Recheck the check's bot-blocked URLs from this build's own
+        vantage point and fold what it observes into the results.
+
+        Ook reports a URL ``blocked`` when its egress trips a site's bot
+        protection. A documentation build usually runs somewhere else
+        entirely — a GitHub Actions runner the same site is happy to serve
+        — so the build can often settle a verdict the service could not.
+        Only the blocked URLs are rechecked, and they are checked one at a
+        time with a politeness delay, so this stays a handful of requests
+        rather than a second link check.
+
+        Returns
+        -------
+        tuple
+            The check with the local observations merged in, and the set
+            of URLs that were rechecked.
+        """
+        blocked = [
+            result.url
+            for result in check.urls
+            if result.status is CheckUrlStatus.blocked
+        ]
+        if not blocked:
+            return check, set()
+
+        logger.info(
+            "Rechecking bot-blocked URLs from this build's own vantage point"
+        )
+        checker = LocalLinkChecker(
+            timeout=self.config.linkcheck_timeout
+            or _DEFAULT_LOCAL_RECHECK_TIMEOUT
+        )
+        local_results = {
+            local.url: local for local in checker.check_urls(blocked)
+        }
+        merged = _merge_local_results(check, local_results)
+        rechecked = set(blocked)
+        self._log_recheck_outcome(merged, rechecked)
+        return merged, rechecked
+
+    @staticmethod
+    def _log_recheck_outcome(merged: LinkCheck, rechecked: set[str]) -> None:
+        """Report what the local recheck settled, in one line."""
+        statuses = [
+            result.status for result in merged.urls if result.url in rechecked
+        ]
+        still_blocked = statuses.count(CheckUrlStatus.blocked)
+        broken = statuses.count(CheckUrlStatus.broken)
+        logger.info(
+            "Local recheck: %d verified, %d still blocked, %d failing",
+            len(statuses) - still_blocked - broken,
+            still_blocked,
+            broken,
+        )
 
     def _fall_back_to_builtin(self, error: LinkCheckUnauthorizedError) -> None:
         """Fall back to Sphinx's built-in in-process link checker when the
@@ -428,7 +587,9 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             urls.append(SubmittedUrl(url=uri, origin_paths=sorted(docnames)))
         return urls
 
-    def _report(self, check: LinkCheck) -> None:
+    def _report(
+        self, check: LinkCheck, *, locally_rechecked: set[str]
+    ) -> None:
         """Report the completed link check and set the exit status.
 
         Prints the summary counts by status and a detail line for every
@@ -438,8 +599,14 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         info level so a warnings-as-errors (``-W``) build does not fail on
         them. ``blocked`` links (bot protection) are unverifiable from CI's
         vantage point, not broken, so they never fail the build.
+
+        ``locally_rechecked`` names the URLs the local recheck visited, so
+        a URL that is still blocked from the build's own vantage point can
+        say so.
         """
-        artifact_path = self._write_json_artifact(check)
+        artifact_path = self._write_json_artifact(
+            check, locally_rechecked=locally_rechecked
+        )
 
         logger.info("")
         logger.info("Link check complete: %s", check.self_url)
@@ -455,7 +622,9 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         for result in check.urls:
             if result.status in (CheckUrlStatus.ok, CheckUrlStatus.pending):
                 continue
-            message = self._describe_result(result)
+            message = self._describe_result(
+                result, locally_rechecked=result.url in locally_rechecked
+            )
             # Only ``broken`` links fail the build (via the statuscode set
             # below), so they are reported as warnings. ``redirected``,
             # ``failing``, ``unsupported``, and ``blocked`` links are
@@ -480,18 +649,26 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         sphinx_app = getattr(self, "_app", None) or self.app
         sphinx_app.statuscode = 1
 
-    def _write_json_artifact(self, check: LinkCheck) -> Path:
+    def _write_json_artifact(
+        self, check: LinkCheck, *, locally_rechecked: set[str]
+    ) -> Path:
         """Write the machine-readable results artifact to the build
         output directory.
 
         The artifact holds the full check from the service, with each
         per-URL result annotated with the pages the URL occurs on. Those
         pages come straight from the service's ``origin_paths``, surfaced
-        under the artifact's stable ``pages`` key.
+        under the artifact's stable ``pages`` key. Each result also
+        carries a ``locally_rechecked`` flag, so a consumer can tell a
+        verdict the build itself settled from one the service reached
+        alone.
         """
         data = check.model_dump(mode="json")
         for url_data in data["urls"]:
             url_data["pages"] = url_data.pop("origin_paths")
+            url_data["locally_rechecked"] = (
+                url_data["url"] in locally_rechecked
+            )
         artifact_path = Path(self.outdir) / JSON_ARTIFACT_NAME
         artifact_path.write_text(
             json.dumps(data, indent=2) + "\n", encoding="utf-8"
@@ -499,11 +676,15 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         return artifact_path
 
     @staticmethod
-    def _describe_result(result: CheckedUrl) -> str:
+    def _describe_result(
+        result: CheckedUrl, *, locally_rechecked: bool = False
+    ) -> str:
         """Format the detail report line for one checked URL.
 
         The pages the URL occurs on come from the service's per-URL
-        ``origin_paths``.
+        ``origin_paths``. ``locally_rechecked`` marks a URL the build
+        rechecked itself, which sharpens the bot-protection caveat from a
+        single vantage point's guess into a confirmed block.
         """
         page_list = ", ".join(result.origin_paths) or "unknown"
         parts = [f"{result.status.value}: {result.url} (page: {page_list})"]
@@ -521,7 +702,10 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             # protection (typically a Cloudflare 403). That is
             # unverifiable from CI's vantage point rather than genuinely
             # broken, so the detail line says as much.
-            parts.append("likely bot protection; unverifiable from CI")
+            caveat = "likely bot protection; unverifiable from CI"
+            if locally_rechecked:
+                caveat += " or from this build"
+            parts.append(caveat)
         return " - ".join(parts)
 
 
@@ -573,6 +757,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     )
     app.add_config_value("documenteer_linkcheck_poll_budget", 300, "")
     app.add_config_value("documenteer_linkcheck_strict", False, "")
+    app.add_config_value("documenteer_linkcheck_recheck_blocked", True, "")
     app.add_config_value("documenteer_linkcheck_origin_base_url", None, "")
     app.add_config_value(
         "documenteer_linkcheck_default_branch_name", "main", ""

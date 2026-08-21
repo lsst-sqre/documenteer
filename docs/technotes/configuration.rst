@@ -83,6 +83,13 @@ Set any of them after the ``from documenteer.conf.technote import *`` line:
    Default is ``300``.
    If the budget is exhausted before the service completes the check, the build emits a warning and continues — or fails, if ``documenteer_linkcheck_strict`` is ``True``.
 
+``documenteer_linkcheck_recheck_blocked``
+   Whether URLs the service reports as blocked by bot protection are rechecked from the build's own vantage point, with what the build observes merged into that build's report.
+   Default is ``True``.
+   Set it to ``False`` to skip the recheck and report the service's verdict as-is.
+
+   See :ref:`recheck_blocked <guide-sphinx-linkcheck-recheck-blocked>` for what the recheck does and how each outcome is reported.
+
 For example, to make service problems fail the technote's build:
 
 .. code-block:: python

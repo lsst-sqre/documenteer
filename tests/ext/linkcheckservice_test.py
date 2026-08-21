@@ -164,6 +164,21 @@ def _mock_submit_check(
     )
 
 
+def _mock_local_recheck(
+    responses: RequestsMock, url: str, *, status: int
+) -> None:
+    """Register the local recheck's requests for one URL.
+
+    The local checker mirrors Sphinx's HEAD-then-GET retrieval ladder, so
+    a failing status is requested twice — once per rung — while a
+    successful HEAD ends the ladder. Registering exactly what will be
+    requested keeps ``assert_all_requests_are_fired`` happy.
+    """
+    responses.head(url, status=status)
+    if status >= 400:
+        responses.get(url, status=status)
+
+
 def _mock_submit_check_completed(
     responses: RequestsMock, urls: list[dict], *, check_id: str = OOK_CHECK_ID
 ) -> None:
@@ -784,13 +799,19 @@ def test_non_broken_statuses_pass_warningiserror(
     "linkcheck",
     testroot="linkcheck-service",
     srcdir="linkcheck-service-blocked",
+    confoverrides={"documenteer_linkcheck_recheck_blocked": False},
 )
 def test_blocked_links_reported_as_caveat(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """A bot-blocked link (Ook's ``blocked`` disposition) is a caveat, not
-    a failure: it is reported at info level, labeled as likely bot
-    protection, counted in the summary, and never fails the build.
+    """With the local recheck disabled, a bot-blocked link (Ook's
+    ``blocked`` disposition) is a caveat, not a failure: it is reported at
+    info level, labeled as likely bot protection, counted in the summary,
+    and never fails the build.
+
+    This is the report exactly as it read before the local recheck
+    existed, so it doubles as the check that
+    ``recheck_blocked = false`` leaves the old behavior intact.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _mock_submit_check(
@@ -810,6 +831,13 @@ def test_blocked_links_reported_as_caveat(
 
     # Blocked links are unverifiable from CI, not broken: the build exits 0.
     assert app.statuscode == 0
+
+    # No local recheck was attempted: the only traffic is Ook's submit and
+    # poll.
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+    ]
 
     status_output = app.status.getvalue()
     # The summary counts the blocked link alongside the other statuses.
@@ -834,18 +862,14 @@ def test_blocked_links_reported_as_caveat(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
-    srcdir="linkcheck-service-warningiserror-blocked",
-    warningiserror=True,
-    # The test root is not a Git repository, so sphinx-last-updated-by-git
-    # warns; suppress it to isolate link-check reporting under -W.
-    confoverrides={"suppress_warnings": ["git"]},
+    srcdir="linkcheck-service-recheck-verified",
 )
-def test_blocked_passes_warningiserror(
+def test_local_recheck_verifies_blocked_url(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """With warnings-as-errors (Sphinx's ``-W``), a check that reports a
-    blocked link (no broken) still exits 0, because blocked is reported at
-    info level rather than as a warning.
+    """A URL Ook reports as bot-blocked but that resolves from the build's
+    own vantage point is reported verified-OK, and its bot-block caveat
+    clears.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _mock_submit_check(
@@ -860,6 +884,257 @@ def test_blocked_passes_warningiserror(
             _checked_url("https://www.lsst.io/"),
         ],
     )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    status_output = app.status.getvalue()
+    # The local observation replaces Ook's: the URL now counts as ok.
+    assert "blocked: 0" in status_output
+    assert "ok: 2" in status_output
+
+    # An ok URL has no detail line at all, so the caveat is gone.
+    assert "likely bot protection" not in status_output
+    assert "https://example.com/page (page: index)" not in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-redirected",
+)
+def test_local_recheck_reports_permanent_redirect(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A bot-blocked URL the build resolves only through a *permanent*
+    redirect is reported ``redirected``, not plain ok: the caveat clears
+    but the stale link still asks to be fixed.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    responses.head(
+        "https://example.com/page",
+        status=301,
+        headers={"Location": "https://example.com/moved"},
+    )
+    responses.head("https://example.com/moved", status=200)
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    status_output = app.status.getvalue()
+    assert "blocked: 0" in status_output
+    assert "redirected: 1" in status_output
+    assert (
+        "redirected: https://example.com/page (page: index) - HTTP 200 - "
+        "redirects to https://example.com/moved (HTTP 301)" in status_output
+    )
+    assert "likely bot protection" not in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-blocked",
+)
+def test_local_recheck_keeps_caveat_when_still_blocked(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A URL that is bot-blocked from the build's vantage point too keeps
+    its caveat, its ``blocked`` status, and the service's own evidence:
+    the recheck settled nothing, so nothing is restated.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=403)
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    status_output = app.status.getvalue()
+    assert "blocked: 1" in status_output
+    assert "403 Forbidden" in status_output
+    # The caveat now records that the build's own vantage point was
+    # blocked as well.
+    assert (
+        "likely bot protection; unverifiable from CI or from this build"
+        in status_output
+    )
+    assert "blocked:" not in app.warning.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-broken",
+)
+def test_local_recheck_confirms_failure(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A bot-blocked URL that definitively fails from the build's vantage
+    point is reported broken, with the build's own evidence rather than
+    the service's.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=404)
+
+    app.build()
+
+    # A confirmed failure is a broken link, so it fails the build.
+    assert app.statuscode == 1
+
+    status_output = app.status.getvalue()
+    assert "blocked: 0" in status_output
+    assert "broken: 1" in status_output
+
+    # The evidence is the build's own observation, not the service's.
+    message = _warning_message(app, "broken: https://example.com/page")
+    assert "HTTP 404" in message
+    assert "404 Client Error" in message
+    assert "403 Forbidden" not in message
+    assert "likely bot protection" not in message
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-scope",
+)
+def test_local_recheck_only_visits_blocked_urls(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Only the bot-blocked URLs are rechecked. Every other URL — ok,
+    redirected, or otherwise — keeps the service's verdict and is never
+    requested from the build.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+            _checked_url(
+                "https://example.org/resource",
+                status="redirected",
+                status_code=200,
+                redirect_status_code=301,
+                redirect_url="https://example.org/moved",
+            ),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+
+    app.build()
+
+    # Ook's submit and poll, then exactly one local request.
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+        "https://example.com/page",
+    ]
+
+    status_output = app.status.getvalue()
+    assert (
+        "Rechecking bot-blocked URLs from this build's own vantage point"
+        in status_output
+    )
+    assert "Local recheck: 1 verified, 0 still blocked, 0 failing" in (
+        status_output
+    )
+    # The redirected URL is untouched by the recheck.
+    assert "redirected: 1" in status_output
+    assert "redirects to https://example.org/moved" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-warningiserror-blocked",
+    warningiserror=True,
+    # The test root is not a Git repository, so sphinx-last-updated-by-git
+    # warns; suppress it to isolate link-check reporting under -W.
+    confoverrides={"suppress_warnings": ["git"]},
+)
+def test_blocked_passes_warningiserror(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """With warnings-as-errors (Sphinx's ``-W``), a check that reports a
+    blocked link (no broken) still exits 0, because blocked is reported at
+    info level rather than as a warning — including the local recheck that
+    finds the URL blocked from the build's vantage point too.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=403)
 
     # Under warningiserror, any logger.warning would raise SphinxWarning;
     # info-level reporting keeps the build green.
@@ -882,7 +1157,8 @@ def test_blocked_link_json_artifact(
 ) -> None:
     """The JSON artifact records the blocked disposition: the summary
     carries a ``blocked`` count and the per-URL result keeps its
-    ``blocked`` status and diagnostic detail.
+    ``blocked`` status and diagnostic detail, flagged as one the build
+    rechecked for itself.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _mock_submit_check(
@@ -897,6 +1173,7 @@ def test_blocked_link_json_artifact(
             _checked_url("https://www.lsst.io/"),
         ],
     )
+    _mock_local_recheck(responses, "https://example.com/page", status=403)
 
     app.build()
 
@@ -909,6 +1186,63 @@ def test_blocked_link_json_artifact(
     assert blocked["status_code"] == 403
     assert blocked["error"] == "403 Forbidden"
     assert blocked["pages"] == ["index"]
+    assert blocked["locally_rechecked"] is True
+
+    # A URL the service settled on its own is not flagged as rechecked.
+    assert results["https://www.lsst.io/"]["locally_rechecked"] is False
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-artifact",
+)
+def test_local_recheck_json_artifact_merged(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The JSON artifact carries the merged view: a locally verified URL
+    is recorded ok, with the build's own evidence and the redirect it
+    resolved through, and the summary counts move with it.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    responses.head(
+        "https://example.com/page",
+        status=302,
+        headers={"Location": "https://example.com/moved"},
+    )
+    responses.head("https://example.com/moved", status=200)
+
+    app.build()
+
+    data = json.loads((Path(app.outdir) / "linkcheck.json").read_text())
+    assert data["summary"]["blocked"] == 0
+    assert data["summary"]["ok"] == 2
+
+    results = {url["url"]: url for url in data["urls"]}
+    verified = results["https://example.com/page"]
+    assert verified["status"] == "ok"
+    assert verified["status_code"] == 200
+    assert verified["error"] is None
+    assert verified["redirect_status_code"] == 302
+    assert verified["redirect_url"] == "https://example.com/moved"
+    assert verified["locally_rechecked"] is True
+    # The pages the URL occurs on survive the merge.
+    assert verified["pages"] == ["index"]
 
 
 @pytest.mark.skipif(

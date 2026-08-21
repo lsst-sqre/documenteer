@@ -765,6 +765,38 @@ This setting only gates genuine service *availability* problems.
 A missing or rejected ``OOK_TOKEN`` is not one of them: rather than failing, the builder falls back to Sphinx's built-in in-process linkcheck_ builder in every mode (including under ``strict``), so link checking still runs.
 Links the service reports as broken always fail the build, regardless of this setting.
 
+.. _guide-sphinx-linkcheck-recheck-blocked:
+
+recheck_blocked
+---------------
+
+|optional|
+
+Whether URLs the service reports as blocked by bot protection are rechecked from the build's own vantage point.
+Default is ``true``.
+
+Some sites sit behind a bot-protection edge (typically Cloudflare) that answers the service's requests with a ``403`` no matter how ordinary the request is.
+The service can't tell such a URL apart from one that's genuinely refusing everyone, so it reports the URL as ``blocked``: a caveat rather than a failure, never counted as broken.
+
+A documentation build usually runs somewhere else entirely — a GitHub Actions runner the same site is happy to serve — so the build can often settle what the service couldn't.
+Documenteer rechecks exactly those blocked URLs, and no others, from the machine running the build, sending the same request Sphinx's built-in linkcheck_ builder would send.
+The checks are sequential with a short delay between them, so a handful of rechecks never arrives at a site as a burst.
+
+What the build observes is merged into that same build's report:
+
+- A URL the build resolves is reported ``ok`` (or ``redirected``, if it works only through a permanent redirect), and its bot-protection caveat clears.
+- A URL the build definitively fails to reach is reported ``broken``, with the build's own evidence — which fails the build, as any broken link does.
+- A URL blocked from the build's vantage point too keeps its ``blocked`` status, its caveat, and the service's own evidence: the recheck settled nothing, so nothing is rewritten.
+
+The :file:`linkcheck.json` artifact reflects the merged view, and flags each result the build rechecked for itself with ``locally_rechecked``.
+
+Set this to ``false`` to skip the recheck and report the service's verdict as-is:
+
+.. code-block:: toml
+
+   [sphinx.linkcheck]
+   recheck_blocked = false
+
 .. _guide-sphinx-linkcheck-origin-base-url:
 
 origin_base_url
