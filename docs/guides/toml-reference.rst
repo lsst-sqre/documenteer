@@ -785,8 +785,9 @@ The checks are sequential with a short delay between them, so a handful of reche
 What the build observes is merged into that same build's report:
 
 - A URL the build resolves is reported ``ok`` (or ``redirected``, if it works only through a permanent redirect), and its bot-protection caveat clears.
-- A URL the build definitively fails to reach is reported ``broken``, with the build's own evidence — which fails the build, as any broken link does.
+- A URL that answers the build with a definite failure (a ``404``, say) is reported ``broken``, with the build's own evidence — which fails the build, as any broken link does.
 - A URL blocked from the build's vantage point too keeps its ``blocked`` status, its caveat, and the service's own evidence: the recheck settled nothing, so nothing is rewritten.
+- So does a URL that answers the build with nothing at all — a timeout, a connection reset, a DNS failure. Bot protection doesn't always answer with a status code, and a runner's network blip is not evidence about a link, so only a failure the server itself answered with is allowed to turn the service's caveat into a build failure.
 
 The :file:`linkcheck.json` artifact reflects the merged view, and flags each result the build rechecked for itself with ``locally_rechecked``.
 

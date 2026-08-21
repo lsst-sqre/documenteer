@@ -20,6 +20,7 @@ from documenteer.storage.linkcheckclient import (
     ContributionRejectionReason,
     LinkCheckClient,
     LinkCheckContributionError,
+    LinkCheckMalformedResponseError,
     LinkCheckRequest,
     LinkCheckTimeoutError,
     LinkCheckUnauthorizedError,
@@ -681,6 +682,66 @@ def test_contribute_results_unprocessable_is_not_retried(
         )
 
     assert len(responses.calls) == 1
+
+
+def test_contribute_results_unreadable_body(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A 200 whose body is not a contribution report surfaces as the
+    contribution's own error type rather than a `pydantic.ValidationError`.
+
+    Ook is deployed independently of Documenteer, so a successful response
+    can drift out of the shape a given release expects. The caller
+    downgrades a `LinkCheckContributionError` to a warning; an escaping
+    validation error would instead crash the documentation build over an
+    improvement it was only trying to send.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.post(CONTRIBUTIONS_URL, json={"unexpected": "shape"}, status=200)
+
+    client = LinkCheckClient()
+    with pytest.raises(LinkCheckContributionError, match="ContributionReport"):
+        client.contribute_results(
+            CHECK_ID,
+            make_results(),
+            id_token="a.b.c",
+            environment=make_environment(),
+        )
+
+    # A body this client cannot read reads no better on a resend, so it is
+    # surfaced on the first response instead of exhausting the ladder.
+    assert len(responses.calls) == 1
+
+
+def test_get_check_unreadable_body(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A check response that does not match the client's model raises a
+    typed service error, which the builder degrades like any other service
+    problem, rather than a `pydantic.ValidationError`.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.get(
+        f"{BASE_URL}/linkcheck/checks/{CHECK_ID}",
+        json={"id": CHECK_ID},
+        status=200,
+    )
+
+    client = LinkCheckClient()
+    with pytest.raises(LinkCheckMalformedResponseError, match="LinkCheck"):
+        client.get_check(CHECK_ID)
+
+
+def test_submit_check_unreadable_body(
+    responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The submission response is read through the same guard."""
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    responses.post(f"{BASE_URL}/linkcheck/checks", json=[], status=202)
+
+    client = LinkCheckClient()
+    with pytest.raises(LinkCheckMalformedResponseError):
+        client.submit_check(make_request())
 
 
 def test_base_url_override(responses: RequestsMock, monkeypatch: Any) -> None:

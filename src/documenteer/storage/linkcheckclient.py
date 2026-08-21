@@ -9,7 +9,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, NamedTuple, Self
 
 import requests
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from documenteer._requestsutils import requests_retry_session
 
@@ -36,6 +36,7 @@ __all__ = [
     "LinkCheckContributionError",
     "LinkCheckContributionRequest",
     "LinkCheckHttpError",
+    "LinkCheckMalformedResponseError",
     "LinkCheckRequest",
     "LinkCheckServiceError",
     "LinkCheckSummary",
@@ -106,6 +107,50 @@ class LinkCheckContributionError(LinkCheckServiceError):
     downgrades this to a warning and reports the check it already has,
     rather than failing a build over an improvement it could not send.
     """
+
+
+class LinkCheckMalformedResponseError(LinkCheckServiceError):
+    """The service answered successfully with a body this client could
+    not parse.
+
+    Ook is deployed independently of Documenteer, so a response can drift
+    out of the shape a given Documenteer release expects. That is a
+    service problem like any other — it belongs in this error hierarchy,
+    where the builder already degrades it to a warning — rather than a
+    `pydantic.ValidationError` escaping into a documentation build as an
+    unhandled traceback.
+    """
+
+
+def _parse_response[M: BaseModel](model: type[M], r: requests.Response) -> M:
+    """Validate a successful response's body into one of this client's
+    models.
+
+    Parameters
+    ----------
+    model
+        The model the body is expected to conform to.
+    r
+        The response whose body is being read.
+
+    Returns
+    -------
+    pydantic.BaseModel
+        The parsed model.
+
+    Raises
+    ------
+    LinkCheckMalformedResponseError
+        Raised if the body does not match ``model``.
+    """
+    try:
+        return model.model_validate_json(r.text)
+    except ValidationError as e:
+        raise LinkCheckMalformedResponseError(
+            f"The Ook link-check service at {r.url} answered HTTP "
+            f"{r.status_code} with a body this Documenteer release could "
+            f"not read as {model.__name__}: {e}"
+        ) from e
 
 
 class CheckRunStatus(StrEnum):
@@ -616,7 +661,7 @@ class LinkCheckClient:
         """
         url = f"{self._base_url}/linkcheck/checks"
         r = self._request("POST", url, json_payload=request.model_dump())
-        check = LinkCheck.model_validate_json(r.text)
+        check = _parse_response(LinkCheck, r)
         poll_url = r.headers.get("Location") or check.self_url
         return SubmittedCheck(check=check, poll_url=poll_url)
 
@@ -721,7 +766,9 @@ class LinkCheckClient:
         ------
         LinkCheckContributionError
             Raised if the contribution could not be delivered, including
-            when the retryable failures below outlast the retry ladder.
+            when the retryable failures below outlast the retry ladder,
+            and if the service answers with a body this client cannot
+            read as a `ContributionReport`.
 
         Notes
         -----
@@ -755,7 +802,16 @@ class LinkCheckClient:
                     ) from e
                 last_error = e
             else:
-                return ContributionReport.model_validate_json(r.text)
+                try:
+                    return _parse_response(ContributionReport, r)
+                except LinkCheckMalformedResponseError as e:
+                    # A body this client cannot read will read no better
+                    # on a resend, so it is surfaced immediately — as the
+                    # contribution's own error type, which is what the
+                    # caller downgrades to a warning.
+                    raise LinkCheckContributionError(
+                        f"Could not contribute link-check results: {e}"
+                    ) from e
             if attempt < attempts:
                 time.sleep(backoff)
                 backoff *= 2.0
@@ -767,7 +823,7 @@ class LinkCheckClient:
     def _get_check(self, url: str) -> LinkCheck:
         """Get a link check at its API URL."""
         r = self._request("GET", url)
-        return LinkCheck.model_validate_json(r.text)
+        return _parse_response(LinkCheck, r)
 
     def _request(
         self,

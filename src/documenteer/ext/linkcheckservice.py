@@ -202,19 +202,32 @@ def _local_verdict(local: LocalCheckResult) -> CheckUrlStatus:
     """Translate a local observation into the status it warrants for a
     URL Ook could only report as ``blocked``.
 
+    Only a failure the server itself answered with promotes a URL to
+    ``broken``. A failure that produced no response at all — a timeout, a
+    connection reset, a DNS failure — settled nothing: bot protection does
+    not always answer with a status code (an edge that dislikes a
+    datacenter IP may simply drop the connection, and a GitHub Actions
+    runner is a datacenter IP), and a transient network blip at the runner
+    would otherwise turn the service's non-failing caveat into a build
+    failure on evidence the build never actually obtained.
+
     Returns
     -------
     CheckUrlStatus
         ``ok`` (or ``redirected``, when the URL works only through a
         permanent redirect) when the build's own vantage point resolved
-        the URL; ``blocked`` when the build was blocked too; ``broken``
-        when the build got a definite failure the service could not see.
+        the URL; ``blocked`` when the build was blocked too, or got no
+        response at all; ``broken`` when the build got a definite HTTP
+        failure the service could not see.
     """
     if local.is_ok:
         if local.redirect_status_code in _PERMANENT_REDIRECT_STATUS_CODES:
             return CheckUrlStatus.redirected
         return CheckUrlStatus.ok
-    if local.status_code in _BOT_BLOCK_STATUS_CODES:
+    if (
+        local.status_code is None
+        or local.status_code in _BOT_BLOCK_STATUS_CODES
+    ):
         return CheckUrlStatus.blocked
     return CheckUrlStatus.broken
 
@@ -225,10 +238,11 @@ def _merge_local_result(
     """Fold one local observation into the service's result for that URL.
 
     A local observation only overwrites the service's evidence when it
-    changes the verdict. A URL that is blocked from the build's vantage
-    point too is left exactly as the service reported it — nothing was
-    learned, so nothing is rewritten — while a URL the build resolved or
-    definitively failed is restated with the local evidence.
+    changes the verdict. A URL the recheck settled nothing about — blocked
+    from the build's vantage point too, or unanswered altogether — is left
+    exactly as the service reported it, while a URL the build resolved or
+    definitively failed is restated with the local evidence. See
+    `_local_verdict` for which observations count as settling one.
     """
     status = _local_verdict(local)
     if status is CheckUrlStatus.blocked:

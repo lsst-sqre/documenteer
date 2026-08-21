@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 import pytest
 import pytest_responses  # noqa: F401
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from responses import RequestsMock
 from sphinx.builders.linkcheck import CheckExternalLinksBuilder
 from sphinx.testing.util import SphinxTestApp
@@ -202,6 +203,18 @@ def _mock_local_recheck(
     responses.head(url, status=status)
     if status >= 400:
         responses.get(url, status=status)
+
+
+def _mock_local_recheck_unanswered(
+    responses: RequestsMock, url: str, *, error: str = "Connection reset"
+) -> None:
+    """Register a local recheck for one URL that gets no response at all.
+
+    Both rungs of the retrieval ladder are registered, because a HEAD that
+    never completes always falls through to the GET.
+    """
+    responses.head(url, body=RequestsConnectionError(error))
+    responses.get(url, body=RequestsConnectionError(error))
 
 
 def _set_actions_oidc_env(monkeypatch: Any) -> None:
@@ -1078,6 +1091,59 @@ def test_local_recheck_keeps_caveat_when_still_blocked(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-unanswered",
+)
+def test_local_recheck_keeps_caveat_when_unanswered(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A bot-blocked URL that answers the build with nothing at all — a
+    connection reset, a timeout, a DNS failure — keeps its ``blocked``
+    status and never fails the build.
+
+    Bot protection does not always answer with a status code: an edge that
+    dislikes a datacenter IP (which every GitHub Actions runner has) may
+    just drop the connection. Promoting that to ``broken`` would turn a
+    transient network blip at the runner into a build failure on evidence
+    the build never obtained.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck_unanswered(responses, "https://example.com/page")
+
+    app.build()
+
+    # An inconclusive recheck costs the build nothing.
+    assert app.statuscode == 0
+
+    status_output = app.status.getvalue()
+    assert "Local recheck: 0 verified, 1 still blocked, 0 failing" in (
+        status_output
+    )
+    assert "blocked: 1" in status_output
+    assert "broken: 0" in status_output
+    # Nothing was learned, so the service's own evidence still stands.
+    assert "403 Forbidden" in status_output
+    assert "Connection reset" not in status_output
+    assert "blocked:" not in app.warning.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
     srcdir="linkcheck-service-recheck-broken",
 )
 def test_local_recheck_confirms_failure(
@@ -1470,6 +1536,66 @@ def test_contribution_failure_warns_without_failing_build(
 
     message = _warning_message(app, "Could not contribute")
     assert "4 attempts" in message
+    assert "The build is unaffected." in message
+
+    # The local recheck's verdict still stands in this build's report.
+    status_output = app.status.getvalue()
+    assert "blocked: 0" in status_output
+    assert "ok: 2" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-malformed",
+)
+def test_contribution_unreadable_response_warns(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A contribution the service accepts but answers with a body this
+    release cannot read is a warning, not a crash.
+
+    Ook is deployed independently of Documenteer, so a 200 can carry a
+    shape a given release does not know. That must land in the same place
+    as every other contribution failure — a warning, with the build's own
+    report intact — rather than escaping as an unhandled validation error.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+    _mock_oidc_token(responses)
+    responses.post(CONTRIBUTIONS_URL, json={"unexpected": "shape"}, status=200)
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    # An unreadable body reads no better on a resend, so the contribution
+    # is given up on after the one POST.
+    contribution_calls = [
+        call
+        for call in responses.calls
+        if call.request.url == CONTRIBUTIONS_URL
+    ]
+    assert len(contribution_calls) == 1
+
+    message = _warning_message(app, "Could not contribute")
+    assert "ContributionReport" in message
     assert "The build is unaffected." in message
 
     # The local recheck's verdict still stands in this build's report.

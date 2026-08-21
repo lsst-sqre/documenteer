@@ -107,3 +107,22 @@ def test_token_response_without_value(responses: RequestsMock) -> None:
 
     assert result.token is None
     assert result.unavailable_reason is not None
+
+
+def test_token_response_is_not_an_object(responses: RequestsMock) -> None:
+    """A 200 whose JSON body is not an object at all — a proxy or an error
+    page answering in the endpoint's place — is reported as an unavailable
+    token too.
+
+    Reading ``value`` off a JSON list would raise where every other way of
+    coming up empty returns a reason, and this helper's whole contract is
+    that a missing token never costs the caller its build.
+    """
+    responses.get(TOKEN_ENDPOINT, json=["not", "an", "object"], status=200)
+
+    result = GitHubOidcTokenFetcher(env=ACTIONS_ENV).fetch_id_token(
+        "https://roundtable.lsst.cloud/ook"
+    )
+
+    assert result.token is None
+    assert result.unavailable_reason is not None

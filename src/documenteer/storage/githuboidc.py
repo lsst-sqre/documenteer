@@ -132,11 +132,18 @@ class GitHubOidcTokenFetcher:
             # requests raises a JSONDecodeError that is itself a
             # RequestException, so a non-JSON body lands in the same place
             # as a transport failure.
-            token = r.json().get("value")
+            payload = r.json()
         except requests.RequestException as e:
             return IdTokenResult.unavailable(
                 f"the GitHub Actions OIDC token request failed: {e}"
             )
+        # A 200 does not guarantee the documented ``{"value": ...}``
+        # object: a proxy or an error page can answer with a JSON list or
+        # string, and calling ``.get`` on that would raise where every
+        # other way of coming up empty returns a reason. A body this
+        # helper cannot read a token out of is simply a body with no
+        # token in it.
+        token = payload.get("value") if isinstance(payload, dict) else None
         if not token:
             return IdTokenResult.unavailable(
                 "the GitHub Actions OIDC token request returned no token"
