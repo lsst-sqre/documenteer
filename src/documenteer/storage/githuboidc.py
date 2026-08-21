@@ -137,14 +137,19 @@ class GitHubOidcTokenFetcher:
             return IdTokenResult.unavailable(
                 f"the GitHub Actions OIDC token request failed: {e}"
             )
-        # A 200 does not guarantee the documented ``{"value": ...}``
+        # A 200 does not guarantee the documented ``{"value": "..."}``
         # object: a proxy or an error page can answer with a JSON list or
         # string, and calling ``.get`` on that would raise where every
-        # other way of coming up empty returns a reason. A body this
-        # helper cannot read a token out of is simply a body with no
-        # token in it.
+        # other way of coming up empty returns a reason. Nor does an
+        # object guarantee a *string* under ``value``: `IdTokenResult` is
+        # a NamedTuple, which does not enforce its annotations at
+        # runtime, so a number there would travel all the way to the
+        # caller's request model and raise a validation error out of a
+        # helper whose contract is that a missing token never costs the
+        # build anything. A body this helper cannot read a token string
+        # out of is simply a body with no token in it.
         token = payload.get("value") if isinstance(payload, dict) else None
-        if not token:
+        if not isinstance(token, str) or not token:
             return IdTokenResult.unavailable(
                 "the GitHub Actions OIDC token request returned no token"
             )

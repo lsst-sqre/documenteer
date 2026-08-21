@@ -791,7 +791,7 @@ What the build observes is merged into that same build's report:
 
 The :file:`linkcheck.json` artifact reflects the merged view, and flags each result the build rechecked for itself with ``locally_rechecked``.
 
-Those same observations are also contributed back to the service, so the next project to reference the URL benefits from them — see :ref:`guide-sphinx-linkcheck-contributions`, below.
+The observations the build actually obtained are also contributed back to the service, so the next project to reference the URL benefits from them — see :ref:`guide-sphinx-linkcheck-contributions`, below.
 
 Set this to ``false`` to skip the recheck, and the contribution along with it, and report the service's verdict as-is:
 
@@ -808,6 +808,7 @@ Contributing rechecked results back to the service
 A build that settles a URL the service could only report as ``blocked`` knows something the service can't learn from its own vantage point.
 Documenteer hands that knowledge back: whenever the :ref:`recheck <guide-sphinx-linkcheck-recheck-blocked>` finds blocked URLs, the builder posts what it observed — successes and failures alike, since a URL that's blocked from the runner too is evidence as well — to the check's contributions endpoint on the Ook_ API.
 Each contributed result carries the same evidence the recheck merged into this build's report: the final status code, any redirect that was followed, and the error text when the request failed outright.
+A URL that answered the build with nothing at all is the one exception: a contribution is applied to state every other project's build reads, so an observation the build wouldn't apply to its own report — a timeout or a dropped connection settles nothing about a link — isn't handed on as shared evidence either.
 A build whose links the service settled on its own has nothing to contribute, and doesn't so much as mint a token — which is the overwhelmingly common case.
 
 Contributions are attested with a `GitHub Actions OIDC id token <https://docs.github.com/en/actions/concepts/security/openid-connect>`__ rather than a shared secret, so the service records the verified claims of the workflow run — the repository it ran in — as the provenance of every result it applies.
@@ -841,14 +842,14 @@ A run that contributes says so in its build log, first from the recheck and then
    Contributed 4 link-check results to lsst-sqre/documenteer (4 accepted, 0 rejected)
 
 Nothing about a contribution can fail the build.
-It improves somebody else's future build, so it's never allowed to cost this one — not even under :ref:`strict <guide-sphinx-linkcheck-strict>`, which gates service *availability* problems only:
+It improves somebody else's future build, so it's never allowed to cost this one — not even under :ref:`strict <guide-sphinx-linkcheck-strict>`, which gates service *availability* problems only.
+Every way it can go wrong is reported at the ``INFO`` log level rather than as a warning, which is what keeps that promise for a build run with ``-W`` (warnings as errors), where a warning is a failure:
 
-- Where no id token can be minted, the local recheck still runs and still informs this build's report, and only the contribution is skipped, with a note at the ``INFO`` log level.
-  That note names the ``id-token: write`` permission, because the absence looks identical whether the build is on a laptop, where there's nothing to fix, or in a workflow that never asked for the permission, where there's one line to add.
-- The service applies a batch entry by entry, so an entry it declines (a URL that isn't one of the check's members, say, or one that isn't ``blocked`` because its own vantage point already settled it) is reported per URL at ``INFO`` level with the service's reason, and the rest of the batch still applies.
+- Where no id token can be minted, the local recheck still runs and still informs this build's report, and only the contribution is skipped, with a note naming the ``id-token: write`` permission — because the absence looks identical whether the build is on a laptop, where there's nothing to fix, or in a workflow that never asked for the permission, where there's one line to add.
+- The service applies a batch entry by entry, so an entry it declines (a URL that isn't one of the check's members, say, or one that isn't ``blocked`` because its own vantage point already settled it) is reported per URL with the service's reason, and the rest of the batch still applies.
 - A batch that can't be delivered at all is retried for the failures the service documents as retryable — a ``502`` while it can't reach GitHub's signing keys, and connection failures — up to three times after the first attempt, on a backoff that starts at half a second and doubles.
-  If those attempts are exhausted, the builder reports it as a warning and moves on; the build's exit status is unchanged.
-  A response that would fail identically however often it's sent, such as a ``422`` for a batch the service won't accept, gets that same warning on its first response instead of being retried.
+  If those attempts are exhausted, the builder reports it and moves on; the build's exit status is unchanged.
+  A response that would fail identically however often it's sent, such as a ``422`` for a batch the service won't accept, is reported the same way on its first response instead of being retried.
 
 .. _guide-sphinx-linkcheck-origin-base-url:
 

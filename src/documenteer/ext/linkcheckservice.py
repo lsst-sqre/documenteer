@@ -502,6 +502,12 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         the service treats a contributed observation exactly as it treats
         one of its own checks.
 
+        That reach is also why an observation that settled nothing is
+        withheld. A URL that answered this build with nothing at all
+        rewrites nothing locally (see `_local_verdict`), and contributing
+        it would put a runner's network blip into the state every other
+        project's build reads.
+
         The contribution is attested by a GitHub Actions OIDC id token
         minted for the service's own base URL, so the service records the
         workflow run's verified claims as the provenance. That token only
@@ -512,8 +518,28 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         Nothing here can fail the build. A contribution is an improvement
         to somebody else's future build, so every way it can go wrong —
         no token to attest with, a service that will not take the batch,
-        an entry the service declines — is reported and left at that.
+        an entry the service declines — is reported at info level and
+        left at that. Info level rather than warning is load-bearing, not
+        cosmetic: a warnings-as-errors (``-W``) build fails on any
+        warning, so reporting a contribution problem as one would fail
+        the very build the message says is unaffected.
         """
+        results = [
+            ContributedResult.model_validate(local, from_attributes=True)
+            for local in local_results
+            # An observation with no status code got no response at all,
+            # which settles nothing about the URL — the same reason
+            # `_merge_local_result` refuses to apply it to this build's
+            # own report.
+            if local.status_code is not None
+        ]
+        if not results:
+            logger.info(
+                "Not contributing the local recheck's results to the "
+                "link-check service: no rechecked URL answered this build, "
+                "so the recheck observed nothing worth contributing."
+            )
+            return
         token = GitHubOidcTokenFetcher().fetch_id_token(client.oidc_audience)
         if token.token is None:
             logger.info(
@@ -522,10 +548,6 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
                 token.unavailable_reason,
             )
             return
-        results = [
-            ContributedResult.model_validate(local, from_attributes=True)
-            for local in local_results
-        ]
         try:
             report = client.contribute_results(
                 check_id,
@@ -534,7 +556,15 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
                 environment=ContributionEnvironment.from_github_actions(),
             )
         except LinkCheckServiceError as e:
-            logger.warning(
+            # Reported at info level, like every other unactionable
+            # link-check outcome, so a warnings-as-errors (``-W``) build
+            # does not fail on it. As a warning this message would
+            # falsify its own last sentence: any undeliverable
+            # contribution — a deployment not serving the endpoint yet, a
+            # 502 that outlasts the retry ladder — would fail the build it
+            # says is unaffected (mirrors the ``-W`` reasoning in
+            # `_fall_back_to_builtin` and `_report`).
+            logger.info(
                 "Could not contribute the local recheck's results to the "
                 "link-check service: %s The build is unaffected.",
                 e,

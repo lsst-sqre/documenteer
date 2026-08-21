@@ -1427,6 +1427,122 @@ def test_contribution_rejections_reported(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-unanswered",
+)
+def test_unanswered_observation_is_not_contributed(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A recheck that gets no response at all is withheld from the
+    contribution, while the answered observations in the same batch are
+    still sent.
+
+    A contribution is applied to state every other project's build reads,
+    so an observation this build refused to apply to its *own* report —
+    a timeout or a dropped connection settles nothing about the link — has
+    no business becoming shared evidence.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url(
+                "https://example.org/resource",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+    _mock_local_recheck_unanswered(responses, "https://example.org/resource")
+    _mock_oidc_token(responses)
+    responses.post(
+        CONTRIBUTIONS_URL,
+        json=_contribution_report(
+            accepted=[{"url": "https://example.com/page", "status": "ok"}]
+        ),
+        status=200,
+    )
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    contribution = responses.calls[-1].request
+    assert contribution.body is not None
+    contributed = [
+        result["url"] for result in json.loads(contribution.body)["results"]
+    ]
+    # Only the URL that answered the build is contributed; the one that
+    # answered with nothing at all is left out entirely rather than sent
+    # with a null status code.
+    assert contributed == ["https://example.com/page"]
+    assert "Contributed 1 link-check result" in app.status.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-all-unanswered",
+)
+def test_all_unanswered_observations_contribute_nothing(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A recheck where nothing answered has nothing to contribute, so no
+    id token is minted and no batch is sent — the same free path a build
+    with no blocked URLs takes.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck_unanswered(responses, "https://example.com/page")
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    # Ook's submit and poll and the local recheck's two rungs: no token
+    # request, no contribution POST.
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+        "https://example.com/page",
+        "https://example.com/page",
+    ]
+
+    message = _status_message(app, "Not contributing")
+    assert "nothing worth contributing" in message
+    assert "Not contributing" not in app.warning.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
     srcdir="linkcheck-service-contribute-no-oidc",
 )
 def test_contribution_skipped_without_oidc(
@@ -1490,12 +1606,16 @@ def test_contribution_skipped_without_oidc(
     testroot="linkcheck-service",
     srcdir="linkcheck-service-contribute-failed",
 )
-def test_contribution_failure_warns_without_failing_build(
+def test_contribution_failure_reported_without_failing_build(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
     """A service that keeps answering 502 outlasts the retry ladder. The
-    contribution is given up on with a warning, and the build — whose own
-    report the recheck already informed — is unaffected.
+    contribution is given up on with an info note, and the build — whose
+    own report the recheck already informed — is unaffected.
+
+    The note is info-level rather than a warning because this project's
+    own documentation is built with ``-W``: a warning would fail the very
+    build the message says is unaffected.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _set_actions_oidc_env(monkeypatch)
@@ -1534,9 +1654,12 @@ def test_contribution_failure_warns_without_failing_build(
     ]
     assert len(contribution_calls) == 4
 
-    message = _warning_message(app, "Could not contribute")
+    message = _status_message(app, "Could not contribute")
     assert "4 attempts" in message
     assert "The build is unaffected." in message
+    # The claim the message makes has to hold under ``-W``, which fails a
+    # build on any warning at all.
+    assert "Could not contribute" not in app.warning.getvalue()
 
     # The local recheck's verdict still stands in this build's report.
     status_output = app.status.getvalue()
@@ -1552,16 +1675,17 @@ def test_contribution_failure_warns_without_failing_build(
     testroot="linkcheck-service",
     srcdir="linkcheck-service-contribute-malformed",
 )
-def test_contribution_unreadable_response_warns(
+def test_contribution_unreadable_response_reported(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
     """A contribution the service accepts but answers with a body this
-    release cannot read is a warning, not a crash.
+    release cannot read is an info note, not a crash.
 
     Ook is deployed independently of Documenteer, so a 200 can carry a
     shape a given release does not know. That must land in the same place
-    as every other contribution failure — a warning, with the build's own
-    report intact — rather than escaping as an unhandled validation error.
+    as every other contribution failure — an info note, with the build's
+    own report intact — rather than escaping as an unhandled validation
+    error.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _set_actions_oidc_env(monkeypatch)
@@ -1594,9 +1718,13 @@ def test_contribution_unreadable_response_warns(
     ]
     assert len(contribution_calls) == 1
 
-    message = _warning_message(app, "Could not contribute")
+    # A pydantic validation error renders over several lines, so the
+    # closing reassurance lands on the last of them rather than on the
+    # line the needle scopes to.
+    message = _status_message(app, "Could not contribute")
     assert "ContributionReport" in message
-    assert "The build is unaffected." in message
+    assert "The build is unaffected." in app.status.getvalue()
+    assert "Could not contribute" not in app.warning.getvalue()
 
     # The local recheck's verdict still stands in this build's report.
     status_output = app.status.getvalue()

@@ -126,3 +126,24 @@ def test_token_response_is_not_an_object(responses: RequestsMock) -> None:
 
     assert result.token is None
     assert result.unavailable_reason is not None
+
+
+def test_token_value_is_not_a_string(responses: RequestsMock) -> None:
+    """A 200 object whose ``value`` is not a string is no more a token
+    than a missing one.
+
+    `~documenteer.storage.githuboidc.IdTokenResult` is a NamedTuple, so
+    its ``str | None`` annotation is not enforced at runtime: a number
+    here would sail past a plain truthiness check and only raise when the
+    caller validated it into its request model — an exception out of a
+    helper whose contract is that a missing token costs the caller
+    nothing.
+    """
+    responses.get(TOKEN_ENDPOINT, json={"value": 123}, status=200)
+
+    result = GitHubOidcTokenFetcher(env=ACTIONS_ENV).fetch_id_token(
+        "https://roundtable.lsst.cloud/ook"
+    )
+
+    assert result.token is None
+    assert result.unavailable_reason is not None
