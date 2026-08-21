@@ -41,6 +41,10 @@ sphinxcontrib-bibtex = "https://sphinxcontrib-bibtex.readthedocs.io/en/latest/"
 technote = "https://technote.lsst.io/"
 
 [sphinx.linkcheck]
+# NOTE (DM-55471 E2E): no service_url override here on purpose. Ook 0.27.0
+# is deployed to production with the contributions endpoint, so the default
+# production service URL is the one under test. The OIDC audience derives
+# from it, so the minted token scopes to production automatically.
 ignore = [
     "https://mermaid-js.github.io",
     "https://rubin-obs.slack.com",
