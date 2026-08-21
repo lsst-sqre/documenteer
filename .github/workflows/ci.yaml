@@ -170,6 +170,16 @@ jobs:
   docs:
     runs-on: ubuntu-latest
 
+    # The link-check builder rechecks URLs Ook reports as bot-blocked from
+    # this runner's own vantage point and contributes what it observes back
+    # to the service. That contribution is attested by a GitHub Actions OIDC
+    # id token, which only exists in a job holding id-token: write. Without
+    # it the recheck still informs this build's report and the contribution
+    # is skipped with an info note.
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - uses: actions/checkout@v7
         with:
@@ -201,7 +211,10 @@ jobs:
         run: uv run --only-group=nox nox -P $UV_PYTHON -s docs docs-linkcheck
         env:
           UV_PYTHON: ${{ env.PYTHON_VERSION }}
-          OOK_TOKEN: ${{ secrets.OOK_TOKEN }}
+          # TEMPORARY (DM-55471 E2E): the development Ook token, paired with
+          # the roundtable-dev service_url in docs/documenteer.toml. Revert
+          # to secrets.OOK_TOKEN before this leaves the scratch branch.
+          OOK_TOKEN: ${{ secrets.OOK_TOKEN_DEV }}
 
       # Upload the machine-readable link-check results for review from the
       # Actions UI. Runs even when docs-linkcheck fails (broken links) so the

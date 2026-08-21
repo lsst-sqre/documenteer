@@ -41,6 +41,11 @@ sphinxcontrib-bibtex = "https://sphinxcontrib-bibtex.readthedocs.io/en/latest/"
 technote = "https://technote.lsst.io/"
 
 [sphinx.linkcheck]
+# TEMPORARY (DM-55471 E2E): point the link check at the development Ook so
+# the contribution POST is exercised against the branch deployment of
+# lsst-sqre/ook#366. The OIDC audience is derived from this URL, so the
+# minted token is automatically dev-scoped. Revert before merging.
+service_url = "https://roundtable-dev.lsst.cloud/ook"
 ignore = [
     "https://mermaid-js.github.io",
     "https://rubin-obs.slack.com",
