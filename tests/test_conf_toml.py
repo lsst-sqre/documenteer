@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -635,6 +636,26 @@ def test_set_citations_html_context() -> None:
     assert context["bibtex"].startswith("@misc{")
     assert "doi = {10.71929/rubin/2570308}" in context["bibtex"]
     assert html_context["documenteer_self_citation"] is context
+
+
+def test_set_citations_publishes_jsonld() -> None:
+    """set_citations also publishes the citations as a serialized schema.org
+    JSON-LD document, ready for the guide's <head>.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    assert payload["@context"] == "https://schema.org"
+    # The self citation is labelled "Dataset", and the label decides the
+    # schema.org type: this site is a data release's landing page.
+    assert payload["@type"] == "Dataset"
+    assert payload["@id"] == "https://doi.org/10.71929/rubin/2570308"
+    assert payload["identifier"]["value"] == "10.71929/rubin/2570308"
+    assert payload["name"] == "Data Preview 2"
+    # The site's own base_url, not the doi.org redirect, is the node's url.
+    assert payload["url"] == "https://dp0-2.lsst.io/"
 
 
 def test_set_citations_without_citations() -> None:

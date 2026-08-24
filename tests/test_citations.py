@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 
 import pytest
 
@@ -12,8 +13,11 @@ from documenteer.citations import (
     GuideCitation,
     OrganizationAuthor,
     PersonAuthor,
+    compose_landing_page_jsonld,
     doi_url,
     normalize_doi,
+    orcid_url,
+    ror_url,
 )
 
 
@@ -256,3 +260,178 @@ def test_html_context_without_a_date() -> None:
     assert context["label"] is None
     assert context["is_self"] is False
     assert context["in_footer"] is False
+
+
+SITE_URL = "https://guide.lsst.io/"
+
+
+def _self_citation_context(**overrides: object) -> dict[str, object]:
+    """Build a self-citation html_context mapping, as set_citations
+    publishes it.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            doi="10.71929/rubin/2570308",
+            title="Data Preview 2 Documentation",
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+            publisher="Vera C. Rubin Observatory",
+            date=datetime.date(2025, 6, 30),
+        ),
+        label="Site",
+        is_self=True,
+    ).to_html_context()
+    context.update(overrides)
+    return context
+
+
+def test_landing_page_jsonld_describes_the_self_citation() -> None:
+    """The self citation is the JSON-LD document's own subject: a WebSite
+    identified by its DOI.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [_self_citation_context()], site_url=SITE_URL
+        )
+        or ""
+    )
+    assert payload["@context"] == "https://schema.org"
+    assert payload["@type"] == "WebSite"
+    assert payload["@id"] == "https://doi.org/10.71929/rubin/2570308"
+    assert payload["identifier"] == {
+        "@type": "PropertyValue",
+        "propertyID": "DOI",
+        "value": "10.71929/rubin/2570308",
+        "url": "https://doi.org/10.71929/rubin/2570308",
+    }
+    assert payload["name"] == "Data Preview 2 Documentation"
+    assert payload["url"] == SITE_URL
+    assert payload["creator"] == [
+        {"@type": "Organization", "name": "Vera C. Rubin Observatory"}
+    ]
+    assert payload["publisher"] == {
+        "@type": "Organization",
+        "name": "Vera C. Rubin Observatory",
+    }
+    assert payload["datePublished"] == "2025-06-30"
+    assert "citation" not in payload
+
+
+def _dataset_citation_context() -> dict[str, object]:
+    """Build a dataset citation's html_context mapping, credited to both an
+    organization and a person so that both author node shapes are exercised.
+    """
+    return GuideCitation(
+        citation=Citation(
+            doi="10.5281/zenodo.10385500",
+            title="Images & Catalogs",
+            authors=(
+                OrganizationAuthor(
+                    name="Vera C. Rubin Observatory",
+                    ror="https://ror.org/048g3cy84",
+                ),
+                PersonAuthor(
+                    family_name="Sick",
+                    given_name="Jonathan",
+                    orcid="0000-0003-3001-676X",
+                    affiliation="Rubin Observatory",
+                ),
+            ),
+        ),
+        label="Dataset",
+    ).to_html_context()
+
+
+def test_landing_page_jsonld_types_a_dataset_label() -> None:
+    """A citation labelled "Dataset" is a schema.org Dataset hanging off the
+    self citation, and its authors carry resolvable ORCID and ROR ids.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [_self_citation_context(), _dataset_citation_context()],
+            site_url=SITE_URL,
+        )
+        or ""
+    )
+    (dataset,) = payload["citation"]
+    assert dataset["@type"] == "Dataset"
+    assert dataset["@id"] == "https://doi.org/10.5281/zenodo.10385500"
+    assert dataset["name"] == "Images & Catalogs"
+    assert dataset["creator"] == [
+        {
+            "@type": "Organization",
+            "@id": "https://ror.org/048g3cy84",
+            "name": "Vera C. Rubin Observatory",
+        },
+        {
+            "@type": "Person",
+            "@id": "https://orcid.org/0000-0003-3001-676X",
+            "name": "Jonathan Sick",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "Rubin Observatory",
+            },
+        },
+    ]
+    # A cited work that is not the site keeps its own landing page, not the
+    # site's URL.
+    assert dataset["url"] == "https://doi.org/10.5281/zenodo.10385500"
+
+
+def test_landing_page_jsonld_is_a_graph_without_a_self_citation() -> None:
+    """A site that marks no citation as its own has no subject to make the
+    document about, so its citations are emitted as a plain @graph.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld([_dataset_citation_context()]) or ""
+    )
+    assert payload["@context"] == "https://schema.org"
+    assert "@id" not in payload
+    (node,) = payload["@graph"]
+    assert node["@type"] == "Dataset"
+
+
+def test_landing_page_jsonld_without_citations() -> None:
+    """A site that declares no citations emits no JSON-LD block at all."""
+    assert compose_landing_page_jsonld([]) is None
+
+
+def test_landing_page_jsonld_cannot_break_out_of_a_script_element() -> None:
+    """A title carrying markup, quotes, or an ampersand is escaped so that it
+    cannot close the <script> element the block is embedded in.
+    """
+    serialized = compose_landing_page_jsonld(
+        [
+            _self_citation_context(
+                title='</script><img src=x onerror="alert(1)"> & "quoted"'
+            )
+        ]
+    )
+    assert serialized is not None
+    assert "<" not in serialized
+    assert ">" not in serialized
+    assert "&" not in serialized
+    # The escaping is JSON's own, so the title survives a round trip intact.
+    assert (
+        json.loads(serialized)["name"]
+        == '</script><img src=x onerror="alert(1)"> & "quoted"'
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "0000-0003-3001-676x",
+        "0000-0003-3001-676X",
+        "https://orcid.org/0000-0003-3001-676X",
+        "http://orcid.org/0000-0003-3001-676X/",
+    ],
+)
+def test_orcid_url_accepts_spellings(value: str) -> None:
+    assert orcid_url(value) == "https://orcid.org/0000-0003-3001-676X"
+
+
+@pytest.mark.parametrize(
+    "value", ["048g3cy84", "https://ror.org/048g3cy84", "ror.org/048g3cy84/"]
+)
+def test_ror_url_accepts_spellings(value: str) -> None:
+    assert ror_url(value) == "https://ror.org/048g3cy84"

@@ -154,7 +154,7 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
     # which is the whole contract the citation surfaces (head metadata, the
     # citation-card directive, the footer) read from.
     citations = app.config.html_context["documenteer_citations"]
-    assert len(citations) == 1
+    assert len(citations) == 2
     citation = citations[0]
     assert citation["label"] == "Site"
     assert citation["is_self"] is True
@@ -168,3 +168,8 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
     )
     assert f"doi = {{{CITATION_DOI}}}" in citation["bibtex"]
     assert app.config.html_context["documenteer_self_citation"] is citation
+    # The second entry is the dataset the guide documents, opted into the
+    # footer after the self citation.
+    assert citations[1]["label"] == "Dataset"
+    assert citations[1]["is_self"] is False
+    assert citations[1]["in_footer"] is True

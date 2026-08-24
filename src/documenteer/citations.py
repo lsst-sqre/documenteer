@@ -4,8 +4,10 @@ Documenteer renders citations in several places — a technote's "Citing this
 document" section and BibTeX copy control, a user guide's citation card and
 footer — and every one of them composes the same bibliographic record. This
 module is the single implementation those surfaces share: a `Citation` value
-object with `~Citation.to_plain_text` and `~Citation.to_bibtex` composers, and
-the DOI normalizer that gives every DOI in Documenteer the same spelling.
+object with `~Citation.to_plain_text` and `~Citation.to_bibtex` composers, the
+identifier normalizers that give every DOI, ORCID, and ROR in Documenteer the
+same spelling, and the schema.org JSON-LD composer that makes a guide a
+machine-readable DOI landing page.
 
 Composition is local and deterministic. Nothing here touches the network, so
 the same metadata always yields byte-identical output during a Sphinx build.
@@ -13,8 +15,10 @@ the same metadata always yields byte-identical output during a Sphinx build.
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
@@ -27,8 +31,12 @@ __all__ = [
     "GuideCitation",
     "OrganizationAuthor",
     "PersonAuthor",
+    "compose_landing_page_jsonld",
     "doi_url",
     "normalize_doi",
+    "normalize_orcid",
+    "orcid_url",
+    "ror_url",
 ]
 
 DOI_PATTERN = re.compile(r"^10\.\d{4,9}/\S+$")
@@ -45,6 +53,15 @@ DOI_PREFIXES = (
 
 DOI_RESOLVER = "https://doi.org/"
 """The base URL of the DOI resolver."""
+
+ORCID_RESOLVER = "https://orcid.org/"
+"""The base URL of the ORCID resolver."""
+
+ROR_RESOLVER = "https://ror.org/"
+"""The base URL of the ROR resolver."""
+
+SCHEMA_ORG_CONTEXT = "https://schema.org"
+"""The JSON-LD ``@context`` that schema.org vocabulary is read under."""
 
 _WHITESPACE_PATTERN = re.compile(r"\s+")
 
@@ -161,6 +178,75 @@ def doi_url(doi: str) -> str:
         Raised if the value is not a syntactically-valid DOI.
     """
     return f"{DOI_RESOLVER}{normalize_doi(doi)}"
+
+
+def _reduce_identifier(value: str) -> str:
+    """Reduce an identifier that may be written as a resolver URL to its bare
+    form, the last segment of its path.
+    """
+    return value.strip().rstrip("/").rsplit("/", maxsplit=1)[-1]
+
+
+def normalize_orcid(value: object) -> str | None:
+    """Reduce an ORCID URL to its bare identifier.
+
+    This is a lenient *reducer*, not a validator: it strips a trailing slash,
+    keeps the last path segment, and uppercases the result. Ook owns the ORCID
+    grammar and answers ``422`` for anything it does not recognize, so
+    Documenteer deliberately does not re-implement the check here and the two
+    cannot drift.
+
+    Reducing is load-bearing rather than cosmetic. The ``technote`` package's
+    ``Person.orcid`` validator re-prefixes any value that does not literally
+    start with ``https://orcid``, so ``technote.toml`` yields forms such as
+    ``https://orcid.org/http://orcid.org/0000-0003-3001-676X``; every one of
+    them reduces to the bare identifier Ook expects. It also makes a
+    comparison of two ORCIDs insensitive to the ``http``/``https`` scheme and
+    to a trailing slash.
+
+    Returns
+    -------
+    str or None
+        The bare identifier, or `None` if ``value`` is `None`.
+    """
+    if value is None:
+        return None
+    return _reduce_identifier(str(value)).upper()
+
+
+def orcid_url(value: str) -> str:
+    """Express an ORCID as a resolvable ``https://orcid.org`` URL.
+
+    Parameters
+    ----------
+    value
+        An ORCID, either bare or written as an ``orcid.org`` URL.
+
+    Returns
+    -------
+    str
+        The ORCID as a ``https://orcid.org`` URL, which is the form ORCID asks
+        that an identifier be displayed and linked in, and the form a
+        schema.org ``Person`` node takes as its ``@id``.
+    """
+    return f"{ORCID_RESOLVER}{_reduce_identifier(value).upper()}"
+
+
+def ror_url(value: str) -> str:
+    """Express a ROR identifier as a resolvable ``https://ror.org`` URL.
+
+    Parameters
+    ----------
+    value
+        A ROR identifier, either bare or written as a ``ror.org`` URL.
+
+    Returns
+    -------
+    str
+        The identifier as a ``https://ror.org`` URL. Unlike an ORCID, a ROR
+        identifier is lowercase base32 and is not case-folded.
+    """
+    return f"{ROR_RESOLVER}{_reduce_identifier(value)}"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -544,3 +630,164 @@ class GuideCitation:
             "plain_text": citation.to_plain_text(),
             "bibtex": citation.to_bibtex(),
         }
+
+
+_SCRIPT_ESCAPES = {
+    ord("<"): "\\u003c",
+    ord(">"): "\\u003e",
+    ord("&"): "\\u0026",
+    0x2028: "\\u2028",
+    0x2029: "\\u2029",
+}
+"""Characters escaped, as JSON string escapes, before a JSON-LD document is
+embedded in a ``<script>`` element.
+
+``<`` and ``>`` are the ones that matter: they are what a ``</script>`` or
+``<!--`` sequence inside a title would otherwise close the element with. ``&``
+is escaped too so that the same bytes are also safe as XHTML, where script
+content is parsed rather than treated as raw text, and U+2028/U+2029 because a
+consumer that hands the block to a JavaScript parser would read them as line
+terminators.
+"""
+
+DATASET_LABEL = "dataset"
+"""The citation label, matched case-insensitively, that types a citation as a
+schema.org ``Dataset`` rather than a generic creative work."""
+
+
+def _schema_type(citation: Mapping[str, Any]) -> str:
+    """Choose the schema.org type that represents one citation.
+
+    A citation labelled "Dataset" is a ``Dataset``, which is the type Google
+    Dataset Search and DataCite's own crosswalk key on; the site's own
+    citation is a ``WebSite``; anything else is a generic ``CreativeWork``.
+    """
+    label = (citation.get("label") or "").strip().casefold()
+    if label == DATASET_LABEL:
+        return "Dataset"
+    return "WebSite" if citation.get("is_self") else "CreativeWork"
+
+
+def _author_node(author: Mapping[str, Any]) -> dict[str, Any]:
+    """Express one author, as `GuideCitation.to_html_context` carries it, as a
+    schema.org ``Person`` or ``Organization`` node.
+    """
+    node: dict[str, Any] = {}
+    if author.get("type") == "organization":
+        node["@type"] = "Organization"
+        if author.get("ror"):
+            node["@id"] = ror_url(author["ror"])
+        node["name"] = author["name"]
+        return node
+    node["@type"] = "Person"
+    if author.get("orcid"):
+        node["@id"] = orcid_url(author["orcid"])
+    node["name"] = author["name"]
+    if author.get("affiliation"):
+        node["affiliation"] = {
+            "@type": "Organization",
+            "name": author["affiliation"],
+        }
+    return node
+
+
+def _citation_node(
+    citation: Mapping[str, Any], *, site_url: str | None = None
+) -> dict[str, Any]:
+    """Express one citation, as `GuideCitation.to_html_context` carries it, as
+    a schema.org node following DataCite's crosswalk.
+    """
+    node: dict[str, Any] = {"@type": _schema_type(citation)}
+    url = citation.get("url")
+    if citation.get("is_self") and site_url:
+        # The site is the DOI's landing page, so its own URL is more use to a
+        # consumer than the doi.org redirect that url falls back to.
+        url = site_url
+    if citation.get("doi_url"):
+        node["@id"] = citation["doi_url"]
+        node["identifier"] = {
+            "@type": "PropertyValue",
+            "propertyID": "DOI",
+            "value": citation["doi"],
+            "url": citation["doi_url"],
+        }
+    elif url:
+        node["@id"] = url
+    node["name"] = citation["title"]
+    if url:
+        node["url"] = url
+    authors = [_author_node(author) for author in citation.get("authors", ())]
+    if authors:
+        node["creator"] = authors
+    if citation.get("publisher"):
+        node["publisher"] = {
+            "@type": "Organization",
+            "name": citation["publisher"],
+        }
+    if citation.get("date"):
+        node["datePublished"] = citation["date"]
+    return node
+
+
+def compose_landing_page_jsonld(
+    citations: Sequence[Mapping[str, Any]], *, site_url: str | None = None
+) -> str | None:
+    """Compose a site's citations as a schema.org JSON-LD document, serialized
+    ready to embed in a ``<script type="application/ld+json">`` element.
+
+    Parameters
+    ----------
+    citations
+        The site's citations, each as the mapping
+        `GuideCitation.to_html_context` composes and Sphinx's ``html_context``
+        publishes.
+    site_url
+        The site's own base URL, used as the ``url`` of the self citation's
+        node.
+
+    Returns
+    -------
+    str or None
+        The serialized JSON-LD document, or `None` when there are no
+        citations — a site that declares none emits no block at all.
+
+    Notes
+    -----
+    The self citation is the document's own subject rather than one node among
+    several: this page *is* that DOI's landing page, so a consumer reading the
+    document top-level finds the DOI it came for, and the site's other
+    citations hang off it as schema.org ``citation`` values. A site that
+    declares citations but marks none of them ``self`` has no such subject,
+    and its citations are emitted as a plain ``@graph`` instead.
+
+    The returned string is safe to place directly in a ``<script>`` element:
+    the characters that could close it early are written as JSON string
+    escapes (see `_SCRIPT_ESCAPES`), so a title containing ``</script>``,
+    quotes, or ampersands cannot break out of the block.
+    """
+    if not citations:
+        return None
+    nodes = [
+        _citation_node(citation, site_url=site_url) for citation in citations
+    ]
+    self_index = next(
+        (
+            index
+            for index, citation in enumerate(citations)
+            if citation.get("is_self")
+        ),
+        None,
+    )
+    document: dict[str, Any]
+    if self_index is None:
+        document = {"@context": SCHEMA_ORG_CONTEXT, "@graph": nodes}
+    else:
+        document = {"@context": SCHEMA_ORG_CONTEXT, **nodes[self_index]}
+        cited = [
+            node for index, node in enumerate(nodes) if index != self_index
+        ]
+        if cited:
+            document["citation"] = cited
+    return json.dumps(
+        document, ensure_ascii=False, separators=(",", ":")
+    ).translate(_SCRIPT_ESCAPES)

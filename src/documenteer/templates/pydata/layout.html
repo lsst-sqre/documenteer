@@ -12,4 +12,25 @@
   {%- set base_url = pageurl.split('://')[0] + '://' + pageurl.split('://')[1].split('/')[0] + '/' %}
   <link rel="sitemap" type="application/xml" href="{{ base_url }}sitemap.xml">
   {%- endif %}
+
+  {# DOI landing-page metadata for the site's [[project.citations]].
+     DataCite asks that a DOI's landing page carry its DOI in machine-readable
+     form; these are the Highwire and Dublin Core spellings of it, for the one
+     citation marked `self`. Both values, and the JSON-LD block below, are
+     composed by documenteer.citations and published into html_context by the
+     guide preset -- nothing is composed here. A site that declares no
+     citations sets none of these variables and emits nothing. #}
+  {%- if documenteer_self_citation %}
+  <meta name="citation_doi" content="{{ documenteer_self_citation.doi|e }}">
+  <meta name="DC.identifier" content="{{ documenteer_self_citation.doi_url|e }}">
+  {%- endif %}
+  {# The site's citations as a schema.org description of the work this page is
+     the landing page for. The value arrives already serialized and escaped
+     for a <script> element (see documenteer.citations), so it is emitted
+     verbatim. It is a separate block from the per-page WebPage statement that
+     documenteer.ext.lastmodified emits: that one describes this page's
+     freshness, this one describes the site and the works it cites. #}
+  {%- if documenteer_citations_jsonld %}
+  <script id="documenteer-citation-metadata" type="application/ld+json">{{ documenteer_citations_jsonld|safe }}</script>
+  {%- endif %}
 {% endblock %}

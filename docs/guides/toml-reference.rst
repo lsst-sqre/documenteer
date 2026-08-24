@@ -99,6 +99,10 @@ The project's version, which is set to the standard Sphinx ``version`` and ``rel
 Sites that are published with a DOI can declare their citations in the ``[[project.citations]]`` array of tables.
 Documenteer uses them to make the site a proper DOI landing page: it renders a full bibliographic citation with the DOI as a resolvable ``https://doi.org/`` link, and emits machine-readable citation metadata in the page ``<head>``.
 
+That head metadata is what a DOI registration agency, Google Scholar, and Google Dataset Search read.
+Every page carries the :ref:`self <guide-project-citations-self>` citation's DOI as a Highwire ``citation_doi`` meta tag (bare) and a Dublin Core ``DC.identifier`` meta tag (as the ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block that describes the site and the works it cites, following `DataCite's crosswalk <https://github.com/datacite/schema.org>`__ from DataCite metadata to schema.org.
+A site that declares no citations emits none of it.
+
 Because it is an *array* of tables, the table header is written with double brackets and repeated once per citation.
 A site can cite more than one work — the documentation itself and the dataset it describes, for example — and the order the entries are written in is the order they appear in the site footer.
 
@@ -137,6 +141,9 @@ label
 |optional|
 
 A short label that distinguishes this citation from the site's others, such as ``"Dataset"`` or ``"Paper"``.
+
+The label ``"Dataset"`` (matched without regard to case) also types the citation as a schema.org `Dataset <https://schema.org/Dataset>`__ in the site's JSON-LD metadata, which is the type Google Dataset Search indexes.
+Every other citation is a schema.org `WebSite <https://schema.org/WebSite>`__ if it is the :ref:`self <guide-project-citations-self>` citation and a `CreativeWork <https://schema.org/CreativeWork>`__ otherwise.
 
 .. _guide-project-citations-self:
 

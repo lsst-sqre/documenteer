@@ -35,6 +35,7 @@ from ..citations import (
     GuideCitation,
     OrganizationAuthor,
     PersonAuthor,
+    compose_landing_page_jsonld,
     normalize_doi,
 )
 from ..storage.citationcff import CitationCffError, read_citation_cff
@@ -1097,6 +1098,11 @@ class DocumenteerConfig:
         html_context["documenteer_self_citation"] = next(
             (context for context in contexts if context["is_self"]), None
         )
+        jsonld = compose_landing_page_jsonld(
+            contexts, site_url=self.base_url or None
+        )
+        if jsonld is not None:
+            html_context["documenteer_citations_jsonld"] = jsonld
 
     def _resolve_citation(
         self, entry: CitationModel, index: int
