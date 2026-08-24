@@ -18,11 +18,13 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from typing import Any
 
 __all__ = [
     "BibtexEntryType",
     "Citation",
     "CitationAuthor",
+    "GuideCitation",
     "OrganizationAuthor",
     "PersonAuthor",
     "doi_url",
@@ -440,3 +442,105 @@ class Citation:
             f"    {name} = {{{value}}}" for name, value in fields
         )
         return f"@{entry_type.value}{{{key or self.bibtex_key},\n{body}\n}}"
+
+
+def _author_context(author: CitationAuthor) -> dict[str, Any]:
+    """Express one author as the mapping a template or a JSON-LD block
+    consumes.
+
+    Both spellings of a person's name are carried: ``name`` is the reading
+    order a schema.org ``Person`` wants, and ``citation_name`` is the
+    family-name-first order a bibliographic reference is set in.
+    """
+    if isinstance(author, OrganizationAuthor):
+        return {
+            "type": "organization",
+            "name": author.name,
+            "citation_name": author.citation_name,
+            "ror": author.ror,
+        }
+    name = (
+        f"{author.given_name} {author.family_name}"
+        if author.given_name
+        else author.family_name
+    )
+    return {
+        "type": "person",
+        "name": name,
+        "citation_name": author.citation_name,
+        "orcid": author.orcid,
+        "affiliation": author.affiliation,
+    }
+
+
+@dataclass(frozen=True, kw_only=True)
+class GuideCitation:
+    """A citation a user guide displays, together with how the guide presents
+    it.
+
+    A guide declares these in the ``[[project.citations]]`` array of
+    :file:`documenteer.toml`. The bibliographic record is the `Citation`; the
+    remaining fields say where and how the guide shows it, and are set in
+    :file:`documenteer.toml` alone — they are never sourced from a
+    CITATION.cff file.
+    """
+
+    citation: Citation
+    """The bibliographic record."""
+
+    label: str | None = None
+    """A short display label distinguishing this citation from the others,
+    such as "Dataset" or "Paper".
+    """
+
+    is_self: bool = False
+    """Whether this is the DOI whose landing page this site is.
+
+    At most one citation on a site is the self citation. It is the one whose
+    metadata the site emits in its ``<head>``, and the one a
+    ``citation-card`` directive renders by default.
+    """
+
+    in_footer: bool = False
+    """Whether this citation appears in the site footer."""
+
+    note: str | None = None
+    """Free text about when to use this citation, displayed alongside it."""
+
+    def to_html_context(self) -> dict[str, Any]:
+        """Express the citation as the mapping published into Sphinx's
+        ``html_context``.
+
+        Returns
+        -------
+        dict
+            A JSON-serializable mapping. Everything a template or a directive
+            needs is precomputed here — including the ``plain_text`` and
+            ``bibtex`` renderings — so that the surfaces that display a
+            citation only read the context and never recompose it.
+
+        Notes
+        -----
+        The mapping is the contract between this module and every guide
+        surface that displays a citation: the ``<head>`` metadata, the
+        ``citation-card`` directive, and the footer.
+        """
+        citation = self.citation
+        return {
+            "label": self.label,
+            "is_self": self.is_self,
+            "in_footer": self.in_footer,
+            "note": self.note,
+            "title": citation.title,
+            "authors": [
+                _author_context(author) for author in citation.authors
+            ],
+            "publisher": citation.publisher,
+            "date": citation.date.isoformat() if citation.date else None,
+            "year": citation.date.year if citation.date else None,
+            "doi": citation.doi,
+            "doi_url": citation.doi_url,
+            "url": citation.url or citation.doi_url,
+            "plain_text": citation.to_plain_text(),
+            "bibtex": citation.to_bibtex(),
+        }

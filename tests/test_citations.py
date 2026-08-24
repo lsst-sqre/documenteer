@@ -9,6 +9,7 @@ import pytest
 from documenteer.citations import (
     BibtexEntryType,
     Citation,
+    GuideCitation,
     OrganizationAuthor,
     PersonAuthor,
     doi_url,
@@ -200,3 +201,58 @@ def test_bibtex_url_falls_back_to_the_doi_url() -> None:
         "    url = {https://doi.org/10.5281/zenodo.10385500}\n"
         "}"
     )
+
+
+def test_html_context_for_a_person_author() -> None:
+    """A person's html_context entry carries both name orders: reading order
+    for schema.org and family-name-first for a bibliographic reference.
+    """
+    citation = GuideCitation(
+        citation=Citation(
+            doi="10.5281/zenodo.10385500",
+            title="Documenteer",
+            authors=(
+                PersonAuthor(
+                    family_name="Sick",
+                    given_name="Jonathan",
+                    orcid="https://orcid.org/0000-0003-3001-676X",
+                    affiliation="Rubin Observatory",
+                ),
+            ),
+            date=datetime.date(2026, 2, 1),
+        ),
+        label="Software",
+        is_self=True,
+        in_footer=True,
+        note="Cite the software.",
+    )
+
+    context = citation.to_html_context()
+    assert context["authors"] == [
+        {
+            "type": "person",
+            "name": "Jonathan Sick",
+            "citation_name": "Sick, Jonathan",
+            "orcid": "https://orcid.org/0000-0003-3001-676X",
+            "affiliation": "Rubin Observatory",
+        }
+    ]
+    assert context["label"] == "Software"
+    assert context["is_self"] is True
+    assert context["in_footer"] is True
+    assert context["note"] == "Cite the software."
+    assert context["year"] == 2026
+    assert context["date"] == "2026-02-01"
+    assert context["url"] == "https://doi.org/10.5281/zenodo.10385500"
+
+
+def test_html_context_without_a_date() -> None:
+    """A citation with no date reports neither a date nor a year."""
+    context = GuideCitation(
+        citation=Citation(doi="10.5281/zenodo.10385500", title="Untitled")
+    ).to_html_context()
+    assert context["date"] is None
+    assert context["year"] is None
+    assert context["label"] is None
+    assert context["is_self"] is False
+    assert context["in_footer"] is False

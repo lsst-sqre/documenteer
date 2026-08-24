@@ -13,6 +13,8 @@ The ``[project]`` table is where most of the project's metadata is set.
 
 |required|
 
+.. _guide-project-title:
+
 title
 -----
 
@@ -86,6 +88,184 @@ version
 |optional| |py-auto|
 
 The project's version, which is set to the standard Sphinx ``version`` and ``release`` configuration variables.
+
+.. _guide-project-citations:
+
+[[project.citations]]
+=====================
+
+|optional|
+
+Sites that are published with a DOI can declare their citations in the ``[[project.citations]]`` array of tables.
+Documenteer uses them to make the site a proper DOI landing page: it renders a full bibliographic citation with the DOI as a resolvable ``https://doi.org/`` link, and emits machine-readable citation metadata in the page ``<head>``.
+
+Because it is an *array* of tables, the table header is written with double brackets and repeated once per citation.
+A site can cite more than one work — the documentation itself and the dataset it describes, for example — and the order the entries are written in is the order they appear in the site footer.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/2570308"
+   label = "Dataset"
+   self = true
+   note = "Cite the DP2 dataset and this documentation."
+   title = "Data Preview 2"
+   publisher = "Vera C. Rubin Observatory"
+   date = 2025-06-30
+   authors = [{ name = "Vera C. Rubin Observatory" }]
+
+Each entry carries two kinds of field.
+The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, and :ref:`date <guide-project-citations-date>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>`).
+The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`in_footer <guide-project-citations-in-footer>`, and :ref:`note <guide-project-citations-note>`) say how the site displays the citation, and are only ever set here.
+
+.. _guide-project-citations-doi:
+
+doi
+---
+
+|optional|
+
+The DOI of the work being cited.
+It can be written bare (``10.71929/rubin/2570308``), as a ``https://doi.org/`` URL, or with a ``doi:`` prefix; anything else fails the build.
+Either this field or :ref:`cff <guide-project-citations-cff>` must supply a DOI.
+
+.. _guide-project-citations-label:
+
+label
+-----
+
+|optional|
+
+A short label that distinguishes this citation from the site's others, such as ``"Dataset"`` or ``"Paper"``.
+
+.. _guide-project-citations-self:
+
+self
+----
+
+|optional|
+
+Whether this is the DOI whose landing page this site is.
+Default is ``false``, and at most one entry can set it to ``true``.
+
+The self citation is the one whose metadata the site emits in its ``<head>``, and the one that is shown by default where a citation is displayed.
+It is also the one entry that may omit :ref:`title <guide-project-citations-title>`, since the site's own :ref:`project.title <guide-project-title>` is then the title of the work.
+
+.. _guide-project-citations-in-footer:
+
+in\_footer
+----------
+
+|optional|
+
+Whether this citation appears in the site footer.
+Default is ``true`` for the :ref:`self <guide-project-citations-self>` entry and ``false`` for every other, so additional citations are opt-in.
+Footer citations appear in the order the entries are written.
+
+.. _guide-project-citations-note:
+
+note
+----
+
+|optional|
+
+Free text about when to use this citation, displayed alongside it.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   note = "To be used when citing the DP2 dataset and this documentation."
+
+.. _guide-project-citations-title:
+
+title
+-----
+
+|optional|
+
+The title of the work being cited.
+Required unless :ref:`cff <guide-project-citations-cff>` supplies one, or the entry is the :ref:`self <guide-project-citations-self>` citation — which falls back to the site's :ref:`project.title <guide-project-title>`.
+
+.. _guide-project-citations-authors:
+
+authors
+-------
+
+|optional|
+
+The work's authors, in the order they should be credited.
+Each author is a table naming either an organization or a person, since the two are cited differently: a person's name is set family-name-first and may be abbreviated by a bibliography style, where an organization's name is kept whole.
+
+An organization is named with ``name``, and optionally its ROR identifier:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   authors = [
+       { name = "Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+   ]
+
+A person is named with ``family_name``, and optionally ``given_name``, ``orcid``, and ``affiliation``:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   authors = [
+       { family_name = "Sick", given_name = "Jonathan", orcid = "https://orcid.org/0000-0003-3001-676X" },
+   ]
+
+Setting any author replaces the entire author list that a :ref:`cff <guide-project-citations-cff>` file supplies.
+
+.. _guide-project-citations-publisher:
+
+publisher
+---------
+
+|optional|
+
+The organization that published the work.
+
+.. _guide-project-citations-date:
+
+date
+----
+
+|optional|
+
+The work's publication date, written as a TOML date (``2025-06-30``).
+Only its year appears in a rendered citation.
+
+.. _guide-project-citations-cff:
+
+cff
+---
+
+|optional|
+
+The path to a `CITATION.cff <https://citation-file-format.github.io>`__ file that supplies the entry's bibliographic fields, relative to :file:`documenteer.toml`.
+Since :file:`documenteer.toml` sits beside :file:`conf.py` in the documentation directory and :file:`CITATION.cff` sits at the repository root, this is usually ``"../CITATION.cff"``.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   self = true
+   label = "Software"
+   note = "Cite this software and its documentation."
+
+A repository that already maintains a :file:`CITATION.cff` for GitHub's "Cite this repository" button has written the bibliographic record down once; pointing at it keeps :file:`documenteer.toml` from restating it.
+When the file declares a ``preferred-citation``, that is the citation Documenteer reads, exactly as GitHub renders it.
+
+Any bibliographic field set alongside ``cff`` overrides the file's value, so a single field can be corrected without abandoning the file:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   self = true
+   title = "Data Preview 2 Documentation"
+
+A ``cff`` path that names no file, or a file that cannot be read as a citation, fails the build with an error naming the path.
 
 .. _guide-project-openapi:
 

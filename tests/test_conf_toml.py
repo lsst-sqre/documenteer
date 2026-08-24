@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date
+from pathlib import Path
+from typing import Any
+
 import pytest
 from sphinx.errors import ConfigError
 
+from documenteer.citations import OrganizationAuthor, PersonAuthor
 from documenteer.conf import DocumenteerConfig
 
 EXAMPLE = """
@@ -376,3 +381,304 @@ def test_intersphinx_cache_negative_ttl_rejected() -> None:
     """
     with pytest.raises(ConfigError):
         DocumenteerConfig.load(EXAMPLE_NEGATIVE_TTL)
+
+
+EXAMPLE_CITATIONS_INLINE = """
+
+[project]
+title = "Data Preview 2 Documentation"
+base_url = "https://dp0-2.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "https://doi.org/10.71929/rubin/2570308"
+label = "Dataset"
+self = true
+note = "Cite the DP2 dataset and this documentation."
+title = "Data Preview 2"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [
+    { name = "Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+]
+"""
+
+
+def test_citations_inline() -> None:
+    """A [[project.citations]] entry composes a citation from its own
+    fields, normalizing the DOI.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+
+    (entry,) = config.citations
+    assert entry.label == "Dataset"
+    assert entry.is_self is True
+    assert entry.note == "Cite the DP2 dataset and this documentation."
+    assert entry.citation.doi == "10.71929/rubin/2570308"
+    assert entry.citation.title == "Data Preview 2"
+    assert entry.citation.publisher == "Vera C. Rubin Observatory"
+    assert entry.citation.date == date(2025, 6, 30)
+    assert entry.citation.authors == (
+        OrganizationAuthor(
+            name="Vera C. Rubin Observatory", ror="https://ror.org/048g3cy84"
+        ),
+    )
+    assert config.self_citation is entry
+
+
+CITATION_CFF = """cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Example Software"
+authors:
+  - family-names: Sick
+    given-names: Jonathan
+    orcid: "https://orcid.org/0000-0003-3001-676X"
+doi: 10.5281/zenodo.10385500
+date-released: 2026-02-01
+"""
+
+EXAMPLE_CITATIONS_CFF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+self = true
+label = "Software"
+title = "Example Software, version 2"
+"""
+
+
+def test_citations_from_cff(tmp_path: Path) -> None:
+    """A cff-sourced entry composes from the CITATION.cff file, and an
+    inline field overrides the file's value.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_CFF, root_dir=docs_dir)
+
+    (entry,) = config.citations
+    assert entry.label == "Software"
+    # From the CITATION.cff file.
+    assert entry.citation.doi == "10.5281/zenodo.10385500"
+    assert entry.citation.date == date(2026, 2, 1)
+    assert entry.citation.authors == (
+        PersonAuthor(
+            family_name="Sick",
+            given_name="Jonathan",
+            orcid="https://orcid.org/0000-0003-3001-676X",
+        ),
+    )
+    # Set inline alongside cff, so it overrides the file's title.
+    assert entry.citation.title == "Example Software, version 2"
+
+
+EXAMPLE_CITATIONS_TWO_SELF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+self = true
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+self = true
+"""
+
+
+def test_citations_two_self_entries_rejected() -> None:
+    """A site is the landing page of at most one DOI."""
+    with pytest.raises(ConfigError, match="self = true"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_TWO_SELF)
+
+
+EXAMPLE_CITATIONS_BAD_DOI = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "not-a-doi"
+title = "Example"
+"""
+
+
+def test_citations_malformed_doi_rejected() -> None:
+    """A value that is not a DOI is rejected when the config is loaded."""
+    with pytest.raises(ConfigError, match="Not a DOI"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_BAD_DOI)
+
+
+EXAMPLE_CITATIONS_MISSING_CFF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+label = "Software"
+"""
+
+
+def test_citations_missing_cff_file(tmp_path: Path) -> None:
+    """A cff path that names no file fails with an error naming the path."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_MISSING_CFF, root_dir=docs_dir
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    message = str(exc_info.value)
+    assert "label 'Software'" in message
+    assert str(tmp_path / "CITATION.cff") in message
+
+
+EXAMPLE_CITATIONS_NO_DOI = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example"
+"""
+
+
+def test_citations_without_doi_rejected() -> None:
+    """An entry that yields no DOI from either source is an error."""
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_NO_DOI)
+    with pytest.raises(ConfigError, match="declares no DOI"):
+        _ = config.citations
+
+
+EXAMPLE_CITATIONS_FOOTER = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+label = "Paper"
+title = "A Paper"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Site"
+self = true
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385501"
+label = "Dataset"
+title = "A Dataset"
+in_footer = true
+"""
+
+
+def test_citations_in_footer_defaults() -> None:
+    """in_footer defaults to true only for the self entry, and the array
+    order is preserved.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_FOOTER)
+
+    assert [entry.label for entry in config.citations] == [
+        "Paper",
+        "Site",
+        "Dataset",
+    ]
+    assert [entry.in_footer for entry in config.citations] == [
+        False,
+        True,
+        True,
+    ]
+    self_citation = config.self_citation
+    assert self_citation is not None
+    assert self_citation.label == "Site"
+    # The self entry takes its title from the project when it declares none.
+    assert self_citation.citation.title == "Example Guide"
+
+
+def test_set_citations_html_context() -> None:
+    """set_citations publishes the resolved citations into html_context,
+    including the plain-text and BibTeX renderings.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    (context,) = html_context["documenteer_citations"]
+    assert context["label"] == "Dataset"
+    assert context["is_self"] is True
+    assert context["in_footer"] is True
+    assert context["doi"] == "10.71929/rubin/2570308"
+    assert context["doi_url"] == "https://doi.org/10.71929/rubin/2570308"
+    assert context["year"] == 2025
+    assert context["date"] == "2025-06-30"
+    assert context["authors"] == [
+        {
+            "type": "organization",
+            "name": "Vera C. Rubin Observatory",
+            "citation_name": "Vera C. Rubin Observatory",
+            "ror": "https://ror.org/048g3cy84",
+        }
+    ]
+    assert context["plain_text"] == (
+        "Vera C. Rubin Observatory (2025). Data Preview 2. "
+        "Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308"
+    )
+    assert context["bibtex"].startswith("@misc{")
+    assert "doi = {10.71929/rubin/2570308}" in context["bibtex"]
+    assert html_context["documenteer_self_citation"] is context
+
+
+def test_set_citations_without_citations() -> None:
+    """A site without [[project.citations]] leaves html_context untouched."""
+    config = DocumenteerConfig.load(EXAMPLE)
+    assert config.citations == []
+    assert config.self_citation is None
+
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+    assert html_context == {}
+
+
+EXAMPLE_CITATIONS_NAMELESS_AUTHOR = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+authors = [{ orcid = "0000-0003-3001-676X" }]
+"""
+
+EXAMPLE_CITATIONS_DOUBLE_NAMED_AUTHOR = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+authors = [{ name = "Rubin Observatory", family_name = "Sick" }]
+"""
+
+
+@pytest.mark.parametrize(
+    ("example", "match"),
+    [
+        (EXAMPLE_CITATIONS_NAMELESS_AUTHOR, "has no name"),
+        (EXAMPLE_CITATIONS_DOUBLE_NAMED_AUTHOR, "both name and family_name"),
+    ],
+)
+def test_citation_author_naming_rejected(example: str, match: str) -> None:
+    """An author must be named either as an organization or as a person."""
+    with pytest.raises(ConfigError, match=match):
+        DocumenteerConfig.load(example)

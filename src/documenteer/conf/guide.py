@@ -397,6 +397,13 @@ favicons = [
 # Configure the "Edit this page" link
 _conf.set_edit_on_github(html_theme_options, html_context)
 
+# Publish the site's citations ([[project.citations]] in documenteer.toml)
+# into html_context, resolved and composed. This is the only place a citation
+# is composed: the head metadata, the citation-card directive, and the footer
+# all read documenteer_citations / documenteer_self_citation from the
+# context. Nothing is set when the site declares no citations.
+_conf.set_citations(html_context)
+
 # Specifies templates to put in the primary (left) sidebars of
 # specific pages (by their docname or pattern). An empty list results in the
 # sidebar being dropped altogether.

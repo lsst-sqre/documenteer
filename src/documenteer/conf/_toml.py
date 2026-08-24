@@ -4,27 +4,40 @@ configuration preset modules.
 
 from __future__ import annotations
 
+import datetime
 import sys
 import tomllib
 from collections.abc import MutableMapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from email.message import Message
+from functools import cached_property
 from importlib.metadata import PackageNotFoundError, metadata
 from importlib.metadata import version as get_version
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Self, cast
 from urllib.parse import urlparse
 
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     FilePath,
     HttpUrl,
     ValidationError,
     field_validator,
+    model_validator,
 )
 from sphinx.errors import ConfigError
 
+from ..citations import (
+    Citation,
+    CitationAuthor,
+    GuideCitation,
+    OrganizationAuthor,
+    PersonAuthor,
+    normalize_doi,
+)
+from ..storage.citationcff import CitationCffError, read_citation_cff
 from ..storage.intersphinxcacheclient import (
     DEFAULT_BASE_URL as INTERSPHINX_CACHE_DEFAULT_BASE_URL,
 )
@@ -32,6 +45,8 @@ from ..storage.linkcheckclient import DEFAULT_BASE_URL as OOK_DEFAULT_BASE_URL
 from ._utils import normalize_origin_base_url
 
 __all__ = [
+    "CitationAuthorModel",
+    "CitationModel",
     "ConfigRoot",
     "DocumenteerConfig",
     "IntersphinxCacheModel",
@@ -136,6 +151,195 @@ class PythonPackageModel(BaseModel):
         return v
 
 
+class CitationAuthorModel(BaseModel):
+    """Model for an author of a ``[[project.citations]]`` entry.
+
+    An author is either a person, named with ``family_name`` (and usually
+    ``given_name``), or an organization, named with ``name``. The split
+    matters to a rendered citation: a person's name is set family-name-first
+    and may be abbreviated by a BibTeX style, where an organization's is
+    protected from both.
+    """
+
+    name: str | None = Field(
+        None,
+        description=(
+            "The organization's name, for an author that is an institution "
+            "rather than a person."
+        ),
+    )
+
+    ror: str | None = Field(
+        None,
+        description=(
+            "The organization's ROR (ror.org) identifier. Only meaningful "
+            "alongside ``name``."
+        ),
+    )
+
+    family_name: str | None = Field(
+        None,
+        description=(
+            "The person's family name (last name in western culture)."
+        ),
+    )
+
+    given_name: str | None = Field(
+        None,
+        description=(
+            "The person's given name (first name in western culture)."
+        ),
+    )
+
+    orcid: str | None = Field(
+        None,
+        description=(
+            "The person's ORCID, as a URL or a bare identifier. Only "
+            "meaningful alongside ``family_name``."
+        ),
+    )
+
+    affiliation: str | None = Field(
+        None,
+        description=(
+            "The person's affiliation, as a single display name. Only "
+            "meaningful alongside ``family_name``."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def validate_name(self) -> Self:
+        """Require exactly one of the organization and person spellings."""
+        if self.name is not None and self.family_name is not None:
+            raise ValueError(
+                "A citation author sets both name and family_name. Use name "
+                "for an organization and family_name for a person, not both."
+            )
+        if self.name is None and self.family_name is None:
+            raise ValueError(
+                "A citation author has no name. Give it either name (for an "
+                "organization) or family_name (for a person)."
+            )
+        return self
+
+    def to_citation_author(self) -> CitationAuthor:
+        """Express the author as a `documenteer.citations.CitationAuthor`."""
+        if self.name is not None:
+            return OrganizationAuthor(name=self.name, ror=self.ror)
+        # validate_name guarantees a family name when there is no org name.
+        return PersonAuthor(
+            family_name=cast("str", self.family_name),
+            given_name=self.given_name,
+            orcid=self.orcid,
+            affiliation=self.affiliation,
+        )
+
+
+class CitationModel(BaseModel):
+    """Model for an entry in the ``[[project.citations]]`` array of
+    documenteer.toml.
+
+    An entry carries both the work's bibliographic fields and the
+    presentation fields that say how the site displays it. The bibliographic
+    fields can instead come from a CITATION.cff file, named by ``cff``, in
+    which case a field set here overrides the file's value; the presentation
+    fields are only ever set here.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    doi: str | None = Field(
+        None,
+        description=(
+            "The work's DOI, written bare (``10.NNNN/suffix``), as a "
+            "https://doi.org/ URL, or with a ``doi:`` prefix. Required "
+            "unless a ``cff`` file supplies one."
+        ),
+    )
+
+    label: str | None = Field(
+        None,
+        description=(
+            "A short label distinguishing this citation from the site's "
+            'others, such as "Dataset" or "Paper".'
+        ),
+    )
+
+    is_self: bool = Field(
+        False,
+        alias="self",
+        description=(
+            "Whether this is the DOI whose landing page this site is. At "
+            "most one entry can set it."
+        ),
+    )
+
+    in_footer: bool | None = Field(
+        None,
+        description=(
+            "Whether this citation appears in the site footer. Defaults to "
+            "true for the ``self`` entry and false for every other."
+        ),
+    )
+
+    note: str | None = Field(
+        None,
+        description=(
+            "Free text about when to use this citation, displayed alongside "
+            "it."
+        ),
+    )
+
+    title: str | None = Field(None, description="The title of the cited work.")
+
+    authors: list[CitationAuthorModel] = Field(
+        default_factory=list,
+        description=(
+            "The work's authors, in the order they should be credited. "
+            "Setting any author replaces the whole author list a ``cff`` "
+            "file supplies."
+        ),
+    )
+
+    publisher: str | None = Field(
+        None, description="The organization that published the work."
+    )
+
+    date: datetime.date | None = Field(
+        None,
+        description=(
+            "The work's publication date. Only its year appears in a "
+            "rendered citation."
+        ),
+    )
+
+    cff: str | None = Field(
+        None,
+        description=(
+            "Path to a CITATION.cff file supplying the bibliographic "
+            "fields, relative to documenteer.toml (typically "
+            "``../CITATION.cff``)."
+        ),
+    )
+
+    @field_validator("doi")
+    @classmethod
+    def validate_doi(cls, v: str | None) -> str | None:
+        """Normalize the DOI to its bare form, rejecting a non-DOI."""
+        if v is None:
+            return None
+        return normalize_doi(v)
+
+    @property
+    def shows_in_footer(self) -> bool:
+        """Whether the citation appears in the site footer, resolving the
+        default from whether it is the self citation.
+        """
+        if self.in_footer is None:
+            return self.is_self
+        return self.in_footer
+
+
 class ProjectModel(BaseModel):
     """Model for the project table in the documenteer.toml file."""
 
@@ -169,6 +373,31 @@ class ProjectModel(BaseModel):
     python: PythonPackageModel | None = Field(None)
 
     openapi: OpenApiDocsModel | None = Field(None)
+
+    citations: list[CitationModel] = Field(
+        default_factory=list,
+        description=(
+            "Citations the site displays, in the order they appear in the "
+            "footer."
+        ),
+    )
+
+    @field_validator("citations")
+    @classmethod
+    def validate_one_self_citation(
+        cls, v: list[CitationModel]
+    ) -> list[CitationModel]:
+        """Allow at most one citation to claim the site as its landing
+        page.
+        """
+        self_count = sum(1 for citation in v if citation.is_self)
+        if self_count > 1:
+            raise ValueError(
+                f"{self_count} [[project.citations]] entries set self = "
+                "true, but a site is the landing page of at most one DOI. "
+                "Set self = true on one entry only."
+            )
+        return v
 
 
 class IntersphinxCacheModel(BaseModel):
@@ -406,15 +635,27 @@ class DocumenteerConfig:
 
     conf: ConfigRoot
 
+    root_dir: Path = field(default_factory=Path)
+    """The directory the documenteer.toml file was loaded from.
+
+    Paths in the configuration that are documented as relative to
+    documenteer.toml — a citation's ``cff`` file, for instance — are resolved
+    against this directory. Sphinx runs :file:`conf.py` with the
+    configuration directory as the working directory, so the default (the
+    working directory) is right for a build.
+    """
+
     @classmethod
     def find_and_load(cls) -> DocumenteerConfig:
         path = Path("documenteer.toml")
         if not path.is_file():
             raise ConfigError("Cannot find the documenteer.toml file.")
-        return cls.load(path.read_text())
+        return cls.load(path.read_text(), root_dir=path.parent)
 
     @classmethod
-    def load(cls, toml_content: str) -> DocumenteerConfig:
+    def load(
+        cls, toml_content: str, *, root_dir: Path | None = None
+    ) -> DocumenteerConfig:
         try:
             conf = ConfigRoot.model_validate(tomllib.loads(toml_content))
         except ValidationError as e:
@@ -422,7 +663,7 @@ class DocumenteerConfig:
                 f"Syntax or validation issue in documenteer.toml:\n\n{e!s}"
             )
             raise ConfigError(message) from e
-        return cls(conf)
+        return cls(conf, root_dir=root_dir if root_dir is not None else Path())
 
     @property
     def project(self) -> str:
@@ -783,3 +1024,156 @@ class DocumenteerConfig:
             return self.conf.sphinx.theme.show_last_updated
         else:
             return True
+
+    @cached_property
+    def citations(self) -> list[GuideCitation]:
+        """The citations declared in ``[[project.citations]]``, resolved and
+        composed, in the order they are declared.
+
+        Returns
+        -------
+        list
+            A `~documenteer.citations.GuideCitation` per entry, each pairing
+            the bibliographic record with the presentation fields that say
+            how the site displays it. Empty when the site declares no
+            citations.
+
+        Raises
+        ------
+        sphinx.errors.ConfigError
+            Raised if an entry names a CITATION.cff file that cannot be read,
+            or if neither the entry nor its CITATION.cff file yields the DOI
+            and title a citation needs.
+
+        Notes
+        -----
+        Resolution reads any referenced CITATION.cff file, so it is deferred
+        to first access and then cached: a configuration that is loaded but
+        never displays a citation does no I/O.
+        """
+        return [
+            self._resolve_citation(entry, index)
+            for index, entry in enumerate(self.conf.project.citations)
+        ]
+
+    @property
+    def self_citation(self) -> GuideCitation | None:
+        """The citation whose DOI landing page this site is, or `None` if no
+        entry claims it.
+        """
+        return next(
+            (citation for citation in self.citations if citation.is_self),
+            None,
+        )
+
+    def set_citations(self, html_context: MutableMapping[str, Any]) -> None:
+        """Publish the resolved citations into Sphinx's ``html_context``.
+
+        Parameters
+        ----------
+        html_context
+            The Sphinx ``html_context`` mapping to populate.
+
+        Notes
+        -----
+        Two keys are set, and only when the site declares at least one
+        citation, so that a site without ``[[project.citations]]`` renders
+        exactly as it did before:
+
+        ``documenteer_citations``
+            Every citation, in declaration order, as the mapping
+            `~documenteer.citations.GuideCitation.to_html_context` composes.
+        ``documenteer_self_citation``
+            The entry from that list whose ``is_self`` is true, or `None`.
+
+        This is the whole contract with the surfaces that display a citation
+        — the ``<head>`` metadata, the ``citation-card`` directive, and the
+        footer — which read the context and never recompose a citation.
+        """
+        contexts = [citation.to_html_context() for citation in self.citations]
+        if not contexts:
+            return
+        html_context["documenteer_citations"] = contexts
+        html_context["documenteer_self_citation"] = next(
+            (context for context in contexts if context["is_self"]), None
+        )
+
+    def _resolve_citation(
+        self, entry: CitationModel, index: int
+    ) -> GuideCitation:
+        """Compose one ``[[project.citations]]`` entry as a citation.
+
+        A ``cff`` file supplies the bibliographic fields; a field set on the
+        entry itself overrides the file's value.
+        """
+        source = self._read_citation_cff(entry, index) if entry.cff else None
+        title = entry.title or (source.title if source else None)
+        if title is None and entry.is_self:
+            # The self citation is this site, so the site's own title is the
+            # right title when nothing else supplies one.
+            title = self.project
+        if title is None:
+            raise ConfigError(
+                f"The {_describe_citation(entry, index)} declares no title. "
+                "Set title, or set cff to a CITATION.cff file that declares "
+                "one."
+            )
+        doi = entry.doi or (source.doi if source else None)
+        if doi is None:
+            raise ConfigError(
+                f"The {_describe_citation(entry, index)} declares no DOI. "
+                "Set doi, or set cff to a CITATION.cff file that declares "
+                "one."
+            )
+        authors: tuple[CitationAuthor, ...]
+        if entry.authors:
+            authors = tuple(
+                author.to_citation_author() for author in entry.authors
+            )
+        else:
+            authors = source.authors if source else ()
+        return GuideCitation(
+            citation=Citation(
+                title=title,
+                doi=doi,
+                authors=authors,
+                publisher=entry.publisher
+                or (source.publisher if source else None),
+                date=entry.date or (source.date if source else None),
+                url=source.url if source else None,
+            ),
+            label=entry.label,
+            is_self=entry.is_self,
+            in_footer=entry.shows_in_footer,
+            note=entry.note,
+        )
+
+    def _read_citation_cff(self, entry: CitationModel, index: int) -> Citation:
+        """Read the CITATION.cff file an entry names, relative to
+        documenteer.toml.
+
+        The path is resolved to an absolute one so that the error a missing
+        or unreadable file raises names a path a reader can act on, rather
+        than one still carrying the ``../`` the configuration wrote.
+        """
+        path = (self.root_dir / cast("str", entry.cff)).resolve()
+        try:
+            return read_citation_cff(path)
+        except CitationCffError as e:
+            raise ConfigError(
+                f"The {_describe_citation(entry, index)} sets "
+                f"cff = {entry.cff!r}, which could not be read as a "
+                f"citation. {e}"
+            ) from e
+
+
+def _describe_citation(entry: CitationModel, index: int) -> str:
+    """Identify a ``[[project.citations]]`` entry in an error message.
+
+    The array has no names, so an entry is identified by its position, with
+    its label added when it has one.
+    """
+    position = f"[[project.citations]] entry #{index + 1}"
+    if entry.label:
+        return f"{position} (label {entry.label!r})"
+    return position

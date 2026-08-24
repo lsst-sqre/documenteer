@@ -36,6 +36,9 @@ EXPECTED_ISO = "2024-06-01T00:00:00+00:00"
 EXPECTED_DATE = "2024-06-01"
 # Must match project.github_url in tests/roots/test-guide/documenteer.toml.
 GITHUB_URL = "https://github.com/lsst-sqre/documenteer"
+# The bare form of the [[project.citations]] DOI in that same file, which is
+# written there as a https://doi.org/ URL and normalized on load.
+CITATION_DOI = "10.71929/rubin/2570308"
 
 # Whether pydata-sphinx-theme is importable. The guide stack pins
 # ``html_theme = "pydata_sphinx_theme"``, so the build errors during fixture
@@ -146,3 +149,22 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
         "the square GitHub mark renders oversized next to the other header "
         "icons and should not be used"
     )
+
+    # The site's [[project.citations]] entry is resolved into html_context,
+    # which is the whole contract the citation surfaces (head metadata, the
+    # citation-card directive, the footer) read from.
+    citations = app.config.html_context["documenteer_citations"]
+    assert len(citations) == 1
+    citation = citations[0]
+    assert citation["label"] == "Site"
+    assert citation["is_self"] is True
+    assert citation["in_footer"] is True
+    assert citation["note"] == "Cite this documentation."
+    assert citation["doi"] == CITATION_DOI
+    assert citation["doi_url"] == f"https://doi.org/{CITATION_DOI}"
+    assert citation["plain_text"] == (
+        "Vera C. Rubin Observatory (2025). Guide Build Smoke Test. "
+        f"Vera C. Rubin Observatory. https://doi.org/{CITATION_DOI}"
+    )
+    assert f"doi = {{{CITATION_DOI}}}" in citation["bibtex"]
+    assert app.config.html_context["documenteer_self_citation"] is citation

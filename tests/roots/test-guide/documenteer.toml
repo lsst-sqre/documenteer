@@ -2,3 +2,13 @@
 title = "Guide Build Smoke Test"
 base_url = "https://example.lsst.io"
 github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "https://doi.org/10.71929/rubin/2570308"
+label = "Site"
+self = true
+note = "Cite this documentation."
+title = "Guide Build Smoke Test"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
