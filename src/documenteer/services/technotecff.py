@@ -107,8 +107,8 @@ class TechnoteCffService:
     CITATION.cff is generated from it. Generation is deterministic and
     entirely local: the same technote.toml always yields byte-identical
     output, which is what lets `status` decide staleness by comparing content
-    and lets ``--check`` (and, later, the TN106 lint rule) run in CI without
-    writing anything.
+    and lets ``--check`` — and the TN106 lint rule, which reuses this same
+    comparison — run in CI without writing anything.
 
     Parameters
     ----------

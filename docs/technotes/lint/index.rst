@@ -1,4 +1,4 @@
-:og:description: Documenteer's "technote lint" command checks a technote's metadata and structure — author IDs, the abstract, and requirements — before it is built and published.
+:og:description: Documenteer's "technote lint" command checks a technote's metadata and structure — author IDs, citation metadata, the abstract, and requirements — before it is built and published.
 
 .. _technote-lint:
 
@@ -8,7 +8,7 @@ Lint a technote
 
 Documenteer provides a command-line linter, :command:`documenteer technote lint`, that checks a technote's metadata and structure before it is built and published.
 Its most important job is verifying that every author has an ``internal_id`` that resolves in the Rubin author database (`authordb.yaml`_), since these IDs are needed to mint a DOI for the technote.
-The command also checks that the content declares an abstract and that :file:`requirements.txt` installs Documenteer correctly.
+The command also checks that the content declares an abstract, that :file:`requirements.txt` installs Documenteer correctly, and that the technote's citation metadata — its DOI and, where the repository has adopted one, its :file:`CITATION.cff` — is in order.
 
 Rubin's technote CI (from the `rubin-sphinx-technote-workflows <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows>`__ repository) runs this command so that builds fail early when a technote's metadata is incomplete.
 
@@ -45,7 +45,7 @@ Options
 ``--dir <path>``, ``-d <path>``
     Path to the technote directory to lint.
     Defaults to the current directory (``.``).
-    The command locates :file:`technote.toml`, the content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`), and :file:`requirements.txt` within this directory.
+    The command locates :file:`technote.toml`, the content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`), :file:`requirements.txt`, and :file:`CITATION.cff` within this directory.
 
 ``--strict``, ``-s``
     Promote all warnings to errors.
@@ -103,6 +103,14 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Metadata
      - The author database is reachable so that IDs can be resolved.
      - Warning
+   * - :doc:`TN104 <tn104>`
+     - Metadata
+     - The declared DOI is syntactically a DOI.
+     - Error
+   * - :doc:`TN106 <tn106>`
+     - Metadata
+     - :file:`CITATION.cff` matches what :file:`technote.toml` generates.
+     - Error
    * - :doc:`TN201 <tn201>`
      - Content
      - The content file declares an abstract directive.
@@ -132,6 +140,8 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
    tn101
    tn102
    tn103
+   tn104
+   tn106
    tn201
    tn202
    tn203
@@ -184,7 +194,7 @@ Non-Sphinx technotes
 ====================
 
 Some technote-series repositories are not Sphinx projects at all: they publish through the shared technote CI with a custom build command (an Org-mode deck, for example).
-When a directory has no content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`) *and* no :file:`conf.py`, the linter treats it as one of these and checks only that its :file:`technote.toml` is well formed — :doc:`TN004 <tn004>`, :doc:`TN005 <tn005>`, :doc:`TN001 <tn001>`, and the author rules (``TN1xx``).
+When a directory has no content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`) *and* no :file:`conf.py`, the linter treats it as one of these and checks only that its :file:`technote.toml` is well formed — :doc:`TN004 <tn004>`, :doc:`TN005 <tn005>`, :doc:`TN001 <tn001>`, and the metadata rules (``TN1xx``), which read :file:`technote.toml` alone.
 The :file:`requirements.txt` rules (:doc:`TN002 <tn002>`/:doc:`TN003 <tn003>`), the content rules (``TN2xx``), and :doc:`TN006 <tn006>` are skipped, since they describe a Documenteer/Sphinx build that these repositories do not have.
 A repository that *does* have a :file:`conf.py` but no content file is a broken Sphinx technote, and is reported as :doc:`TN006 <tn006>`.
 
@@ -196,5 +206,6 @@ A repository that *does* have a :file:`conf.py` but no content file is a broken 
 Related documentation
 =====================
 
-- :doc:`../author-metadata` — add and update the authors that the ``TN1xx`` rules check.
+- :doc:`../author-metadata` — add and update the authors that :doc:`TN101 <tn101>`–:doc:`TN103 <tn103>` check.
+- :doc:`../citation-file` — generate the :file:`CITATION.cff` that :doc:`TN106 <tn106>` keeps in sync with :file:`technote.toml`.
 - :doc:`../migrate` — the migration tool sets up the :file:`Makefile`, :file:`requirements.txt`, and abstract directive that these rules rely on.

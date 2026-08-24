@@ -101,6 +101,10 @@ The ``--check`` option compares the file on disk against what :file:`technote.to
 It exits non-zero only when :file:`CITATION.cff` exists and is *stale*.
 A repository with no :file:`CITATION.cff` has simply not adopted the file, and passes.
 
+:command:`documenteer technote lint` reports the same staleness as :doc:`TN106 <lint/tn106>`, using this same comparison, so a technote's CI catches an unsynced file whether it runs the linter, this check, or both.
+
+.. _technote-cff-pre-commit:
+
 Running the sync as a pre-commit hook
 =====================================
 

@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import pytest_responses  # noqa: F401
 import requests
 from responses import RequestsMock, matchers
 
+from documenteer.services.technotecff import TechnoteCffService
 from documenteer.services.technotelint import (
     CHECKS,
     LintContext,
@@ -617,6 +619,157 @@ internal_id = "sickj"
     assert [f.code for f in findings] == ["TN102"]
     assert findings[0].severity is Severity.error
     assert "malformed" in findings[0].message
+
+
+def test_malformed_doi_reports_tn104(tmp_path: Path) -> None:
+    """A [technote] doi that is not a DOI yields a TN104 error."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+doi = "10.71929"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN104"]
+    assert findings[0].severity is Severity.error
+    assert "10.71929" in findings[0].message
+
+
+@pytest.mark.parametrize(
+    "doi",
+    [
+        "10.71929/rubin/2570308",
+        "https://doi.org/10.71929/rubin/2570308",
+        "doi:10.71929/rubin/2570308",
+    ],
+)
+def test_well_formed_doi_passes(tmp_path: Path, doi: str) -> None:
+    """Every spelling the DOI normalizer accepts is silent."""
+    context = _write_technote(
+        tmp_path,
+        f"""
+[technote]
+id = "SQR-000"
+doi = "{doi}"
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_absent_doi_passes(tmp_path: Path) -> None:
+    """A technote that declares no DOI is not flagged."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+CITABLE_TOML = """
+[technote]
+id = "SQR-000"
+title = "The technote"
+doi = "10.71929/rubin/2570308"
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"
+internal_id = "sickj"
+"""
+"""A technote.toml with enough metadata to compose a CITATION.cff.
+
+Its one author declares an ``internal_id``, so the author checks (TN1xx)
+resolve it against the mocked author database rather than reporting.
+"""
+
+
+def test_stale_citation_cff_reports_tn106(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A CITATION.cff that differs from technote.toml yields a TN106 error."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    (tmp_path / "CITATION.cff").write_text(
+        "cff-version: 1.2.0\ntitle: An older title\n"
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN106"]
+    assert findings[0].severity is Severity.error
+    assert "documenteer technote sync-cff" in findings[0].message
+
+
+def test_current_citation_cff_passes(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A CITATION.cff that sync-cff would regenerate identically is silent."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    generator = TechnoteCffService.from_technote_toml(
+        tmp_path / "technote.toml"
+    )
+    (tmp_path / "CITATION.cff").write_text(generator.render())
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_absent_citation_cff_passes(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A repository that has not adopted CITATION.cff is silent."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert not (tmp_path / "CITATION.cff").exists()
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_uncitable_technote_toml_skips_tn106(tmp_path: Path) -> None:
+    """Metadata that cannot compose a citation reports its own rule only.
+
+    A DOI that is not a DOI stops the CITATION.cff generator, so there is
+    nothing to compare a stale-looking file against; TN104 is the finding
+    that names the actual problem.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+title = "The technote"
+doi = "10.71929"
+""",
+    )
+    (tmp_path / "CITATION.cff").write_text("cff-version: 1.2.0\n")
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN104"]
 
 
 def _write_non_sphinx_technote(tmp_path: Path, toml_content: str) -> None:

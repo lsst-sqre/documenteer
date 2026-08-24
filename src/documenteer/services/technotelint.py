@@ -17,6 +17,12 @@ from packaging.utils import canonicalize_name
 from pydantic import ValidationError
 from technote.sources.tomlsettings import Person, TechnoteToml
 
+from documenteer.citations import normalize_doi
+from documenteer.services.technotecff import (
+    CFF_FILENAME,
+    CffStatus,
+    TechnoteCffService,
+)
 from documenteer.storage.authordb import (
     Author,
     AuthorDb,
@@ -130,6 +136,18 @@ CHECKS: dict[str, Check] = {
         name="authordb-reachable",
         description="The author database is reachable for resolution.",
         severity=Severity.warning,
+    ),
+    "TN104": Check(
+        code="TN104",
+        name="doi-well-formed",
+        description="The declared DOI is syntactically a DOI.",
+        severity=Severity.error,
+    ),
+    "TN106": Check(
+        code="TN106",
+        name="citation-cff-current",
+        description="CITATION.cff matches what technote.toml generates.",
+        severity=Severity.error,
     ),
     "TN201": Check(
         code="TN201",
@@ -352,8 +370,9 @@ class TechnoteLintService:
         A directory with neither a content file nor a ``conf.py`` is a
         technote-series repository that Sphinx does not build (see
         `LintContext.is_sphinx_technote`). Only the
-        ``technote.toml``-based checks — TN004/TN005/TN001 and the author
-        checks — run for it, so a healthy non-Sphinx technote reports nothing.
+        ``technote.toml``-based checks — TN004/TN005/TN001 and the metadata
+        checks (TN1xx) — run for it, so a healthy non-Sphinx technote reports
+        nothing.
         """
         findings: list[LintFinding] = []
 
@@ -387,6 +406,8 @@ class TechnoteLintService:
 
         if parsed is not None:
             findings.extend(self._check_author_internal_ids(parsed))
+            findings.extend(_check_doi(parsed))
+            findings.extend(_check_citation_cff(self._context))
 
         # A technote that Sphinx does not build has no requirements.txt or
         # content-file contract to check, so the technote.toml-based checks
@@ -502,6 +523,68 @@ class TechnoteLintService:
             # response (pydantic ValidationError) are all ValueErrors, and
             # none of them should disturb the primary check.
             return None
+
+
+def _check_doi(parsed: TechnoteToml) -> list[LintFinding]:
+    """Check that a declared DOI is syntactically a DOI (TN104).
+
+    A technote that declares no DOI is silent here: a DOI is minted when the
+    technote is released, so most technotes go without one for most of their
+    lives. Only a value that is *present* and is not a DOI is a finding.
+
+    Validation is `documenteer.citations.normalize_doi`, the same normalizer
+    every other DOI surface in Documenteer uses, so a DOI that passes the
+    linter is one the citation composer and CITATION.cff generator accept —
+    each of which raises on a value that is not a DOI. The check is entirely
+    offline; whether the DOI is *registered* is TN105's question.
+    """
+    doi = parsed.technote.doi
+    if doi is None:
+        return []
+    try:
+        normalize_doi(doi)
+    except ValueError as e:
+        return [
+            LintFinding.from_check(
+                "TN104", f"technote.toml does not declare a valid DOI: {e}"
+            )
+        ]
+    return []
+
+
+def _check_citation_cff(context: LintContext) -> list[LintFinding]:
+    """Check that an adopted CITATION.cff still matches technote.toml (TN106).
+
+    The comparison is the one `TechnoteCffService` performs for
+    ``documenteer technote sync-cff --check``: the file is regenerated
+    from ``technote.toml`` in memory and compared with what is on disk, so the
+    linter and that CI gate can never disagree about whether a file is stale.
+    Generation is deterministic and offline, which is what makes a content
+    comparison meaningful.
+
+    A repository with no CITATION.cff is silent: adoption is opt-in per
+    repository, so an absent file means the repository has not asked for one
+    rather than that it is missing something.
+
+    A ``technote.toml`` that cannot be composed into a citation at all — one
+    declaring something that is not a DOI, or an author with no name — is
+    silent too. Staleness is not the finding to report about it, and the
+    underlying problem is reported by the rule that owns it (TN104 for the
+    DOI, TN001 for the schema).
+    """
+    try:
+        service = TechnoteCffService.from_technote_toml(context.toml_path)
+    except ValueError:
+        return []
+    if service.status(context.root_dir / CFF_FILENAME) is not CffStatus.stale:
+        return []
+    return [
+        LintFinding.from_check(
+            "TN106",
+            f"{CFF_FILENAME} is out of date with technote.toml. Run "
+            "'documenteer technote sync-cff' to regenerate it.",
+        )
+    ]
 
 
 def _match_author(
