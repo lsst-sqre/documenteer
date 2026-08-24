@@ -689,7 +689,7 @@ id = "SQR-000"
     assert service.lint() == []
 
 
-CITABLE_TOML = """
+CITABLE_HEADER = """
 [technote]
 id = "SQR-000"
 title = "The technote"
@@ -697,12 +697,26 @@ doi = "10.71929/rubin/2570308"
 
 [technote.organization]
 name = "Vera C. Rubin Observatory"
-
-[[technote.authors]]
-name.given = "Jonathan"
-name.family = "Sick"
-internal_id = "sickj"
 """
+"""The non-author half of a technote.toml with a DOI and a title."""
+
+
+def _author_block(
+    given: str, family: str, internal_id: str, orcid: str | None = None
+) -> str:
+    """Write one ``[[technote.authors]]`` block."""
+    block = (
+        "\n[[technote.authors]]\n"
+        f'name.given = "{given}"\n'
+        f'name.family = "{family}"\n'
+        f'internal_id = "{internal_id}"\n'
+    )
+    if orcid is not None:
+        block += f'orcid = "{orcid}"\n'
+    return block
+
+
+CITABLE_TOML = CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj")
 """A technote.toml with enough metadata to compose a CITATION.cff.
 
 Its one author declares an ``internal_id``, so the author checks (TN1xx)
@@ -795,10 +809,47 @@ DATACITE_URL = f"https://api.datacite.org/dois/{DOI}"
 """The API URL TN105 reads that DOI's registered metadata from."""
 
 
+def _creator(
+    *,
+    given: str | None = None,
+    family: str | None = None,
+    name: str | None = None,
+    name_type: str = "Personal",
+    orcid: str | None = None,
+) -> dict[str, object]:
+    """Build one ``creators`` entry, shaped as Rubin's minter registers it.
+
+    ``orcid`` is deposited verbatim as a ``nameIdentifier``, so a test can
+    register either a bare identifier or an ``orcid.org`` URL.
+    """
+    entry: dict[str, object] = {"nameType": name_type}
+    if given is not None:
+        entry["givenName"] = given
+    if family is not None:
+        entry["familyName"] = family
+    if name is not None:
+        entry["name"] = name
+    elif given is not None and family is not None:
+        entry["name"] = f"{family}, {given}"
+    entry["nameIdentifiers"] = (
+        []
+        if orcid is None
+        else [{"nameIdentifier": orcid, "nameIdentifierScheme": "ORCID"}]
+    )
+    return entry
+
+
 def _datacite_body(
     *,
     title: str = "The technote",
-    creators: tuple[str, ...] = ("Sick, Jonathan",),
+    creators: tuple[dict[str, object], ...] = (
+        {
+            "nameType": "Personal",
+            "givenName": "Jonathan",
+            "familyName": "Sick",
+            "name": "Sick, Jonathan",
+        },
+    ),
 ) -> str:
     """Build a DataCite ``/dois/{id}`` response body for `DOI`."""
     return json.dumps(
@@ -809,10 +860,7 @@ def _datacite_body(
                 "attributes": {
                     "doi": DOI,
                     "titles": [{"title": title}],
-                    "creators": [
-                        {"name": name, "nameType": "Personal"}
-                        for name in creators
-                    ],
+                    "creators": list(creators),
                     "publisher": "Vera C. Rubin Observatory",
                     "publicationYear": 2026,
                 },
@@ -848,26 +896,16 @@ def _mock_second_author(responses: RequestsMock) -> None:
     )
 
 
-TWO_AUTHOR_TOML = """
-[technote]
-id = "SQR-000"
-title = "The technote"
-doi = "10.71929/rubin/2570308"
-
-[technote.organization]
-name = "Vera C. Rubin Observatory"
-
-[[technote.authors]]
-name.given = "Jonathan"
-name.family = "Sick"
-internal_id = "sickj"
-
-[[technote.authors]]
-name.given = "Yusra"
-name.family = "AlSayyad"
-internal_id = "alsayyady"
-"""
+TWO_AUTHOR_TOML = CITABLE_TOML + _author_block(
+    "Yusra", "AlSayyad", "alsayyady"
+)
 """CITABLE_TOML with a second author, for the author-set comparison."""
+
+SICK = _creator(given="Jonathan", family="Sick")
+"""The creator CITABLE_TOML's author is registered as."""
+
+ALSAYYAD = _creator(given="Yusra", family="AlSayyad")
+"""The creator TWO_AUTHOR_TOML's second author is registered as."""
 
 
 def test_datacite_title_drift_reports_tn105(
@@ -902,7 +940,7 @@ def test_datacite_author_drift_reports_tn105(
     _mock_author(responses)
     responses.get(
         DATACITE_URL,
-        body=_datacite_body(creators=("AlSayyad, Yusra",)),
+        body=_datacite_body(creators=(ALSAYYAD,)),
         content_type="application/vnd.api+json",
         status=200,
     )
@@ -922,9 +960,7 @@ def test_datacite_drift_names_every_differing_field(
     _mock_author(responses)
     responses.get(
         DATACITE_URL,
-        body=_datacite_body(
-            title="An older title", creators=("AlSayyad, Yusra",)
-        ),
+        body=_datacite_body(title="An older title", creators=(ALSAYYAD,)),
         content_type="application/vnd.api+json",
         status=200,
     )
@@ -976,17 +1012,22 @@ def test_title_comparison_tolerates_case_and_whitespace(
 @pytest.mark.parametrize(
     "creators",
     [
-        ("Sick, Jonathan", "AlSayyad, Yusra"),
-        # A different order is the same author set.
-        ("AlSayyad, Yusra", "Sick, Jonathan"),
-        # As are different punctuation and case in a name.
-        ("Jonathan Sick", "Yusra Alsayyad"),
+        (SICK, ALSAYYAD),
+        # The order DataCite lists creators in is not metadata drift.
+        (ALSAYYAD, SICK),
+        # Neither is how either side spells a name's case.
+        (
+            _creator(given="JONATHAN", family="sick"),
+            _creator(given="Yusra", family="Alsayyad"),
+        ),
     ],
 )
-def test_author_comparison_tolerates_order_and_spelling(
-    tmp_path: Path, responses: RequestsMock, creators: tuple[str, ...]
+def test_author_comparison_tolerates_order_and_case(
+    tmp_path: Path,
+    responses: RequestsMock,
+    creators: tuple[dict[str, object], ...],
 ) -> None:
-    """The author sets are compared order-insensitively and tolerantly."""
+    """Authors are paired regardless of order, ignoring case."""
     _mock_author(responses)
     _mock_second_author(responses)
     responses.get(
@@ -996,6 +1037,301 @@ def test_author_comparison_tolerates_order_and_spelling(
         status=200,
     )
     context = _write_technote(tmp_path, TWO_AUTHOR_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "registered_family",
+    ["Ibáñez", "Ibanez", "IBÁÑEZ"],
+)
+def test_family_name_comparison_folds_accents(
+    tmp_path: Path, responses: RequestsMock, registered_family: str
+) -> None:
+    """A family name registered without its accents is the same name."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/ibanezj",
+        body=json.dumps(_author_record("ibanezj", "José", "Ibáñez")),
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(_creator(given="José", family=registered_family),)
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("José", "Ibáñez", "ibanezj"),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    ("registered_given", "declared_given"),
+    [
+        # A middle initial the record carries and technote.toml does not.
+        ("James F.", "James"),
+        # A first initial technote.toml drops in favour of the name used.
+        ("R. Lynne", "Lynne"),
+        # An initial standing in for the whole given name.
+        ("J.", "Jonathan"),
+    ],
+)
+def test_given_name_comparison_tolerates_initials(
+    tmp_path: Path,
+    responses: RequestsMock,
+    registered_given: str,
+    declared_given: str,
+) -> None:
+    """A given name abbreviated on either side is the same author."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(_creator(given=registered_given, family="Sick"),)
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block(declared_given, "Sick", "sickj"),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_differing_given_name_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A given name that shares a family name but not an initial is drift."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(_creator(given="John", family="Sick"),)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path, CITABLE_HEADER + _author_block("James", "Sick", "sickj")
+    )
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "Sick, John" in findings[0].message
+    assert "Sick, James" in findings[0].message
+
+
+def test_transposed_name_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A given and family name registered the wrong way round is drift.
+
+    This is the drift the old token-set comparison silently accepted: sorting
+    a name's tokens makes a transposition compare equal to the original.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(_creator(given="Sick", family="Jonathan"),)
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "Jonathan, Sick" in findings[0].message
+    assert "Sick, Jonathan" in findings[0].message
+
+
+def test_added_author_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An author the record registers and technote.toml does not is named."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(SICK, ALSAYYAD)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "AlSayyad, Yusra" in findings[0].message
+    assert "Sick, Jonathan" not in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+def test_dropped_author_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An author technote.toml declares and the record omits is named."""
+    _mock_author(responses)
+    _mock_second_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(SICK,)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, TWO_AUTHOR_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "AlSayyad, Yusra" in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+ORCID = "0000-0003-3001-676X"
+"""The ORCID CITABLE_TOML's author holds."""
+
+
+def test_orcid_match_settles_a_differing_name(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An author paired by ORCID is not reported for spelling their name
+    differently.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(
+                    given="Jonathan",
+                    family="Sick",
+                    orcid=f"https://orcid.org/{ORCID}",
+                ),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER
+        + _author_block("Jon", "Sicke", "sickj", f"https://orcid.org/{ORCID}"),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_orcid_match_normalizes_both_spellings(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A bare ORCID and an orcid.org URL identify the same author."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(given="J.", family="Sicke", orcid=ORCID.lower()),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj", ORCID),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_author_with_no_registered_orcid_falls_back_to_the_name(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An ORCID only one side declares leaves the names to decide."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(SICK,)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj", ORCID),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_committee_creator_matches_its_declared_author(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A creator registered as a family name alone is compared on it.
+
+    This is a real record under the ``10.71929`` prefix: Rubin's minter
+    registers a committee as a ``Personal`` creator with only a
+    ``familyName``, which leaves a literal ``null`` in the formatted ``name``
+    it composes. Reading the formatted name would report drift over that
+    artifact; the decomposed family name has no such defect.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/scoc",
+        body=json.dumps(
+            _author_record(
+                "scoc", "", "Rubin's Survey Cadence Optimization Committee"
+            )
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(
+                    family="Rubin's Survey Cadence Optimization Committee",
+                    name="Rubin's Survey Cadence Optimization Committee, null",
+                ),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER
+        + _author_block(
+            "", "Rubin's Survey Cadence Optimization Committee", "scoc"
+        ),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_organizational_creator_matches_its_declared_author(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An organizational creator is compared on its formatted name."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/rubinobs",
+        body=json.dumps(
+            _author_record("rubinobs", "", "Vera C. Rubin Observatory")
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(
+                    name="Vera C. Rubin Observatory",
+                    name_type="Organizational",
+                ),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER
+        + _author_block("", "Vera C. Rubin Observatory", "rubinobs"),
+    )
     assert TechnoteLintService(context).lint() == []
 
 

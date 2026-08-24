@@ -34,6 +34,7 @@ from documenteer.storage.authordb import (
 )
 from documenteer.storage.datacite import (
     DataCiteClient,
+    DataCiteCreator,
     DataCiteRecord,
     DataCiteUnavailableError,
 )
@@ -638,7 +639,9 @@ def _check_datacite(
     Both comparisons are deliberately tolerant, because a false positive here
     is worse than a miss: this rule warns about metadata registered by the
     DOI minter, which the person reading the finding may not control. A field
-    that only one side declares is skipped rather than reported as drift.
+    that only one side declares is skipped rather than reported as drift, the
+    title is compared ignoring case and whitespace, and the authors are paired
+    by ORCID before they are compared by name at all.
     """
     doi = parsed.technote.doi
     if doi is None:
@@ -671,7 +674,12 @@ def _check_datacite(
 def _datacite_differences(
     parsed: TechnoteToml, record: DataCiteRecord
 ) -> list[str]:
-    """Phrase each field where technote.toml and DataCite disagree."""
+    """Phrase each field where technote.toml and DataCite disagree.
+
+    A side that declares nothing at all — a technote.toml with no title, a
+    record that registers no creators — is not compared on that field, since
+    an absent value is not a claim that disagrees with anything.
+    """
     differences: list[str] = []
 
     title = parsed.technote.title
@@ -685,44 +693,154 @@ def _datacite_differences(
             f"declares '{title}'"
         )
 
-    declared_authors = [
-        f"{author.name.family}, {author.name.given}"
-        for author in parsed.technote.authors
-    ]
-    if (
-        declared_authors
-        and record.creator_names
-        and not _same_people(declared_authors, record.creator_names)
-    ):
-        differences.append(
-            "the registered authors are "
-            f"{_quote_names(record.creator_names)}, but technote.toml "
-            f"declares {_quote_names(declared_authors)}"
+    if parsed.technote.authors and record.creators:
+        differences.extend(
+            _author_differences(parsed.technote.authors, record.creators)
         )
 
     return differences
 
 
-def _same_people(declared: Sequence[str], registered: Sequence[str]) -> bool:
-    """Compare two author lists as sets of tolerantly-normalized names.
+def _author_differences(
+    authors: Sequence[Person], creators: Sequence[DataCiteCreator]
+) -> list[str]:
+    """Phrase the authors one side has and the other does not.
 
-    The comparison is order-insensitive because the order DataCite lists
-    creators in is not always the order technote.toml declares them in, and a
-    legitimate reordering is not metadata drift worth a warning.
+    Only the authors left *unmatched* are reported. Two lists that pair up
+    completely agree about who wrote the technote however they are ordered
+    and however each side spells a name, so nothing is said about them.
     """
-    return sorted(_name_tokens(name) for name in declared) == sorted(
-        _name_tokens(name) for name in registered
+    unmatched_authors, unmatched_creators = _unmatched_people(
+        authors, creators
     )
+    clauses: list[str] = []
+    if unmatched_authors:
+        clauses.append(
+            "technote.toml declares authors the record does not register "
+            f"({_quote_names(_author_names(unmatched_authors))})"
+        )
+    if unmatched_creators:
+        clauses.append(
+            "the record registers authors technote.toml does not declare "
+            f"({_quote_names(_creator_names(unmatched_creators))})"
+        )
+    if not clauses:
+        return []
+    return [", and ".join(clauses)]
 
 
-def _name_tokens(name: str) -> tuple[str, ...]:
-    """Reduce a name to the sorted tokens two spellings of it share.
+def _unmatched_people(
+    authors: Sequence[Person], creators: Sequence[DataCiteCreator]
+) -> tuple[list[Person], list[DataCiteCreator]]:
+    """Pair declared authors with registered creators, one to one.
 
-    Accents are folded, punctuation becomes whitespace, case is ignored, and
-    the tokens are sorted, so ``Sick, Jonathan``, ``Jonathan Sick``, and
-    ``SICK,  Jonathan`` all reduce to the same value. Sorting is what makes
-    the family-name-first and given-name-first conventions comparable, since
-    a citation and a DataCite record need not agree on which they use.
+    ORCIDs are paired first, wherever both sides declare one: an ORCID is the
+    stronger claim about *who* an author is, so a pair it settles is settled —
+    the two spellings of the name are not compared, and any difference between
+    them is not reported. Whoever is left over is paired by name.
+
+    The pairing is order-insensitive because the order DataCite lists creators
+    in is not always the order technote.toml declares them in, and a legitimate
+    reordering is not metadata drift worth a warning.
+
+    Returns
+    -------
+    tuple
+        The authors that no creator matched, and the creators that no author
+        matched.
+    """
+    remaining = list(creators)
+    by_name: list[Person] = []
+    for author in authors:
+        orcid = normalize_orcid(author.orcid)
+        match = (
+            None
+            if orcid is None
+            else next((c for c in remaining if c.orcid == orcid), None)
+        )
+        if match is None:
+            by_name.append(author)
+        else:
+            remaining.remove(match)
+
+    unmatched: list[Person] = []
+    for author in by_name:
+        match = next(
+            (c for c in remaining if _creator_is_author(c, author)), None
+        )
+        if match is None:
+            unmatched.append(author)
+        else:
+            remaining.remove(match)
+    return unmatched, remaining
+
+
+def _creator_is_author(creator: DataCiteCreator, author: Person) -> bool:
+    """Decide whether a registered creator names the same person as an author.
+
+    A creator that registers no given name — every organizational creator,
+    and the ``Personal`` creator with a family name alone that Rubin registers
+    a committee as — is compared on that one name, against either half of the
+    author's name or the whole of it. An absent given name is not drift.
+
+    Otherwise the family names must agree, and the given names must agree
+    initial-tolerantly, so a registered ``James F.`` matches a declared
+    ``James`` while a registered ``John`` does not.
+    """
+    declared_family = _fold_name(author.name.family)
+    declared_given = _fold_name(author.name.given)
+    if creator.is_organizational or not creator.given_name:
+        whole_name = _fold_name(creator.family_name or creator.name or "")
+        return bool(whole_name) and whole_name in {
+            declared_family,
+            f"{declared_family} {declared_given}".strip(),
+        }
+    if _fold_name(creator.family_name or "") != declared_family:
+        return False
+    if not declared_given:
+        return True
+    return _given_names_agree(_fold_name(creator.given_name), declared_given)
+
+
+def _given_names_agree(registered: str, declared: str) -> bool:
+    """Compare two given names, tolerating initials and dropped names.
+
+    The shorter name has to appear in the longer one, in order, with each of
+    its parts either spelled out identically or standing in as an initial. So
+    ``James F.`` agrees with ``James``, and ``R. Lynne`` with ``Lynne``, while
+    ``John`` and ``James`` — which share no part at all — do not.
+    """
+    registered_parts = registered.split()
+    declared_parts = declared.split()
+    shorter, longer = sorted((registered_parts, declared_parts), key=len)
+    matched = 0
+    for part in longer:
+        if matched < len(shorter) and _name_parts_agree(
+            shorter[matched], part
+        ):
+            matched += 1
+    return matched == len(shorter)
+
+
+def _name_parts_agree(one: str, other: str) -> bool:
+    """Compare two parts of a given name, one of which may be an initial."""
+    if one == other:
+        return True
+    if len(one) == 1:
+        return other.startswith(one)
+    if len(other) == 1:
+        return one.startswith(other)
+    return False
+
+
+def _fold_name(name: str) -> str:
+    """Fold a name to the form two spellings of it compare equal in.
+
+    Accents are decomposed and dropped, punctuation becomes whitespace, case
+    is ignored, and whitespace is collapsed — so ``Ibáñez`` and ``Ibanez``
+    are the same family name, and ``R. Lynne`` and ``R Lynne`` the same given
+    name. Unlike the token-set comparison this replaced, the parts keep their
+    order, which is what lets a transposed given and family name be seen.
     """
     decomposed = unicodedata.normalize("NFKD", name)
     depunctuated = "".join(
@@ -730,7 +848,22 @@ def _name_tokens(name: str) -> tuple[str, ...]:
         for character in decomposed
         if not unicodedata.combining(character)
     )
-    return tuple(sorted(_fold(depunctuated).split()))
+    return _fold(depunctuated)
+
+
+def _author_names(authors: Sequence[Person]) -> list[str]:
+    """Name each declared author the way a citation spells them."""
+    return [
+        ", ".join(
+            part for part in (author.name.family, author.name.given) if part
+        )
+        for author in authors
+    ]
+
+
+def _creator_names(creators: Sequence[DataCiteCreator]) -> list[str]:
+    """Name each registered creator, preferring its decomposed name parts."""
+    return [creator.display_name or "unnamed" for creator in creators]
 
 
 def _quote_names(names: Sequence[str]) -> str:

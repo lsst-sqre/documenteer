@@ -8,12 +8,13 @@ from typing import Self
 import requests
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from documenteer.citations import normalize_doi
+from documenteer.citations import normalize_doi, normalize_orcid
 
 __all__ = [
     "DATACITE_API_ROOT",
     "DATACITE_TIMEOUT",
     "DataCiteClient",
+    "DataCiteCreator",
     "DataCiteRecord",
     "DataCiteUnavailableError",
     "datacite_api_url",
@@ -35,6 +36,12 @@ not answer, so waiting longer buys nothing: it would only stall a lint run
 (or the CI job around it) that is going to reach the same conclusion either
 way.
 """
+
+_ORCID_SCHEME = "orcid"
+"""The ``nameIdentifierScheme`` DataCite records an ORCID under, folded."""
+
+_ORGANIZATIONAL_NAME_TYPE = "organizational"
+"""The ``nameType`` DataCite gives a creator that is not a person, folded."""
 
 
 def datacite_api_url(doi: str) -> str:
@@ -87,6 +94,73 @@ class _Title(BaseModel):
     """
 
 
+@dataclass(frozen=True)
+class DataCiteCreator:
+    """One creator registered for a DOI, as the record decomposes them.
+
+    The parts are carried separately rather than flattened into a display
+    string because a comparison against structured metadata — a
+    ``technote.toml`` author's ``name.family``, ``name.given``, and ``orcid``
+    — can then be made part by part, and because the formatted `name` is not
+    always trustworthy: Rubin's minter writes a literal ``null`` into it for a
+    creator that deposits no given name.
+    """
+
+    name_type: str | None
+    """DataCite's ``nameType``: ``Personal``, ``Organizational``, or absent.
+
+    A committee is registered as ``Personal`` with only a family name, so
+    this alone does not decide whether a creator is a person.
+    """
+
+    given_name: str | None
+    """The creator's given name, if the record decomposes one."""
+
+    family_name: str | None
+    """The creator's family name, if the record decomposes one."""
+
+    name: str | None
+    """The formatted name the record deposited, artifacts and all."""
+
+    orcid: str | None
+    """The creator's ORCID as a bare identifier, if one is registered."""
+
+    @property
+    def is_organizational(self) -> bool:
+        """Whether DataCite types this creator as an organization."""
+        return (
+            self.name_type is not None
+            and self.name_type.casefold() == _ORGANIZATIONAL_NAME_TYPE
+        )
+
+    @property
+    def display_name(self) -> str | None:
+        """The creator's name, spelled from the parts the record decomposes.
+
+        The decomposed parts are preferred over the formatted ``name`` so
+        that a minter's artifact in the latter — Rubin's ``"Committee,
+        null"`` — never reaches a lint message. A creator that deposits no
+        parts at all, which is every organizational creator, is named by its
+        formatted name.
+        """
+        if self.family_name and self.given_name:
+            return f"{self.family_name}, {self.given_name}"
+        return self.family_name or self.given_name or self.name
+
+
+class _NameIdentifier(BaseModel):
+    """One entry of a creator's ``nameIdentifiers`` list."""
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    name_identifier: str | None = Field(default=None, alias="nameIdentifier")
+
+    name_identifier_scheme: str | None = Field(
+        default=None, alias="nameIdentifierScheme"
+    )
+    """The identifier system this value belongs to, e.g. ``ORCID``."""
+
+
 class _Creator(BaseModel):
     """One entry of a DOI record's ``creators`` list."""
 
@@ -94,24 +168,40 @@ class _Creator(BaseModel):
 
     name: str | None = None
 
+    name_type: str | None = Field(default=None, alias="nameType")
+
     given_name: str | None = Field(default=None, alias="givenName")
 
     family_name: str | None = Field(default=None, alias="familyName")
 
-    @property
-    def display_name(self) -> str | None:
-        """The creator's name, however the record spells it.
+    name_identifiers: list[_NameIdentifier] = Field(
+        default_factory=list, alias="nameIdentifiers"
+    )
 
-        DataCite's ``name`` is the authoritative display form and carries an
-        organizational creator's whole name, so it is preferred. A record that
-        deposited only the parts is assembled into the same ``Family, Given``
-        form a citation uses.
+    def to_creator(self) -> DataCiteCreator:
+        """Read this entry as a structured creator."""
+        return DataCiteCreator(
+            name_type=self.name_type,
+            given_name=self.given_name,
+            family_name=self.family_name,
+            name=self.name,
+            orcid=self._orcid(),
+        )
+
+    def _orcid(self) -> str | None:
+        """Read the creator's ORCID, reduced to its bare identifier.
+
+        A creator may be identified in several systems at once — ROR and
+        ISNI alongside ORCID — so the scheme decides which entry is read
+        rather than the position.
         """
-        if self.name:
-            return self.name
-        if self.family_name and self.given_name:
-            return f"{self.family_name}, {self.given_name}"
-        return self.family_name or self.given_name
+        for identifier in self.name_identifiers:
+            scheme = identifier.name_identifier_scheme
+            if scheme is None or scheme.casefold() != _ORCID_SCHEME:
+                continue
+            if identifier.name_identifier:
+                return normalize_orcid(identifier.name_identifier)
+        return None
 
 
 class _Attributes(BaseModel):
@@ -156,7 +246,7 @@ class DataCiteRecord:
     title: str | None
     """The registered title of the work, if it declares one."""
 
-    creator_names: tuple[str, ...]
+    creators: tuple[DataCiteCreator, ...]
     """The registered creators, in the order DataCite lists them."""
 
     url: str
@@ -184,10 +274,8 @@ class DataCiteRecord:
         return cls(
             doi=attributes.doi or doi,
             title=_main_title(attributes.titles),
-            creator_names=tuple(
-                name
-                for creator in attributes.creators
-                if (name := creator.display_name)
+            creators=tuple(
+                creator.to_creator() for creator in attributes.creators
             ),
             url=url,
         )

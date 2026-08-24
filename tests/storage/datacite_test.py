@@ -12,6 +12,7 @@ from responses import RequestsMock
 
 from documenteer.storage.datacite import (
     DataCiteClient,
+    DataCiteCreator,
     DataCiteUnavailableError,
     datacite_api_url,
 )
@@ -56,6 +57,16 @@ def _payload(
                                 "givenName": "Jonathan",
                                 "familyName": "Sick",
                                 "affiliation": [],
+                                "nameIdentifiers": [
+                                    {
+                                        "nameIdentifier": (
+                                            "https://orcid.org/"
+                                            "0000-0003-3001-676X"
+                                        ),
+                                        "nameIdentifierScheme": "ORCID",
+                                        "schemeUri": "https://orcid.org",
+                                    }
+                                ],
                             }
                         ]
                     ),
@@ -94,7 +105,15 @@ def test_get_record_reads_title_and_creators(responses: RequestsMock) -> None:
     assert record is not None
     assert record.doi == DOI
     assert record.title == "The technote"
-    assert record.creator_names == ("Sick, Jonathan",)
+    assert record.creators == (
+        DataCiteCreator(
+            name_type="Personal",
+            given_name="Jonathan",
+            family_name="Sick",
+            name="Sick, Jonathan",
+            orcid="0000-0003-3001-676X",
+        ),
+    )
     assert record.url == RECORD_URL
 
 
@@ -131,14 +150,20 @@ def test_get_record_prefers_the_main_title(responses: RequestsMock) -> None:
     assert record.title == "The technote"
 
 
-def test_get_record_composes_a_creator_name(responses: RequestsMock) -> None:
-    """A creator without a ``name`` is named from its name parts."""
+def test_get_record_reads_an_organizational_creator(
+    responses: RequestsMock,
+) -> None:
+    """An organizational creator carries its whole name and no name parts."""
     responses.get(
         RECORD_URL,
         body=_payload(
             creators=[
-                {"givenName": "Jonathan", "familyName": "Sick"},
-                {"name": "Vera C. Rubin Observatory"},
+                {
+                    "name": "Vera C. Rubin Observatory",
+                    "nameType": "Organizational",
+                    "nameIdentifiers": [],
+                    "affiliation": [],
+                }
             ]
         ),
         content_type="application/vnd.api+json",
@@ -146,10 +171,95 @@ def test_get_record_composes_a_creator_name(responses: RequestsMock) -> None:
     )
     record = DataCiteClient().get_record(DOI)
     assert record is not None
-    assert record.creator_names == (
-        "Sick, Jonathan",
-        "Vera C. Rubin Observatory",
+    assert record.creators == (
+        DataCiteCreator(
+            name_type="Organizational",
+            given_name=None,
+            family_name=None,
+            name="Vera C. Rubin Observatory",
+            orcid=None,
+        ),
     )
+
+
+def test_get_record_reads_a_family_name_only_creator(
+    responses: RequestsMock,
+) -> None:
+    """A ``Personal`` creator with only a family name keeps its ``null``.
+
+    This is the shape Rubin's minter registers a committee in: ``nameType``
+    is ``Personal`` and only ``familyName`` is deposited, which leaves the
+    formatted ``name`` carrying a literal ``null`` for the absent given name.
+    The record hands both spellings on unedited; deciding which to believe
+    belongs to the comparison, not to the read.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(
+            creators=[
+                {
+                    "name": "Rubin's Survey Cadence Optimization "
+                    "Committee, null",
+                    "nameType": "Personal",
+                    "familyName": "Rubin's Survey Cadence Optimization "
+                    "Committee",
+                    "nameIdentifiers": [],
+                    "affiliation": [],
+                }
+            ]
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.creators == (
+        DataCiteCreator(
+            name_type="Personal",
+            given_name=None,
+            family_name="Rubin's Survey Cadence Optimization Committee",
+            name="Rubin's Survey Cadence Optimization Committee, null",
+            orcid=None,
+        ),
+    )
+
+
+def test_get_record_normalizes_a_creator_orcid(
+    responses: RequestsMock,
+) -> None:
+    """An ORCID is reduced to the bare identifier, whatever its spelling.
+
+    A creator's identifiers may include schemes other than ORCID, and only
+    the ORCID one is read.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(
+            creators=[
+                {
+                    "name": "Sick, Jonathan",
+                    "nameType": "Personal",
+                    "givenName": "Jonathan",
+                    "familyName": "Sick",
+                    "nameIdentifiers": [
+                        {
+                            "nameIdentifier": "https://ror.org/048g3cy84",
+                            "nameIdentifierScheme": "ROR",
+                        },
+                        {
+                            "nameIdentifier": "0000-0003-3001-676x",
+                            "nameIdentifierScheme": "orcid",
+                        },
+                    ],
+                }
+            ]
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.creators[0].orcid == "0000-0003-3001-676X"
 
 
 def test_get_record_returns_none_when_unregistered(
