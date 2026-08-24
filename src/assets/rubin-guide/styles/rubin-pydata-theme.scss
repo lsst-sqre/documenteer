@@ -384,3 +384,44 @@ html[data-theme='dark'] .rubin-footer__partner-logos img {
     margin: 0.25rem 0;
   }
 }
+
+/* Citation card (the citation-card directive, documenteer.ext.citationcard).
+ * A site published with a DOI is that DOI's landing page, and this is the
+ * page-level surface that says so: the full bibliographic citation with the
+ * DOI written as a resolvable link, the entry's label, and its note. It reuses
+ * the bordered-surface idiom of the "Help improve this page" box so the two
+ * read as one system, and is built only from pydata's semantic tokens so it
+ * follows the light/dark switch without a second set of rules. */
+.documenteer-citation-card {
+  margin: 1.5rem 0;
+  border: 1px solid var(--pst-color-border);
+  /* The accent edge marks the card as the page's citation rather than a
+   * generic callout; the tokens flip with the theme on their own. */
+  border-left: 4px solid var(--pst-color-primary);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-surface);
+  padding: 1rem 1.25rem;
+}
+
+.documenteer-citation-card__label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pst-color-text-muted);
+}
+
+/* The citation ends in a DOI URL: one unbreakable token long enough to
+ * overflow a narrow column, or an article squeezed by both sidebars. Wrapping
+ * anywhere keeps it inside the card instead of forcing a scrollbar. */
+.documenteer-citation-card__citation {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.documenteer-citation-card__note {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--pst-color-text-muted);
+}

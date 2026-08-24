@@ -193,6 +193,7 @@ extensions = [
     "documenteer.ext.linkcheckservice",
     "documenteer.ext.intersphinxcache",
     "documenteer.ext.autotypes",
+    "documenteer.ext.citationcard",
 ]
 _conf.append_extensions(extensions)
 
