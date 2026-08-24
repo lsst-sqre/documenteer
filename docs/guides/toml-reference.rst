@@ -689,8 +689,9 @@ The service caches results and retries failing links over time, so documentation
 The service requires a bearer token for the Ook API, read from the ``OOK_TOKEN`` environment variable.
 If the token is missing or rejected, the builder *falls back* to Sphinx's built-in in-process linkcheck_ builder in every mode, so link checking still runs for projects that haven't configured the token (for example, fork pull requests where secrets are unavailable, or CI that doesn't forward the token).
 The built-in check's own result then decides the build's exit status.
-If instead the service is unreachable or the polling budget is exhausted, the build *degrades gracefully* by default: the builder emits a warning and the build finishes with a zero exit status.
-Set :ref:`strict <guide-sphinx-linkcheck-strict>` to ``true`` to fail the build on those service problems instead.
+If instead the service is unreachable or the polling budget is exhausted, the build falls back the same way by default: the builder reports the service problem at the ``INFO`` log level and checks the links in-process.
+An outage therefore costs the build time — every link is visited from the machine running the build, with none of the service's caching or retry buffering — rather than costing it link checking, and broken links the in-process check finds fail the build as they always do.
+Set :ref:`strict <guide-sphinx-linkcheck-strict>` to ``true`` to fail the build on the service problem itself instead.
 Links the service reports as broken always fail the build, regardless of the ``strict`` setting.
 
 ignore
@@ -743,7 +744,7 @@ poll_budget
 Maximum time, in seconds, to wait for link-check results from the service.
 Default is ``300``.
 
-If the budget is exhausted before the service completes the check, the build emits a warning and continues — or fails, if :ref:`strict <guide-sphinx-linkcheck-strict>` is ``true``.
+If the budget is exhausted before the service completes the check, the build falls back to Sphinx's built-in in-process linkcheck_ builder — or fails, if :ref:`strict <guide-sphinx-linkcheck-strict>` is ``true``.
 
 .. _guide-sphinx-linkcheck-strict:
 
@@ -753,17 +754,120 @@ strict
 |optional|
 
 Whether genuine link-check service problems fail the build.
-Default is ``false``: when the service is unreachable or the :ref:`poll_budget <guide-sphinx-linkcheck-poll-budget>` is exhausted, the builder emits a warning and the build finishes with a zero exit status.
-Set this to ``true`` to fail the build on those conditions instead:
+Default is ``false``: when the service is unreachable or the :ref:`poll_budget <guide-sphinx-linkcheck-poll-budget>` is exhausted, the builder reports the problem at the ``INFO`` log level and falls back to Sphinx's built-in in-process linkcheck_ builder, whose own result then decides the exit status.
+Nothing is skipped, so an outage doesn't silently stop checking your links; it does mean a build during one takes as long as a full in-process link check, and broken links that check finds fail the build.
+
+Set this to ``true`` to fail the build on the service problem itself instead, with no fallback:
 
 .. code-block:: toml
 
    [sphinx.linkcheck]
    strict = true
 
+Use it when a substitute check isn't what you want — when the point of the build is that the service was consulted, or when you'd rather see an outage immediately than pay for the in-process check.
+
 This setting only gates genuine service *availability* problems.
 A missing or rejected ``OOK_TOKEN`` is not one of them: rather than failing, the builder falls back to Sphinx's built-in in-process linkcheck_ builder in every mode (including under ``strict``), so link checking still runs.
 Links the service reports as broken always fail the build, regardless of this setting.
+
+.. _guide-sphinx-linkcheck-recheck-unverified:
+
+recheck_unverified
+------------------
+
+|optional|
+
+Whether URLs the service couldn't verify from its own vantage point are rechecked from the build's.
+Default is ``true``.
+
+Two of the service's verdicts rest on evidence nobody actually obtained about the link:
+
+**Blocked URLs.**
+Some sites sit behind a bot-protection edge (typically Cloudflare) that answers the service's requests with a ``403`` no matter how ordinary the request is.
+The service can't tell such a URL apart from one that's genuinely refusing everyone, so it reports the URL as ``blocked``: a caveat rather than a failure, never counted as broken.
+
+**URLs the service couldn't reach at all.**
+When a request gets no response — a TLS chain the service can't build, a connection the far end drops, a name it can't resolve — the service reports the URL ``broken`` with no HTTP status code.
+That verdict *does* fail the build, and it's the one worth the most scrutiny: nothing about it is specific to the link rather than to the service's own network.
+
+A documentation build usually runs somewhere else entirely — a GitHub Actions runner the same site is happy to serve, with its own trust store and its own route — so the build can often settle what the service couldn't.
+Documenteer rechecks exactly those URLs, and no others, from the machine running the build, sending the same request Sphinx's built-in linkcheck_ builder would send.
+The checks are sequential with a short delay between them, so a handful of rechecks never arrives at a site as a burst.
+
+A ``broken`` result that *does* carry a status code is never rechecked.
+That's a definite answer from the server itself — a ``404`` is a ``404`` from every vantage point — and a second opinion has no standing to overturn it.
+
+What the build observes is merged into that same build's report:
+
+- A URL the build resolves is reported ``ok`` (or ``redirected``, if it works only through a permanent redirect), and its bot-protection caveat, or the failure the service couldn't reproduce, clears.
+- A URL that answers the build with a definite failure (a ``404``, say) is reported ``broken``, with the build's own evidence — which fails the build, as any broken link does.
+- A URL blocked from the build's vantage point too keeps its ``blocked`` status, its caveat, and the service's own evidence: the recheck settled nothing, so nothing is rewritten.
+- So does a URL that answers the build with nothing at all — a timeout, a connection reset, a DNS failure. Bot protection doesn't always answer with a status code, and a runner's network blip is not evidence about a link, so only a failure the server itself answered with is allowed to turn the service's caveat into a build failure.
+- A URL the service couldn't reach and the build can't reach either stays ``broken`` and still fails the build. Two vantage points coming back empty-handed isn't proof the link works; its detail line says both looked, so you can tell it apart from one nobody checked twice.
+
+The :file:`linkcheck.json` artifact reflects the merged view, and flags each result the build rechecked for itself with ``locally_rechecked``.
+
+The observations the build actually obtained are also contributed back to the service, so the next project to reference the URL benefits from them — see :ref:`guide-sphinx-linkcheck-contributions`, below.
+
+Set this to ``false`` to skip the recheck, and the contribution along with it, and report the service's verdict as-is:
+
+.. code-block:: toml
+
+   [sphinx.linkcheck]
+   recheck_unverified = false
+
+.. _guide-sphinx-linkcheck-contributions:
+
+Contributing rechecked results back to the service
+--------------------------------------------------
+
+A build that settles a URL the service could only report as ``blocked`` knows something the service can't learn from its own vantage point.
+Documenteer hands that knowledge back: whenever the :ref:`recheck <guide-sphinx-linkcheck-recheck-unverified>` finds blocked URLs, the builder posts what it observed — successes and failures alike, since a URL that's blocked from the runner too is evidence as well — to the check's contributions endpoint on the Ook_ API.
+Each contributed result carries the same evidence the recheck merged into this build's report: the final status code, any redirect that was followed, and the error text when the request failed outright.
+A URL that answered the build with nothing at all is one exception: a contribution is applied to state every other project's build reads, so an observation the build wouldn't apply to its own report — a timeout or a dropped connection settles nothing about a link — isn't handed on as shared evidence either.
+The other is a URL the service reported ``broken``: the service only applies a contributed result to a URL its own stored state has as ``blocked``, so an observation for one it reported broken would come back rejected, and Documenteer withholds it rather than sending it to be refused.
+Those URLs are still rechecked, and what the build observes still informs this build's own report.
+A build whose links the service settled on its own has nothing to contribute, and doesn't so much as mint a token — which is the overwhelmingly common case.
+
+Contributions are attested with a `GitHub Actions OIDC id token <https://docs.github.com/en/actions/concepts/security/openid-connect>`__ rather than a shared secret, so the service records the verified claims of the workflow run — the repository it ran in — as the provenance of every result it applies.
+Documenteer mints that token with the configured :ref:`service_url <guide-sphinx-linkcheck-service-url>` as its audience, which scopes it to one deployment: a token minted for a development Ook can't be replayed against production, and there's no separate audience setting to keep in sync.
+The request also carries the same ``OOK_TOKEN`` bearer the rest of the link check uses; both are required.
+Alongside the results it describes the run — the repository and run URL from the Actions environment, and the Documenteer version that made the observations — but those fields are advisory only, and the service takes the provenance it records from the token's claims instead.
+
+Contributing needs the ``id-token: write`` permission, because that's what makes GitHub expose the OIDC token endpoint to the job:
+
+.. code-block:: yaml
+   :caption: .github/workflows/ci.yaml
+
+   jobs:
+     docs:
+       runs-on: ubuntu-latest
+       permissions:
+         contents: read
+         id-token: write  # contribute link-check results to Ook
+       steps:
+         # ...
+
+.. important::
+
+   A **reusable workflow** can't ask for a permission of its own: permissions come from the calling job, and a called workflow can only narrow them.
+   If your documentation build runs through a shared workflow, add ``permissions: id-token: write`` to the job in your own repository that calls it, and confirm with that workflow's maintainers that its build job passes the permission through rather than narrowing it away.
+   Both sides have to be in place before a contribution can be attested.
+
+A run that contributes says so in its build log, first from the recheck and then from the contribution::
+
+   Local recheck: 3 verified, 1 still blocked, 0 failing
+   Contributed 4 link-check results to lsst-sqre/documenteer (4 accepted, 0 rejected)
+
+Nothing about a contribution can fail the build.
+It improves somebody else's future build, so it's never allowed to cost this one — not even under :ref:`strict <guide-sphinx-linkcheck-strict>`, which gates service *availability* problems only.
+Every way it can go wrong is reported at the ``INFO`` log level rather than as a warning, which is what keeps that promise for a build run with ``-W`` (warnings as errors), where a warning is a failure:
+
+- Where no id token can be minted, the local recheck still runs and still informs this build's report, and only the contribution is skipped, with a note naming the ``id-token: write`` permission — because the absence looks identical whether the build is on a laptop, where there's nothing to fix, or in a workflow that never asked for the permission, where there's one line to add.
+- The service applies a batch entry by entry, so an entry it declines (a URL that isn't one of the check's members, say, or one that isn't ``blocked`` because its own vantage point already settled it) is reported per URL with the service's reason, and the rest of the batch still applies.
+- A batch that can't be delivered at all is retried for the failures the service documents as retryable — a ``502`` while it can't reach GitHub's signing keys, and connection failures — up to three times after the first attempt, on a backoff that starts at half a second and doubles.
+  If those attempts are exhausted, the builder reports it and moves on; the build's exit status is unchanged.
+  A response that would fail identically however often it's sent, such as a ``422`` for a batch the service won't accept, is reported the same way on its first response instead of being retried.
 
 .. _guide-sphinx-linkcheck-origin-base-url:
 

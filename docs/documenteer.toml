@@ -48,6 +48,9 @@ ignore = [
     # github.dev redirects to the vscode.dev SPA, which doesn't finish
     # loading within linkcheck's timeout and reports a false-positive timeout.
     "https://github.dev",
+    # ascl.net serves an incomplete TLS certificate chain, so linkcheck's
+    # verification fails even though the site is available in browsers.
+    "https://ascl.net",
 ]
 
 [sphinx.redirects]

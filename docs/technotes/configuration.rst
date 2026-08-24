@@ -63,8 +63,9 @@ Set any of them after the ``from documenteer.conf.technote import *`` line:
 
 ``documenteer_linkcheck_strict``
    Whether genuine link-check *service* problems fail the build.
-   Default is ``False``: when the service is unreachable or the polling budget is exhausted, the builder emits a warning and the build finishes with a zero exit status.
-   Set it to ``True`` to fail the build on those conditions instead.
+   Default is ``False``: when the service is unreachable or the polling budget is exhausted, the builder reports the problem at the ``INFO`` log level and falls back to Sphinx's built-in in-process linkcheck_ builder, whose own result then decides the exit status.
+   The technote's links are still all checked; the build just pays for checking them in-process, and broken links that check finds fail the build.
+   Set it to ``True`` to fail the build on the service problem itself instead, with no fallback.
 
    This setting gates only service *availability* problems.
    Links the service reports as broken always fail the build regardless of it, and a missing or rejected ``OOK_TOKEN`` never fails the build either: the builder falls back to Sphinx's built-in in-process linkcheck_ builder in every mode, so link checking still runs.
@@ -81,7 +82,16 @@ Set any of them after the ``from documenteer.conf.technote import *`` line:
 ``documenteer_linkcheck_poll_budget``
    Maximum time, in seconds, to wait for link-check results from the service.
    Default is ``300``.
-   If the budget is exhausted before the service completes the check, the build emits a warning and continues — or fails, if ``documenteer_linkcheck_strict`` is ``True``.
+   If the budget is exhausted before the service completes the check, the build falls back to Sphinx's built-in in-process linkcheck_ builder — or fails, if ``documenteer_linkcheck_strict`` is ``True``.
+
+``documenteer_linkcheck_recheck_unverified``
+   Whether URLs the service couldn't verify from its own vantage point are rechecked from the build's, with what the build observes merged into that build's report and contributed back to the service.
+   Default is ``True``.
+   Two verdicts qualify: a URL the service reports as blocked by bot protection, and one it reports ``broken`` without an HTTP status code because it got no response at all.
+   A ``broken`` verdict that does carry a status code is a definite answer from the server and is never rechecked.
+   Set it to ``False`` to skip the recheck, and the contribution along with it, and report the service's verdict as-is.
+
+   See :ref:`recheck_unverified <guide-sphinx-linkcheck-recheck-unverified>` for what the recheck does and how each outcome is reported, and :ref:`guide-sphinx-linkcheck-contributions` for what is sent back to the service.
 
 For example, to make service problems fail the technote's build:
 
@@ -99,6 +109,12 @@ For example, to make service problems fail the technote's build:
    Documenteer takes it from :external+technote:ref:`[technote] canonical_url <toml-technote-canonical-url>` in :file:`technote.toml`, falling back to the technote's handle as ``https://<id>.lsst.io`` from :external+technote:ref:`[technote] id <toml-technote-id>`.
    Technotes therefore rarely need to set the ``documenteer_linkcheck_origin_base_url`` configuration value directly.
    If a build reports that no origin base URL is available for the link-check service, set ``canonical_url`` or ``id`` in :file:`technote.toml`, which is what that message asks for.
+
+.. note::
+
+   Contributing rechecked results back to the service needs the ``id-token: write`` permission in the GitHub Actions job that builds the technote, and technote builds run through the reusable workflow in `rubin-sphinx-technote-workflows <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows>`__ (see :doc:`how-your-technote-gets-published`).
+   A reusable workflow can't ask for a permission of its own, so it has to be granted on the calling job in the technote's own :file:`.github/workflows/ci.yaml` *and* passed through by the shared workflow rather than narrowed away — a change to coordinate with that workflow's maintainers.
+   Until both are in place, a technote build behaves the way any build without the permission does: the local recheck still runs and still informs the technote's own report, and only the contribution is skipped, with a note at the ``INFO`` log level.
 
 .. _technote-conf-intersphinx-cache:
 

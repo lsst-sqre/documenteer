@@ -170,6 +170,16 @@ jobs:
   docs:
     runs-on: ubuntu-latest
 
+    # The link-check builder rechecks URLs Ook reports as bot-blocked from
+    # this runner's own vantage point and contributes what it observes back
+    # to the service. That contribution is attested by a GitHub Actions OIDC
+    # id token, which only exists in a job holding id-token: write. Without
+    # it the recheck still informs this build's report and the contribution
+    # is skipped with an info note.
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - uses: actions/checkout@v7
         with:

@@ -269,6 +269,17 @@ class LinkCheckModel(BaseModel):
         ),
     )
 
+    recheck_unverified: bool = Field(
+        True,
+        description=(
+            "Recheck URLs the link-check service could not verify from its "
+            "own vantage point — blocked by bot protection, or broken with "
+            "no HTTP status code because it got no response at all — from "
+            "this build's own vantage point, merging what the build "
+            "observes into the report."
+        ),
+    )
+
     origin_base_url: HttpUrl | None = Field(
         None,
         description=(
@@ -640,6 +651,15 @@ class DocumenteerConfig:
     def linkcheck_strict(self) -> bool:
         """Whether link-check service degradation fails the build."""
         return self._linkcheck.strict
+
+    @property
+    def linkcheck_recheck_unverified(self) -> bool:
+        """Whether URLs the link-check service could not verify from its
+        own vantage point — bot-blocked, or broken with no response at all
+        — are rechecked from the build's own vantage point, with the local
+        observations merged into the report.
+        """
+        return self._linkcheck.recheck_unverified
 
     @property
     def linkcheck_origin_base_url(self) -> str | None:

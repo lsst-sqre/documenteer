@@ -85,6 +85,7 @@ __all__ = [
     "documenteer_linkcheck_service_url",
     "documenteer_linkcheck_poll_budget",
     "documenteer_linkcheck_strict",
+    "documenteer_linkcheck_recheck_unverified",
     "documenteer_linkcheck_origin_base_url",
     "documenteer_linkcheck_default_branch_name",
     # HTML
@@ -297,6 +298,7 @@ documenteer_linkcheck_use_service = _conf.linkcheck_use_service
 documenteer_linkcheck_service_url = _conf.linkcheck_service_url
 documenteer_linkcheck_poll_budget = _conf.linkcheck_poll_budget
 documenteer_linkcheck_strict = _conf.linkcheck_strict
+documenteer_linkcheck_recheck_unverified = _conf.linkcheck_recheck_unverified
 documenteer_linkcheck_origin_base_url = _conf.linkcheck_origin_base_url
 documenteer_linkcheck_default_branch_name = (
     _conf.conf.project.github_default_branch
