@@ -1964,28 +1964,82 @@ def test_broken_fails_warningiserror(
     testroot="linkcheck-service",
     srcdir="linkcheck-service-unreachable",
 )
-def test_unreachable_service_degrades(
+def test_unreachable_service_falls_back_to_builtin(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """An unreachable Ook service degrades gracefully by default: the
-    build warns that the link check was skipped and exits 0.
+    """An unreachable Ook service degrades gracefully by default — to
+    Sphinx's built-in in-process link checker, not to checking nothing.
+
+    The announcement is info level rather than a warning because Rubin
+    builds run with ``-W``: warning about an outage would fail every
+    build that coincides with one, which is exactly what "degrades
+    gracefully" is supposed to prevent.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    # No mocked responses are registered, so the submission raises a
-    # connection error (the responses mock also blocks real network
-    # access, standing in for an unreachable service).
+    # Nothing is registered for the Ook service, so the submission raises
+    # a connection error (the responses mock also blocks real network
+    # access, standing in for an unreachable service). The requests the
+    # built-in fallback then makes are the ones registered here.
+    _mock_builtin_head_ok(responses, TESTROOT_EXTERNAL_URLS)
 
     app.build()
 
+    # The built-in checker ran and every link resolved, so the build
+    # exits 0 — the old skip also exited 0, but checked nothing (the
+    # broken-link test below proves this check really runs).
     assert app.statuscode == 0
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
+
+    status_output = app.status.getvalue()
+    assert "falling back to Sphinx's built-in" in status_output
+    assert "Could not reach the Ook link-check service" in status_output
+
+    # The claim that the build degrades gracefully has to hold under -W,
+    # which fails a build on any warning at all.
     warning_output = app.warning.getvalue()
-    assert "Link check skipped" in warning_output
-    assert "Could not reach the Ook link-check service" in warning_output
+    assert "falling back" not in warning_output
+    assert "Could not reach the Ook link-check service" not in warning_output
 
     # A guide is invited to turn on strict mode through the TOML key that
     # actually governs it in its own configuration file.
-    message = _warning_message(app, "Link check skipped")
+    message = _status_message(app, "falling back to Sphinx's built-in")
     assert "[sphinx.linkcheck] strict = true in documenteer.toml" in message
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-unreachable-broken",
+)
+def test_service_fallback_reports_broken_links(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """The outage fallback really checks links: a broken link found by
+    the in-process checker fails the build, so it is the built-in check's
+    own result — not ``strict`` — that decides the exit status when the
+    service is unavailable.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    # Nothing is registered for the Ook service, so the submission raises
+    # a connection error and the build falls back. One of the links the
+    # built-in then checks is broken (404 on both HEAD and its GET
+    # retry); the others resolve.
+    responses.head("https://example.com/page", status=404)
+    responses.get("https://example.com/page", status=404)
+    responses.head("https://www.lsst.io/", status=200)
+    responses.head("https://example.org/resource", status=200)
+
+    app.build()
+
+    # The fallback found a broken link, so the build fails — the old
+    # skip exited 0 no matter what the documentation linked to.
+    assert app.statuscode == 1
+    assert (Path(app.outdir) / "output.txt").is_file()
+    assert not (Path(app.outdir) / "linkcheck.json").exists()
 
 
 @pytest.mark.skipif(
@@ -2202,12 +2256,13 @@ def test_bare_fallback_names_conf_py(
     srcdir="linkcheck-service-poll-budget",
     confoverrides={"documenteer_linkcheck_poll_budget": 0},
 )
-def test_poll_budget_exhaustion_degrades(
+def test_poll_budget_exhaustion_falls_back_to_builtin(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
     """A check that does not complete within the polling budget degrades
-    gracefully by default: the build warns that the link check was
-    skipped and exits 0.
+    gracefully by default, the same way an unreachable service does: the
+    build falls back to Sphinx's built-in in-process checker, says so at
+    info level, and exits on that check's own result.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     check_url = f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}"
@@ -2231,14 +2286,22 @@ def test_poll_budget_exhaustion_degrades(
         json=_check_response(pending_urls, status="pending"),
         status=200,
     )
+    # The submission's URLs are then checked by the built-in fallback.
+    _mock_builtin_head_ok(responses, TESTROOT_EXTERNAL_URLS)
 
     app.build()
 
     assert app.statuscode == 0
-    warning_output = app.warning.getvalue()
-    assert "Link check skipped" in warning_output
-    assert "did not complete" in warning_output
-    assert "polling budget" in warning_output
+    assert (Path(app.outdir) / "output.txt").is_file()
+
+    status_output = app.status.getvalue()
+    assert "falling back to Sphinx's built-in" in status_output
+    assert "did not complete" in status_output
+    assert "polling budget" in status_output
+
+    # Nothing about an exhausted budget reaches the warning stream a -W
+    # build fails on.
+    assert "polling budget" not in app.warning.getvalue()
 
 
 @pytest.mark.skipif(
@@ -2311,23 +2374,28 @@ def test_technote_strict_failure_names_conf_py(
     testroot="technote-linkcheck-service",
     srcdir="technote-linkcheck-service-unreachable",
 )
-def test_technote_skip_names_conf_py(
+def test_technote_service_fallback_names_conf_py(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """A technote's non-strict skip message — the one that actively
+    """A technote's non-strict fallback message — the one that actively
     invites the author to act — points at the conf.py setting rather than
     a file the technote does not have.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    # No mocked responses are registered, so the submission raises a
-    # connection error, standing in for an unreachable service.
+    # Nothing is registered for the Ook service, so the submission raises
+    # a connection error, standing in for an unreachable service. The
+    # technote's linkcheck_ignore drops https://ls.st/, so the built-in
+    # fallback requests only the other two links.
+    _mock_builtin_head_ok(
+        responses, ["https://example.com/page", "https://www.lsst.io/"]
+    )
 
     app.build()
 
     # Degrading gracefully still exits zero, exactly as for a guide.
     assert app.statuscode == 0
 
-    message = _warning_message(app, "Link check skipped")
+    message = _status_message(app, "falling back to Sphinx's built-in")
     assert "documenteer_linkcheck_strict = True in conf.py" in message
     assert "documenteer.toml" not in message
 
@@ -2340,21 +2408,22 @@ def test_technote_skip_names_conf_py(
         "documenteer_linkcheck_origin_base_url": "https://example.lsst.io"
     },
 )
-def test_bare_skip_names_conf_py(
+def test_bare_service_fallback_names_conf_py(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
     """A project configured from ``conf.py`` alone is pointed at the
     conf.py strict setting, naming no TOML file it does not have.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
-    # No mocked responses are registered, so the submission raises a
-    # connection error, standing in for an unreachable service.
+    # Nothing is registered for the Ook service, so the submission raises
+    # a connection error, standing in for an unreachable service.
+    _mock_builtin_head_ok(responses, ["https://example.com/page"])
 
     app.build()
 
     assert app.statuscode == 0
 
-    message = _warning_message(app, "Link check skipped")
+    message = _status_message(app, "falling back to Sphinx's built-in")
     assert "documenteer_linkcheck_strict = True in conf.py" in message
     assert "documenteer.toml" not in message
     assert "technote.toml" not in message

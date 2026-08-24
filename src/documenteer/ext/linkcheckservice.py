@@ -378,13 +378,14 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         """Submit the collected hyperlinks to the link-check service and
         report the results.
 
-        When the ``OOK_TOKEN`` is missing or rejected, the builder falls
-        back to Sphinx's built-in in-process link checker
-        (`_fall_back_to_builtin`) in every mode, so link checking still
-        runs for projects that aren't using the service. Other service
-        problems — an unreachable service or an exhausted polling budget —
-        are routed to `_handle_service_error`, which skips by default and
-        fails only in strict mode.
+        Whatever keeps the service from answering, link checking still
+        happens: both handlers below end in `_fall_back_to_builtin`, which
+        runs Sphinx's built-in in-process check. A missing or rejected
+        ``OOK_TOKEN`` (`_handle_unauthorized_error`) falls back in every
+        mode, because a token-less project simply isn't using the service.
+        Other service problems — an unreachable service or an exhausted
+        polling budget — go to `_handle_service_error`, which falls back
+        by default and fails the build only in strict mode.
         """
         origin_base_url = self.config.documenteer_linkcheck_origin_base_url
         if not origin_base_url:
@@ -431,7 +432,7 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             # A missing or rejected OOK_TOKEN means this project isn't
             # using the service; fall back to the built-in check in any
             # mode (subclass must be caught before LinkCheckServiceError).
-            self._fall_back_to_builtin(e)
+            self._handle_unauthorized_error(e)
             return
         except LinkCheckServiceError as e:
             self._handle_service_error(e)
@@ -608,32 +609,52 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             broken,
         )
 
-    def _fall_back_to_builtin(self, error: LinkCheckUnauthorizedError) -> None:
+    def _fall_back_to_builtin(self) -> None:
+        """Check this build's links with Sphinx's built-in in-process
+        link checker instead of the service.
+
+        This is the shared tail of every path that could not get results
+        out of the service. Skipping link checking would be a silent
+        regression for projects that already had a working ``linkcheck``
+        pipeline before adopting the service, so the builder runs Sphinx's
+        own `~sphinx.builders.linkcheck.CheckExternalLinksBuilder` check
+        in-process via ``super().finish()``. That built-in check writes
+        ``output.txt``/``output.json`` and sets the exit status on broken
+        links, so its own result — not ``strict`` — decides whether the
+        build fails on a fallback path.
+
+        The price is time: the built-in check visits every external link
+        from this machine, with none of the caching or retry buffering
+        that made the service worth using. Paying it beats reporting
+        nothing about the links, but it is why strict mode fails outright
+        rather than falling back — a project that asked for service
+        problems to be fatal has said it does not want the substitute.
+
+        Each caller announces its own cause before calling this, and does
+        so at info level rather than as a warning, so a warnings-as-errors
+        (``-W``) build does not fail merely because the service was out of
+        reach (mirrors the ``-W`` reasoning in `_report`).
+        """
+        super().finish()
+
+    def _handle_unauthorized_error(
+        self, error: LinkCheckUnauthorizedError
+    ) -> None:
         """Fall back to Sphinx's built-in in-process link checker when the
         Ook API token is unavailable.
 
         A missing or rejected ``OOK_TOKEN`` means the project isn't using
-        the link-check service, so rather than skip link checking (a silent
-        regression for projects that already had a working ``linkcheck``
-        pipeline) the builder runs Sphinx's built-in
-        `~sphinx.builders.linkcheck.CheckExternalLinksBuilder` check
-        in-process via ``super().finish()``. That built-in check writes
-        ``output.txt``/``output.json`` and sets the exit status on broken
-        links, so its own result — not ``strict`` — decides whether the
-        build fails. For the missing-token case the client's token guard
-        raises before any request, so no wasted network call is made to the
-        service.
+        the link-check service, which is a configuration state rather than
+        a service problem — so this falls back in every mode, ``strict``
+        included, and never fails the build on its own. For the
+        missing-token case the client's token guard raises before any
+        request, so no wasted network call is made to the service.
 
         The message names whichever way of selecting the built-in builder
         explicitly the project being built actually has: a guide's
         ``[sphinx.linkcheck] use_service = false`` in ``documenteer.toml``,
         or a technote's ``documenteer_linkcheck_use_service = False`` in
         ``conf.py``.
-
-        The message is logged at info level (not a warning) so a
-        warnings-as-errors (``-W``) build does not fail on this success
-        path, which is hit on every token-less build (mirrors the ``-W``
-        reasoning in `_report`).
         """
         logger.info(
             "Ook API token unavailable (%s); falling back to Sphinx's "
@@ -643,22 +664,36 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             error,
             _USE_SERVICE_SETTING[self._config_source],
         )
-        super().finish()
+        self._fall_back_to_builtin()
 
     def _handle_service_error(self, error: LinkCheckServiceError) -> None:
         """Handle a genuine link-check service problem: an unreachable
         service or an exhausted polling budget.
 
-        By default the build degrades gracefully: a warning is emitted
-        and the build continues with a zero exit status, so documentation
-        builds do not fail on a transient service problem. Strict mode
-        makes the same conditions fail the build instead — set with
+        By default the build degrades to Sphinx's built-in in-process
+        checker (`_fall_back_to_builtin`) rather than failing, so a
+        transient service problem costs the build time but not its links:
+        they are all still checked, and it is the built-in check's own
+        result that decides the exit status. The announcement is info
+        level, not a warning, because Rubin builds run with ``-W`` — a
+        warning here would fail every build unlucky enough to coincide
+        with an Ook outage.
+
+        Strict mode instead makes these conditions fail the build outright,
+        with no fallback: a project that set ``strict`` asked for service
+        problems to be fatal, so substituting a slower local check would
+        answer a question it did not ask. It is set with
         ``[sphinx.linkcheck] strict = true`` in a guide's
         ``documenteer.toml``, or ``documenteer_linkcheck_strict = True``
-        in a technote's ``conf.py``. Each message names whichever of the
+        in a technote's ``conf.py``; each message names whichever of the
         two the project being built actually uses. A missing or rejected
-        ``OOK_TOKEN`` is handled separately by `_fall_back_to_builtin`, not
-        here.
+        ``OOK_TOKEN`` is handled separately by `_handle_unauthorized_error`,
+        not here.
+
+        The service error is appended last because it embeds the client's
+        own message, which runs to several lines for a connection failure.
+        Everything the reader can act on therefore stays on the first line
+        of the report.
         """
         strict_setting = _STRICT_SETTING[self._config_source]
         if self.config.documenteer_linkcheck_strict:
@@ -669,12 +704,17 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             )
             self._set_failure_status()
         else:
-            logger.warning(
-                "Link check skipped: %s The build continues; set %s to "
-                "fail the build on link-check service problems instead.",
-                error,
+            logger.info(
+                "Link check service unavailable; falling back to Sphinx's "
+                "built-in in-process link checker so link checking still "
+                "runs. Checking every link in-process takes longer than the "
+                "service does, and broken links it finds fail the build. "
+                "Set %s to fail the build on the service problem itself "
+                "instead. The service problem was: %s",
                 strict_setting,
+                error,
             )
+            self._fall_back_to_builtin()
 
     def _referencing_page_sets(self) -> dict[str, set[str]]:
         """Map each collected hyperlink URI to the complete set of docnames

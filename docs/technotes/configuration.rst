@@ -63,8 +63,9 @@ Set any of them after the ``from documenteer.conf.technote import *`` line:
 
 ``documenteer_linkcheck_strict``
    Whether genuine link-check *service* problems fail the build.
-   Default is ``False``: when the service is unreachable or the polling budget is exhausted, the builder emits a warning and the build finishes with a zero exit status.
-   Set it to ``True`` to fail the build on those conditions instead.
+   Default is ``False``: when the service is unreachable or the polling budget is exhausted, the builder reports the problem at the ``INFO`` log level and falls back to Sphinx's built-in in-process linkcheck_ builder, whose own result then decides the exit status.
+   The technote's links are still all checked; the build just pays for checking them in-process, and broken links that check finds fail the build.
+   Set it to ``True`` to fail the build on the service problem itself instead, with no fallback.
 
    This setting gates only service *availability* problems.
    Links the service reports as broken always fail the build regardless of it, and a missing or rejected ``OOK_TOKEN`` never fails the build either: the builder falls back to Sphinx's built-in in-process linkcheck_ builder in every mode, so link checking still runs.
@@ -81,7 +82,7 @@ Set any of them after the ``from documenteer.conf.technote import *`` line:
 ``documenteer_linkcheck_poll_budget``
    Maximum time, in seconds, to wait for link-check results from the service.
    Default is ``300``.
-   If the budget is exhausted before the service completes the check, the build emits a warning and continues — or fails, if ``documenteer_linkcheck_strict`` is ``True``.
+   If the budget is exhausted before the service completes the check, the build falls back to Sphinx's built-in in-process linkcheck_ builder — or fails, if ``documenteer_linkcheck_strict`` is ``True``.
 
 ``documenteer_linkcheck_recheck_blocked``
    Whether URLs the service reports as blocked by bot protection are rechecked from the build's own vantage point, with what the build observes merged into that build's report and contributed back to the service.
