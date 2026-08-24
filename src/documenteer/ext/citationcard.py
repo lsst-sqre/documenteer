@@ -148,23 +148,14 @@ class CitationCard(SphinxDirective):
     def _build_citation(self, citation: dict[str, Any]) -> nodes.Element:
         """Compose the citation paragraph, with its DOI as a hyperlink.
 
-        ``plain_text`` already ends with the work's DOI URL, so the paragraph
-        is that text with its final segment turned into a link rather than a
-        second, separately-composed rendering of the same citation.
+        The context carries the plain-text citation already split at its
+        trailing location, so the paragraph is that lead text followed by a
+        link to the location rather than a second, separately-composed
+        rendering of the same record. The site footer renders the same two
+        values, which is why neither surface does the splitting itself.
         """
-        text = citation.get("plain_text") or ""
-        url = citation.get("doi_url") or citation.get("url")
-
-        if url is None:
-            lead = text
-        elif text.endswith(url):
-            # The composed citation already ends with the work's location, so
-            # the paragraph is that same text with its last segment linked.
-            lead = text[: -len(url)]
-        else:
-            # A citation whose text names no location still has to show the
-            # DOI, which is the whole point of a landing page.
-            lead = f"{text} " if text else ""
+        lead = citation.get("plain_text_lead") or ""
+        url = citation.get("plain_text_url")
 
         paragraph = nodes.paragraph(classes=[f"{CARD_CLASS}__citation"])
         if lead:

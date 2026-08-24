@@ -1,0 +1,3 @@
+### New features
+
+- The user guide footer now shows the site's citations, so that every page of a guide is a complete DOI landing page rather than only the page that carries a `citation-card` directive. Each footer citation shows the entry's `label`, the full bibliographic citation ending in the DOI as a resolvable `https://doi.org/` hyperlink, and the entry's `note`. The footer shows the `[[project.citations]]` entry marked `self = true` plus any entry that sets `in_footer = true`, in the order `documenteer.toml` declares them, and a guide that declares no citations — or none in the footer — renders the footer exactly as before.

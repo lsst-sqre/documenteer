@@ -406,6 +406,16 @@ class Citation:
             return None
         return f"{DOI_RESOLVER}{self.doi}"
 
+    @property
+    def location(self) -> str | None:
+        """Where the work is found: its DOI as a resolvable URL, or its
+        landing page when it has no DOI, or `None` when it has neither.
+
+        This is the identifier `to_plain_text` writes at the end of the
+        citation, and the URL a rendered citation hyperlinks.
+        """
+        return self.doi_url or self.url
+
     def to_plain_text(self) -> str:
         """Compose the citation as a plain-text bibliographic reference.
 
@@ -437,7 +447,7 @@ class Citation:
             if segment
         ]
         text = " ".join(_end_sentence(segment) for segment in segments)
-        location = self.doi_url or self.url
+        location = self.location
         if location is None:
             return text
         return f"{text} {location}" if text else location
@@ -610,8 +620,19 @@ class GuideCitation:
         The mapping is the contract between this module and every guide
         surface that displays a citation: the ``<head>`` metadata, the
         ``citation-card`` directive, and the footer.
+
+        A displayed citation ends in a hyperlink to the work, so the mapping
+        carries the plain-text rendering pre-split at that location:
+        ``plain_text_lead`` is the citation up to it and ``plain_text_url``
+        is the location itself, and concatenating the two always reproduces
+        ``plain_text``. Splitting it here is what lets a Jinja template render
+        a linked citation without doing string surgery of its own, and keeps
+        the card and the footer from ever disagreeing about where the text
+        ends and the link begins.
         """
         citation = self.citation
+        plain_text = citation.to_plain_text()
+        location = citation.location
         return {
             "label": self.label,
             "is_self": self.is_self,
@@ -627,7 +648,11 @@ class GuideCitation:
             "doi": citation.doi,
             "doi_url": citation.doi_url,
             "url": citation.url or citation.doi_url,
-            "plain_text": citation.to_plain_text(),
+            "plain_text": plain_text,
+            "plain_text_lead": (
+                plain_text[: -len(location)] if location else plain_text
+            ),
+            "plain_text_url": location,
             "bibtex": citation.to_bibtex(),
         }
 

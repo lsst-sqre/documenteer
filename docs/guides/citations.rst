@@ -1,20 +1,23 @@
 .. default-domain:: rst
 
-.. _guide-citation-card:
+.. _guide-citations:
 
-##############
-Citation cards
-##############
+#########
+Citations
+#########
 
 A site that is published with a DOI is that DOI's *landing page*, and a landing page is expected to show the reader a complete bibliographic citation with the DOI written as a resolvable ``https://doi.org/`` link.
-The ``citation-card`` directive is the surface that does this: it renders one of the site's citations as a card carrying the full citation, the citation's label, and its note.
+A guide displays its citations in two places:
 
-Cards are the page-level counterpart to the citations in the site footer, and are the right tool for a dedicated "Citing this site" page, or for a section of the home page.
+- The :ref:`site footer <guide-footer-citations>`, on every page.
+- A :ref:`citation card <guide-citation-card>`, wherever a page asks for one.
+
+Both read the same citations, so the two can never disagree about what the site asks to be cited as.
 
 Declaring the citations
 =======================
 
-A card renders a citation the site has already declared in the :ref:`[[project.citations]] <guide-project-citations>` array of :file:`documenteer.toml`; the directive never carries bibliographic fields of its own.
+Both surfaces render the citations the site declares in the :ref:`[[project.citations]] <guide-project-citations>` array of :file:`documenteer.toml`; neither carries bibliographic fields of its own.
 A site that documents a data release typically declares two citations — the release itself, which this site is the landing page for, and the paper that describes it:
 
 .. code-block:: toml
@@ -39,8 +42,13 @@ A site that documents a data release typically declares two citations — the re
    date = 2025-06-30
    authors = [{ name = "Vera C. Rubin Observatory" }]
 
-Directive
-=========
+.. _guide-citation-card:
+
+Citation cards
+==============
+
+The ``citation-card`` directive renders one of the site's citations as a card carrying the full citation, the citation's label, and its note.
+It is the page-level counterpart to the footer citations, and is the right tool for a dedicated "Citing this site" page, or for a section of the home page.
 
 .. directive:: .. citation-card:: [label]
 
@@ -121,6 +129,30 @@ That warning carries the subtype ``documenteer.citation_card``, so a site that k
 
    # conf.py
    suppress_warnings = ["documenteer.citation_card"]
+
+.. _guide-footer-citations:
+
+Footer citations
+================
+
+The site footer shows the citations on every page, which is what makes each page of the guide a landing page for the site's DOI rather than only the page that carries a card.
+
+The footer shows the entry marked :ref:`self = true <guide-project-citations-self>` and every entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`, in the order :file:`documenteer.toml` declares them.
+Each one shows the same three parts a card does — the :ref:`label <guide-project-citations-label>`, the citation with its DOI as a ``https://doi.org/`` hyperlink, and the :ref:`note <guide-project-citations-note>` — under a "How to cite" heading.
+With the configuration above, the footer reads:
+
+.. code-block:: text
+
+   How to cite
+
+   DATASET
+
+   Vera C. Rubin Observatory (2025). Data Preview 2. Vera C. Rubin
+   Observatory. https://doi.org/10.71929/rubin/2570308
+
+   To be used when citing the DP2 dataset and this documentation.
+
+A guide that declares no citations, and one whose entries all set ``in_footer = false``, renders no citations block at all.
 
 Related metadata
 ================

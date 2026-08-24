@@ -262,6 +262,46 @@ def test_html_context_without_a_date() -> None:
     assert context["in_footer"] is False
 
 
+def test_html_context_splits_the_citation_for_linking() -> None:
+    """The context carries the plain-text citation pre-split at its trailing
+    location, so a surface can render that location as a hyperlink without
+    doing the string surgery itself.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            doi="10.5281/zenodo.10385500",
+            title="Documenteer",
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+            date=datetime.date(2026, 2, 1),
+        )
+    ).to_html_context()
+
+    assert context["plain_text_url"] == (
+        "https://doi.org/10.5281/zenodo.10385500"
+    )
+    assert context["plain_text_lead"] == (
+        "Vera C. Rubin Observatory (2026). Documenteer. "
+    )
+    # The two halves always reconstitute the citation exactly, which is what
+    # lets a surface render them as text plus a link.
+    assert (
+        context["plain_text_lead"] + context["plain_text_url"]
+        == context["plain_text"]
+    )
+
+
+def test_html_context_for_a_citation_without_a_location() -> None:
+    """A citation with neither a DOI nor a URL has nothing to link, and its
+    lead is the whole citation.
+    """
+    context = GuideCitation(
+        citation=Citation(title="Untitled")
+    ).to_html_context()
+
+    assert context["plain_text_url"] is None
+    assert context["plain_text_lead"] == context["plain_text"] == "Untitled."
+
+
 SITE_URL = "https://guide.lsst.io/"
 
 

@@ -331,6 +331,28 @@ html[data-theme='dark'] body {
   margin: 0.125rem 0;
 }
 
+/* Footer citations: the [[project.citations]] entries with in_footer set,
+ * rendered by rubin-footer.html. They carry the same label/citation/note
+ * vocabulary as the citation-card directive (styled together at the end of
+ * this file), so only the frame around each entry is defined here: an accent
+ * edge rather than the card's full border, because the footer is already a
+ * bounded region and a stack of boxes inside it reads as clutter. */
+.rubin-footer__citations {
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.rubin-footer__citations-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.rubin-footer__citation {
+  margin-top: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--pst-color-primary);
+}
+
 .rubin-footer__copyright {
   margin: 0 0 1rem;
   font-size: 0.875rem;
@@ -385,13 +407,18 @@ html[data-theme='dark'] .rubin-footer__partner-logos img {
   }
 }
 
-/* Citation card (the citation-card directive, documenteer.ext.citationcard).
- * A site published with a DOI is that DOI's landing page, and this is the
- * page-level surface that says so: the full bibliographic citation with the
- * DOI written as a resolvable link, the entry's label, and its note. It reuses
- * the bordered-surface idiom of the "Help improve this page" box so the two
- * read as one system, and is built only from pydata's semantic tokens so it
- * follows the light/dark switch without a second set of rules. */
+/* Citation surfaces. A site published with a DOI is that DOI's landing page,
+ * and it says so in two places: the citation-card directive
+ * (documenteer.ext.citationcard) on a page, and the citations in the site
+ * footer (rubin-footer.html). Both show the same three parts -- the entry's
+ * label, the full bibliographic citation with the DOI written as a resolvable
+ * link, and the entry's note -- so those parts are styled once here for both,
+ * and each surface supplies only its own frame. Everything is built from
+ * pydata's semantic tokens, which is what makes the light/dark switch work
+ * without a second set of rules. */
+
+/* The card's frame reuses the bordered-surface idiom of the "Help improve
+ * this page" box so the two read as one system. */
 .documenteer-citation-card {
   margin: 1.5rem 0;
   border: 1px solid var(--pst-color-border);
@@ -403,7 +430,10 @@ html[data-theme='dark'] .rubin-footer__partner-logos img {
   padding: 1rem 1.25rem;
 }
 
-.documenteer-citation-card__label {
+/* The label names which work the citation is for ("Dataset", "Paper"), so it
+ * is set as a small caption rather than as part of the citation itself. */
+.documenteer-citation-card__label,
+.rubin-footer__citation-label {
   margin: 0 0 0.5rem;
   font-size: 0.75rem;
   font-weight: 700;
@@ -413,15 +443,25 @@ html[data-theme='dark'] .rubin-footer__partner-logos img {
 }
 
 /* The citation ends in a DOI URL: one unbreakable token long enough to
- * overflow a narrow column, or an article squeezed by both sidebars. Wrapping
- * anywhere keeps it inside the card instead of forcing a scrollbar. */
-.documenteer-citation-card__citation {
+ * overflow a narrow column, an article squeezed by both sidebars, or a footer
+ * on a phone. Wrapping anywhere keeps it inside its surface instead of forcing
+ * a scrollbar. */
+.documenteer-citation-card__citation,
+.rubin-footer__citation-text {
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-.documenteer-citation-card__note {
+.documenteer-citation-card__note,
+.rubin-footer__citation-note {
   margin: 0.75rem 0 0;
   font-size: 0.875rem;
   color: var(--pst-color-text-muted);
+}
+
+/* The footer already sets 0.875rem, so its note is distinguished by colour
+ * alone, and sits tighter under a citation than the card's does. */
+.rubin-footer__citation-note {
+  margin-top: 0.5rem;
+  font-size: inherit;
 }

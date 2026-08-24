@@ -111,10 +111,15 @@ def test_head_carries_schema_org_jsonld(app: SphinxTestApp) -> None:
     assert payload["url"] == SITE_URL
     assert payload["datePublished"] == "2025-06-30"
 
+    # Every citation that is not the site itself hangs off it, in the order
+    # documenteer.toml declares them -- head metadata describes the whole
+    # record, so an entry that opts out of the footer is still here.
+    dataset, paper = payload["citation"]
+    assert paper["name"] == "The Smoke Test Survey"
+
     # The "Dataset"-labelled citation crosswalks to a schema.org Dataset, with
     # its authors carrying resolvable ROR and ORCID identifiers -- the ORCID
     # is written bare in documenteer.toml and resolved to a URL here.
-    (dataset,) = payload["citation"]
     assert dataset["@type"] == "Dataset"
     assert dataset["@id"] == f"https://doi.org/{DATASET_DOI}"
     assert dataset["creator"] == [
@@ -149,7 +154,7 @@ def test_jsonld_escapes_a_title_with_markup(app: SphinxTestApp) -> None:
     assert ">" not in raw
     assert "&" not in raw
 
-    (dataset,) = json.loads(raw)["citation"]
+    dataset = json.loads(raw)["citation"][0]
     assert dataset["name"] == "Smoke Test Images & Catalogs"
 
 
