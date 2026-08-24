@@ -84,12 +84,14 @@ Set any of them after the ``from documenteer.conf.technote import *`` line:
    Default is ``300``.
    If the budget is exhausted before the service completes the check, the build falls back to Sphinx's built-in in-process linkcheck_ builder — or fails, if ``documenteer_linkcheck_strict`` is ``True``.
 
-``documenteer_linkcheck_recheck_blocked``
-   Whether URLs the service reports as blocked by bot protection are rechecked from the build's own vantage point, with what the build observes merged into that build's report and contributed back to the service.
+``documenteer_linkcheck_recheck_unverified``
+   Whether URLs the service couldn't verify from its own vantage point are rechecked from the build's, with what the build observes merged into that build's report and contributed back to the service.
    Default is ``True``.
+   Two verdicts qualify: a URL the service reports as blocked by bot protection, and one it reports ``broken`` without an HTTP status code because it got no response at all.
+   A ``broken`` verdict that does carry a status code is a definite answer from the server and is never rechecked.
    Set it to ``False`` to skip the recheck, and the contribution along with it, and report the service's verdict as-is.
 
-   See :ref:`recheck_blocked <guide-sphinx-linkcheck-recheck-blocked>` for what the recheck does and how each outcome is reported, and :ref:`guide-sphinx-linkcheck-contributions` for what is sent back to the service.
+   See :ref:`recheck_unverified <guide-sphinx-linkcheck-recheck-unverified>` for what the recheck does and how each outcome is reported, and :ref:`guide-sphinx-linkcheck-contributions` for what is sent back to the service.
 
 For example, to make service problems fail the technote's build:
 

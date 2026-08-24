@@ -252,7 +252,7 @@ use_service = false
 service_url = "https://roundtable-dev.lsst.cloud/ook"
 poll_budget = 60
 strict = true
-recheck_blocked = false
+recheck_unverified = false
 origin_base_url = "https://Custom.LSST.io/guides/"
 """
 
@@ -269,7 +269,7 @@ def test_linkcheck_service_defaults() -> None:
         )
         assert config.linkcheck_poll_budget == 300
         assert config.linkcheck_strict is False
-        assert config.linkcheck_recheck_blocked is True
+        assert config.linkcheck_recheck_unverified is True
 
 
 def test_linkcheck_service_settings() -> None:
@@ -281,7 +281,7 @@ def test_linkcheck_service_settings() -> None:
     )
     assert config.linkcheck_poll_budget == 60
     assert config.linkcheck_strict is True
-    assert config.linkcheck_recheck_blocked is False
+    assert config.linkcheck_recheck_unverified is False
 
 
 def test_linkcheck_origin_derived_from_base_url() -> None:

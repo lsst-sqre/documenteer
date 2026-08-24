@@ -889,7 +889,7 @@ def test_non_broken_statuses_pass_warningiserror(
     "linkcheck",
     testroot="linkcheck-service",
     srcdir="linkcheck-service-blocked",
-    confoverrides={"documenteer_linkcheck_recheck_blocked": False},
+    confoverrides={"documenteer_linkcheck_recheck_unverified": False},
 )
 def test_blocked_links_reported_as_caveat(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
@@ -901,7 +901,7 @@ def test_blocked_links_reported_as_caveat(
 
     This is the report exactly as it read before the local recheck
     existed, so it doubles as the check that
-    ``recheck_blocked = false`` leaves the old behavior intact.
+    ``recheck_unverified = false`` leaves the old behavior intact.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _mock_submit_check(
@@ -1045,7 +1045,7 @@ def test_local_recheck_reports_permanent_redirect(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
-    srcdir="linkcheck-service-recheck-blocked",
+    srcdir="linkcheck-service-recheck-unverified",
 )
 def test_local_recheck_keeps_caveat_when_still_blocked(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
@@ -1127,7 +1127,7 @@ def test_local_recheck_keeps_caveat_when_unanswered(
     assert app.statuscode == 0
 
     status_output = app.status.getvalue()
-    assert "Local recheck: 0 verified, 1 still blocked, 0 failing" in (
+    assert "Local recheck: 0 verified, 1 still unverified, 0 failing" in (
         status_output
     )
     assert "blocked: 1" in status_output
@@ -1191,14 +1191,71 @@ def test_local_recheck_confirms_failure(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
-    srcdir="linkcheck-service-recheck-scope",
+    srcdir="linkcheck-service-recheck-unreachable",
 )
-def test_local_recheck_only_visits_blocked_urls(
+def test_local_recheck_verifies_unreachable_broken_url(
     app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
 ) -> None:
-    """Only the bot-blocked URLs are rechecked. Every other URL — ok,
-    redirected, or otherwise — keeps the service's verdict and is never
-    requested from the build.
+    """A URL the service reports ``broken`` with no status code — it got
+    no response at all from its own egress — is rechecked, and a build
+    that resolves it clears the failure.
+
+    A verdict nobody obtained is not evidence about a link, whichever
+    vantage point failed to obtain it, so the build's own 200 stands in
+    for it and the summary counts move with it.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="broken",
+                error=(
+                    "ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] "
+                    "certificate verify failed"
+                ),
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+
+    app.build()
+
+    # A failure the build cannot reproduce no longer fails the build.
+    assert app.statuscode == 0
+
+    status_output = app.status.getvalue()
+    assert "broken: 0" in status_output
+    assert "ok: 2" in status_output
+    # Nothing on this path is a warning, so a -W build stays green too.
+    assert "broken:" not in app.warning.getvalue()
+    assert "CERTIFICATE_VERIFY_FAILED" not in app.warning.getvalue()
+
+    data = json.loads((Path(app.outdir) / "linkcheck.json").read_text())
+    results = {url["url"]: url for url in data["urls"]}
+    verified = results["https://example.com/page"]
+    assert verified["status"] == "ok"
+    assert verified["status_code"] == 200
+    assert verified["error"] is None
+    assert verified["locally_rechecked"] is True
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-scope",
+)
+def test_local_recheck_only_visits_unverified_urls(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """Only the URLs the service could not settle are rechecked. Every
+    other URL — ok, redirected, or otherwise — keeps the service's verdict
+    and is never requested from the build.
     """
     monkeypatch.setenv("OOK_TOKEN", "test-token")
     _mock_submit_check(
@@ -1233,15 +1290,125 @@ def test_local_recheck_only_visits_blocked_urls(
 
     status_output = app.status.getvalue()
     assert (
-        "Rechecking bot-blocked URLs from this build's own vantage point"
+        "Rechecking unverified URLs from this build's own vantage point"
         in status_output
     )
-    assert "Local recheck: 1 verified, 0 still blocked, 0 failing" in (
+    assert "Local recheck: 1 verified, 0 still unverified, 0 failing" in (
         status_output
     )
     # The redirected URL is untouched by the recheck.
     assert "redirected: 1" in status_output
     assert "redirects to https://example.org/moved" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-answered-broken",
+)
+def test_local_recheck_skips_broken_url_with_status_code(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A ``broken`` URL the service got an HTTP status code for is never
+    rechecked: the server itself answered, so that verdict is authoritative
+    and still fails the build.
+
+    Only a ``broken`` result with *no* status code is treated as
+    unverified. Widening the recheck to answered failures would let a
+    build shop for a second opinion on a link the server said was gone.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="broken",
+                status_code=404,
+                error="404 Not Found",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+
+    app.build()
+
+    # A definite failure from the server still fails the build.
+    assert app.statuscode == 1
+
+    # Ook's submit and poll, and nothing else: no local request was made,
+    # so no recheck ran at all.
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+    ]
+
+    status_output = app.status.getvalue()
+    assert "Rechecking unverified URLs" not in status_output
+    assert "broken: 1" in status_output
+
+    # The service's own evidence is what the build reports.
+    message = _warning_message(app, "broken: https://example.com/page")
+    assert "HTTP 404" in message
+    assert "404 Not Found" in message
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-recheck-still-unreachable",
+)
+def test_local_recheck_keeps_broken_when_also_unreachable(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A ``broken``-with-no-status URL the build cannot reach either keeps
+    its ``broken`` status and still fails the build, and its detail line
+    records that both vantage points came back empty-handed.
+
+    Two vantage points failing to reach a link is not proof the link
+    works, so the recheck settling nothing leaves the service's verdict —
+    and its build failure — exactly where it was. The detail line is what
+    tells a reader that apart from a URL nobody looked at twice.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="broken",
+                error="ConnectError: certificate verify failed",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck_unanswered(responses, "https://example.com/page")
+
+    app.build()
+
+    # Nothing was settled, so the service's failure still stands.
+    assert app.statuscode == 1
+
+    status_output = app.status.getvalue()
+    assert "Local recheck: 0 verified, 0 still unverified, 1 failing" in (
+        status_output
+    )
+    assert "broken: 1" in status_output
+
+    # The service's own evidence is untouched, and the line says the build
+    # looked and came back with nothing too.
+    message = _warning_message(app, "broken: https://example.com/page")
+    assert "certificate verify failed" in message
+    assert (
+        "no response from the link-check service or from this build" in message
+    )
+    assert "Connection reset" not in message
 
 
 @pytest.mark.skipif(
@@ -1543,6 +1710,124 @@ def test_all_unanswered_observations_contribute_nothing(
 @pytest.mark.sphinx(
     "linkcheck",
     testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-broken-origin",
+)
+def test_broken_observation_is_not_contributed(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """An observation for a URL the service reported ``broken`` is
+    withheld from the contribution, while the blocked URL rechecked in the
+    same build is still sent.
+
+    The service applies a contributed result only to a URL its own stored
+    state has as ``blocked``, rejecting anything else. Sending an
+    observation it is going to refuse buys nothing, so the batch carries
+    only what the service will take — even though the build applied both
+    observations to its own report.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="blocked",
+                status_code=403,
+                error="403 Forbidden",
+            ),
+            _checked_url(
+                "https://example.org/resource",
+                status="broken",
+                error="ConnectError: certificate verify failed",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+    _mock_local_recheck(responses, "https://example.org/resource", status=200)
+    _mock_oidc_token(responses)
+    responses.post(
+        CONTRIBUTIONS_URL,
+        json=_contribution_report(
+            accepted=[{"url": "https://example.com/page", "status": "ok"}]
+        ),
+        status=200,
+    )
+
+    app.build()
+
+    assert app.statuscode == 0
+
+    contribution = responses.calls[-1].request
+    assert contribution.body is not None
+    contributed = [
+        result["url"] for result in json.loads(contribution.body)["results"]
+    ]
+    assert contributed == ["https://example.com/page"]
+    assert "Contributed 1 link-check result" in app.status.getvalue()
+
+    # Both URLs were still rechecked for this build's own report.
+    status_output = app.status.getvalue()
+    assert "ok: 3" in status_output
+    assert "broken: 0" in status_output
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
+    srcdir="linkcheck-service-contribute-only-broken",
+)
+def test_only_broken_observations_contribute_nothing(
+    app: SphinxTestApp, responses: RequestsMock, monkeypatch: Any
+) -> None:
+    """A recheck that visited only ``broken`` URLs has nothing the service
+    will take, so no id token is minted and no batch is sent — the same
+    free path a batch emptied by the no-response filter takes.
+    """
+    monkeypatch.setenv("OOK_TOKEN", "test-token")
+    _set_actions_oidc_env(monkeypatch)
+    _mock_submit_check(
+        responses,
+        [
+            _checked_url(
+                "https://example.com/page",
+                status="broken",
+                error="ConnectError: certificate verify failed",
+            ),
+            _checked_url("https://www.lsst.io/"),
+        ],
+    )
+    _mock_local_recheck(responses, "https://example.com/page", status=200)
+
+    app.build()
+
+    # The build's own report still benefits from the recheck.
+    assert app.statuscode == 0
+    assert "ok: 2" in app.status.getvalue()
+
+    # Ook's submit and poll and the local recheck: no token request, no
+    # contribution POST.
+    assert [call.request.url for call in responses.calls] == [
+        f"{OOK_BASE_URL}/linkcheck/checks",
+        f"{OOK_BASE_URL}/linkcheck/checks/{OOK_CHECK_ID}",
+        "https://example.com/page",
+    ]
+
+    message = _status_message(app, "Not contributing")
+    assert "nothing worth contributing" in message
+    assert "Not contributing" not in app.warning.getvalue()
+
+
+@pytest.mark.skipif(
+    not _HAS_GUIDE_DEPS, reason="guide dependencies are not installed"
+)
+@pytest.mark.sphinx(
+    "linkcheck",
+    testroot="linkcheck-service",
     srcdir="linkcheck-service-contribute-no-oidc",
 )
 def test_contribution_skipped_without_oidc(
@@ -1591,7 +1876,7 @@ def test_contribution_skipped_without_oidc(
 
     # The recheck still informed the report: the blocked URL is verified.
     status_output = app.status.getvalue()
-    assert "Local recheck: 1 verified, 0 still blocked, 0 failing" in (
+    assert "Local recheck: 1 verified, 0 still unverified, 0 failing" in (
         status_output
     )
     assert "blocked: 0" in status_output

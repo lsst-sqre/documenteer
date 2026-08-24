@@ -43,7 +43,7 @@ from ..storage.locallinkchecker import LocalCheckResult, LocalLinkChecker
 from ..version import __version__
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Container, Iterable, Mapping
 
     from docutils import nodes
     from sphinx.application import Sphinx
@@ -198,18 +198,75 @@ def _is_checkable_uri(uri: str) -> bool:
     return uri.startswith(("http:", "https:"))
 
 
+def _is_unverified(result: CheckedUrl) -> bool:
+    """Whether the service's verdict for a URL rests on evidence nobody
+    obtained, and so is worth rechecking from this build.
+
+    Two verdicts qualify. ``blocked`` says the service's requests tripped
+    a site's bot-protection edge, which it cannot tell apart from a site
+    refusing everyone. ``broken`` with no status code says the service got
+    no response at all — a TLS chain it could not build, a dropped
+    connection, a name it could not resolve — which settles nothing about
+    the link either, and which the build fails on regardless of ``strict``.
+
+    A ``broken`` verdict carrying a status code is excluded on purpose:
+    that is a definite answer the server itself gave, and a second opinion
+    from the build has no standing to overturn it.
+
+    Returns
+    -------
+    bool
+        `True` if the URL should be rechecked locally.
+    """
+    if result.status is CheckUrlStatus.blocked:
+        return True
+    return (
+        result.status is CheckUrlStatus.broken and result.status_code is None
+    )
+
+
+def _contributable_urls(check: LinkCheck) -> set[str]:
+    """Select the URLs whose local observations the service will accept
+    back.
+
+    Ook applies a contributed result only to a URL its own stored state
+    still has as ``blocked``, declining anything else with a
+    ``not_blocked`` rejection. The recheck is wider than that — it also
+    visits URLs the service reported ``broken`` without ever getting a
+    response — so the observations it produces are not all eligible.
+
+    Withholding the ineligible ones is the same courtesy the no-response
+    filter in `_contribute_local_results` extends: do not send the service
+    what it is going to refuse. Widening the service's eligibility is
+    tracked separately; until then the build reads the current rule rather
+    than filling the report with rejections.
+
+    Returns
+    -------
+    set of str
+        The URLs the service reported ``blocked``, taken from the check as
+        the service returned it (before any local merge).
+    """
+    return {
+        result.url
+        for result in check.urls
+        if result.status is CheckUrlStatus.blocked
+    }
+
+
 def _local_verdict(local: LocalCheckResult) -> CheckUrlStatus:
     """Translate a local observation into the status it warrants for a
-    URL Ook could only report as ``blocked``.
+    URL the service could not settle from its own vantage point.
 
-    Only a failure the server itself answered with promotes a URL to
+    Only a failure the server itself answered with settles a URL as
     ``broken``. A failure that produced no response at all — a timeout, a
     connection reset, a DNS failure — settled nothing: bot protection does
     not always answer with a status code (an edge that dislikes a
     datacenter IP may simply drop the connection, and a GitHub Actions
     runner is a datacenter IP), and a transient network blip at the runner
-    would otherwise turn the service's non-failing caveat into a build
-    failure on evidence the build never actually obtained.
+    is not evidence about a link. This is the same standard `_is_unverified`
+    applies to the *service's* observations, turned on the build's own: a
+    verdict nobody obtained does not get to move a URL in either direction.
 
     Returns
     -------
@@ -217,8 +274,10 @@ def _local_verdict(local: LocalCheckResult) -> CheckUrlStatus:
         ``ok`` (or ``redirected``, when the URL works only through a
         permanent redirect) when the build's own vantage point resolved
         the URL; ``blocked`` when the build was blocked too, or got no
-        response at all; ``broken`` when the build got a definite HTTP
-        failure the service could not see.
+        response at all, which `_merge_local_result` reads as "settled
+        nothing" and leaves the service's verdict standing; ``broken``
+        when the build got a definite HTTP failure the service could not
+        see.
     """
     if local.is_ok:
         if local.redirect_status_code in _PERMANENT_REDIRECT_STATUS_CODES:
@@ -243,6 +302,12 @@ def _merge_local_result(
     exactly as the service reported it, while a URL the build resolved or
     definitively failed is restated with the local evidence. See
     `_local_verdict` for which observations count as settling one.
+
+    That conservatism cuts both ways, and deliberately so: a URL the
+    service reported ``broken`` because it got no response, and which the
+    build could not reach either, keeps its ``broken`` status and still
+    fails the build. Two vantage points failing to reach a link is not
+    proof the link works.
     """
     status = _local_verdict(local)
     if status is CheckUrlStatus.blocked:
@@ -265,9 +330,10 @@ def _merge_local_results(
     """Rebuild a completed check with local observations folded in.
 
     The summary is adjusted rather than recomputed: each URL whose verdict
-    the recheck changed moves from the ``blocked`` count into its new
-    status's count, leaving the service's own counts for every other URL
-    untouched.
+    the recheck changed moves out of the count for whatever status the
+    service gave it — ``blocked``, or the ``broken`` it could not reach —
+    and into its new status's count, leaving the service's own counts for
+    every other URL untouched.
     """
     counts = check.summary.model_dump()
     urls: list[CheckedUrl] = []
@@ -438,27 +504,44 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             self._handle_service_error(e)
             return
         local_results: dict[str, LocalCheckResult] = {}
-        if self.config.documenteer_linkcheck_recheck_blocked:
-            check, local_results = self._recheck_blocked_urls(check)
+        if self.config.documenteer_linkcheck_recheck_unverified:
+            # Read off which URLs the service will accept a contribution
+            # for before the recheck rewrites their statuses: eligibility
+            # is decided by the *service's* stored state, not by what this
+            # build went on to observe.
+            contributable = _contributable_urls(check)
+            check, local_results = self._recheck_unverified_urls(check)
             if local_results:
                 self._contribute_local_results(
-                    client, check.id, local_results.values()
+                    client,
+                    check.id,
+                    local_results.values(),
+                    contributable=contributable,
                 )
         self._report(check, locally_rechecked=set(local_results))
 
-    def _recheck_blocked_urls(
+    def _recheck_unverified_urls(
         self, check: LinkCheck
     ) -> tuple[LinkCheck, dict[str, LocalCheckResult]]:
-        """Recheck the check's bot-blocked URLs from this build's own
-        vantage point and fold what it observes into the results.
+        """Recheck from this build's own vantage point the URLs the
+        service could not settle from its own, and fold what it observes
+        into the results.
 
-        Ook reports a URL ``blocked`` when its egress trips a site's bot
-        protection. A documentation build usually runs somewhere else
-        entirely — a GitHub Actions runner the same site is happy to serve
-        — so the build can often settle a verdict the service could not.
-        Only the blocked URLs are rechecked, and they are checked one at a
-        time with a politeness delay, so this stays a handful of requests
-        rather than a second link check.
+        Two of the service's verdicts rest on evidence nobody actually
+        obtained about the link itself. Ook reports a URL ``blocked``
+        when its egress trips a site's bot protection, and it reports one
+        ``broken`` with no status code at all when it got no response —
+        a TLS chain it could not build, a connection the far end dropped,
+        a name it could not resolve. A documentation build usually runs
+        somewhere else entirely — a GitHub Actions runner the same site is
+        happy to serve, with a different trust store and a different route
+        — so the build can often settle what the service could not.
+
+        A ``broken`` verdict that *does* carry a status code is a definite
+        answer from the server, so it stays authoritative and is never
+        rechecked. Only the unsettled URLs are visited, one at a time with
+        a politeness delay, so this stays a handful of requests rather
+        than a second link check.
 
         Returns
         -------
@@ -466,26 +549,24 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             The check with the local observations merged in, and the local
             observations themselves, keyed by URL.
         """
-        blocked = [
-            result.url
-            for result in check.urls
-            if result.status is CheckUrlStatus.blocked
+        unverified = [
+            result.url for result in check.urls if _is_unverified(result)
         ]
-        if not blocked:
+        if not unverified:
             return check, {}
 
         logger.info(
-            "Rechecking bot-blocked URLs from this build's own vantage point"
+            "Rechecking unverified URLs from this build's own vantage point"
         )
         checker = LocalLinkChecker(
             timeout=self.config.linkcheck_timeout
             or _DEFAULT_LOCAL_RECHECK_TIMEOUT
         )
         local_results = {
-            local.url: local for local in checker.check_urls(blocked)
+            local.url: local for local in checker.check_urls(unverified)
         }
         merged = _merge_local_results(check, local_results)
-        self._log_recheck_outcome(merged, set(blocked))
+        self._log_recheck_outcome(merged, set(unverified))
         return merged, local_results
 
     def _contribute_local_results(
@@ -493,6 +574,8 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         client: LinkCheckClient,
         check_id: str,
         local_results: Iterable[LocalCheckResult],
+        *,
+        contributable: Container[str],
     ) -> None:
         """Hand the build's own observations back to the link-check service.
 
@@ -508,6 +591,13 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         rewrites nothing locally (see `_local_verdict`), and contributing
         it would put a runner's network blip into the state every other
         project's build reads.
+
+        ``contributable`` withholds the rest, for a different reason: the
+        service accepts a result only for a URL it has stored as
+        ``blocked``, so an observation for one it reported ``broken``
+        would come back rejected (see `_contributable_urls`). Both filters
+        can empty the batch, and an empty batch skips the token mint
+        entirely rather than posting nothing.
 
         The contribution is attested by a GitHub Actions OIDC id token
         minted for the service's own base URL, so the service records the
@@ -531,14 +621,15 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             # An observation with no status code got no response at all,
             # which settles nothing about the URL — the same reason
             # `_merge_local_result` refuses to apply it to this build's
-            # own report.
-            if local.status_code is not None
+            # own report. An observation for a URL the service did not
+            # store as ``blocked`` is one it will not apply at all.
+            if local.status_code is not None and local.url in contributable
         ]
         if not results:
             logger.info(
                 "Not contributing the local recheck's results to the "
-                "link-check service: no rechecked URL answered this build, "
-                "so the recheck observed nothing worth contributing."
+                "link-check service: the recheck observed nothing worth "
+                "contributing that the service would accept."
             )
             return
         token = GitHubOidcTokenFetcher().fetch_id_token(client.oidc_audience)
@@ -596,16 +687,24 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
 
     @staticmethod
     def _log_recheck_outcome(merged: LinkCheck, rechecked: set[str]) -> None:
-        """Report what the local recheck settled, in one line."""
+        """Report what the local recheck settled, in one line.
+
+        The three counts are the three outcomes: the build resolved the
+        URL, the build failed to settle it (so the service's verdict
+        stands, whether that was ``blocked`` or a ``broken`` it could not
+        reach), or the URL is failing. "Still unverified" rather than
+        "still blocked" because the rechecked population is now mixed —
+        not every URL on this path arrived bot-blocked.
+        """
         statuses = [
             result.status for result in merged.urls if result.url in rechecked
         ]
-        still_blocked = statuses.count(CheckUrlStatus.blocked)
+        still_unverified = statuses.count(CheckUrlStatus.blocked)
         broken = statuses.count(CheckUrlStatus.broken)
         logger.info(
-            "Local recheck: %d verified, %d still blocked, %d failing",
-            len(statuses) - still_blocked - broken,
-            still_blocked,
+            "Local recheck: %d verified, %d still unverified, %d failing",
+            len(statuses) - still_unverified - broken,
+            still_unverified,
             broken,
         )
 
@@ -767,8 +866,9 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         vantage point, not broken, so they never fail the build.
 
         ``locally_rechecked`` names the URLs the local recheck visited, so
-        a URL that is still blocked from the build's own vantage point can
-        say so.
+        a URL the build could not settle either — still blocked, or still
+        unreachable — can say that both vantage points looked rather than
+        leaving the reader to guess.
         """
         artifact_path = self._write_json_artifact(
             check, locally_rechecked=locally_rechecked
@@ -850,7 +950,12 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
         The pages the URL occurs on come from the service's per-URL
         ``origin_paths``. ``locally_rechecked`` marks a URL the build
         rechecked itself, which sharpens the bot-protection caveat from a
-        single vantage point's guess into a confirmed block.
+        single vantage point's guess into a confirmed block, and which a
+        ``broken`` result nobody got a response for needs for a different
+        reason: a reader has to be able to tell "the service could not
+        reach it and neither could this build" — two vantage points, one
+        answer — from "the service could not reach it and nobody looked
+        again". Only the first is worth acting on as a broken link.
         """
         page_list = ", ".join(result.origin_paths) or "unknown"
         parts = [f"{result.status.value}: {result.url} (page: {page_list})"]
@@ -872,6 +977,19 @@ class ServiceLinkCheckBuilder(CheckExternalLinksBuilder):
             if locally_rechecked:
                 caveat += " or from this build"
             parts.append(caveat)
+        elif (
+            result.status is CheckUrlStatus.broken
+            and result.status_code is None
+            and locally_rechecked
+        ):
+            # A ``broken`` result with no status code that survived the
+            # recheck is the one broken link the build fails on without
+            # anyone having gotten an answer from the server. Saying so
+            # keeps the reader from chasing a URL that may well be fine
+            # from their own machine.
+            parts.append(
+                "no response from the link-check service or from this build"
+            )
         return " - ".join(parts)
 
 
@@ -923,7 +1041,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     )
     app.add_config_value("documenteer_linkcheck_poll_budget", 300, "")
     app.add_config_value("documenteer_linkcheck_strict", False, "")
-    app.add_config_value("documenteer_linkcheck_recheck_blocked", True, "")
+    app.add_config_value("documenteer_linkcheck_recheck_unverified", True, "")
     app.add_config_value("documenteer_linkcheck_origin_base_url", None, "")
     app.add_config_value(
         "documenteer_linkcheck_default_branch_name", "main", ""

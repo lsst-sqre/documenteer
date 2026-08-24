@@ -770,29 +770,40 @@ This setting only gates genuine service *availability* problems.
 A missing or rejected ``OOK_TOKEN`` is not one of them: rather than failing, the builder falls back to Sphinx's built-in in-process linkcheck_ builder in every mode (including under ``strict``), so link checking still runs.
 Links the service reports as broken always fail the build, regardless of this setting.
 
-.. _guide-sphinx-linkcheck-recheck-blocked:
+.. _guide-sphinx-linkcheck-recheck-unverified:
 
-recheck_blocked
----------------
+recheck_unverified
+------------------
 
 |optional|
 
-Whether URLs the service reports as blocked by bot protection are rechecked from the build's own vantage point.
+Whether URLs the service couldn't verify from its own vantage point are rechecked from the build's.
 Default is ``true``.
 
+Two of the service's verdicts rest on evidence nobody actually obtained about the link:
+
+**Blocked URLs.**
 Some sites sit behind a bot-protection edge (typically Cloudflare) that answers the service's requests with a ``403`` no matter how ordinary the request is.
 The service can't tell such a URL apart from one that's genuinely refusing everyone, so it reports the URL as ``blocked``: a caveat rather than a failure, never counted as broken.
 
-A documentation build usually runs somewhere else entirely — a GitHub Actions runner the same site is happy to serve — so the build can often settle what the service couldn't.
-Documenteer rechecks exactly those blocked URLs, and no others, from the machine running the build, sending the same request Sphinx's built-in linkcheck_ builder would send.
+**URLs the service couldn't reach at all.**
+When a request gets no response — a TLS chain the service can't build, a connection the far end drops, a name it can't resolve — the service reports the URL ``broken`` with no HTTP status code.
+That verdict *does* fail the build, and it's the one worth the most scrutiny: nothing about it is specific to the link rather than to the service's own network.
+
+A documentation build usually runs somewhere else entirely — a GitHub Actions runner the same site is happy to serve, with its own trust store and its own route — so the build can often settle what the service couldn't.
+Documenteer rechecks exactly those URLs, and no others, from the machine running the build, sending the same request Sphinx's built-in linkcheck_ builder would send.
 The checks are sequential with a short delay between them, so a handful of rechecks never arrives at a site as a burst.
+
+A ``broken`` result that *does* carry a status code is never rechecked.
+That's a definite answer from the server itself — a ``404`` is a ``404`` from every vantage point — and a second opinion has no standing to overturn it.
 
 What the build observes is merged into that same build's report:
 
-- A URL the build resolves is reported ``ok`` (or ``redirected``, if it works only through a permanent redirect), and its bot-protection caveat clears.
+- A URL the build resolves is reported ``ok`` (or ``redirected``, if it works only through a permanent redirect), and its bot-protection caveat, or the failure the service couldn't reproduce, clears.
 - A URL that answers the build with a definite failure (a ``404``, say) is reported ``broken``, with the build's own evidence — which fails the build, as any broken link does.
 - A URL blocked from the build's vantage point too keeps its ``blocked`` status, its caveat, and the service's own evidence: the recheck settled nothing, so nothing is rewritten.
 - So does a URL that answers the build with nothing at all — a timeout, a connection reset, a DNS failure. Bot protection doesn't always answer with a status code, and a runner's network blip is not evidence about a link, so only a failure the server itself answered with is allowed to turn the service's caveat into a build failure.
+- A URL the service couldn't reach and the build can't reach either stays ``broken`` and still fails the build. Two vantage points coming back empty-handed isn't proof the link works; its detail line says both looked, so you can tell it apart from one nobody checked twice.
 
 The :file:`linkcheck.json` artifact reflects the merged view, and flags each result the build rechecked for itself with ``locally_rechecked``.
 
@@ -803,7 +814,7 @@ Set this to ``false`` to skip the recheck, and the contribution along with it, a
 .. code-block:: toml
 
    [sphinx.linkcheck]
-   recheck_blocked = false
+   recheck_unverified = false
 
 .. _guide-sphinx-linkcheck-contributions:
 
@@ -811,9 +822,11 @@ Contributing rechecked results back to the service
 --------------------------------------------------
 
 A build that settles a URL the service could only report as ``blocked`` knows something the service can't learn from its own vantage point.
-Documenteer hands that knowledge back: whenever the :ref:`recheck <guide-sphinx-linkcheck-recheck-blocked>` finds blocked URLs, the builder posts what it observed — successes and failures alike, since a URL that's blocked from the runner too is evidence as well — to the check's contributions endpoint on the Ook_ API.
+Documenteer hands that knowledge back: whenever the :ref:`recheck <guide-sphinx-linkcheck-recheck-unverified>` finds blocked URLs, the builder posts what it observed — successes and failures alike, since a URL that's blocked from the runner too is evidence as well — to the check's contributions endpoint on the Ook_ API.
 Each contributed result carries the same evidence the recheck merged into this build's report: the final status code, any redirect that was followed, and the error text when the request failed outright.
-A URL that answered the build with nothing at all is the one exception: a contribution is applied to state every other project's build reads, so an observation the build wouldn't apply to its own report — a timeout or a dropped connection settles nothing about a link — isn't handed on as shared evidence either.
+A URL that answered the build with nothing at all is one exception: a contribution is applied to state every other project's build reads, so an observation the build wouldn't apply to its own report — a timeout or a dropped connection settles nothing about a link — isn't handed on as shared evidence either.
+The other is a URL the service reported ``broken``: the service only applies a contributed result to a URL its own stored state has as ``blocked``, so an observation for one it reported broken would come back rejected, and Documenteer withholds it rather than sending it to be refused.
+Those URLs are still rechecked, and what the build observes still informs this build's own report.
 A build whose links the service settled on its own has nothing to contribute, and doesn't so much as mint a token — which is the overwhelmingly common case.
 
 Contributions are attested with a `GitHub Actions OIDC id token <https://docs.github.com/en/actions/concepts/security/openid-connect>`__ rather than a shared secret, so the service records the verified claims of the workflow run — the repository it ran in — as the provenance of every result it applies.
