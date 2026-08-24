@@ -1,0 +1,240 @@
+"""Tests for the documenteer.storage.citationcff module."""
+
+from __future__ import annotations
+
+import re
+from datetime import date
+from pathlib import Path
+
+import pytest
+
+from documenteer.citations import OrganizationAuthor, PersonAuthor
+from documenteer.services.technotecff import TechnoteCffService
+from documenteer.storage.citationcff import (
+    CitationCffError,
+    CitationCffNotFoundError,
+    CitationCffParseError,
+    read_citation_cff,
+)
+
+DATA_DIR = Path(__file__).parents[1] / "data" / "citationcff"
+
+
+def test_minimal_file() -> None:
+    """A CFF file with only top-level fields composes a citation from
+    them.
+    """
+    citation = read_citation_cff(DATA_DIR / "minimal.cff")
+
+    assert citation.title == "Documenteer"
+    assert citation.doi == "10.5281/zenodo.10385500"
+    assert citation.url == "https://documenteer.lsst.io/"
+    assert citation.date == date(2026, 8, 24)
+    assert citation.publisher is None
+    assert citation.authors == (
+        PersonAuthor(
+            family_name="Sick",
+            given_name="Jonathan",
+            orcid="https://orcid.org/0000-0003-3001-676X",
+            affiliation="Rubin Observatory Project Office",
+        ),
+    )
+
+
+def test_preferred_citation_wins() -> None:
+    """A preferred-citation supplies every field, mirroring GitHub's "Cite
+    this repository" behavior, and its entity author and identifiers-array
+    DOI both resolve.
+    """
+    citation = read_citation_cff(DATA_DIR / "preferred-citation.cff")
+
+    assert citation.title == "The LSST DM Technical Note Publishing Platform"
+    assert citation.doi == "10.71929/rubin/2570308"
+    assert citation.publisher == "Vera C. Rubin Observatory"
+    assert citation.number == "SQR-000"
+    assert citation.url == "https://sqr-000.lsst.io/"
+    assert citation.date == date(2026, 8, 24)
+    assert citation.authors == (
+        OrganizationAuthor(name="Vera C. Rubin Observatory"),
+        PersonAuthor(
+            family_name="Sick",
+            given_name="Jonathan",
+            orcid="https://orcid.org/0000-0003-3001-676X",
+        ),
+    )
+
+
+def test_doi_url_is_normalized(tmp_path: Path) -> None:
+    """A DOI written as a doi.org URL is normalized to its bare form."""
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A dataset\n"
+        "type: dataset\n"
+        "doi: https://doi.org/10.71929/rubin/2570308\n"
+    )
+
+    assert read_citation_cff(path).doi == "10.71929/rubin/2570308"
+
+
+def test_publisher_preferred_over_institution(tmp_path: Path) -> None:
+    """A reference's publisher is the citation's publisher; institution
+    stands in when there is no publisher.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "preferred-citation:\n"
+        "  type: article\n"
+        "  title: An article\n"
+        "  publisher:\n"
+        "    name: A Publisher\n"
+        "  institution:\n"
+        "    name: An Institution\n"
+    )
+
+    assert read_citation_cff(path).publisher == "A Publisher"
+
+
+def test_year_stands_in_for_a_date(tmp_path: Path) -> None:
+    """A reference that dates itself with year and month, as most published
+    works do, still yields a publication date.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "preferred-citation:\n"
+        "  type: article\n"
+        "  title: An article\n"
+        "  year: 2024\n"
+        "  month: 6\n"
+    )
+
+    assert read_citation_cff(path).date == date(2024, 6, 1)
+
+
+def test_name_particle_joins_the_family_name(tmp_path: Path) -> None:
+    """A person's name-particle is carried with their family name, so the
+    name cites as "van Dokkum, Pieter" rather than "Dokkum, Pieter".
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "authors:\n"
+        "  - family-names: Dokkum\n"
+        "    name-particle: van\n"
+        "    given-names: Pieter\n"
+    )
+
+    citation = read_citation_cff(path)
+    assert citation.authors[0].citation_name == "van Dokkum, Pieter"
+
+
+def test_missing_file(tmp_path: Path) -> None:
+    """A missing file raises an error naming the path."""
+    path = tmp_path / "CITATION.cff"
+
+    with pytest.raises(CitationCffNotFoundError, match=re.escape(str(path))):
+        read_citation_cff(path)
+
+
+def test_invalid_yaml(tmp_path: Path) -> None:
+    """A file that is not YAML raises an error naming the path."""
+    path = tmp_path / "CITATION.cff"
+    path.write_text("title: [unclosed\n")
+
+    with pytest.raises(CitationCffParseError, match=re.escape(str(path))):
+        read_citation_cff(path)
+
+
+def test_not_a_mapping(tmp_path: Path) -> None:
+    """YAML that is not a mapping is not a CFF file."""
+    path = tmp_path / "CITATION.cff"
+    path.write_text("- one\n- two\n")
+
+    with pytest.raises(CitationCffParseError, match=re.escape(str(path))):
+        read_citation_cff(path)
+
+
+def test_missing_title(tmp_path: Path) -> None:
+    """A file that names no work raises an error naming the path."""
+    path = tmp_path / "CITATION.cff"
+    path.write_text("cff-version: 1.2.0\ntype: software\n")
+
+    with pytest.raises(CitationCffParseError, match=re.escape(str(path))):
+        read_citation_cff(path)
+
+
+def test_invalid_doi(tmp_path: Path) -> None:
+    """A value that is not a DOI raises an error naming the path, rather
+    than the bare ValueError the normalizer raises.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\ntitle: A dataset\ntype: dataset\ndoi: nope\n"
+    )
+
+    with pytest.raises(CitationCffParseError, match=re.escape(str(path))):
+        read_citation_cff(path)
+
+
+def test_errors_share_a_base_class(tmp_path: Path) -> None:
+    """Every failure is a CitationCffError, so a caller that only wants to
+    report the path can catch one type.
+    """
+    with pytest.raises(CitationCffError):
+        read_citation_cff(tmp_path / "CITATION.cff")
+
+
+def test_round_trip_with_the_technote_generator(tmp_path: Path) -> None:
+    """A CITATION.cff written by ``technote sync-cff`` reads back as the
+    very citation it was written from, so the two directions cannot drift.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(
+        "[technote]\n"
+        'id = "SQR-000"\n'
+        'title = "The LSST DM Technical Note Publishing Platform"\n'
+        'canonical_url = "https://sqr-000.lsst.io/"\n'
+        'doi = "10.71929/rubin/2570308"\n'
+        "date_updated = 2026-08-24\n"
+        "\n"
+        "[technote.organization]\n"
+        'name = "Vera C. Rubin Observatory"\n'
+        "\n"
+        "[[technote.authors]]\n"
+        'name = {given = "Jonathan", family = "Sick"}\n'
+        'orcid = "https://orcid.org/0000-0003-3001-676X"\n'
+        "[[technote.authors.affiliations]]\n"
+        'name = "Rubin Observatory Project Office"\n'
+    )
+    service = TechnoteCffService.from_technote_toml(toml_path)
+    cff_path = tmp_path / "CITATION.cff"
+    service.sync(cff_path)
+
+    assert read_citation_cff(cff_path) == service.citation
+
+
+def test_author_with_no_name(tmp_path: Path) -> None:
+    """An author that spells no name raises an error that names the path
+    once, rather than being re-wrapped by the DOI handler.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "authors:\n"
+        "  - orcid: https://orcid.org/0000-0003-3001-676X\n"
+    )
+
+    with pytest.raises(CitationCffParseError) as excinfo:
+        read_citation_cff(path)
+
+    assert str(excinfo.value).count(str(path)) == 1
