@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest_responses  # noqa: F401
 import requests
+import yaml
 from click.testing import CliRunner
 from responses import RequestsMock, matchers
 
@@ -240,3 +242,111 @@ def test_add_author_malformed_orcid_record(
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert "validation error" not in result.output
     assert toml_path.read_text() == MISSING_ID_TOML
+
+
+CFF_TOML = """
+[technote]
+id = "SQR-000"
+title = "The LSST DM Technical Note Publishing Platform"
+canonical_url = "https://sqr-000.lsst.io/"
+doi = "10.71929/rubin/2570308"
+date_updated = 2026-08-24
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+
+[[technote.authors]]
+name = {given = "Jonathan", family = "Sick"}
+internal_id = "sickj"
+orcid = "https://orcid.org/0000-0003-3001-676X"
+"""
+
+
+def test_sync_cff_writes_and_is_idempotent(tmp_path: Path) -> None:
+    """sync-cff writes CITATION.cff, and a second run changes nothing."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    cff_path = tmp_path / "CITATION.cff"
+    written = cff_path.read_bytes()
+    assert b"preferred-citation" in written
+
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert cff_path.read_bytes() == written
+
+
+def test_sync_cff_check_absent(tmp_path: Path) -> None:
+    """--check passes when no CITATION.cff exists: adoption is opt-in."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert not (tmp_path / "CITATION.cff").exists()
+
+
+def test_sync_cff_check_stale(tmp_path: Path) -> None:
+    """--check fails on a stale CITATION.cff, and does not rewrite it."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    cff_path = tmp_path / "CITATION.cff"
+    cff_path.write_text("cff-version: 1.2.0\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 1
+    assert cff_path.read_text() == "cff-version: 1.2.0\n"
+
+
+def test_sync_cff_check_current(tmp_path: Path) -> None:
+    """--check passes once CITATION.cff has been synced."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    runner = CliRunner()
+    runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+
+
+def test_sync_cff_without_technote_toml(tmp_path: Path) -> None:
+    """A directory that is not a technote is reported, not tracebacked."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "technote.toml" in result.output
+
+
+def test_sync_cff_malformed_doi(tmp_path: Path) -> None:
+    """A DOI that is not a DOI is reported as a user error."""
+    (tmp_path / "technote.toml").write_text(
+        CFF_TOML.replace('doi = "10.71929/rubin/2570308"', 'doi = "nope"')
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Not a DOI" in result.output
+
+
+def test_precommit_hook_definition() -> None:
+    """The repository ships a technote-sync-cff pre-commit hook."""
+    hooks_path = Path(__file__).parent.parent / ".pre-commit-hooks.yaml"
+    hooks = yaml.safe_load(hooks_path.read_text())
+
+    hook = next(h for h in hooks if h["id"] == "technote-sync-cff")
+    assert hook["entry"] == "documenteer technote sync-cff"
+    assert hook["pass_filenames"] is False
+    assert re.match(hook["files"], "technote.toml")

@@ -13,12 +13,10 @@ from documenteer.services.technoteauthor import (
     SyncAction,
     TechnoteAuthorService,
 )
-from documenteer.services.technotelint import (
-    LintContext,
-    LintFinding,
-    Severity,
-    TechnoteLintService,
-    rule_url,
+from documenteer.services.technotecff import (
+    CFF_FILENAME,
+    CffStatus,
+    TechnoteCffService,
 )
 from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.storage.authordb import (
@@ -334,6 +332,19 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
     The command exits non-zero when any error remains. Use ``--strict`` to
     promote warnings to errors.
     """
+    # Imported here, rather than at module scope, because the lint service is
+    # the only part of the CLI that needs the `technote` package (a
+    # documenteer[technote] extra). Keeping it lazy means the rest of the
+    # CLI — `sync-cff` in particular, which runs as a pre-commit hook from a
+    # plain documenteer install — works without the extra.
+    from documenteer.services.technotelint import (  # noqa: PLC0415
+        LintContext,
+        LintFinding,
+        Severity,
+        TechnoteLintService,
+        rule_url,
+    )
+
     author_db = AuthorDb()
     context = LintContext.from_dir(Path(root_dir), author_db)
     service = TechnoteLintService(context)
@@ -365,3 +376,79 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
 
     if errors:
         raise SystemExit(1)
+
+
+@technote.command(name="sync-cff")
+@click.option(
+    "--dir",
+    "-d",
+    "root_dir",
+    type=click.Path(exists=True, file_okay=False),
+    default=".",
+    help="Path to technote directory",
+)
+@click.option(
+    "--check",
+    "check",
+    is_flag=True,
+    default=False,
+    help=(
+        "Report whether CITATION.cff is up to date instead of writing it. "
+        "Exits non-zero only when the file exists and is stale."
+    ),
+)
+def technote_sync_cff(root_dir: str, *, check: bool) -> None:
+    """Generate CITATION.cff from technote.toml.
+
+    This writes a Citation File Format 1.2.0 file at the technote's
+    repository root, so that GitHub's "Cite this repository" button offers a
+    proper technote citation. CFF's top-level ``type`` may only be
+    ``software`` or ``dataset``, so the technote itself is the file's
+    ``preferred-citation`` — a ``report`` reference carrying the DOI, the
+    authors with their ORCIDs and affiliations, the publishing institution,
+    the technote's handle as ``number``, the release date, and the canonical
+    URL.
+
+    :file:`technote.toml` is the canonical source: the file is regenerated
+    from scratch on every run, so edit technote.toml rather than
+    CITATION.cff. Generation is deterministic, which makes ``--check`` a
+    content comparison suitable for CI and pre-commit. ``--check`` exits
+    non-zero only when CITATION.cff exists and is stale; a repository with
+    no CITATION.cff has simply not opted in, and passes.
+    """
+    root = Path(root_dir)
+    toml_path = root / "technote.toml"
+    if not toml_path.is_file():
+        raise click.ClickException(f"No technote.toml found in {root}.")
+
+    try:
+        service = TechnoteCffService.from_technote_toml(toml_path)
+    except ValueError as e:
+        # Malformed TOML, a DOI that is not a DOI, or metadata too sparse to
+        # cite: all of them are something to fix in technote.toml, not a
+        # Documenteer bug, so report the condition rather than a traceback.
+        raise click.ClickException(str(e)) from e
+
+    for warning in service.warnings:
+        click.echo(f"Warning: {warning}", err=True)
+
+    cff_path = root / CFF_FILENAME
+    if check:
+        status = service.status(cff_path)
+        if status is CffStatus.stale:
+            click.echo(
+                f"{cff_path} is out of date with {toml_path}. Run "
+                f"'documenteer technote sync-cff' to regenerate it.",
+                err=True,
+            )
+            raise SystemExit(1)
+        if status is CffStatus.absent:
+            click.echo(f"{cff_path} does not exist; nothing to check.")
+        else:
+            click.echo(f"{cff_path} is up to date.")
+        return
+
+    if service.sync(cff_path) is CffStatus.current:
+        click.echo(f"{cff_path} is already up to date.")
+    else:
+        click.echo(f"Wrote {cff_path}")

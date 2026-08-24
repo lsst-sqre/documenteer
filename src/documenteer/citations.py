@@ -174,6 +174,16 @@ class PersonAuthor:
     orcid: str | None = None
     """The person's ORCID, in whatever spelling the source provides."""
 
+    affiliation: str | None = None
+    """The person's affiliation, as a single display name.
+
+    Neither `Citation.to_plain_text` nor `Citation.to_bibtex` renders an
+    affiliation — a bibliographic reference credits people, not their
+    institutions. It is carried here because the metadata formats a citation
+    is exchanged in do record it, one affiliation per creator: CFF's ``Person``
+    has an ``affiliation`` string and DataCite's creators have affiliations.
+    """
+
     @property
     def citation_name(self) -> str:
         """The name as it appears in a rendered citation, family name

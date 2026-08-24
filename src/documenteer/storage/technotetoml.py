@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Self, cast
+from typing import Any, Self, cast
 
 import tomlkit
 
@@ -83,6 +83,20 @@ class TechnoteTomlFile:
     def doc(self) -> tomlkit.TOMLDocument:
         """The editable tomlkit document."""
         return self._doc
+
+    @property
+    def data(self) -> dict[str, Any]:
+        """The file's content as plain Python data.
+
+        Every tomlkit item carries its own formatting — the whitespace and
+        comments around it — which is what makes an *edit* preserve the rest
+        of the file, and what gets in the way of simply *reading* a value.
+        Unwrapping yields ordinary dicts, lists, strings, and
+        `~datetime.date` objects instead, so a consumer that only reads
+        technote.toml (such as CITATION.cff generation) never has to reason
+        about tomlkit's types.
+        """
+        return self._doc.unwrap()
 
     @classmethod
     def open(cls, path: Path) -> Self:

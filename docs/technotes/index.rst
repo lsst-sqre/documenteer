@@ -23,6 +23,7 @@ Documenteer provides centralized configuration and tooling for technotes.
    :titlesonly:
 
    author-metadata
+   citation-file
    document-status
 
 .. toctree::
