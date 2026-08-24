@@ -772,6 +772,346 @@ doi = "10.71929"
     assert [f.code for f in findings] == ["TN104"]
 
 
+DOI = "10.71929/rubin/2570308"
+"""The DOI the DataCite cross-check tests declare in technote.toml."""
+
+DATACITE_URL = f"https://api.datacite.org/dois/{DOI}"
+"""The API URL TN105 reads that DOI's registered metadata from."""
+
+
+def _datacite_body(
+    *,
+    title: str = "The technote",
+    creators: tuple[str, ...] = ("Sick, Jonathan",),
+) -> str:
+    """Build a DataCite ``/dois/{id}`` response body for `DOI`."""
+    return json.dumps(
+        {
+            "data": {
+                "id": DOI,
+                "type": "dois",
+                "attributes": {
+                    "doi": DOI,
+                    "titles": [{"title": title}],
+                    "creators": [
+                        {"name": name, "nameType": "Personal"}
+                        for name in creators
+                    ],
+                    "publisher": "Vera C. Rubin Observatory",
+                    "publicationYear": 2026,
+                },
+            }
+        }
+    )
+
+
+def _mock_author(responses: RequestsMock) -> None:
+    """Mock the author-database lookup CITABLE_TOML's one author needs."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+
+def _mock_second_author(responses: RequestsMock) -> None:
+    """Mock the lookup TWO_AUTHOR_TOML's second author needs."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/alsayyady",
+        body=json.dumps(
+            _author_record(
+                "alsayyady",
+                "Yusra",
+                "AlSayyad",
+                "https://orcid.org/0000-0002-1793-3689",
+            )
+        ),
+        content_type="application/json",
+        status=200,
+    )
+
+
+TWO_AUTHOR_TOML = """
+[technote]
+id = "SQR-000"
+title = "The technote"
+doi = "10.71929/rubin/2570308"
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"
+internal_id = "sickj"
+
+[[technote.authors]]
+name.given = "Yusra"
+name.family = "AlSayyad"
+internal_id = "alsayyady"
+"""
+"""CITABLE_TOML with a second author, for the author-set comparison."""
+
+
+def test_datacite_title_drift_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A registered title that differs from technote.toml is a TN105
+    warning.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="An older title"),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert findings[0].severity is Severity.warning
+    assert "title" in findings[0].message
+    assert "An older title" in findings[0].message
+    assert "The technote" in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+def test_datacite_author_drift_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A registered author list that differs from technote.toml is a TN105
+    warning.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=("AlSayyad, Yusra",)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "authors" in findings[0].message
+    assert "AlSayyad, Yusra" in findings[0].message
+    assert "Sick, Jonathan" in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+def test_datacite_drift_names_every_differing_field(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Title and author drift are reported together, in one finding."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            title="An older title", creators=("AlSayyad, Yusra",)
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "title" in findings[0].message
+    assert "authors" in findings[0].message
+
+
+def test_matching_datacite_metadata_passes(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Registered metadata that agrees with technote.toml is silent."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "The technote",
+        "the TECHNOTE",
+        "The  technote\n",
+    ],
+)
+def test_title_comparison_tolerates_case_and_whitespace(
+    tmp_path: Path, responses: RequestsMock, title: str
+) -> None:
+    """Case and whitespace differences in a title are not drift."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title=title),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "creators",
+    [
+        ("Sick, Jonathan", "AlSayyad, Yusra"),
+        # A different order is the same author set.
+        ("AlSayyad, Yusra", "Sick, Jonathan"),
+        # As are different punctuation and case in a name.
+        ("Jonathan Sick", "Yusra Alsayyad"),
+    ],
+)
+def test_author_comparison_tolerates_order_and_spelling(
+    tmp_path: Path, responses: RequestsMock, creators: tuple[str, ...]
+) -> None:
+    """The author sets are compared order-insensitively and tolerantly."""
+    _mock_author(responses)
+    _mock_second_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=creators),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, TWO_AUTHOR_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_unregistered_doi_skips_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A DOI DataCite does not know is silent, not drift."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body='{"errors":[{"status":"404"}]}',
+        content_type="application/vnd.api+json",
+        status=404,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        requests.ConnectionError("no route to host"),
+        requests.ReadTimeout("too slow"),
+    ],
+)
+def test_unreachable_datacite_skips_tn105(
+    tmp_path: Path, responses: RequestsMock, failure: Exception
+) -> None:
+    """A technote author with no network gets a clean lint run."""
+    _mock_author(responses)
+    responses.get(DATACITE_URL, body=failure)
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_datacite_server_error_skips_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A DataCite outage is silent rather than reported as drift."""
+    _mock_author(responses)
+    responses.get(DATACITE_URL, body="Service unavailable", status=503)
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_unreadable_datacite_response_skips_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A response that is not a DOI record leaves the metadata unknown."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body='{"meta": {}}',
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_malformed_doi_skips_datacite(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A DOI that is not a DOI is TN104's finding, and asks DataCite
+    nothing.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+title = "The technote"
+doi = "10.71929"
+""",
+    )
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN104"]
+    assert len(responses.calls) == 0
+
+
+def test_absent_doi_skips_datacite(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote with no DOI has nothing to cross-check."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+title = "The technote"
+""",
+    )
+    assert TechnoteLintService(context).lint() == []
+    assert len(responses.calls) == 0
+
+
+def test_untitled_technote_skips_the_title_comparison(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote.toml that declares no title cannot disagree about one."""
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="A registered title", creators=()),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+doi = "10.71929/rubin/2570308"
+""",
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_authorless_datacite_record_skips_the_author_comparison(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A record that lists no creators is not read as an empty author set."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=()),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
 def _write_non_sphinx_technote(tmp_path: Path, toml_content: str) -> None:
     """Write a non-Sphinx technote: a technote.toml, no index, no conf.py.
 

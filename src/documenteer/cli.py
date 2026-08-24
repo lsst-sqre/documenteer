@@ -317,10 +317,16 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
     technote schema, and that requirements.txt declares documenteer[technote]
     without pinning Sphinx separately. Metadata checks (``TN1xx``) confirm that
     every author declares an internal_id that resolves in the Rubin author
-    database, that a declared DOI is a DOI, and that a CITATION.cff, where the
-    repository has one, still matches technote.toml. Content checks (``TN2xx``)
-    confirm that the content declares a non-empty abstract using the abstract
-    directive rather than an ordinary section heading.
+    database, that a declared DOI is a DOI whose registered DataCite metadata
+    still matches technote.toml, and that a CITATION.cff, where the repository
+    has one, still matches it too. Content checks (``TN2xx``) confirm that the
+    content declares a non-empty abstract using the abstract directive rather
+    than an ordinary section heading.
+
+    Only the author checks and the DataCite cross-check use the network, and
+    they degrade differently: an unreachable author database is reported
+    (TN103), because an unresolved internal_id blocks a DOI from being minted,
+    while an unreachable DataCite is silent.
 
     A directory with no content file and no conf.py is a technote that Sphinx
     does not build, so only the technote.toml checks (structural and metadata)

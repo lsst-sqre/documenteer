@@ -8,7 +8,7 @@ Lint a technote
 
 Documenteer provides a command-line linter, :command:`documenteer technote lint`, that checks a technote's metadata and structure before it is built and published.
 Its most important job is verifying that every author has an ``internal_id`` that resolves in the Rubin author database (`authordb.yaml`_), since these IDs are needed to mint a DOI for the technote.
-The command also checks that the content declares an abstract, that :file:`requirements.txt` installs Documenteer correctly, and that the technote's citation metadata — its DOI and, where the repository has adopted one, its :file:`CITATION.cff` — is in order.
+The command also checks that the content declares an abstract, that :file:`requirements.txt` installs Documenteer correctly, and that the technote's citation metadata — its DOI, the metadata registered for that DOI with DataCite, and, where the repository has adopted one, its :file:`CITATION.cff` — is in order.
 
 Rubin's technote CI (from the `rubin-sphinx-technote-workflows <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows>`__ repository) runs this command so that builds fail early when a technote's metadata is incomplete.
 
@@ -107,6 +107,10 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Metadata
      - The declared DOI is syntactically a DOI.
      - Error
+   * - :doc:`TN105 <tn105>`
+     - Metadata
+     - The metadata registered with DataCite for the DOI matches :file:`technote.toml`.
+     - Warning
    * - :doc:`TN106 <tn106>`
      - Metadata
      - :file:`CITATION.cff` matches what :file:`technote.toml` generates.
@@ -141,11 +145,25 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
    tn102
    tn103
    tn104
+   tn105
    tn106
    tn201
    tn202
    tn203
    tn204
+
+.. _technote-lint-offline:
+
+Running the linter offline
+==========================
+
+Every rule but one reads files alone, so the linter works without a network.
+The exception is :doc:`TN105 <tn105>`, which asks DataCite what a technote's DOI is registered as, and :doc:`TN102 <tn102>`/:doc:`TN103 <tn103>`, which resolve author IDs against the Rubin author database.
+
+The two behave differently when the network is not there, and deliberately so:
+
+- An unreachable **author database** is reported as :doc:`TN103 <tn103>`, a warning, because an unresolved ``internal_id`` is the thing that blocks a technote's DOI from being minted — silence would hide it.
+- An unreachable **DataCite** is silent. TN105 reports nothing at all, and neither does an unregistered DOI. A technote author working offline gets the same clean run they would get with the network up.
 
 .. _technote-lint-suggested-ids:
 

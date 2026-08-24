@@ -6,7 +6,8 @@ import json
 import re
 import string
 import tomllib
-from collections.abc import Callable
+import unicodedata
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -30,6 +31,11 @@ from documenteer.storage.authordb import (
     AuthorNotFoundError,
     AuthorSearchResult,
     normalize_orcid,
+)
+from documenteer.storage.datacite import (
+    DataCiteClient,
+    DataCiteRecord,
+    DataCiteUnavailableError,
 )
 
 __all__ = [
@@ -143,6 +149,14 @@ CHECKS: dict[str, Check] = {
         description="The declared DOI is syntactically a DOI.",
         severity=Severity.error,
     ),
+    "TN105": Check(
+        code="TN105",
+        name="datacite-metadata-current",
+        description=(
+            "The metadata registered for the DOI matches technote.toml."
+        ),
+        severity=Severity.warning,
+    ),
     "TN106": Check(
         code="TN106",
         name="citation-cff-current",
@@ -249,12 +263,13 @@ class LintContext:
 
     Discovers a technote's ``technote.toml``, content file, Sphinx
     ``conf.py``, and ``requirements.txt`` within a directory and holds the
-    `AuthorDb` used to resolve author identifiers. The ``technote.toml`` *text*
-    is read eagerly when the file exists (``toml_text`` is ``None`` when it is
-    missing, so the structural check TN004 can report it); parsing into a
-    `TechnoteToml` model is deferred to `parse_toml` so the syntax check
-    (TN005) and the schema-conformance check (TN001) can each report a failure
-    as a finding.
+    `AuthorDb` used to resolve author identifiers, along with the
+    `DataCiteClient` TN105 asks what a DOI is registered as. The
+    ``technote.toml`` *text* is read eagerly when the file exists
+    (``toml_text`` is ``None`` when it is missing, so the structural check
+    TN004 can report it); parsing into a `TechnoteToml` model is deferred to
+    `parse_toml` so the syntax check (TN005) and the schema-conformance check
+    (TN001) can each report a failure as a finding.
 
     The presence of a content file or a ``conf.py`` also distinguishes a Sphinx
     technote from a technote-series repository that is built by some other
@@ -274,6 +289,7 @@ class LintContext:
         requirements_path: Path | None,
         requirements_text: str | None,
         author_db: AuthorDb,
+        datacite: DataCiteClient | None = None,
     ) -> None:
         self.root_dir = root_dir
         self.toml_path = toml_path
@@ -283,10 +299,20 @@ class LintContext:
         self.requirements_path = requirements_path
         self.requirements_text = requirements_text
         self.author_db = author_db
+        self.datacite = datacite if datacite is not None else DataCiteClient()
 
     @classmethod
-    def from_dir(cls, root_dir: Path, author_db: AuthorDb) -> LintContext:
-        """Build a context from a technote directory."""
+    def from_dir(
+        cls,
+        root_dir: Path,
+        author_db: AuthorDb,
+        datacite: DataCiteClient | None = None,
+    ) -> LintContext:
+        """Build a context from a technote directory.
+
+        ``datacite`` defaults to a client with the standard short timeout;
+        pass one to override it.
+        """
         toml_path = root_dir / "technote.toml"
         toml_text: str | None = None
         if toml_path.exists():
@@ -318,6 +344,7 @@ class LintContext:
             requirements_path=requirements_path,
             requirements_text=requirements_text,
             author_db=author_db,
+            datacite=datacite,
         )
 
     @property
@@ -407,6 +434,7 @@ class TechnoteLintService:
         if parsed is not None:
             findings.extend(self._check_author_internal_ids(parsed))
             findings.extend(_check_doi(parsed))
+            findings.extend(_check_datacite(parsed, self._context.datacite))
             findings.extend(_check_citation_cff(self._context))
 
         # A technote that Sphinx does not build has no requirements.txt or
@@ -587,6 +615,129 @@ def _check_citation_cff(context: LintContext) -> list[LintFinding]:
     ]
 
 
+def _check_datacite(
+    parsed: TechnoteToml, client: DataCiteClient
+) -> list[LintFinding]:
+    """Check technote.toml against the DOI's registered metadata (TN105).
+
+    This is the one rule in the suite that leaves the machine, so *not*
+    answering is a first-class outcome rather than an afterthought. The check
+    is silent — no finding, and no noise about the attempt — whenever it
+    cannot reach a confident conclusion:
+
+    - the technote declares no DOI, so there is nothing to cross-check;
+    - the DOI is not a DOI, which `normalize_doi` decides here exactly as it
+      does for TN104, so the two rules can never disagree about what counts
+      as valid and only TN104 reports it;
+    - DataCite answers 404, which is what a DOI that has been reserved but
+      not yet made findable looks like;
+    - DataCite cannot be reached at all — no network, DNS failure, timeout,
+      an outage, or a response that is not a DOI record. A technote author
+      working on a plane gets a clean lint run.
+
+    Both comparisons are deliberately tolerant, because a false positive here
+    is worse than a miss: this rule warns about metadata registered by the
+    DOI minter, which the person reading the finding may not control. A field
+    that only one side declares is skipped rather than reported as drift.
+    """
+    doi = parsed.technote.doi
+    if doi is None:
+        return []
+    try:
+        normalized = normalize_doi(doi)
+    except ValueError:
+        return []
+    try:
+        record = client.get_record(normalized)
+    except DataCiteUnavailableError:
+        return []
+    if record is None:
+        return []
+
+    differences = _datacite_differences(parsed, record)
+    if not differences:
+        return []
+    drift = "; ".join(differences)
+    return [
+        LintFinding.from_check(
+            "TN105",
+            f"The metadata registered for DOI {normalized} differs from "
+            f"technote.toml: {drift}. Compare with the registered metadata "
+            f"at {record.url}.",
+        )
+    ]
+
+
+def _datacite_differences(
+    parsed: TechnoteToml, record: DataCiteRecord
+) -> list[str]:
+    """Phrase each field where technote.toml and DataCite disagree."""
+    differences: list[str] = []
+
+    title = parsed.technote.title
+    if (
+        title is not None
+        and record.title is not None
+        and _fold(title) != _fold(record.title)
+    ):
+        differences.append(
+            f"the registered title is '{record.title}', but technote.toml "
+            f"declares '{title}'"
+        )
+
+    declared_authors = [
+        f"{author.name.family}, {author.name.given}"
+        for author in parsed.technote.authors
+    ]
+    if (
+        declared_authors
+        and record.creator_names
+        and not _same_people(declared_authors, record.creator_names)
+    ):
+        differences.append(
+            "the registered authors are "
+            f"{_quote_names(record.creator_names)}, but technote.toml "
+            f"declares {_quote_names(declared_authors)}"
+        )
+
+    return differences
+
+
+def _same_people(declared: Sequence[str], registered: Sequence[str]) -> bool:
+    """Compare two author lists as sets of tolerantly-normalized names.
+
+    The comparison is order-insensitive because the order DataCite lists
+    creators in is not always the order technote.toml declares them in, and a
+    legitimate reordering is not metadata drift worth a warning.
+    """
+    return sorted(_name_tokens(name) for name in declared) == sorted(
+        _name_tokens(name) for name in registered
+    )
+
+
+def _name_tokens(name: str) -> tuple[str, ...]:
+    """Reduce a name to the sorted tokens two spellings of it share.
+
+    Accents are folded, punctuation becomes whitespace, case is ignored, and
+    the tokens are sorted, so ``Sick, Jonathan``, ``Jonathan Sick``, and
+    ``SICK,  Jonathan`` all reduce to the same value. Sorting is what makes
+    the family-name-first and given-name-first conventions comparable, since
+    a citation and a DataCite record need not agree on which they use.
+    """
+    decomposed = unicodedata.normalize("NFKD", name)
+    depunctuated = "".join(
+        " " if unicodedata.category(character).startswith("P") else character
+        for character in decomposed
+        if not unicodedata.combining(character)
+    )
+    return tuple(sorted(_fold(depunctuated).split()))
+
+
+def _quote_names(names: Sequence[str]) -> str:
+    """Phrase a list of names for a finding's message."""
+    return ", ".join(f"'{name}'" for name in names)
+
+
 def _match_author(
     results: list[AuthorSearchResult], *, orcid: str | None
 ) -> _AuthorSuggestion | None:
@@ -629,9 +780,16 @@ def _suggestion_from(author: Author, *, basis: str) -> _AuthorSuggestion:
     )
 
 
+def _fold(text: str) -> str:
+    """Case-fold text and collapse its whitespace, so that two spellings of
+    the same value compare equal.
+    """
+    return " ".join(text.casefold().split())
+
+
 def _normalize_name(name: str) -> str:
     """Fold a personal name for comparing two spellings of it."""
-    return " ".join(name.lower().split())
+    return _fold(name)
 
 
 # The reStructuredText abstract directive marker: ``.. abstract::``, with any

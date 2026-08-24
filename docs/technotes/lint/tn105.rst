@@ -1,0 +1,101 @@
+:og:description: TN105 fires when the title or authors registered with DataCite for a technote's DOI no longer match technote.toml, so citations of the technote are out of date.
+
+#################################
+datacite-metadata-current (TN105)
+#################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Metadata
+     - Warning
+
+When a technote is released, a DOI is minted for it and the technote's metadata is registered with `DataCite <https://datacite.org>`__.
+That registered record is what the rest of the scholarly world reads: it is what a reference manager imports, what an indexer harvests, and what :samp:`https://doi.org/{doi}` ultimately describes.
+:file:`technote.toml` can go on changing after that — a title is reworded, an author joins — and the registered record does not follow by itself.
+
+This rule reads the metadata registered for the technote's ``[technote] doi`` from DataCite's public API and reports when the registered **title** or **author list** no longer matches :file:`technote.toml`.
+
+.. note::
+
+   TN105 is the only rule in the suite that uses the network.
+   Every other rule reads files alone.
+   See :ref:`technote-lint-tn105-offline` for what happens when DataCite cannot be reached — the short answer is nothing at all.
+
+Example of a failing technote
+=============================
+
+The technote is renamed in :file:`technote.toml` after its DOI was registered:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   id = "SQR-000"
+   title = "The technote, revised"
+   doi = "10.71929/rubin/2570308"
+
+.. code-block:: text
+
+   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from technote.toml: the registered title is 'The technote', but technote.toml declares 'The technote, revised'. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
+
+The message names each field that differs and links to the record it compared against, so you can read exactly what is registered:
+
+.. prompt:: bash
+
+   curl https://api.datacite.org/dois/10.71929/rubin/2570308
+
+How to fix it
+=============
+
+Decide which side is right — the finding does not assume :file:`technote.toml` is.
+
+- **The technote changed.** Release the technote again so that its DOI's metadata is updated from the current :file:`technote.toml`. Rubin's technote CI registers metadata as part of a release, so publishing a new version brings the record back in step.
+- **The registered record is right and :file:`technote.toml` drifted** — a title that was edited in the wrong place, or an author who was removed by accident. Correct :file:`technote.toml`, and regenerate :file:`CITATION.cff` (:doc:`TN106 <tn106>`) if the repository has one.
+- **The registered record is wrong and a release will not fix it.** Ask in the ``#square-help`` Slack channel for the DataCite record to be corrected; DOI metadata is registered by Rubin's services rather than from your working copy.
+
+This rule is a **warning**: it does not fail a lint run unless you pass ``--strict``.
+That is deliberate — the registered metadata is not something a technote author can always change on their own, so the finding informs rather than blocks.
+
+What is compared
+================
+
+Only two fields are compared, and both tolerantly.
+A false positive here is worse than a miss: the rule warns about metadata you may not control directly, and a warning nobody can act on trains people to ignore the linter.
+
+Title
+    Compared ignoring case and whitespace, so ``The Technote`` and ``the  technote`` agree.
+
+Authors
+    Compared as a *set* of names, ignoring order, case, punctuation, and accents.
+    ``Sick, Jonathan``, ``Jonathan Sick``, and ``SICK, Jonathan`` are the same author, and listing the same authors in a different order is not drift.
+
+A field only one side declares is skipped rather than reported.
+A :file:`technote.toml` with no ``title``, or a registered record that lists no creators, simply is not compared on that field.
+
+Other metadata a DOI record carries — the publication year, the publisher, the landing-page URL, affiliations — is not compared.
+Those fields are set by the minting service at release time and legitimately differ from what :file:`technote.toml` says, so comparing them would produce findings nobody should act on.
+
+.. _technote-lint-tn105-offline:
+
+When DataCite is not reachable
+==============================
+
+The check is silent — no finding, and no complaint about the attempt — in every situation where it cannot reach a confident conclusion:
+
+- The technote declares **no DOI**. Most technotes have no DOI for most of their lives; there is nothing to cross-check.
+- The declared DOI is **not a DOI**. That is :doc:`TN104 <tn104>`'s finding, and TN105 asks DataCite nothing.
+- DataCite answers **404**. A DOI that has been reserved but not yet made findable looks exactly like this, and it is not a problem to report.
+- DataCite **cannot be reached at all** — no network, a DNS failure, a timeout, an outage, or a response that is not a DOI record.
+
+So a technote author working offline, and a CI job running while DataCite is down, both get the same clean lint run they would get with the network up.
+The request uses a short timeout for the same reason: a DataCite that is not answering must not stall a lint run that is going to stay silent about it either way.
+
+See also
+========
+
+- :doc:`TN104 <tn104>` — the declared DOI is not syntactically a DOI. TN105 uses the same validation to decide whether to ask DataCite anything, so the two rules never disagree about what counts as a DOI.
+- :doc:`TN106 <tn106>` — :file:`CITATION.cff` is out of date with :file:`technote.toml`. TN106 compares the same metadata against a *local* file, where TN105 compares it against the registered record.
+- :doc:`../citation-file` — how a technote's citation metadata is composed from :file:`technote.toml`.
