@@ -646,8 +646,24 @@ doi = "10.71929"
         "doi:10.71929/rubin/2570308",
     ],
 )
-def test_well_formed_doi_passes(tmp_path: Path, doi: str) -> None:
+def test_well_formed_doi_passes(
+    tmp_path: Path, responses: RequestsMock, doi: str
+) -> None:
     """Every spelling the DOI normalizer accepts is silent."""
+    # A well-formed DOI reaches TN105's DataCite cross-check, so the
+    # registered metadata has to be answered here: without this
+    # registration the request is refused, TN105 degrades down its
+    # DataCite-unreachable path, and this TN104 test would pass for that
+    # reason rather than for the spelling it is about. One registration
+    # serves all three parametrizations because each spelling normalizes
+    # to this same API URL, and the fixture's
+    # assert_all_requests_are_fired makes that normalization an assertion.
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
     context = _write_technote(
         tmp_path,
         f"""
