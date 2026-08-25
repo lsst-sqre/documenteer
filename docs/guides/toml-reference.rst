@@ -102,7 +102,7 @@ Documenteer uses them to make the site a proper DOI landing page: it renders a f
 A declared citation is displayed in the :ref:`site footer <guide-footer-citations>` on every page, and with the :ref:`citation-card <guide-citation-card>` directive, which renders it as a card wherever a page asks for one.
 
 That head metadata is what a DOI registration agency, Google Scholar, and Google Dataset Search read.
-Every page carries the :ref:`self <guide-project-citations-self>` citation's DOI as a Highwire ``citation_doi`` meta tag (bare) and a Dublin Core ``DC.identifier`` meta tag (as the ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block that describes the site and the works it cites, following `DataCite's crosswalk <https://github.com/datacite/schema.org>`__ from DataCite metadata to schema.org.
+Every page carries the :ref:`self <guide-project-citations-self>` citation's DOI as a Highwire ``citation_doi`` meta tag (bare) and a Dublin Core ``DC.identifier`` meta tag (as the ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block that describes the site and the works it cites, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
 A site that declares no citations emits none of it.
 
 Because it is an *array* of tables, the table header is written with double brackets and repeated once per citation.
