@@ -69,7 +69,7 @@ guide = [
 ]
 technote = [
     # Theme and extensions for technotes
-    "technote>=0.9.1,<0.11.0",
+    "technote>=0.10.0,<0.11.0",
     "sphinx-prompt",
     "sphinxcontrib-mermaid>=1",
     # The `diagrams` (mingrammer) package backs documenteer.ext.diagrams, our

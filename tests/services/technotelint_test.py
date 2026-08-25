@@ -621,8 +621,16 @@ internal_id = "sickj"
     assert "malformed" in findings[0].message
 
 
-def test_malformed_doi_reports_tn104(tmp_path: Path) -> None:
-    """A [technote] doi that is not a DOI yields a TN104 error."""
+def test_malformed_doi_reports_schema_error(tmp_path: Path) -> None:
+    """A [technote] doi that is not a DOI is a schema-conformance error.
+
+    technote 0.10.0 validates and normalizes ``[technote] doi`` inside
+    ``TechnoteToml.parse_toml``, so a malformed DOI now raises
+    `pydantic.ValidationError` before TN104 ever sees the parsed model and
+    the linter reports it as TN001. The error still names the offending
+    value, so the finding stays actionable. Retiring TN104 as a rule of its
+    own is #439.
+    """
     context = _write_technote(
         tmp_path,
         """
@@ -633,7 +641,7 @@ doi = "10.71929"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN104"]
+    assert [f.code for f in findings] == ["TN001"]
     assert findings[0].severity is Severity.error
     assert "10.71929" in findings[0].message
 
@@ -781,25 +789,25 @@ def test_absent_citation_cff_passes(
 
 
 def test_uncitable_technote_toml_skips_tn106(tmp_path: Path) -> None:
-    """Metadata that cannot compose a citation reports its own rule only.
+    """Metadata that cannot compose a citation reports no staleness.
 
-    A DOI that is not a DOI stops the CITATION.cff generator, so there is
-    nothing to compare a stale-looking file against; TN104 is the finding
-    that names the actual problem.
+    A technote.toml that names the technote neither by title nor by id
+    stops the CITATION.cff generator, so there is nothing to compare the
+    stale-looking file against and TN106 is silent. (The DOI is no longer a
+    way to reach this path: technote 0.10.0 validates ``[technote] doi``
+    inside ``parse_toml``, so a malformed one fails schema conformance long
+    before the CITATION.cff comparison — see #439.)
     """
     context = _write_technote(
         tmp_path,
         """
 [technote]
-id = "SQR-000"
-title = "The technote"
-doi = "10.71929"
 """,
     )
     (tmp_path / "CITATION.cff").write_text("cff-version: 1.2.0\n")
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN104"]
+    assert [f.code for f in findings] == []
 
 
 DOI = "10.71929/rubin/2570308"
@@ -1395,8 +1403,12 @@ def test_unreadable_datacite_response_skips_tn105(
 def test_malformed_doi_skips_datacite(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A DOI that is not a DOI is TN104's finding, and asks DataCite
-    nothing.
+    """A DOI that is not a DOI asks DataCite nothing.
+
+    technote 0.10.0 validates ``[technote] doi`` inside ``parse_toml``, so
+    the malformed value is a schema-conformance failure (TN001) and TN105
+    never gets a parsed model to cross-check. Retiring TN104, which used to
+    own this finding, is #439.
     """
     context = _write_technote(
         tmp_path,
@@ -1408,7 +1420,7 @@ doi = "10.71929"
 """,
     )
     findings = TechnoteLintService(context).lint()
-    assert [f.code for f in findings] == ["TN104"]
+    assert [f.code for f in findings] == ["TN001"]
     assert len(responses.calls) == 0
 
 
