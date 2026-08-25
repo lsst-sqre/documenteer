@@ -125,7 +125,8 @@ def normalize_doi(value: str) -> str:
     ----------
     value
         A DOI, either in its bare form or expressed as a ``doi.org`` URL or
-        with a ``doi:`` prefix.
+        with a ``doi:`` prefix. Whitespace around the DOI, and between a
+        prefix and the DOI, is ignored.
 
     Returns
     -------
@@ -139,16 +140,20 @@ def normalize_doi(value: str) -> str:
 
     Notes
     -----
-    These are the semantics of ``technote.sources.tomlsettings.normalize_doi``
-    in the ``technote`` package, which validates a technote's ``[technote]
-    doi`` field. Documenteer repeats them so that user guides and the technote
-    linter — neither of which goes through technote's TOML model — normalize
-    DOIs the same way a technote build does.
+    This is a reimplementation of ``normalize_doi`` in the ``technote``
+    package (``technote.metadata.doi``, also re-exported from
+    ``technote.sources.tomlsettings``), which validates a technote's
+    ``[technote] doi`` field. Documenteer repeats it so that user guides,
+    ``documenteer technote sync-cff``, and the technote linter — none of which
+    goes through technote's TOML model, and the last two of which run without
+    the ``technote`` extra installed — normalize DOIs the same way a technote
+    build does. ``tests/test_citations.py`` asserts the two agree whenever
+    ``technote`` is installed.
     """
     doi = _collapse_whitespace(value)
     for prefix in DOI_PREFIXES:
         if doi.lower().startswith(prefix):
-            doi = doi[len(prefix) :]
+            doi = doi[len(prefix) :].strip()
             break
     if not DOI_PATTERN.match(doi):
         raise ValueError(

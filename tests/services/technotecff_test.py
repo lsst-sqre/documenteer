@@ -108,6 +108,25 @@ def test_bare_orcid_becomes_a_url(tmp_path: Path) -> None:
     )
 
 
+def test_prefixed_doi_is_normalized(tmp_path: Path) -> None:
+    """A DOI spelled the way technote.toml also accepts it — a ``doi:``
+    prefix and a space — reaches CITATION.cff in its bare form.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(
+        FULL_TOML.replace(
+            'doi = "10.71929/rubin/2570308"',
+            'doi = "doi: 10.71929/rubin/2570308"',
+        )
+    )
+
+    document = yaml.safe_load(
+        TechnoteCffService.from_technote_toml(toml_path).render()
+    )
+
+    assert document["preferred-citation"]["doi"] == "10.71929/rubin/2570308"
+
+
 def test_technote_without_doi(tmp_path: Path) -> None:
     """A technote with no DOI still generates a file; the DOI is omitted."""
     toml_path = tmp_path / "technote.toml"

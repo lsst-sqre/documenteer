@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import datetime
+import importlib
+import importlib.util
 import json
 
 import pytest
@@ -26,11 +28,16 @@ from documenteer.citations import (
     [
         "10.5281/zenodo.10385500",
         "doi:10.5281/zenodo.10385500",
+        "doi: 10.5281/zenodo.10385500",
+        "doi:  10.5281/zenodo.10385500",
         "DOI:10.5281/zenodo.10385500",
         "https://doi.org/10.5281/zenodo.10385500",
         "http://doi.org/10.5281/zenodo.10385500",
         "https://dx.doi.org/10.5281/zenodo.10385500",
+        "http://dx.doi.org/10.5281/zenodo.10385500",
+        "https://doi.org/ 10.5281/zenodo.10385500",
         "  10.5281/zenodo.10385500  ",
+        "10.5281/zenodo.10385500\n",
     ],
 )
 def test_normalize_doi_accepts_spellings(value: str) -> None:
@@ -53,6 +60,56 @@ def test_normalize_doi_accepts_spellings(value: str) -> None:
 def test_normalize_doi_rejects_malformed(value: str) -> None:
     with pytest.raises(ValueError, match="Not a DOI"):
         normalize_doi(value)
+
+
+# Whether the technote extra is installed; the parity test below compares
+# Documenteer's DOI normalizer against technote's own.
+_HAS_TECHNOTE = importlib.util.find_spec("technote") is not None
+
+# The DOI spellings Documenteer and technote must agree on: every prefix,
+# the whitespace a hand-edited technote.toml carries between a prefix and
+# the identifier, and values both must reject. technote's normalizer
+# validates ``[technote] doi`` when technote.toml is parsed; Documenteer's
+# runs for a guide's ``[[project.citations]]``, for ``documenteer technote
+# sync-cff``, and for the technote linter — paths that never construct
+# technote's TOML model.
+DOI_PARITY_SPELLINGS = [
+    "10.5281/zenodo.10385500",
+    "doi:10.5281/zenodo.10385500",
+    "doi: 10.5281/zenodo.10385500",
+    "doi:  10.5281/zenodo.10385500",
+    "DOI:10.5281/zenodo.10385500",
+    "https://doi.org/10.5281/zenodo.10385500",
+    "http://doi.org/10.5281/zenodo.10385500",
+    "https://dx.doi.org/10.5281/zenodo.10385500",
+    "http://dx.doi.org/10.5281/zenodo.10385500",
+    "https://doi.org/ 10.5281/zenodo.1",
+    "  10.5281/zenodo.10385500  ",
+    "10.5281/zenodo.10385500\n",
+    "10.71929",
+    "not-a-doi",
+    "",
+]
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE, reason="the technote extra is not installed"
+)
+@pytest.mark.parametrize("value", DOI_PARITY_SPELLINGS)
+def test_normalize_doi_matches_technote(value: str) -> None:
+    """Documenteer's normalizer returns the same bare DOI as technote's, and
+    accepts and rejects the same spellings, so that a technote.toml which
+    builds also passes the linter and sync-cff.
+    """
+    technote_doi = importlib.import_module("technote.metadata.doi")
+
+    try:
+        expected = technote_doi.normalize_doi(value)
+    except ValueError:
+        with pytest.raises(ValueError, match="Not a DOI"):
+            normalize_doi(value)
+    else:
+        assert normalize_doi(value) == expected
 
 
 def test_doi_url_normalizes_first() -> None:
