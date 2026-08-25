@@ -146,6 +146,36 @@ def test_citation_rejects_a_malformed_doi() -> None:
         Citation(doi="not-a-doi", title="Data Preview 2")
 
 
+@pytest.mark.parametrize(
+    ("family_name", "citation_name", "bibtex_name"),
+    [
+        # Rubin's own DataCite records credit the Survey Cadence
+        # Optimization Committee as a Personal creator carrying a family
+        # name and no given name.
+        (
+            "Survey Cadence Optimization Committee",
+            "Survey Cadence Optimization Committee",
+            "Survey Cadence Optimization Committee",
+        ),
+        # A mononym is a legitimate personal name, not a degenerate one.
+        ("Aristotle", "Aristotle", "Aristotle"),
+        # The BibTeX spelling is escaped and collapsed on this branch just
+        # as it is on the given-plus-family one, so the doubled space a
+        # hand-edited source carries never reaches the entry.
+        ("Ekstrøm  Reyes", "Ekstrøm  Reyes", "Ekstrøm Reyes"),
+    ],
+)
+def test_person_author_without_a_given_name(
+    family_name: str, citation_name: str, bibtex_name: str
+) -> None:
+    """A person credited by family name alone composes as that name in both
+    spellings, with no separator left where a given name would go.
+    """
+    author = PersonAuthor(family_name=family_name)
+    assert author.citation_name == citation_name
+    assert author.bibtex_name == bibtex_name
+
+
 def dataset_citation() -> Citation:
     """Build a dataset citation credited to an organization."""
     return Citation(
@@ -257,6 +287,35 @@ def test_bibtex_techreport_for_multiple_person_authors() -> None:
     )
 
 
+def test_composers_credit_a_family_only_author() -> None:
+    """A citation credited to a person who has only a family name composes
+    through both composers without the separator a ``Family, Given``
+    spelling would leave behind, and keys off that family name alone.
+    """
+    citation = Citation(
+        doi="10.71929/rubin/2570308",
+        title="Survey Cadence Optimization",
+        authors=(
+            PersonAuthor(family_name="Survey Cadence Optimization Committee"),
+        ),
+        date=datetime.date(2025, 6, 30),
+    )
+    assert citation.to_plain_text() == (
+        "Survey Cadence Optimization Committee (2025). "
+        "Survey Cadence Optimization. "
+        "https://doi.org/10.71929/rubin/2570308"
+    )
+    assert citation.to_bibtex() == (
+        "@misc{surveycadenceoptimizationcommittee2025survey,\n"
+        "    author = {Survey Cadence Optimization Committee},\n"
+        "    title = {{Survey Cadence Optimization}},\n"
+        "    year = {2025},\n"
+        "    doi = {10.71929/rubin/2570308},\n"
+        "    url = {https://doi.org/10.71929/rubin/2570308}\n"
+        "}"
+    )
+
+
 def test_bibtex_escapes_latex_reserved_characters() -> None:
     citation = Citation(
         title=r"C^2 {braces} \path ~tilde $math# _under & 100%",
@@ -325,6 +384,18 @@ def test_bibtex_keeps_a_blank_title_field() -> None:
     )
 
 
+def test_bibtex_key_falls_back_when_no_component_survives() -> None:
+    """A citation with no author, no date, and a title whose first word is
+    entirely non-ASCII has nothing left once its components are slugified,
+    so its key falls back to a literal rather than composing an empty one.
+    """
+    citation = Citation(title="天文学 のデータ")
+    assert citation.bibtex_key == "citation"
+    assert citation.to_bibtex() == (
+        "@misc{citation,\n    title = {{天文学 のデータ}}\n}"
+    )
+
+
 def test_html_context_for_a_person_author() -> None:
     """A person's html_context entry carries both name orders: reading order
     for schema.org and family-name-first for a bibliographic reference.
@@ -366,6 +437,32 @@ def test_html_context_for_a_person_author() -> None:
     assert context["year"] == 2026
     assert context["date"] == "2026-02-01"
     assert context["url"] == "https://doi.org/10.5281/zenodo.10385500"
+
+
+def test_html_context_for_a_family_only_person_author() -> None:
+    """A person with no given name has one spelling rather than two: the
+    reading order a schema.org ``Person`` wants is the family name itself.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            title="Survey Cadence Optimization",
+            authors=(
+                PersonAuthor(
+                    family_name="Survey Cadence Optimization Committee"
+                ),
+            ),
+        )
+    ).to_html_context()
+
+    assert context["authors"] == [
+        {
+            "type": "person",
+            "name": "Survey Cadence Optimization Committee",
+            "citation_name": "Survey Cadence Optimization Committee",
+            "orcid": None,
+            "affiliation": None,
+        }
+    ]
 
 
 def test_html_context_without_a_date() -> None:
