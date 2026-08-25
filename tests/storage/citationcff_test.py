@@ -238,3 +238,40 @@ def test_author_with_no_name(tmp_path: Path) -> None:
         read_citation_cff(path)
 
     assert str(excinfo.value).count(str(path)) == 1
+
+
+def test_malformed_preferred_citation(tmp_path: Path) -> None:
+    """A preferred-citation that is present but is not a mapping is
+    reported, rather than silently substituting the repository's own
+    citation.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "doi: 10.5281/zenodo.10385500\n"
+        "preferred-citation: Smith, J. 2024, An article\n"
+    )
+
+    with pytest.raises(CitationCffParseError) as excinfo:
+        read_citation_cff(path)
+
+    assert str(excinfo.value).count(str(path)) == 1
+    assert "preferred-citation" in str(excinfo.value)
+
+
+def test_null_preferred_citation_falls_back(tmp_path: Path) -> None:
+    """A preferred-citation written with no value at all counts as absent,
+    not as malformed: it holds no citation that could be silently dropped.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "doi: 10.5281/zenodo.10385500\n"
+        "preferred-citation:\n"
+    )
+
+    assert read_citation_cff(path).title == "A repository"

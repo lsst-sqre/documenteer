@@ -64,8 +64,9 @@ class CitationCffParseError(CitationCffError):
     """Raised when a CITATION.cff file cannot be turned into a citation.
 
     This covers a file that is not YAML at all, one whose YAML is not the
-    mapping CFF describes, one that names no work, and one that declares
-    something that is not a DOI.
+    mapping CFF describes, one whose ``preferred-citation`` is not a
+    reference, one that names no work, and one that declares something that
+    is not a DOI.
     """
 
 
@@ -87,8 +88,9 @@ def read_citation_cff(path: Path) -> Citation:
     CitationCffNotFoundError
         Raised if no file exists at ``path``.
     CitationCffParseError
-        Raised if the file is not parseable as CITATION.cff, names no work,
-        or declares something that is not a DOI.
+        Raised if the file is not parseable as CITATION.cff, declares a
+        ``preferred-citation`` that is not a reference, names no work, or
+        declares something that is not a DOI.
 
     Notes
     -----
@@ -100,7 +102,11 @@ def read_citation_cff(path: Path) -> Citation:
     ``dataset``), and a project that publishes a paper, a report, or a dataset
     under its own DOI says so by adding a preferred citation. Merging the two
     would credit a work with the repository's DOI or authors whenever the
-    preferred citation happened to omit one.
+    preferred citation happened to omit one. For the same reason, a
+    ``preferred-citation`` that is present but is not a mapping is an error
+    rather than a fallback: quietly citing the repository stub instead would
+    substitute a different work than the file asked for. A key written with
+    no value at all is YAML null, and counts as absent.
 
     The fields read are common to CFF 1.1.0 and 1.2.0, and ``cff-version`` is
     not checked: rejecting a file whose fields are all understood buys
@@ -130,8 +136,22 @@ def read_citation_cff(path: Path) -> Citation:
     # A preferred-citation is a complete Reference object, so the same
     # extraction reads it and the top level alike.
     source = document.get("preferred-citation")
-    if not isinstance(source, Mapping):
+    if source is None:
+        # No preferred citation — the repository's own fields are the
+        # citation. A key written with no value at all is YAML null, and is
+        # read as absent here, the way every other field of a CFF file is:
+        # it holds no citation that falling back could silently drop.
         source = document
+    elif not isinstance(source, Mapping):
+        # Present but malformed. Falling back here would cite the repository
+        # stub in place of the work the file meant to prefer, which is the
+        # one substitution a reader would never notice.
+        raise CitationCffParseError(
+            f"{path} declares a preferred-citation that is not a mapping of "
+            f"citation fields: {source!r}. Spell the preferred citation out "
+            "as fields such as type, title, authors, and doi, or drop it to "
+            "cite the top-level fields instead."
+        )
 
     title = _text(source.get("title"))
     if title is None:
