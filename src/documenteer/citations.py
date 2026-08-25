@@ -88,6 +88,20 @@ def _collapse_whitespace(text: str) -> str:
     return _WHITESPACE_PATTERN.sub(" ", text).strip()
 
 
+def _clean(value: str | None) -> str | None:
+    """Collapse a value's whitespace, treating a value that reduces to
+    nothing — an empty or whitespace-only one — as absent.
+
+    Collapsing *before* testing for a value is what keeps a whitespace-only
+    field out of a rendered citation. Testing the raw value first would let it
+    through, and it would then compose as a stray bare period or an empty
+    BibTeX field.
+    """
+    if value is None:
+        return None
+    return _collapse_whitespace(value) or None
+
+
 def _escape_latex(text: str) -> str:
     """Escape the characters LaTeX reserves, and collapse whitespace, so that
     a value can be written into a BibTeX field.
@@ -97,6 +111,15 @@ def _escape_latex(text: str) -> str:
     loses information that a non-LaTeX consumer of the entry wants.
     """
     return _collapse_whitespace(text).translate(_LATEX_ESCAPES)
+
+
+def _clean_latex(value: str | None) -> str | None:
+    """Escape a value for a BibTeX field, treating a value that escapes to
+    nothing as absent (see `_clean`).
+    """
+    if value is None:
+        return None
+    return _escape_latex(value) or None
 
 
 def _slugify(text: str) -> str:
@@ -419,7 +442,21 @@ class Citation:
         This is the identifier `to_plain_text` writes at the end of the
         citation, and the URL a rendered citation hyperlinks.
         """
-        return self.doi_url or self.url
+        return self.doi_url or _clean(self.url)
+
+    @property
+    def _credited_authors(self) -> tuple[CitationAuthor, ...]:
+        """The authors that compose to a name.
+
+        An author whose name is blank is dropped, so that a degenerate entry
+        composes as an absent author rather than as a stray separator or an
+        empty BibTeX ``author`` field.
+        """
+        return tuple(
+            author
+            for author in self.authors
+            if _clean(author.citation_name) is not None
+        )
 
     def to_plain_text(self) -> str:
         """Compose the citation as a plain-text bibliographic reference.
@@ -431,8 +468,9 @@ class Citation:
             ``Creators (PublicationYear). Title. Publisher. Identifier``.
             Creators are separated by semicolons because a person's name
             itself contains a comma, and the identifier is the DOI URL when
-            the work has a DOI and its landing page otherwise. Segments with
-            no value are dropped rather than left as empty punctuation.
+            the work has a DOI and its landing page otherwise. A segment
+            with no value — including one that is only whitespace — is
+            dropped rather than left as empty punctuation.
 
         Notes
         -----
@@ -442,14 +480,20 @@ class Citation:
             Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308
 
         """
-        byline = "; ".join(author.citation_name for author in self.authors)
+        byline = "; ".join(
+            author.citation_name for author in self._credited_authors
+        )
         if self.date is not None:
             year = f"({self.date.year})"
             byline = f"{byline} {year}" if byline else year
         segments = [
-            _collapse_whitespace(segment)
-            for segment in (byline, self.title, self.publisher)
-            if segment
+            segment
+            for segment in (
+                _clean(byline),
+                _clean(self.title),
+                _clean(self.publisher),
+            )
+            if segment is not None
         ]
         text = " ".join(_end_sentence(segment) for segment in segments)
         location = self.location
@@ -468,8 +512,9 @@ class Citation:
         bibliography that is regenerated on every build stays stable.
         """
         components: list[str] = []
-        if self.authors:
-            components.append(self.authors[0].key_component)
+        authors = self._credited_authors
+        if authors:
+            components.append(authors[0].key_component)
         if self.date is not None:
             components.append(str(self.date.year))
         components.extend(
@@ -512,30 +557,37 @@ class Citation:
         the DOI URL; ``doi`` and ``url`` are written verbatim rather than
         LaTeX-escaped, matching what DataCite, Crossref, and Zenodo export,
         since a style's ``\url`` macro takes its argument literally.
+
+        An optional field whose value reduces to nothing once collapsed and
+        escaped is omitted, rather than written as an empty pair of braces.
+        The required ``title`` field is always written, so that a blank title
+        shows up as an entry to fix rather than as a silently missing field.
         """
         fields: list[tuple[str, str]] = []
-        if self.authors:
-            authors = " and ".join(
-                author.bibtex_name for author in self.authors
-            )
+        credited = self._credited_authors
+        if credited:
+            authors = " and ".join(author.bibtex_name for author in credited)
             fields.append(("author", authors))
         # The title is doubly braced so that BibTeX preserves its
-        # capitalization instead of imposing a style's sentence case.
+        # capitalization instead of imposing a style's sentence case. It is
+        # the one required field, and is written even when it is blank.
         fields.append(("title", f"{{{_escape_latex(self.title)}}}"))
         if self.date is not None:
             fields.append(("year", str(self.date.year)))
-        if self.publisher:
+        publisher = _clean_latex(self.publisher)
+        if publisher is not None:
             publisher_field = (
                 "institution"
                 if entry_type is BibtexEntryType.techreport
                 else "publisher"
             )
-            fields.append((publisher_field, _escape_latex(self.publisher)))
-        if self.number and entry_type is BibtexEntryType.techreport:
-            fields.append(("number", _escape_latex(self.number)))
+            fields.append((publisher_field, publisher))
+        number = _clean_latex(self.number)
+        if number is not None and entry_type is BibtexEntryType.techreport:
+            fields.append(("number", number))
         if self.doi:
             fields.append(("doi", self.doi))
-        location = self.url or self.doi_url
+        location = _clean(self.url) or self.doi_url
         if location:
             fields.append(("url", location))
 
@@ -652,7 +704,7 @@ class GuideCitation:
             "year": citation.date.year if citation.date else None,
             "doi": citation.doi,
             "doi_url": citation.doi_url,
-            "url": citation.url or citation.doi_url,
+            "url": _clean(citation.url) or citation.doi_url,
             "plain_text": plain_text,
             "plain_text_lead": (
                 plain_text[: -len(location)] if location else plain_text

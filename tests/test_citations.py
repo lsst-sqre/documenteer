@@ -197,6 +197,37 @@ def test_plain_text_omits_missing_segments() -> None:
     assert citation.to_plain_text() == "Data Preview 2. https://dp2.lsst.io/"
 
 
+def test_plain_text_omits_a_blank_title() -> None:
+    """A whitespace-only segment is collapsed before it is filtered, so it is
+    dropped rather than composed as a stray bare period.
+    """
+    citation = Citation(title=" ", url="https://example.org/x")
+    assert citation.to_plain_text() == "https://example.org/x"
+
+
+def test_plain_text_omits_a_blank_publisher() -> None:
+    citation = Citation(
+        title="Real Title", publisher="   ", url="https://example.org/x"
+    )
+    assert citation.to_plain_text() == "Real Title. https://example.org/x"
+
+
+def test_plain_text_omits_a_blank_author() -> None:
+    citation = Citation(
+        title="Real Title",
+        authors=(PersonAuthor(family_name="   "),),
+        url="https://example.org/x",
+    )
+    assert citation.to_plain_text() == "Real Title. https://example.org/x"
+
+
+def test_plain_text_omits_a_blank_url() -> None:
+    """A blank landing page is absent rather than trailing whitespace."""
+    citation = Citation(title="Real Title", url="   ")
+    assert citation.location is None
+    assert citation.to_plain_text() == "Real Title."
+
+
 def test_bibtex_misc_for_an_organization_author() -> None:
     assert dataset_citation().to_bibtex() == (
         "@misc{veracrubinobservatory2025data,\n"
@@ -258,6 +289,36 @@ def test_bibtex_url_falls_back_to_the_doi_url() -> None:
     assert citation.to_bibtex() == (
         "@misc{untitled,\n"
         "    title = {{Untitled}},\n"
+        "    doi = {10.5281/zenodo.10385500},\n"
+        "    url = {https://doi.org/10.5281/zenodo.10385500}\n"
+        "}"
+    )
+
+
+def test_bibtex_omits_blank_fields() -> None:
+    """A field whose value reduces to nothing once collapsed and escaped is
+    absent from the entry, rather than written as an empty pair of braces.
+    """
+    citation = Citation(
+        title="Real Title",
+        authors=(PersonAuthor(family_name="   "),),
+        publisher="   ",
+        number="  ",
+        url="  ",
+    )
+    assert citation.to_bibtex(entry_type=BibtexEntryType.techreport) == (
+        "@techreport{real,\n    title = {{Real Title}}\n}"
+    )
+
+
+def test_bibtex_keeps_a_blank_title_field() -> None:
+    """The title is BibTeX-required, so an entry composed from a blank title
+    still carries an empty title field rather than silently dropping it.
+    """
+    citation = Citation(title=" ", doi="10.5281/zenodo.10385500")
+    assert citation.to_bibtex() == (
+        "@misc{citation,\n"
+        "    title = {{}},\n"
         "    doi = {10.5281/zenodo.10385500},\n"
         "    url = {https://doi.org/10.5281/zenodo.10385500}\n"
         "}"
@@ -355,6 +416,19 @@ def test_html_context_for_a_citation_without_a_location() -> None:
         citation=Citation(title="Untitled")
     ).to_html_context()
 
+    assert context["plain_text_url"] is None
+    assert context["plain_text_lead"] == context["plain_text"] == "Untitled."
+
+
+def test_html_context_for_a_citation_with_a_blank_url() -> None:
+    """A blank URL is absent everywhere in the mapping, so the surfaces that
+    read it cannot disagree about whether the work has a location.
+    """
+    context = GuideCitation(
+        citation=Citation(title="Untitled", url="   ")
+    ).to_html_context()
+
+    assert context["url"] is None
     assert context["plain_text_url"] is None
     assert context["plain_text_lead"] == context["plain_text"] == "Untitled."
 
