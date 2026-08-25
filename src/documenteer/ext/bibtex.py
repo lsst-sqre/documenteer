@@ -27,6 +27,25 @@ from ..version import __version__
 
 __all__ = ["setup"]
 
+ASCL_PREFIX = "ascl:"
+"""Prefix used by ADS for Astrophysics Source Code Library identifiers."""
+
+
+def _strip_ascl_prefix(identifier: str) -> str:
+    """Return an ASCL record identifier without its ``ascl:`` prefix."""
+    return identifier.removeprefix(ASCL_PREFIX)
+
+
+def _is_ascl(e: Entry) -> bool:
+    """Return whether an entry describes an ASCL record.
+
+    ADS labels these entries with an ``archivePrefix`` of ``ascl`` and, for
+    software entries, an ``eid`` of the form ``ascl:1108.003``.
+    """
+    return e.fields.get("archiveprefix", "").lower() == "ascl" or e.fields.get(
+        "eid", ""
+    ).startswith(ASCL_PREFIX)
+
 
 @node
 def truncated_names(
@@ -101,27 +120,51 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
         self._rewrite_field(e, "journal")
         return super().get_article_template(e)
 
+    def _format_ascl_field(self, name: str) -> Node:
+        """Render an ASCL identifier held in the named field as a link."""
+        # Based on urlbst format.doi. The identifier is read raw so that the
+        # prefix can be stripped for the URL without rewriting the entry.
+        identifier = field(name, raw=True, apply_func=_strip_ascl_prefix)
+        url = join["https://ascl.net/", identifier]
+        return href(url)[join[ASCL_PREFIX, identifier]]
+
     def format_ascl(self, e: Entry) -> Node:
-        # based on urlbst format.doi
-        url = join["https://ascl.net/", field("eid", raw=True)]
-        return href(url)[join["ascl:", field("eid", raw=True)]]
+        """Format a link to the ASCL record for an entry.
+
+        Software entries carry the identifier in ``eid``; other entry types
+        carry it in ``eprint`` alongside an ``archivePrefix`` of ``ascl``.
+        """
+        return first_of[
+            optional[self._format_ascl_field("eid")],
+            optional[self._format_ascl_field("eprint")],
+        ]
+
+    def format_eprint(self, e: Entry) -> Node:
+        """Format an eprint identifier as a link to its own archive.
+
+        pybtex assumes every eprint is hosted by arXiv. ADS uses
+        ``archivePrefix`` to name the archive, so ASCL records are linked to
+        ascl.net instead.
+        """
+        if _is_ascl(e):
+            return self.format_ascl(e)
+        return super().format_eprint(e)
 
     def get_software_template(self, e: Entry) -> Node:
-        if "eid" in e.fields and "ascl:" in e.fields["eid"]:
-            date = words[optional_field("month"), field("year")]
-            e.fields["eid"] = e.fields["eid"].removeprefix("ascl:")
-            return toplevel[
-                optional[sentence[self.format_names("author")]],
-                optional[self.format_title(e, "title")],
-                sentence[
-                    optional[field("howpublished")],
-                    optional[date],
-                ],
-                sentence[optional_field("note")],
-                self.format_ascl(e),
-            ]
         # If not an ASCL entry, use the default software template.
-        return super().get_software_template(e)
+        if not _is_ascl(e):
+            return super().get_software_template(e)
+        date = words[optional_field("month"), field("year")]
+        return toplevel[
+            optional[sentence[self.format_names("author")]],
+            optional[self.format_title(e, "title")],
+            sentence[
+                optional[field("howpublished")],
+                optional[date],
+            ],
+            sentence[optional_field("note")],
+            sentence[self.format_ascl(e)],
+        ]
 
     def get_inproceedings_template(self, e: Entry) -> Node:
         # Potentially modify the series string before formatting it.
