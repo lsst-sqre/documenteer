@@ -151,25 +151,29 @@ def test_citation_rejects_a_malformed_doi() -> None:
     [
         # Rubin's own DataCite records credit the Survey Cadence
         # Optimization Committee as a Personal creator carrying a family
-        # name and no given name.
+        # name and no given name. The braces are what stop a style from
+        # reading "Survey Cadence Optimization" as given names and
+        # abbreviating them.
         (
             "Survey Cadence Optimization Committee",
             "Survey Cadence Optimization Committee",
-            "Survey Cadence Optimization Committee",
+            "{Survey Cadence Optimization Committee}",
         ),
         # A mononym is a legitimate personal name, not a degenerate one.
-        ("Aristotle", "Aristotle", "Aristotle"),
+        # Braces around it are inert, so the branch does not special-case it.
+        ("Aristotle", "Aristotle", "{Aristotle}"),
         # The BibTeX spelling is escaped and collapsed on this branch just
         # as it is on the given-plus-family one, so the doubled space a
         # hand-edited source carries never reaches the entry.
-        ("Ekstrøm  Reyes", "Ekstrøm  Reyes", "Ekstrøm Reyes"),
+        ("Ekstrøm  Reyes", "Ekstrøm  Reyes", "{Ekstrøm Reyes}"),
     ],
 )
 def test_person_author_without_a_given_name(
     family_name: str, citation_name: str, bibtex_name: str
 ) -> None:
     """A person credited by family name alone composes as that name in both
-    spellings, with no separator left where a given name would go.
+    spellings, with no separator left where a given name would go, and the
+    BibTeX spelling braces it so that BibTeX reads it as one whole name.
     """
     author = PersonAuthor(family_name=family_name)
     assert author.citation_name == citation_name
@@ -291,6 +295,10 @@ def test_composers_credit_a_family_only_author() -> None:
     """A citation credited to a person who has only a family name composes
     through both composers without the separator a ``Family, Given``
     spelling would leave behind, and keys off that family name alone.
+
+    The BibTeX entry braces the name, as it does an organization's, so that
+    a style renders the committee's name whole instead of abbreviating
+    "Survey Cadence Optimization" as though it were a string of given names.
     """
     citation = Citation(
         doi="10.71929/rubin/2570308",
@@ -307,7 +315,7 @@ def test_composers_credit_a_family_only_author() -> None:
     )
     assert citation.to_bibtex() == (
         "@misc{surveycadenceoptimizationcommittee2025survey,\n"
-        "    author = {Survey Cadence Optimization Committee},\n"
+        "    author = {{Survey Cadence Optimization Committee}},\n"
         "    title = {{Survey Cadence Optimization}},\n"
         "    year = {2025},\n"
         "    doi = {10.71929/rubin/2570308},\n"

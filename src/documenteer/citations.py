@@ -313,10 +313,19 @@ class PersonAuthor:
     def bibtex_name(self) -> str:
         """The name as a BibTeX ``author`` field entry, in BibTeX's
         ``Family, Given`` form so that a style can reorder or abbreviate it.
+
+        A person credited by family name alone is braced instead, for the
+        same reason `OrganizationAuthor.bibtex_name` is: with no comma to
+        mark where the family name starts, BibTeX reads the name as given
+        names followed by a family name, and a style would render Rubin's
+        ``Survey Cadence Optimization Committee`` as something like "S. C. O.
+        Committee". The braces say that the whole string is the name. They
+        are inert around a mononym, so the branch braces every family-only
+        name rather than only the multi-word ones.
         """
         family = _escape_latex(self.family_name)
         if self.given_name is None:
-            return family
+            return f"{{{family}}}"
         return f"{family}, {_escape_latex(self.given_name)}"
 
     @property
