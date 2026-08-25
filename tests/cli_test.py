@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 import pytest_responses  # noqa: F401
 import requests
 import yaml
@@ -339,6 +340,41 @@ def test_sync_cff_malformed_doi(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "Not a DOI" in result.output
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param(
+            CFF_TOML.replace(
+                'name = {given = "Jonathan", family = "Sick"}',
+                'name = "Jonathan Sick"',
+            ),
+            "The name of [[technote.authors]] entry 1",
+            id="name",
+        ),
+        pytest.param(
+            CFF_TOML + 'affiliations = ["Rubin Observatory"]\n',
+            "Affiliation 1 of [[technote.authors]] entry 1",
+            id="affiliation",
+        ),
+    ],
+)
+def test_sync_cff_malformed_author_shape(
+    tmp_path: Path, source: str, expected: str
+) -> None:
+    """An author field written as the wrong TOML type is reported as a user
+    error, not raised as a traceback out of the pre-commit hook.
+    """
+    (tmp_path / "technote.toml").write_text(source)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert expected in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert not (tmp_path / "CITATION.cff").exists()
 
 
 def test_precommit_hook_definition() -> None:

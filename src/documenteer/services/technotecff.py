@@ -59,6 +59,15 @@ CFF requires an ORCID to be written as this URL, where ``technote.toml``
 accepts several spellings.
 """
 
+AUTHOR_TABLE_REMEDY = "Declare each author in a [[technote.authors]] table."
+"""How to write an author, for a diagnostic to end with."""
+
+AFFILIATION_TABLE_REMEDY = (
+    "Declare each affiliation in a [[technote.authors.affiliations]] table "
+    "with a name field."
+)
+"""How to write an affiliation, for a diagnostic to end with."""
+
 
 class TechnoteCffError(ValueError):
     """Raised when technote.toml cannot be turned into a citation."""
@@ -172,11 +181,16 @@ class TechnoteCffService:
         ------
         TechnoteCffError
             Raised if the metadata does not name the technote, or an author,
-            at all.
+            at all, or if a table or array in it is written as some other
+            TOML type.
         ValueError
             Raised if the technote declares something that is not a DOI.
         """
-        technote = data.get("technote") or {}
+        technote = _table(
+            data.get("technote"),
+            subject="[technote]",
+            remedy="Declare the technote's metadata in a [technote] table.",
+        )
         warnings: list[str] = []
 
         technote_id = _text(technote.get("id"))
@@ -195,13 +209,25 @@ class TechnoteCffService:
                 "[technote] table to cite the technote by name."
             )
 
-        organization = technote.get("organization") or {}
+        organization = _table(
+            technote.get("organization"),
+            subject="[technote.organization]",
+            remedy=(
+                "Declare the publishing organization in a "
+                "[technote.organization] table with a name field."
+            ),
+        )
+        authors = _array(
+            technote.get("authors"),
+            subject="[[technote.authors]]",
+            remedy=AUTHOR_TABLE_REMEDY,
+        )
         citation = Citation(
             title=title,
             doi=_text(technote.get("doi")),
             authors=tuple(
-                _citation_author(author)
-                for author in technote.get("authors") or []
+                _citation_author(author, position)
+                for position, author in enumerate(authors, start=1)
             ),
             publisher=_text(organization.get("name")),
             date=_released_date(technote),
@@ -334,14 +360,25 @@ def _cff_author(author: CitationAuthor) -> dict[str, str]:
     return entry
 
 
-def _citation_author(entry: Mapping[str, Any]) -> CitationAuthor:
+def _citation_author(entry: Any, position: int) -> CitationAuthor:
     """Compose one ``[[technote.authors]]`` entry as a citation author.
 
     CFF records at most one affiliation per person, where technote.toml
     allows several, so the first affiliation that names itself is the one
     that is carried.
+
+    ``position`` is the entry's 1-based place in the ``[[technote.authors]]``
+    array. It is how a diagnostic points at the entry to fix: the entries are
+    otherwise anonymous, and an entry malformed enough to report has no name
+    to be named by.
     """
-    name = entry.get("name") or {}
+    where = f"[[technote.authors]] entry {position}"
+    author = _table(entry, subject=where, remedy=AUTHOR_TABLE_REMEDY)
+    name = _table(
+        author.get("name"),
+        subject=f"The name of {where}",
+        remedy="Give it name.given and name.family fields.",
+    )
     family_name = _text(name.get("family"))
     given_name = _text(name.get("given"))
     if family_name is None:
@@ -350,22 +387,32 @@ def _citation_author(entry: Mapping[str, Any]) -> CitationAuthor:
             # credit it as given rather than dropping it.
             return OrganizationAuthor(name=given_name)
         raise TechnoteCffError(
-            "An author in technote.toml declares no name. Give every "
+            f"{where} in technote.toml declares no name. Give every "
             "[[technote.authors]] entry a name.family value."
         )
-    affiliation = next(
-        (
-            affiliation_name
-            for affiliation in entry.get("affiliations") or []
-            if (affiliation_name := _text(affiliation.get("name")))
-        ),
-        None,
+    affiliations = _array(
+        author.get("affiliations"),
+        subject=f"The affiliations list of {where}",
+        remedy=AFFILIATION_TABLE_REMEDY,
     )
+    # Every affiliation is read before one is chosen, so that a malformed
+    # entry is reported even when an earlier one already supplied the single
+    # affiliation CFF carries.
+    affiliation_names = [
+        _text(
+            _table(
+                affiliation,
+                subject=f"Affiliation {index} of {where}",
+                remedy=AFFILIATION_TABLE_REMEDY,
+            ).get("name")
+        )
+        for index, affiliation in enumerate(affiliations, start=1)
+    ]
     return PersonAuthor(
         family_name=family_name,
         given_name=given_name,
-        orcid=_text(entry.get("orcid")),
-        affiliation=affiliation,
+        orcid=_text(author.get("orcid")),
+        affiliation=next((n for n in affiliation_names if n), None),
     )
 
 
@@ -392,6 +439,42 @@ def _released_date(technote: Mapping[str, Any]) -> date | None:
                 f"{value}."
             ) from e
     return None
+
+
+def _table(value: Any, *, subject: str, remedy: str) -> Mapping[str, Any]:
+    """Read a TOML value that has to be a table, or report that it is not.
+
+    ``sync-cff`` reads technote.toml through Documenteer's own reader rather
+    than the technote package's pydantic models — deliberately, so that it
+    runs without the technote extra — so nothing has validated the shape of
+    what it reads. A hand-edited file can put a string where a table belongs,
+    and the reader that then asks it for a field would raise an
+    `AttributeError` naming neither the value nor where it came from. Saying
+    both is what lets the person editing technote.toml find the entry to fix
+    without bisecting the file.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, Mapping):
+        return value
+    raise TechnoteCffError(
+        f"{subject} in technote.toml is not a table: {value!r}. {remedy}"
+    )
+
+
+def _array(value: Any, *, subject: str, remedy: str) -> Sequence[Any]:
+    """Read a TOML value that has to be an array, or report that it is not.
+
+    A string is a sequence in Python but not an array in TOML, so it is
+    reported rather than iterated character by character.
+    """
+    if value is None:
+        return ()
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+        return value
+    raise TechnoteCffError(
+        f"{subject} in technote.toml is not an array: {value!r}. {remedy}"
+    )
 
 
 def _text(value: Any) -> str | None:

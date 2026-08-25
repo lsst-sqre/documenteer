@@ -7,7 +7,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from documenteer.services.technotecff import CffStatus, TechnoteCffService
+from documenteer.services.technotecff import (
+    CffStatus,
+    TechnoteCffError,
+    TechnoteCffService,
+)
 
 FULL_TOML = """
 [technote]
@@ -30,6 +34,52 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
 [[technote.authors.affiliations]]
 name = "Rubin Observatory Project Office"
 internal_id = "RubinObs"
+"""
+
+
+STRING_NAME_TOML = (
+    FULL_TOML
+    + """
+[[technote.authors]]
+name = "Frossie Economou"
+"""
+)
+"""A second author whose name is a string rather than a name table."""
+
+STRING_AFFILIATION_TOML = (
+    FULL_TOML
+    + """
+[[technote.authors]]
+name = {given = "Frossie", family = "Economou"}
+affiliations = ["Rubin Observatory"]
+"""
+)
+"""A second author whose affiliations are strings rather than tables."""
+
+STRING_TECHNOTE_TOML = 'technote = "SQR-000"\n'
+
+STRING_AUTHORS_TOML = """
+[technote]
+id = "SQR-000"
+title = "A technote"
+authors = "Jonathan Sick"
+"""
+
+STRING_ORGANIZATION_TOML = """
+[technote]
+id = "SQR-000"
+title = "A technote"
+organization = "Vera C. Rubin Observatory"
+"""
+
+STRING_AFFILIATIONS_TOML = """
+[technote]
+id = "SQR-000"
+title = "A technote"
+
+[[technote.authors]]
+name = {given = "Jonathan", family = "Sick"}
+affiliations = "Rubin Observatory"
 """
 
 
@@ -203,3 +253,78 @@ def test_malformed_doi_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Not a DOI"):
         TechnoteCffService.from_technote_toml(toml_path)
+
+
+def test_string_name_is_reported(tmp_path: Path) -> None:
+    """An author whose name is a string rather than a table is reported
+    against the entry it comes from, rather than crashing the reader.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(STRING_NAME_TOML)
+
+    with pytest.raises(TechnoteCffError) as exc_info:
+        TechnoteCffService.from_technote_toml(toml_path)
+
+    message = str(exc_info.value)
+    assert "The name of [[technote.authors]] entry 2" in message
+    assert "Frossie Economou" in message
+
+
+def test_string_affiliation_is_reported(tmp_path: Path) -> None:
+    """An affiliation written as a string rather than a table is reported
+    against the entry, and the affiliation within it, that it comes from.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(STRING_AFFILIATION_TOML)
+
+    with pytest.raises(TechnoteCffError) as exc_info:
+        TechnoteCffService.from_technote_toml(toml_path)
+
+    message = str(exc_info.value)
+    assert "Affiliation 1 of [[technote.authors]] entry 2" in message
+    assert "Rubin Observatory" in message
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param(
+            STRING_TECHNOTE_TOML,
+            "[technote] in technote.toml is not a table",
+            id="technote",
+        ),
+        pytest.param(
+            STRING_ORGANIZATION_TOML,
+            "[technote.organization] in technote.toml is not a table",
+            id="organization",
+        ),
+        pytest.param(
+            STRING_AUTHORS_TOML,
+            "[[technote.authors]] in technote.toml is not an array",
+            id="authors",
+        ),
+        pytest.param(
+            STRING_AFFILIATIONS_TOML,
+            "The affiliations list of [[technote.authors]] entry 1 in "
+            "technote.toml is not an array",
+            id="affiliations",
+        ),
+    ],
+)
+def test_wrong_toml_type_is_reported(
+    tmp_path: Path, source: str, expected: str
+) -> None:
+    """A table or array written as a scalar is reported by name, rather than
+    reaching a reader that assumes its shape.
+
+    sync-cff deliberately reads technote.toml without the technote package's
+    pydantic models, so nothing validates these shapes before this code sees
+    them.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(source)
+
+    with pytest.raises(TechnoteCffError) as exc_info:
+        TechnoteCffService.from_technote_toml(toml_path)
+
+    assert expected in str(exc_info.value)
