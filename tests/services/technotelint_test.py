@@ -625,11 +625,11 @@ def test_malformed_doi_reports_schema_error(tmp_path: Path) -> None:
     """A [technote] doi that is not a DOI is a schema-conformance error.
 
     technote 0.10.0 validates and normalizes ``[technote] doi`` inside
-    ``TechnoteToml.parse_toml``, so a malformed DOI now raises
-    `pydantic.ValidationError` before TN104 ever sees the parsed model and
-    the linter reports it as TN001. The error still names the offending
-    value, so the finding stays actionable. Retiring TN104 as a rule of its
-    own is #439.
+    ``TechnoteToml.parse_toml``, so a malformed DOI raises
+    `pydantic.ValidationError` before any rule sees a parsed model and the
+    linter reports it as TN001. That is why the DOI has no rule of its own:
+    the TN001 finding names both the ``technote.doi`` field and the offending
+    value, so it stands alone as the report.
     """
     context = _write_technote(
         tmp_path,
@@ -643,6 +643,7 @@ doi = "10.71929"
     findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
     assert findings[0].severity is Severity.error
+    assert "technote.doi" in findings[0].message
     assert "10.71929" in findings[0].message
 
 
@@ -652,6 +653,7 @@ doi = "10.71929"
         "10.71929/rubin/2570308",
         "https://doi.org/10.71929/rubin/2570308",
         "doi:10.71929/rubin/2570308",
+        "doi: 10.71929/rubin/2570308",
     ],
 )
 def test_well_formed_doi_passes(
@@ -661,11 +663,11 @@ def test_well_formed_doi_passes(
     # A well-formed DOI reaches TN105's DataCite cross-check, so the
     # registered metadata has to be answered here: without this
     # registration the request is refused, TN105 degrades down its
-    # DataCite-unreachable path, and this TN104 test would pass for that
-    # reason rather than for the spelling it is about. One registration
-    # serves all three parametrizations because each spelling normalizes
-    # to this same API URL, and the fixture's
-    # assert_all_requests_are_fired makes that normalization an assertion.
+    # DataCite-unreachable path, and this test would pass for that reason
+    # rather than for the spelling it is about. One registration serves
+    # every parametrization because each spelling normalizes to this same
+    # API URL, and the fixture's assert_all_requests_are_fired makes that
+    # normalization an assertion.
     responses.get(
         DATACITE_URL,
         body=_datacite_body(),
@@ -691,6 +693,26 @@ def test_absent_doi_passes(tmp_path: Path) -> None:
         """
 [technote]
 id = "SQR-000"
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_empty_doi_passes(tmp_path: Path) -> None:
+    """An empty ``doi`` placeholder is an unset DOI, not a finding.
+
+    technote documents ``doi = ""`` as a placeholder that existing
+    ``technote.toml`` files may keep, and normalizes it to `None` when the
+    file is parsed. The linter has to agree: a technote awaiting its first
+    DOI must lint clean.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+doi = ""
 """,
     )
     service = TechnoteLintService(context)
@@ -1407,8 +1429,7 @@ def test_malformed_doi_skips_datacite(
 
     technote 0.10.0 validates ``[technote] doi`` inside ``parse_toml``, so
     the malformed value is a schema-conformance failure (TN001) and TN105
-    never gets a parsed model to cross-check. Retiring TN104, which used to
-    own this finding, is #439.
+    never gets a parsed model to cross-check.
     """
     context = _write_technote(
         tmp_path,

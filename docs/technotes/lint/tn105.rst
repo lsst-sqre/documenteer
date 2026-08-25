@@ -109,7 +109,7 @@ When DataCite is not reachable
 The check is silent — no finding, and no complaint about the attempt — in every situation where it cannot reach a confident conclusion:
 
 - The technote declares **no DOI**. Most technotes have no DOI for most of their lives; there is nothing to cross-check.
-- The declared DOI is **not a DOI**. That is :doc:`TN104 <tn104>`'s finding, and TN105 asks DataCite nothing.
+- The declared DOI is **not a DOI**. A value that is not a DOI is rejected when :file:`technote.toml` is parsed, so it is :doc:`TN001 <tn001>`'s finding, and TN105 asks DataCite nothing.
 - DataCite answers **404**. A DOI that has been reserved but not yet made findable looks exactly like this, and it is not a problem to report.
 - DataCite **cannot be reached at all** — no network, a DNS failure, a timeout, an outage, or a response that is not a DOI record.
 
@@ -119,6 +119,6 @@ The request uses a short timeout for the same reason: a DataCite that is not ans
 See also
 ========
 
-- :doc:`TN104 <tn104>` — the declared DOI is not syntactically a DOI. TN105 uses the same validation to decide whether to ask DataCite anything, so the two rules never disagree about what counts as a DOI.
+- :doc:`TN001 <tn001>` — :file:`technote.toml` does not conform to the schema, which is how a ``doi`` that is not a DOI is reported. TN105 never sees such a technote, because parsing fails before any metadata rule runs.
 - :doc:`TN106 <tn106>` — :file:`CITATION.cff` is out of date with :file:`technote.toml`. TN106 compares the same metadata against a *local* file, where TN105 compares it against the registered record.
 - :doc:`../citation-file` — how a technote's citation metadata is composed from :file:`technote.toml`.

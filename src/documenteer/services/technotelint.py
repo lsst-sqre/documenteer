@@ -144,12 +144,11 @@ CHECKS: dict[str, Check] = {
         description="The author database is reachable for resolution.",
         severity=Severity.warning,
     ),
-    "TN104": Check(
-        code="TN104",
-        name="doi-well-formed",
-        description="The declared DOI is syntactically a DOI.",
-        severity=Severity.error,
-    ),
+    # TN104 (doi-well-formed) was retired before it shipped: technote 0.10.0
+    # validates and normalizes [technote] doi inside TechnoteToml.parse_toml,
+    # so a value that is not a DOI is a schema-conformance failure (TN001)
+    # and never reaches a rule of its own. Codes are stable identifiers, so
+    # the gap stays rather than renumbering TN105/TN106.
     "TN105": Check(
         code="TN105",
         name="datacite-metadata-current",
@@ -434,7 +433,6 @@ class TechnoteLintService:
 
         if parsed is not None:
             findings.extend(self._check_author_internal_ids(parsed))
-            findings.extend(_check_doi(parsed))
             findings.extend(_check_datacite(parsed, self._context.datacite))
             findings.extend(_check_citation_cff(self._context))
 
@@ -554,33 +552,6 @@ class TechnoteLintService:
             return None
 
 
-def _check_doi(parsed: TechnoteToml) -> list[LintFinding]:
-    """Check that a declared DOI is syntactically a DOI (TN104).
-
-    A technote that declares no DOI is silent here: a DOI is minted when the
-    technote is released, so most technotes go without one for most of their
-    lives. Only a value that is *present* and is not a DOI is a finding.
-
-    Validation is `documenteer.citations.normalize_doi`, the same normalizer
-    every other DOI surface in Documenteer uses, so a DOI that passes the
-    linter is one the citation composer and CITATION.cff generator accept —
-    each of which raises on a value that is not a DOI. The check is entirely
-    offline; whether the DOI is *registered* is TN105's question.
-    """
-    doi = parsed.technote.doi
-    if doi is None:
-        return []
-    try:
-        normalize_doi(doi)
-    except ValueError as e:
-        return [
-            LintFinding.from_check(
-                "TN104", f"technote.toml does not declare a valid DOI: {e}"
-            )
-        ]
-    return []
-
-
 def _check_citation_cff(context: LintContext) -> list[LintFinding]:
     """Check that an adopted CITATION.cff still matches technote.toml (TN106).
 
@@ -596,10 +567,9 @@ def _check_citation_cff(context: LintContext) -> list[LintFinding]:
     rather than that it is missing something.
 
     A ``technote.toml`` that cannot be composed into a citation at all — one
-    declaring something that is not a DOI, or an author with no name — is
-    silent too. Staleness is not the finding to report about it, and the
-    underlying problem is reported by the rule that owns it (TN104 for the
-    DOI, TN001 for the schema).
+    declaring an author with no name, say — is silent too. Staleness is not
+    the finding to report about it, and TN001 has already reported the schema
+    failure underneath.
     """
     try:
         service = TechnoteCffService.from_technote_toml(context.toml_path)
@@ -627,9 +597,11 @@ def _check_datacite(
     cannot reach a confident conclusion:
 
     - the technote declares no DOI, so there is nothing to cross-check;
-    - the DOI is not a DOI, which `normalize_doi` decides here exactly as it
-      does for TN104, so the two rules can never disagree about what counts
-      as valid and only TN104 reports it;
+    - the DOI is not a DOI. `TechnoteToml.parse_toml` validates the field, so
+      such a value is a schema-conformance failure (TN001) and never reaches
+      this rule with a parsed model; the `normalize_doi` guard here only
+      keeps TN105 quiet rather than raising if Documenteer's normalizer and
+      technote's ever disagree about what counts as a DOI;
     - DataCite answers 404, which is what a DOI that has been reserved but
       not yet made findable looks like;
     - DataCite cannot be reached at all — no network, DNS failure, timeout,

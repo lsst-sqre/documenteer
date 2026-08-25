@@ -103,10 +103,6 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Metadata
      - The author database is reachable so that IDs can be resolved.
      - Warning
-   * - :doc:`TN104 <tn104>`
-     - Metadata
-     - The declared DOI is syntactically a DOI.
-     - Error
    * - :doc:`TN105 <tn105>`
      - Metadata
      - The metadata registered with DataCite for the DOI matches :file:`technote.toml`.
@@ -144,7 +140,6 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
    tn101
    tn102
    tn103
-   tn104
    tn105
    tn106
    tn201

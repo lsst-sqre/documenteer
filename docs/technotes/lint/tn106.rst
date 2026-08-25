@@ -63,4 +63,4 @@ See also
 ========
 
 - :doc:`../citation-file` — what is generated, and how each field is read from :file:`technote.toml`.
-- :doc:`TN104 <tn104>` — the declared DOI is not a DOI. A DOI that fails TN104 stops :file:`CITATION.cff` from being generated at all, so this rule stays silent until it is fixed.
+- :doc:`TN001 <tn001>` — :file:`technote.toml` does not conform to the schema, which is how a ``doi`` that is not a DOI is reported. Such a file cannot be parsed into metadata at all, so this rule stays silent until it is fixed.
