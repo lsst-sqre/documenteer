@@ -18,7 +18,7 @@ from packaging.utils import canonicalize_name
 from pydantic import ValidationError
 from technote.sources.tomlsettings import Person, TechnoteToml
 
-from documenteer.citations import normalize_doi
+from documenteer.citations import normalize_doi, orcid_url
 from documenteer.services.technotecff import (
     CFF_FILENAME,
     CffStatus,
@@ -617,6 +617,11 @@ def _check_datacite(
     that only one side declares is skipped rather than reported as drift, the
     title is compared ignoring case and whitespace, and the authors are paired
     by ORCID before they are compared by name at all.
+
+    Two ORCIDs are the one pair of values compared exactly. When both sides
+    identify the same person by name but register different ORCIDs, one of
+    the two identifiers names somebody else, and the tolerance that keeps a
+    reworded name quiet would only hide it.
     """
     doi = parsed.technote.doi
     if doi is None:
@@ -679,34 +684,68 @@ def _datacite_differences(
 def _author_differences(
     authors: Sequence[Person], creators: Sequence[DataCiteCreator]
 ) -> list[str]:
-    """Phrase the authors one side has and the other does not.
+    """Phrase the ways the two author lists disagree.
 
-    Only the authors left *unmatched* are reported. Two lists that pair up
-    completely agree about who wrote the technote however they are ordered
-    and however each side spells a name, so nothing is said about them.
+    Two kinds of disagreement are reported: an author only one side has, and
+    an author both sides have but under conflicting ORCIDs. Two lists that
+    pair up cleanly agree about who wrote the technote however they are
+    ordered and however each side spells a name, so nothing is said about
+    them.
     """
-    unmatched_authors, unmatched_creators = _unmatched_people(
-        authors, creators
-    )
+    pairing = _pair_people(authors, creators)
+    differences = [
+        f"the ORCID registered for '{conflict.name}' is "
+        f"{orcid_url(conflict.registered)}, but technote.toml declares "
+        f"{orcid_url(conflict.declared)}"
+        for conflict in pairing.orcid_conflicts
+    ]
     clauses: list[str] = []
-    if unmatched_authors:
+    if pairing.unmatched_authors:
         clauses.append(
             "technote.toml declares authors the record does not register "
-            f"({_quote_names(_author_names(unmatched_authors))})"
+            f"({_quote_names(_author_names(pairing.unmatched_authors))})"
         )
-    if unmatched_creators:
+    if pairing.unmatched_creators:
         clauses.append(
             "the record registers authors technote.toml does not declare "
-            f"({_quote_names(_creator_names(unmatched_creators))})"
+            f"({_quote_names(_creator_names(pairing.unmatched_creators))})"
         )
-    if not clauses:
-        return []
-    return [", and ".join(clauses)]
+    if clauses:
+        differences.append(", and ".join(clauses))
+    return differences
 
 
-def _unmatched_people(
+@dataclass(frozen=True)
+class _OrcidConflict:
+    """One author both sides register, under two different ORCIDs."""
+
+    name: str
+    """The author's name, as technote.toml spells it."""
+
+    declared: str
+    """The ORCID technote.toml declares, normalized."""
+
+    registered: str
+    """The ORCID the DOI record registers, normalized."""
+
+
+@dataclass(frozen=True)
+class _AuthorPairing:
+    """How a technote's declared authors pair with a DOI's creators."""
+
+    unmatched_authors: list[Person]
+    """The authors that no registered creator matched."""
+
+    unmatched_creators: list[DataCiteCreator]
+    """The registered creators that no declared author matched."""
+
+    orcid_conflicts: list[_OrcidConflict]
+    """The authors that paired by name despite conflicting ORCIDs."""
+
+
+def _pair_people(
     authors: Sequence[Person], creators: Sequence[DataCiteCreator]
-) -> tuple[list[Person], list[DataCiteCreator]]:
+) -> _AuthorPairing:
     """Pair declared authors with registered creators, one to one.
 
     ORCIDs are paired first, wherever both sides declare one: an ORCID is the
@@ -714,15 +753,17 @@ def _unmatched_people(
     the two spellings of the name are not compared, and any difference between
     them is not reported. Whoever is left over is paired by name.
 
+    A pair the *name* pass makes where both sides nonetheless carry an ORCID
+    is a conflict: the ORCID pass searches every remaining creator, so an
+    author reaching the name pass with an ORCID has already established that
+    no creator registers that identifier, and a creator it then matches by
+    name necessarily registers a different one. That is the strongest kind of
+    claim the two sides can disagree on — one of the two ORCIDs names someone
+    else — so it is reported rather than quietly paired over.
+
     The pairing is order-insensitive because the order DataCite lists creators
     in is not always the order technote.toml declares them in, and a legitimate
     reordering is not metadata drift worth a warning.
-
-    Returns
-    -------
-    tuple
-        The authors that no creator matched, and the creators that no author
-        matched.
     """
     remaining = list(creators)
     by_name: list[Person] = []
@@ -739,15 +780,29 @@ def _unmatched_people(
             remaining.remove(match)
 
     unmatched: list[Person] = []
+    conflicts: list[_OrcidConflict] = []
     for author in by_name:
         match = next(
             (c for c in remaining if _creator_is_author(c, author)), None
         )
         if match is None:
             unmatched.append(author)
-        else:
-            remaining.remove(match)
-    return unmatched, remaining
+            continue
+        remaining.remove(match)
+        declared = normalize_orcid(author.orcid)
+        if declared is not None and match.orcid is not None:
+            conflicts.append(
+                _OrcidConflict(
+                    name=_author_name(author),
+                    declared=declared,
+                    registered=match.orcid,
+                )
+            )
+    return _AuthorPairing(
+        unmatched_authors=unmatched,
+        unmatched_creators=remaining,
+        orcid_conflicts=conflicts,
+    )
 
 
 def _creator_is_author(creator: DataCiteCreator, author: Person) -> bool:
@@ -826,14 +881,16 @@ def _fold_name(name: str) -> str:
     return _fold(depunctuated)
 
 
+def _author_name(author: Person) -> str:
+    """Name a declared author the way a citation spells them."""
+    return ", ".join(
+        part for part in (author.name.family, author.name.given) if part
+    )
+
+
 def _author_names(authors: Sequence[Person]) -> list[str]:
     """Name each declared author the way a citation spells them."""
-    return [
-        ", ".join(
-            part for part in (author.name.family, author.name.given) if part
-        )
-        for author in authors
-    ]
+    return [_author_name(author) for author in authors]
 
 
 def _creator_names(creators: Sequence[DataCiteCreator]) -> list[str]:

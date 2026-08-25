@@ -16,7 +16,7 @@ When a technote is released, a DOI is minted for it and the technote's metadata 
 That registered record is what the rest of the scholarly world reads: it is what a reference manager imports, what an indexer harvests, and what :samp:`https://doi.org/{doi}` ultimately describes.
 :file:`technote.toml` can go on changing after that — a title is reworded, an author joins — and the registered record does not follow by itself.
 
-This rule reads the metadata registered for the technote's ``[technote] doi`` from DataCite's public API and reports when the registered **title** or **author list** no longer matches :file:`technote.toml`.
+This rule reads the metadata registered for the technote's ``[technote] doi`` from DataCite's public API and reports when the registered **title** or **author list** no longer matches :file:`technote.toml`, or when the two sides register the same author under **conflicting ORCIDs**.
 
 .. note::
 
@@ -47,6 +47,12 @@ An author who joined the technote after its DOI was registered reads much the sa
 
    [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from technote.toml: technote.toml declares authors the record does not register ('AlSayyad, Yusra'). Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
 
+An author registered under somebody else's ORCID reads as the conflict it is, naming both identifiers:
+
+.. code-block:: text
+
+   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from technote.toml: the ORCID registered for 'Sick, Jonathan' is https://orcid.org/0000-0002-1793-3689, but technote.toml declares https://orcid.org/0000-0003-3001-676X. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
+
 The message names each field that differs and links to the record it compared against, so you can read exactly what is registered:
 
 .. prompt:: bash
@@ -59,7 +65,7 @@ How to fix it
 Decide which side is right — the finding does not assume :file:`technote.toml` is.
 
 - **The technote changed.** Release the technote again so that its DOI's metadata is updated from the current :file:`technote.toml`. Rubin's technote CI registers metadata as part of a release, so publishing a new version brings the record back in step.
-- **The registered record is right and :file:`technote.toml` drifted** — a title that was edited in the wrong place, or an author who was removed by accident. Correct :file:`technote.toml`, and regenerate :file:`CITATION.cff` (:doc:`TN106 <tn106>`) if the repository has one.
+- **The registered record is right and :file:`technote.toml` drifted** — a title that was edited in the wrong place, an author who was removed by accident, or a mistyped ``orcid``. Correct :file:`technote.toml`, and regenerate :file:`CITATION.cff` (:doc:`TN106 <tn106>`) if the repository has one.
 - **The registered record is wrong and a release will not fix it.** Ask in the ``#square-help`` Slack channel for the DataCite record to be corrected; DOI metadata is registered by Rubin's services rather than from your working copy.
 
 This rule is a **warning**: it does not fail a lint run unless you pass ``--strict``.
@@ -68,14 +74,16 @@ That is deliberate — the registered metadata is not something a technote autho
 What is compared
 ================
 
-Only two fields are compared, and both tolerantly.
+Only two fields are compared, and tolerantly wherever tolerance can be afforded.
 A false positive here is worse than a miss: the rule warns about metadata you may not control directly, and a warning nobody can act on trains people to ignore the linter.
+The one exact comparison is between two ORCIDs, for the reason given below.
 
 Title
     Compared ignoring case and whitespace, so ``The Technote`` and ``the  technote`` agree.
 
 Authors
-    Each author in :file:`technote.toml` is paired with a creator registered for the DOI, and only the authors left *unpaired* are reported — an author the record does not register, or a creator :file:`technote.toml` does not declare.
+    Each author in :file:`technote.toml` is paired with a creator registered for the DOI, and the authors left *unpaired* are reported — an author the record does not register, or a creator :file:`technote.toml` does not declare.
+    A pair the two sides make under *conflicting ORCIDs* is reported too.
     The order the two sides list people in is not compared, since a legitimate reordering is not drift.
 
 The pairing goes in two passes.
@@ -91,6 +99,11 @@ Whoever is left over — an author with no ORCID, or one whose ORCID the record 
 - **Family names** are compared after folding case, accents, and punctuation, so ``Ibáñez`` and ``Ibanez`` are the same family name.
 - **Given names** are compared tolerantly of initials, so a registered ``James F.`` matches a declared ``James`` and a registered ``R. Lynne`` matches a declared ``Lynne``. A different name — ``John`` where :file:`technote.toml` declares ``James`` — does not match.
 - A creator that registers **no given name** is compared on its one name alone. That covers an ``Organizational`` creator, and the ``Personal`` creator with only a ``familyName`` that Rubin's minter registers a committee as. An absent given name is not drift.
+
+**A pair made by name where both sides carry an ORCID is a conflict.**
+The ORCID pass has already searched every registered creator, so an author that reaches the name pass still carrying an ORCID has established that no creator registers that identifier — and the creator its name then matches necessarily registers a *different* one.
+The two sides agree about who the author is and disagree about which ORCID is theirs, which means one of the two identifiers belongs to somebody else.
+This is the one thing the rule compares exactly rather than tolerantly, precisely because the tolerance that keeps a reworded name quiet would hide it.
 
 The comparison reads a creator's *decomposed* ``givenName`` and ``familyName`` in preference to the formatted ``name`` the record also carries, because the formatted name is not always trustworthy: Rubin's minter writes a literal ``null`` into it for a creator with no given name, as in ``"Rubin's Survey Cadence Optimization Committee, null"``.
 Comparing the decomposed parts also means a **transposed** given and family name is seen as drift rather than silently accepted.

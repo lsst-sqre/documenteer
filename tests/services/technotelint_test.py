@@ -1288,6 +1288,46 @@ def test_author_with_no_registered_orcid_falls_back_to_the_name(
     assert TechnoteLintService(context).lint() == []
 
 
+OTHER_ORCID = "0000-0002-1793-3689"
+"""An ORCID belonging to somebody other than CITABLE_TOML's author."""
+
+
+def test_conflicting_orcids_are_reported(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A creator that names the declared author under a different ORCID is
+    reported, rather than paired over by the name pass.
+
+    The two sides agree on the name, so the name pass pairs them — but one of
+    the two ORCIDs identifies somebody else, and an ORCID is the claim this
+    rule trusts above any spelling of a name.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(given="Jonathan", family="Sick", orcid=OTHER_ORCID),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj", ORCID),
+    )
+
+    findings = TechnoteLintService(context).lint()
+
+    assert [f.code for f in findings] == ["TN105"]
+    assert (
+        "the ORCID registered for 'Sick, Jonathan' is "
+        f"https://orcid.org/{OTHER_ORCID}, but technote.toml declares "
+        f"https://orcid.org/{ORCID}"
+    ) in findings[0].message
+
+
 def test_committee_creator_matches_its_declared_author(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
