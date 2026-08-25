@@ -1,5 +1,6 @@
 """Support for Rubin BibTeX files for pybtex/sphinxcontrib.bibtex."""
 
+import re
 import typing
 
 import pybtex.style.formatting.plain
@@ -29,6 +30,19 @@ __all__ = ["setup"]
 
 ASCL_PREFIX = "ascl:"
 """Prefix used by ADS for Astrophysics Source Code Library identifiers."""
+
+_LATEX_ESCAPED_CHAR = re.compile(r"\\([&%#_$])")
+"""A LaTeX-escaped special character that is legal in a URL."""
+
+
+def _unescape_latex_url(url: str) -> str:
+    r"""Return a URL with LaTeX escaping of special characters removed.
+
+    ADS BibTeX exports escape ``&`` and ``%`` for LaTeX, so a raw field value
+    such as ``.../2013A\%26A...558A..33A`` would otherwise carry a literal
+    backslash into the emitted link.
+    """
+    return _LATEX_ESCAPED_CHAR.sub(r"\1", url)
 
 
 def _strip_ascl_prefix(identifier: str) -> str:
@@ -139,6 +153,40 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
             optional[self._format_ascl_field("eprint")],
         ]
 
+    def format_adsurl(self, e: Entry) -> Node:
+        """Format a bracketed link to the NASA ADS record for an entry."""
+        url = field("adsurl", raw=True, apply_func=_unescape_latex_url)
+        return href(url)["[ADS]"]
+
+    def _link_sentence(self, e: Entry, *nodes: Node) -> Node:
+        """Format the closing sentence of links, ending with the ADS link.
+
+        The ADS link is a bracketed marker rather than another named link, so
+        it is separated by a space while the preceding links keep pybtex's
+        comma separator.
+        """
+        return sentence(sep=" ")[
+            sentence(add_period=False)[nodes],
+            optional[self.format_adsurl(e)],
+        ]
+
+    def format_web_refs(self, e: Entry) -> Node:
+        """Format the closing links of an entry, adding the ADS record.
+
+        Every stock entry template routes its links through this method, so
+        overriding it gives each of them an ADS link.
+        """
+        return self._link_sentence(
+            e,
+            optional[
+                self.format_url(e),
+                optional[" (visited on ", field("urldate"), ")"],
+            ],
+            optional[self.format_eprint(e)],
+            optional[self.format_pubmed(e)],
+            optional[self.format_doi(e)],
+        )
+
     def format_eprint(self, e: Entry) -> Node:
         """Format an eprint identifier as a link to its own archive.
 
@@ -163,7 +211,9 @@ class LsstBibtexStyle(pybtex.style.formatting.plain.Style):
                 optional[date],
             ],
             sentence[optional_field("note")],
-            sentence[self.format_ascl(e)],
+            # This template replaces the stock one, which closes with
+            # format_web_refs; the ADS link is added here instead.
+            self._link_sentence(e, self.format_ascl(e)),
         ]
 
     def get_inproceedings_template(self, e: Entry) -> Node:

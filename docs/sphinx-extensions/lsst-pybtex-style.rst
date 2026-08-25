@@ -12,6 +12,7 @@ Beyond the standard pybtex styles, the ``lsst_aa`` style:
 - Truncates author lists longer than seven names.
 - Expands the journal and series name macros that ADS emits, such as ``\apj`` to ``ApJ``.
 - Links Astrophysics Source Code Library records to ascl.net, using the ``archivePrefix`` field to tell an ASCL identifier apart from an arXiv one.
+- Appends an ``[ADS]`` link to any entry with an ``adsurl`` field, which is often the only link available for conference proceedings.
 
 Usage
 =====
