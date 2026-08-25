@@ -152,13 +152,13 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
 Running the linter offline
 ==========================
 
-Every rule but one reads files alone, so the linter works without a network.
-The exception is :doc:`TN105 <tn105>`, which asks DataCite what a technote's DOI is registered as, and :doc:`TN102 <tn102>`/:doc:`TN103 <tn103>`, which resolve author IDs against the Rubin author database.
+Most rules read files alone; two kinds of check leave the machine.
+:doc:`TN105 <tn105>` asks DataCite what a technote's DOI is registered as, and the author checks (:doc:`TN101 <tn101>`–:doc:`TN103 <tn103>`) resolve author IDs against the Rubin author database.
 
 The two behave differently when the network is not there, and deliberately so:
 
 - An unreachable **author database** is reported as :doc:`TN103 <tn103>`, a warning, because an unresolved ``internal_id`` is the thing that blocks a technote's DOI from being minted — silence would hide it.
-- An unreachable **DataCite** is silent. TN105 reports nothing at all, and neither does an unregistered DOI. A technote author working offline gets the same clean run they would get with the network up.
+- An unreachable **DataCite** is silent. TN105 reports nothing at all, and neither does an unregistered DOI, so this check reads the same offline as it does with the network up.
 
 .. _technote-lint-suggested-ids:
 

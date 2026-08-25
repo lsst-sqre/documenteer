@@ -20,9 +20,9 @@ This rule reads the metadata registered for the technote's ``[technote] doi`` fr
 
 .. note::
 
-   TN105 is the only rule in the suite that uses the network.
-   Every other rule reads files alone.
-   See :ref:`technote-lint-tn105-offline` for what happens when DataCite cannot be reached — the short answer is nothing at all.
+   TN105 uses the network, and so do the author checks (:doc:`TN101 <tn101>`–:doc:`TN103 <tn103>`), but only TN105 degrades to silence.
+   An author database that cannot be reached is reported as :doc:`TN103 <tn103>`; a DataCite that cannot be reached is reported as nothing at all.
+   See :ref:`technote-lint-tn105-offline` for every situation this rule stays quiet in.
 
 Example of a failing technote
 =============================

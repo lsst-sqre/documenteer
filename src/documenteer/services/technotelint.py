@@ -591,10 +591,13 @@ def _check_datacite(
 ) -> list[LintFinding]:
     """Check technote.toml against the DOI's registered metadata (TN105).
 
-    This is the one rule in the suite that leaves the machine, so *not*
-    answering is a first-class outcome rather than an afterthought. The check
-    is silent — no finding, and no noise about the attempt — whenever it
-    cannot reach a confident conclusion:
+    This rule leaves the machine, as the author checks do, but it is the only
+    one that degrades to silence: an unreachable author database is reported
+    as TN103, because an unresolved ``internal_id`` blocks a DOI from being
+    minted, while an unreachable DataCite is reported as nothing. *Not*
+    answering is therefore a first-class outcome here rather than an
+    afterthought, and the check is silent — no finding, and no noise about
+    the attempt — whenever it cannot reach a confident conclusion:
 
     - the technote declares no DOI, so there is nothing to cross-check;
     - the DOI is not a DOI. `TechnoteToml.parse_toml` validates the field, so
