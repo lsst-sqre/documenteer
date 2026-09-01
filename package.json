@@ -7,17 +7,17 @@
   "devDependencies": {
     "autoprefixer": "^10.5.4",
     "copy-webpack-plugin": "^14.0.0",
-    "css-loader": "^7.1.4",
+    "css-loader": "^7.1.5",
     "css-minimizer-webpack-plugin": "^8.0.0",
     "mini-css-extract-plugin": "^2.10.2",
     "normalize.css": "^8.0.1",
     "postcss-loader": "^8.2.1",
     "prettier": "3.9.6",
-    "sass": "^1.102.0",
+    "sass": "^1.103.1",
     "sass-loader": "^17.0.0",
     "style-loader": "^4.0.0",
-    "webpack": "^5.109.2",
-    "webpack-cli": "^7.2.2"
+    "webpack": "^5.110.1",
+    "webpack-cli": "^7.2.3"
   },
   "dependencies": {
     "@lsst-sqre/rubin-style-dictionary": "^0.8.0"
