@@ -6,7 +6,13 @@ BibTeX style extension for Rubin Observatory
 
 sphinxcontrib-bibtex_ is an excellent way to include academic citations in Sphinx documentation projects.
 Documenteer provides support for `LSST's common BibTeX bibliography files <https://github.com/lsst/lsst-texmf/tree/main/texmf/bibtex/bib>`__ (maintained in `lsst-texmf <https://github.com/lsst/lsst-texmf>`__) through its ``documenteer.ext.bibtex`` extension.
-Specifically, this extension provides support for ``docushare`` fields in those bib files.
+Beyond the standard pybtex styles, the ``lsst_aa`` style:
+
+- Supports the ``docushare`` field used in those bib files, rendering the handle as an ``ls.st`` link.
+- Truncates author lists longer than seven names.
+- Expands the journal and series name macros that ADS emits, such as ``\apj`` to ``ApJ``.
+- Links Astrophysics Source Code Library records to ascl.net, using the ``archivePrefix`` field to tell an ASCL identifier apart from an arXiv one.
+- Appends an ``[ADS]`` link to any entry with an ``adsurl`` field, which is often the only link available for conference proceedings.
 
 Usage
 =====
