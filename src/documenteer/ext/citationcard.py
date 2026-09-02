@@ -35,8 +35,9 @@ if TYPE_CHECKING:
 
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata
+    from sphinx.writers.html5 import HTML5Translator
 
-__all__ = ["CitationCard", "setup"]
+__all__ = ["CitationCard", "citation_bibtex", "setup"]
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,30 @@ unresolvable card from failing a ``-W`` build.
 
 CARD_CLASS = "documenteer-citation-card"
 """The block class of the rendered card; its parts are BEM elements of it."""
+
+BIBTEX_SUMMARY = "BibTeX"
+"""The label of the disclosure that holds a citation's BibTeX entry."""
+
+COPY_LABEL = "Copy BibTeX"
+"""The initial label of the button that copies a BibTeX entry.
+
+``rubin-citation-copy.js`` swaps it for a confirmation and swaps it back, and
+the site footer's own button carries the same label, so the two surfaces read
+identically.
+"""
+
+
+class citation_bibtex(nodes.General, nodes.Element):  # noqa: N801
+    """A citation's BibTeX entry, shown as a copyable disclosure.
+
+    The node carries the entry twice over: as the ``bibtex`` attribute that
+    `visit_citation_bibtex_html` writes into a ``<details>`` with a copy
+    button, and as a `docutils.nodes.literal_block` child that every other
+    builder renders instead. A ``<details>`` and a ``<button>`` mean nothing
+    in a text or LaTeX build, and emitting them there as raw HTML would put
+    markup in the reader's way, so those builders fall back to the entry as a
+    plain literal block.
+    """
 
 
 class CitationCard(SphinxDirective):
@@ -146,6 +171,10 @@ class CitationCard(SphinxDirective):
 
         card += self._build_citation(citation)
 
+        bibtex = citation.get("bibtex")
+        if bibtex:
+            card += _build_bibtex(bibtex)
+
         note = citation.get("note")
         if note:
             card += nodes.paragraph("", note, classes=[f"{CARD_CLASS}__note"])
@@ -183,6 +212,66 @@ class CitationCard(SphinxDirective):
         )
 
 
+def _build_bibtex(bibtex: str) -> citation_bibtex:
+    """Wrap a composed BibTeX entry in its node, with the literal block that
+    non-HTML builders render.
+
+    The entry is the ``bibtex`` value of the citation's ``html_context``
+    mapping, composed once by `documenteer.citations`; the card never
+    recomposes it. The literal block declares the ``bibtex`` language so that
+    a highlighting builder does not try to lex the entry as the site's default
+    language and warn when it fails.
+    """
+    node = citation_bibtex()
+    node["bibtex"] = bibtex
+    node += nodes.literal_block(bibtex, bibtex, language="bibtex")
+    return node
+
+
+def visit_citation_bibtex_html(
+    self: HTML5Translator, node: citation_bibtex
+) -> None:
+    """Write a citation's BibTeX entry as a collapsed copyable disclosure.
+
+    The entry is offered to be copied rather than downloaded — the way GitHub,
+    Zenodo, and ADS offer one — because a reader pastes it into a ``.bib``
+    file they already keep. The ``<pre>`` holds the only copy of the entry, so
+    ``rubin-citation-copy.js`` reads the text from it rather than from a
+    duplicated ``data-`` payload that could drift from what the reader sees;
+    it is also what keeps the entry selectable on a page whose script never
+    runs.
+    """
+    self.body.append(
+        f'<details class="{CARD_CLASS}__bibtex">'
+        f'<summary class="{CARD_CLASS}__bibtex-summary">'
+        f"{self.encode(BIBTEX_SUMMARY)}</summary>"
+        f'<pre class="{CARD_CLASS}__bibtex-entry"><code>'
+        f"{self.encode(node['bibtex'])}</code></pre>"
+        f'<button type="button" class="{CARD_CLASS}__copy">'
+        f"{self.encode(COPY_LABEL)}</button>"
+        f'<span class="{CARD_CLASS}__copy-status" role="status" '
+        'aria-live="polite"></span>'
+        "</details>"
+    )
+    # The literal_block child is the fallback for the builders below; the
+    # HTML surface has already written the entry into the <pre>.
+    raise nodes.SkipNode
+
+
+def visit_citation_bibtex_fallback(
+    self: object, node: citation_bibtex
+) -> None:
+    """Enter the node on a builder with no disclosure to write, letting its
+    literal-block child render on its own.
+    """
+
+
+def depart_citation_bibtex_fallback(
+    self: object, node: citation_bibtex
+) -> None:
+    """Leave the node on a builder that rendered the literal block."""
+
+
 def _describe_labels(citations: Sequence[dict[str, Any]]) -> str:
     """Name the labels a directive argument can select, for a warning."""
     labels = [
@@ -195,6 +284,20 @@ def _describe_labels(citations: Sequence[dict[str, Any]]) -> str:
 
 def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the ``citation-card`` directive."""
+    # Every non-HTML format gets the pass-through pair, so that the node's
+    # literal_block child renders and the builder never meets an unknown node.
+    fallback = (
+        visit_citation_bibtex_fallback,
+        depart_citation_bibtex_fallback,
+    )
+    app.add_node(
+        citation_bibtex,
+        html=(visit_citation_bibtex_html, None),
+        latex=fallback,
+        text=fallback,
+        man=fallback,
+        texinfo=fallback,
+    )
     app.add_directive("citation-card", CitationCard)
 
     return {

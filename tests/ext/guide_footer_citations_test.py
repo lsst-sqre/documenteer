@@ -39,6 +39,25 @@ CITATION = ".rubin-footer__citation"
 LABEL = ".rubin-footer__citation-label"
 TEXT = ".rubin-footer__citation-text"
 NOTE = ".rubin-footer__citation-note"
+BIBTEX = ".rubin-footer__citation-bibtex"
+BIBTEX_ENTRY = ".rubin-footer__citation-bibtex-entry"
+COPY = ".rubin-footer__citation-copy"
+COPY_STATUS = ".rubin-footer__citation-copy-status"
+
+# The script that wires up every copy button, shipped through html_js_files
+# only by a site that declares citations.
+COPY_SCRIPT = "rubin-citation-copy.js"
+
+# The BibTeX entry documenteer.citations composes for the first
+# [[project.citations]] entry of tests/roots/test-guide/documenteer.toml.
+SELF_BIBTEX = """@misc{veracrubinobservatory2025guide,
+    author = {{Vera C. Rubin Observatory}},
+    title = {{Guide Build Smoke Test}},
+    year = {2025},
+    publisher = {Vera C. Rubin Observatory},
+    doi = {10.71929/rubin/2570308},
+    url = {https://doi.org/10.71929/rubin/2570308}
+}"""
 
 _HAS_PYDATA = importlib.util.find_spec("pydata_sphinx_theme") is not None
 
@@ -163,3 +182,81 @@ def test_guide_without_citations_renders_no_block(
     assert footer.cssselect(".rubin-footer__nav")
     assert footer.cssselect(".rubin-footer__funding")
     assert footer.cssselect(".rubin-footer__partner-logos")
+
+
+@pytest.mark.sphinx("html", testroot="guide", srcdir="guide-footer-citations")
+def test_footer_citation_offers_the_bibtex_entry(app: SphinxTestApp) -> None:
+    """Each footer citation carries the same collapsed BibTeX disclosure the
+    card does — the entry, a copy button, and a live region — so the two
+    surfaces stay identical.
+    """
+    doc = _build(app)
+
+    (block,) = doc.cssselect(CITATIONS)
+    citations = block.cssselect(CITATION)
+    assert len(citations) == 2
+
+    for citation in citations:
+        (details,) = citation.cssselect(BIBTEX)
+        assert details.tag == "details"
+        assert details.get("open") is None, "the entry starts collapsed"
+
+        (summary,) = details.cssselect("summary")
+        assert _text(summary) == "BibTeX"
+
+        (button,) = details.cssselect(COPY)
+        assert button.get("type") == "button"
+        assert _text(button) == "Copy BibTeX"
+
+        (status,) = details.cssselect(COPY_STATUS)
+        assert status.get("aria-live") == "polite"
+
+    # Byte-for-byte: what the reader copies is pasted straight into a .bib
+    # file, so a stray leading newline is a broken entry.
+    (pre,) = citations[0].cssselect(BIBTEX_ENTRY)
+    assert pre.tag == "pre"
+    assert pre.text_content() == SELF_BIBTEX
+
+
+@pytest.mark.sphinx("html", testroot="guide", srcdir="guide-footer-citations")
+def test_footer_bibtex_escapes_its_markup(app: SphinxTestApp) -> None:
+    """A BibTeX entry reaches the page escaped, like every other value the
+    footer interpolates: the second entry's title carries a LaTeX-escaped
+    ampersand.
+    """
+    _build(app)
+    raw = (app.outdir / "index.html").read_text(encoding="utf-8")
+
+    assert r"Smoke Test Images \&amp; Catalogs" in raw
+    assert r"Smoke Test Images \& Catalogs" not in raw
+
+
+@pytest.mark.sphinx("html", testroot="guide", srcdir="guide-footer-citations")
+def test_guide_with_citations_ships_the_copy_script(
+    app: SphinxTestApp,
+) -> None:
+    """The copy script is shipped and referenced on every page, so the buttons
+    on the card and in the footer both work wherever they appear.
+    """
+    doc = _build(app, page="hidden.html")
+
+    assert (app.outdir / "_static" / COPY_SCRIPT).is_file()
+    # Sphinx appends a cache-busting ?v= query to the src, so match the path.
+    scripts = [script.get("src") or "" for script in doc.cssselect("script")]
+    assert any(f"_static/{COPY_SCRIPT}" in src for src in scripts)
+
+
+@pytest.mark.sphinx(
+    "html", testroot="guide-nocitations", srcdir="guide-footer-nocitations"
+)
+def test_guide_without_citations_ships_no_copy_script(
+    app: SphinxTestApp,
+) -> None:
+    """A guide with no citations has nothing to copy, so it neither ships the
+    script nor references it.
+    """
+    doc = _build(app)
+
+    assert not (app.outdir / "_static" / COPY_SCRIPT).exists()
+    scripts = [script.get("src") or "" for script in doc.cssselect("script")]
+    assert not any(COPY_SCRIPT in src for src in scripts)

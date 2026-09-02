@@ -64,6 +64,27 @@
       {%- endif %}
       <p class="rubin-footer__citation-text">{{ citation.plain_text_lead|e
         }}{% if citation.plain_text_url %}<a href="{{ citation.plain_text_url|e }}">{{ citation.plain_text_url|e }}</a>{% endif %}</p>
+      {#- The BibTeX entry, offered to be copied rather than downloaded, the
+          way GitHub, Zenodo, and ADS offer one: a reader pastes it into a .bib
+          file they already keep, and one composed entry feeding one rendering
+          cannot drift the way a generated file can. The <pre> holds the only
+          copy of it, so rubin-citation-copy.js reads the text from there
+          rather than from a duplicated data- payload, and the entry stays
+          selectable on a page whose script never runs. The card the
+          citation-card directive renders carries the same markup, under its
+          own block class, so the two surfaces read identically.
+
+          Nothing may separate <pre><code> from the entry: whitespace inside a
+          <pre> is content, and a stray newline is a leading blank line in
+          what the reader copies. #}
+      {%- if citation.bibtex %}
+      <details class="rubin-footer__citation-bibtex">
+        <summary class="rubin-footer__citation-bibtex-summary">BibTeX</summary>
+        <pre class="rubin-footer__citation-bibtex-entry"><code>{{ citation.bibtex|e }}</code></pre>
+        <button type="button" class="rubin-footer__citation-copy">Copy BibTeX</button>
+        <span class="rubin-footer__citation-copy-status" role="status" aria-live="polite"></span>
+      </details>
+      {%- endif %}
       {%- if citation.note %}
       <p class="rubin-footer__citation-note">{{ citation.note|e }}</p>
       {%- endif %}

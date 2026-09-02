@@ -40,6 +40,30 @@ CARD = ".documenteer-citation-card"
 LABEL = ".documenteer-citation-card__label"
 CITATION = ".documenteer-citation-card__citation"
 NOTE = ".documenteer-citation-card__note"
+BIBTEX = ".documenteer-citation-card__bibtex"
+BIBTEX_ENTRY = ".documenteer-citation-card__bibtex-entry"
+COPY = ".documenteer-citation-card__copy"
+COPY_STATUS = ".documenteer-citation-card__copy-status"
+
+# The BibTeX entries documenteer.citations composes for the two citations the
+# test root declares; the card must show these bytes for bytes, since what a
+# reader copies is pasted straight into a .bib file.
+SELF_BIBTEX = """@misc{veracrubinobservatory2025citation,
+    author = {{Vera C. Rubin Observatory}},
+    title = {{Citation Card Test Site}},
+    year = {2025},
+    publisher = {Vera C. Rubin Observatory},
+    doi = {10.71929/rubin/2570308},
+    url = {https://doi.org/10.71929/rubin/2570308}
+}"""
+DATASET_BIBTEX = r"""@misc{veracrubinobservatory2025test,
+    author = {{Vera C. Rubin Observatory}},
+    title = {{Test Images \& Catalogs}},
+    year = {2025},
+    publisher = {Vera C. Rubin Observatory},
+    doi = {10.5281/zenodo.10385500},
+    url = {https://doi.org/10.5281/zenodo.10385500}
+}"""
 
 # The warning's type.subtype, as ``suppress_warnings`` spells it and as Sphinx
 # appends it to the rendered message.
@@ -262,3 +286,87 @@ def test_site_without_citations_warns(app: SphinxTestApp) -> None:
     warnings = app.warning.getvalue()
     assert "project.citations" in warnings
     assert f"[{WARNING_NAME}]" in warnings
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
+def test_card_offers_the_bibtex_entry(app: SphinxTestApp) -> None:
+    """Each card carries a collapsed BibTeX disclosure holding the entry the
+    citation composes, plus a button that copies it.
+
+    The reader pastes the entry into a ``.bib`` file of their own, which is
+    why the affordance is a copy control rather than a download of a
+    generated one-entry file.
+    """
+    doc = _page(app, "index")
+
+    for card, expected in zip(
+        doc.cssselect(CARD), [SELF_BIBTEX, DATASET_BIBTEX], strict=True
+    ):
+        (details,) = card.cssselect(BIBTEX)
+        assert details.tag == "details"
+        assert details.get("open") is None, "the entry starts collapsed"
+
+        (summary,) = details.cssselect("summary")
+        assert _text(summary) == "BibTeX"
+
+        # Byte-for-byte: what the reader copies is pasted straight into a
+        # bibliography, so a stray leading newline or an eaten backslash is a
+        # broken entry.
+        (pre,) = details.cssselect(BIBTEX_ENTRY)
+        assert pre.tag == "pre"
+        assert pre.text_content() == expected
+
+        (button,) = details.cssselect(COPY)
+        assert button.tag == "button"
+        assert button.get("type") == "button", (
+            "a bare <button> inside a form would submit it"
+        )
+        assert _text(button) == "Copy BibTeX"
+
+        # The label swap alone is silent to a screen reader, so the outcome is
+        # announced through a live region.
+        (status,) = details.cssselect(COPY_STATUS)
+        assert status.get("aria-live") == "polite"
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
+def test_card_bibtex_is_escaped(app: SphinxTestApp) -> None:
+    r"""A BibTeX entry's markup characters are escaped on their way into the
+    page rather than reaching it as raw HTML.
+
+    A LaTeX-escaped ampersand (``\&``) in a title is ordinary, and a title
+    could just as well hold a ``<``.
+    """
+    _page(app, "index")
+    raw = (app.outdir / "index.html").read_text(encoding="utf-8")
+
+    assert r"Test Images \&amp; Catalogs" in raw
+    assert r"Test Images \& Catalogs" not in raw
+
+
+def _unindent(text: str) -> str:
+    """Strip each line's surrounding whitespace, so a block quoted at one
+    indentation can be found inside output written at another.
+    """
+    return "\n".join(line.strip() for line in text.splitlines())
+
+
+@pytest.mark.sphinx(
+    "text", testroot="citationcard", srcdir="citationcard-text"
+)
+def test_card_bibtex_falls_back_to_a_literal_block(
+    app: SphinxTestApp,
+) -> None:
+    """A non-HTML builder renders the BibTeX as a plain literal block.
+
+    The disclosure, the button, and the live region are HTML affordances
+    written by an HTML visitor, so a text or LaTeX build must show the entry
+    itself rather than a wall of escaped markup.
+    """
+    app.build()
+    text = _unindent((app.outdir / "index.txt").read_text(encoding="utf-8"))
+
+    assert _unindent(SELF_BIBTEX) in text
+    assert _unindent(DATASET_BIBTEX) in text
+    assert "<details" not in text
+    assert "<button" not in text

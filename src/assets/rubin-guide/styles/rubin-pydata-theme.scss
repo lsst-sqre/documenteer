@@ -465,3 +465,91 @@ html[data-theme='dark'] .rubin-footer__partner-logos img {
   margin-top: 0.5rem;
   font-size: inherit;
 }
+
+/* The BibTeX entry each surface offers: a collapsed <details> holding the
+ * entry and a button that copies it (rubin-citation-copy.js). The entry is
+ * copied rather than downloaded, so the <pre> is both the thing the script
+ * reads and the fallback a reader selects by hand when no script runs --
+ * which is why it is styled as a legible code block rather than hidden
+ * behind the button. Each surface names these parts under its own block
+ * class, so every rule lists the pair; the pydata tokens flip with the theme
+ * on their own. */
+.documenteer-citation-card__bibtex,
+.rubin-footer__citation-bibtex {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Only the words are the hit target, not the full width of the surface. */
+.documenteer-citation-card__bibtex-summary,
+.rubin-footer__citation-bibtex-summary {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--pst-color-text-muted);
+}
+
+.documenteer-citation-card__bibtex-summary:hover,
+.rubin-footer__citation-bibtex-summary:hover {
+  color: var(--pst-color-text-base);
+}
+
+/* The page background, not the card's surface, so the entry reads as a block
+ * set into whichever surface carries it. Its longest line outruns a footer on
+ * a phone, and a BibTeX field broken across lines is no longer the entry that
+ * was composed, so the block scrolls rather than wraps. */
+.documenteer-citation-card__bibtex-entry,
+.rubin-footer__citation-bibtex-entry {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-background);
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* The theme colours a bare <code> as inline code; inside the entry it is only
+ * there to say the text is code, and takes the block's own styling. */
+.documenteer-citation-card__bibtex-entry code,
+.rubin-footer__citation-bibtex-entry code {
+  padding: 0;
+  background-color: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.documenteer-citation-card__copy,
+.rubin-footer__citation-copy {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-background);
+  color: var(--pst-color-text-base);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.documenteer-citation-card__copy:hover,
+.rubin-footer__citation-copy:hover {
+  border-color: var(--pst-color-primary);
+  color: var(--pst-color-primary);
+}
+
+/* Announced, not shown: the button's own label reports the outcome visually,
+ * and this region reports it to a screen reader that is not on the button. */
+.documenteer-citation-card__copy-status,
+.rubin-footer__citation-copy-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

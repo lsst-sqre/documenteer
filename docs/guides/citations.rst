@@ -156,6 +156,16 @@ It is the page-level counterpart to the footer citations, and is the right tool 
             :::{citation-card} Paper
             :::
 
+   **Copying the BibTeX entry**
+
+   Below the citation, the card carries a collapsed ``BibTeX`` disclosure holding the entry composed from the same metadata, and a ``Copy BibTeX`` button that puts it on the clipboard.
+   Copying is what GitHub's "Cite this repository", Zenodo, and ADS all offer, and it is what a reader wants: the entry goes into a :file:`.bib` file they already keep.
+   A guide therefore never generates :file:`.bib` files of its own, and there is nothing to download.
+
+   The entry is in the page rather than in a script, so it can always be selected and copied by hand.
+   A browser that gives the page no clipboard access — an insecure origin, say — has the button removed and keeps the entry; a page whose scripts never load keeps both.
+   A non-HTML builder renders the entry as a plain literal block, since a disclosure and a button mean nothing there.
+
    **Options**
 
    ``class``
@@ -199,7 +209,10 @@ With the configuration above, the footer reads:
 
    To be used when citing the DP2 dataset and this documentation.
 
+Each entry also carries the same collapsed ``BibTeX`` disclosure and ``Copy BibTeX`` button a :ref:`card <guide-citation-card>` does, so a reader can take the entry from whichever surface they are looking at.
+
 A guide that declares no citations, and one whose entries all set ``in_footer = false``, renders no citations block at all.
+The script behind the copy buttons is shipped only by a site that declares citations, so a guide without them is unchanged.
 
 .. _guide-citation-pages:
 

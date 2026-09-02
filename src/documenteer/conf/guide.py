@@ -452,6 +452,15 @@ if documenteer_last_modified_enabled:
     html_static_path.append(get_asset_path("rubin-last-modified.js"))
     html_js_files.append("rubin-last-modified.js")
 
+# Both citation surfaces -- the citation-card directive and the footer
+# citations -- offer the entry's BibTeX with a button that copies it;
+# rubin-citation-copy.js is what makes those buttons work, and removes them
+# where the clipboard API is unavailable. A site that declares no citations
+# renders neither surface, so it has no button to wire and ships no script.
+if html_context.get("documenteer_citations"):
+    html_static_path.append(get_asset_path("rubin-citation-copy.js"))
+    html_js_files.append("rubin-citation-copy.js")
+
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False
 
