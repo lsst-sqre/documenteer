@@ -97,6 +97,10 @@ test = [
     "pytest",
     "pytest-mock",
     "pytest-responses",
+    # Validates generated CITATION.cff against the vendored CFF 1.2.0 JSON
+    # Schema in tests/data/cff. Already resolved transitively via nbformat;
+    # declared here so the test suite does not rely on it by accident.
+    "jsonschema>=4",
     # Test depedendencies for analyzing HTML output
     "lxml",
     "cssselect",

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
+from typing import Any
 
+import jsonschema
 import pytest
 import yaml
 
@@ -123,68 +127,90 @@ def read_documented_cff() -> str:
     return "".join(f"{line}\n" for line in block)
 
 
-CFF_FILE_REQUIRED_KEYS = frozenset(
-    {"authors", "cff-version", "message", "title"}
+CFF_SCHEMA_PATH = (
+    Path(__file__).parents[1] / "data" / "cff" / "schema-1.2.0.json"
 )
-"""The keys CFF 1.2.0 requires of a file's top-level record."""
+"""The Citation File Format 1.2.0 JSON Schema, vendored verbatim.
 
-CFF_REFERENCE_REQUIRED_KEYS = frozenset({"authors", "title", "type"})
-"""The keys CFF 1.2.0 requires of a reference, ``preferred-citation``
-included."""
+:file:`tests/data/cff/README.md` records where it came from and why it is
+kept here rather than fetched.
+"""
 
-CFF_FILE_TYPES = frozenset({"software", "dataset"})
-"""The only two values CFF 1.2.0 allows a file's top-level ``type``."""
-
-CFF_REFERENCE_TYPES = frozenset(
-    {"article", "dataset", "generic", "report", "software"}
+CFF_VALIDATOR = jsonschema.Draft7Validator(
+    json.loads(CFF_SCHEMA_PATH.read_text(encoding="utf-8")),
+    format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER,
 )
-"""The members of CFF 1.2.0's reference vocabulary this generator can write.
+"""The validator built from that schema.
 
-CFF's own list is far longer; these are the ones a `CitationType` maps onto.
+The format checker is what turns ``2026-02-30`` — a date the schema's own
+pattern accepts — into a failure; every format CFF uses is checked by
+``jsonschema`` itself, with no further dependency.
+"""
+
+
+VALID_CFF_DOCUMENT: dict[str, Any] = {
+    "cff-version": "1.2.0",
+    "message": "Please cite this technote.",
+    "title": "A repository",
+    "type": "software",
+    "authors": [{"family-names": "Sick"}],
+    "date-released": date(2026, 8, 24),
+    "preferred-citation": {
+        "type": "report",
+        "title": "A report",
+        "authors": [{"family-names": "Sick"}],
+        "number": "SQR-000",
+    },
+}
+"""A hand-written file that satisfies CFF 1.2.0.
+
+Written by hand rather than generated so that a malformation cut from it
+tests the assertion rather than the generator.
 """
 
 
 def assert_valid_cff(document: object) -> None:
     """Assert that a parsed CITATION.cff satisfies CFF 1.2.0.
 
+    The document is validated against the vendored schema, so a value of the
+    wrong type, a malformed date, a value outside an enum, and a key CFF does
+    not define are all caught — not merely a missing required key.
+
     cffconvert, the reference validator, is deliberately not a test
-    dependency: it pins ``jsonschema<4``, so adding it downgrades the
+    dependency: it pins ``jsonschema<4``, so adding it would downgrade the
     ``jsonschema`` the rest of the environment resolves — Jupyter's notebook
-    reader among it. This asserts the rules its schema states about the parts
-    of a file this generator writes: which keys a file and a reference must
-    carry, which types each allows, that every author names itself, and that
-    a date is a date. A field dropped from the generated shape is therefore
-    still caught.
+    reader among it. Since cffconvert validates against this very schema,
+    reading it directly gives up nothing.
+
+    What the schema cannot state — that the preferred citation is a report
+    carrying the technote's DOI, its series ID as ``number``, and its
+    canonical URL — is asserted by `test_render_preferred_citation`.
     """
-    assert isinstance(document, dict)
-    assert document["cff-version"] == "1.2.0"
-    assert not CFF_FILE_REQUIRED_KEYS - set(document)
-    assert document.get("type", "software") in CFF_FILE_TYPES
-    _assert_valid_cff_record(document)
-
-    reference = document.get("preferred-citation")
-    if reference is not None:
-        assert isinstance(reference, dict)
-        assert not CFF_REFERENCE_REQUIRED_KEYS - set(reference)
-        assert reference["type"] in CFF_REFERENCE_TYPES
-        _assert_valid_cff_record(reference)
+    errors = sorted(
+        CFF_VALIDATOR.iter_errors(_as_json(document)),
+        key=lambda error: error.json_path,
+    )
+    assert not errors, "\n".join(
+        f"{error.json_path}: {error.message}" for error in errors
+    )
 
 
-def _assert_valid_cff_record(record: dict[str, object]) -> None:
-    """Assert the constraints a file and a reference state alike."""
-    authors = record["authors"]
-    assert isinstance(authors, list)
-    assert authors
-    for author in authors:
-        assert isinstance(author, dict)
-        # A CFF entity names itself with `name`; a person with at least one
-        # of the name fields. Either way, an author with no name at all is a
-        # citation nobody is credited in.
-        assert author.keys() & {"name", "family-names", "given-names"}
-    if "date-released" in record:
-        assert isinstance(record["date-released"], date)
-    if "month" in record:
-        assert 1 <= record["month"] <= 12  # type: ignore[operator]
+def _as_json(value: object) -> object:
+    """Render a YAML-parsed document as the JSON the schema validates.
+
+    PyYAML resolves an unquoted ``2026-08-24`` to a `datetime.date`, which
+    JSON has no notion of. The schema says so itself, asking implementers to
+    cast YAML date objects to strings before validating. A
+    `~datetime.datetime` casts the same way, and to a string the ``date``
+    pattern rejects — which is the right answer, because CFF dates are days.
+    """
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Mapping):
+        return {key: _as_json(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_as_json(item) for item in value]
+    return value
 
 
 def test_render_preferred_citation(tmp_path: Path) -> None:
@@ -537,17 +563,60 @@ def test_the_generated_file_is_valid_cff(tmp_path: Path, source: str) -> None:
     assert_valid_cff(document)
 
 
-def test_the_cff_assertion_catches_a_missing_required_key() -> None:
-    """The validity assertion has teeth: a file missing a key CFF 1.2.0
-    requires fails it, rather than passing everything handed to it.
-    """
-    document = {
-        "cff-version": "1.2.0",
-        "title": "A repository",
-        "type": "software",
-        "authors": [{"family-names": "Sick"}],
-    }
+def test_the_hand_written_document_is_valid_cff() -> None:
+    """The document the malformation cases are cut from passes.
 
+    Each case below breaks exactly one thing in a copy of it, so this is what
+    makes those cases pin the break rather than some other flaw they inherit.
+    """
+    assert_valid_cff(VALID_CFF_DOCUMENT)
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        pytest.param(
+            {
+                key: value
+                for key, value in VALID_CFF_DOCUMENT.items()
+                if key != "message"
+            },
+            id="missing-required-key",
+        ),
+        pytest.param(
+            VALID_CFF_DOCUMENT | {"type": "technote"},
+            id="type-outside-the-enum",
+        ),
+        pytest.param(
+            VALID_CFF_DOCUMENT | {"date-released": "soon"},
+            id="date-that-is-not-a-date",
+        ),
+        pytest.param(
+            VALID_CFF_DOCUMENT | {"date-released": "2026-02-30"},
+            id="date-that-is-not-a-day",
+        ),
+        pytest.param(
+            VALID_CFF_DOCUMENT
+            | {
+                "preferred-citation": VALID_CFF_DOCUMENT["preferred-citation"]
+                | {"series-id": "SQR-000"}
+            },
+            id="key-cff-does-not-define",
+        ),
+    ],
+)
+def test_the_cff_assertion_rejects_a_malformed_document(
+    document: dict[str, object],
+) -> None:
+    """The validity assertion has teeth: each way of breaking CFF 1.2.0 that
+    a required-key check cannot see fails it.
+
+    ``technote`` is not one of the two types CFF allows a file; ``soon`` is
+    not a date and ``2026-02-30`` is not a day; and CFF closes both a file
+    and a reference to keys it does not define, so a field this generator
+    misspells — ``series-id`` where CFF says ``number`` — is rejected rather
+    than silently ignored by GitHub and Zenodo.
+    """
     with pytest.raises(AssertionError):
         assert_valid_cff(document)
 
