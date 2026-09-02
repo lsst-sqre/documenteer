@@ -18,7 +18,7 @@ override emits:
   so a page two entries claim emits neither.
 - ``documenteer_citations_jsonld`` becomes a block describing the claiming
   entries alone, each located at the page's own URL rather than at the doi.org
-  redirect.
+  redirect and each naming the site's own citation as the work it is part of.
 
 A page no entry claims is left untouched, so a site that sets no ``page``
 anywhere builds exactly as it did before. Nothing here composes a citation:
@@ -138,13 +138,19 @@ def add_page_citations(
         page's landing page, but they are also never claimed, so they need no
         special handling here.
     """
+    citations = _citations(app)
     claiming = [
-        citation
-        for citation in _citations(app)
-        if citation.get("page") == pagename
+        citation for citation in citations if citation.get("page") == pagename
     ]
     if not claiming:
         return
+
+    # Read the site's own citation before the context's is replaced below:
+    # the claiming entries are parts of the site's work, and each of their
+    # nodes says so by naming it.
+    site_citation = next(
+        (citation for citation in citations if citation.get("is_self")), None
+    )
 
     # Highwire and Dublin Core carry one identifier each, so a page two
     # entries claim emits neither rather than picking a winner; the JSON-LD
@@ -153,7 +159,9 @@ def add_page_citations(
         claiming[0] if len(claiming) == 1 else None
     )
     context["documenteer_citations_jsonld"] = compose_page_jsonld(
-        claiming, page_url=context.get("pageurl")
+        claiming,
+        page_url=context.get("pageurl"),
+        self_citation=site_citation,
     )
 
 

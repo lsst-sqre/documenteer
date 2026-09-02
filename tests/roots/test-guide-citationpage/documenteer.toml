@@ -60,3 +60,28 @@ title = "Retired catalog"
 publisher = "Vera C. Rubin Observatory"
 date = 2025-06-30
 authors = [{ name = "Vera C. Rubin Observatory" }]
+
+# A work the site cites rather than publishes: no page of its own, but shown
+# in the footer, so it reaches the site-wide JSON-LD block in full.
+[[project.citations]]
+doi = "10.5281/zenodo.10385501"
+label = "Paper"
+type = "article"
+in_footer = true
+title = "The Citation Page Test Survey"
+publisher = "Zenodo"
+date = 2024-11-02
+authors = [
+    { family_name = "Sick", given_name = "Jonathan", orcid = "0000-0003-3001-676X" },
+]
+
+# Neither a part nor in the footer, so nothing but a card that names it ever
+# shows it and the site-wide block says nothing about it.
+[[project.citations]]
+doi = "10.5281/zenodo.10385502"
+label = "Unlisted"
+type = "software"
+title = "Citation Page Test pipeline"
+publisher = "Zenodo"
+date = 2024-11-02
+authors = [{ name = "Vera C. Rubin Observatory" }]

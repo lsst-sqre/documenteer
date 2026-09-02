@@ -207,6 +207,7 @@ Because the page is the landing page of two DOIs, it emits a JSON-LD ``@graph`` 
 A page a single entry claims does emit them, carrying that entry's DOI.
 
 Every page no entry claims — the home page, the rest of the guide — is unchanged and keeps the release DOI's metadata.
+The claim also relates the two works: each catalog's node names the release as the work it is ``isPartOf``, and the release's own node names both catalogs under ``hasPart``, so a consumer arriving at either end can reach the other (see :ref:`guide-citation-metadata`).
 
 Claiming a page changes only the machine-readable metadata; the visible surfaces are unaffected.
 The footer still shows the same citations everywhere, and ``.. citation-card::`` with no argument still renders the ``self`` entry.
@@ -218,9 +219,23 @@ A landing page that wants to show the citation a reader arriving from doi.org ca
 
 A ``page`` value naming a docname the project does not contain — a renamed page, or a value written as a file path rather than a docname — emits a ``documenteer.citation_page`` warning and leaves the entry working everywhere else.
 
+.. _guide-citation-metadata:
+
 Related metadata
 ================
 
-Declaring ``[[project.citations]]`` also makes the site's DOI machine-readable: every page's ``<head>`` carries the ``self`` citation's DOI as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site and the works it cites.
+Declaring ``[[project.citations]]`` also makes the site's DOI machine-readable: every page's ``<head>`` carries the ``self`` citation's DOI as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site.
 Each citation's :ref:`type <guide-project-citations-type>` decides the schema.org type it is described under there, so ``type = "dataset"`` is what makes a data release indexable by Google Dataset Search.
+
+That JSON-LD block is *about* the ``self`` entry, and states every other entry as a relation of it rather than repeating the whole record:
+
+- An entry that names a :ref:`page <guide-project-citations-page>` is a **part** of the site's own work — a data product of a release, say, not something the site cites.
+  The site-wide block names it under ``hasPart`` by reference alone: its schema.org type, its DOI, and its title, and nothing more.
+  The full record lives on the page the entry claims, whose own block points back at the site with an ``isPartOf`` reference of the same shape.
+- An entry with **no** page is a work the site **cites**, and reaches the site-wide block in full — but only when the site displays it, which is to say when :ref:`in_footer <guide-project-citations-in-footer>` is true.
+- An entry that is neither a part nor shown in the footer appears in no site-wide block at all, because no page of the site mentions it.
+  It still renders wherever a :ref:`citation-card <guide-citation-card>` names it by label.
+
+Keeping the parts to references is what lets a site publish a DOI per data product without paying for it on every page: a release with forty product DOIs states forty short references, not forty full records, and each product's own landing page carries the record that describes it.
+
 See :ref:`[[project.citations]] <guide-project-citations>` for the full field reference.

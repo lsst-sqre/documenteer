@@ -901,6 +901,25 @@ def _citation_node(
     return node
 
 
+def _minimal_reference(citation: Mapping[str, Any]) -> dict[str, Any]:
+    """Express one citation as a *reference* to its node rather than as the
+    node itself: its type, its identifier, and its name, and nothing else.
+
+    A relation between two works only has to say which work it points at.
+    Stating both ends in full is what would make a site-wide block grow with
+    every DOI the site publishes — a data release with a DOI per data product
+    would repeat the whole catalog on every page — so a relation carries this
+    shape instead and a consumer follows the ``@id`` to the full record on
+    the work's own landing page.
+    """
+    node: dict[str, Any] = {"@type": _schema_type(citation)}
+    identifier = citation.get("doi_url") or citation.get("url")
+    if identifier:
+        node["@id"] = identifier
+    node["name"] = citation["title"]
+    return node
+
+
 def compose_landing_page_jsonld(
     citations: Sequence[Mapping[str, Any]], *, site_url: str | None = None
 ) -> str | None:
@@ -920,57 +939,84 @@ def compose_landing_page_jsonld(
     Returns
     -------
     str or None
-        The serialized JSON-LD document, or `None` when there are no
-        citations — a site that declares none emits no block at all.
+        The serialized JSON-LD document, or `None` when no citation belongs
+        in it — a site that declares none, and one whose entries are neither
+        parts nor shown in the footer, emits no block at all.
 
     Notes
     -----
     The self citation is the document's own subject rather than one node among
     several: this page *is* that DOI's landing page, so a consumer reading the
-    document top-level finds the DOI it came for, and the site's other
-    citations hang off it as schema.org ``citation`` values. A site that
-    declares citations but marks none of them ``self`` has no such subject,
-    and its citations are emitted as a plain ``@graph`` instead.
+    document top-level finds the DOI it came for. Every other entry reaches
+    the document as a *relation* of that subject, and which relation it is
+    follows from whether the entry claims a landing page of its own:
+
+    - An entry that sets `GuideCitation.page` is a **part** of the site's own
+      work — a data product of a release, not something the site cites — so
+      it is named in ``hasPart`` by reference alone (see
+      `_minimal_reference`). Its full record belongs on the page it claims,
+      which `compose_page_jsonld` composes.
+    - An entry with no page is a work the site **cites**. Only the entries
+      the site actually displays reach ``citation``, and in full: an entry
+      that appears nowhere on the page is not something a consumer of this
+      page needs the whole record of, and repeating it on all of them is
+      weight every page pays for.
+
+    An entry that is neither a part nor shown in the footer therefore appears
+    in no site-wide block, though a ``citation-card`` that names it still
+    renders it. A site that declares citations but marks none of them
+    ``self`` has no subject to relate them to, and the same selection is
+    emitted as a plain ``@graph`` instead.
 
     The returned string is safe to place directly in a ``<script>`` element:
     the characters that could close it early are written as JSON string
     escapes (see `_SCRIPT_ESCAPES`), so a title containing ``</script>``,
     quotes, or ampersands cannot break out of the block.
     """
-    if not citations:
-        return None
-    nodes = [
-        _citation_node(
-            citation,
-            # Only the site's own citation has the site as its landing page;
-            # every other work keeps the location its own record names.
-            url_override=site_url if citation.get("is_self") else None,
-        )
-        for citation in citations
-    ]
-    self_index = next(
-        (
-            index
-            for index, citation in enumerate(citations)
-            if citation.get("is_self")
-        ),
-        None,
+    self_citation = next(
+        (citation for citation in citations if citation.get("is_self")), None
     )
-    document: dict[str, Any]
-    if self_index is None:
-        document = {"@context": SCHEMA_ORG_CONTEXT, "@graph": nodes}
-    else:
-        document = {"@context": SCHEMA_ORG_CONTEXT, **nodes[self_index]}
-        cited = [
-            node for index, node in enumerate(nodes) if index != self_index
+    if self_citation is None:
+        nodes = [
+            _citation_node(citation)
+            for citation in citations
+            if citation.get("page") or citation.get("in_footer")
         ]
-        if cited:
-            document["citation"] = cited
+        if not nodes:
+            return None
+        return _serialize_jsonld(
+            {"@context": SCHEMA_ORG_CONTEXT, "@graph": nodes}
+        )
+
+    others = [
+        citation for citation in citations if citation is not self_citation
+    ]
+    document: dict[str, Any] = {
+        "@context": SCHEMA_ORG_CONTEXT,
+        # The site's own citation is the only one whose landing page is the
+        # site; every other work keeps the location its own record names.
+        **_citation_node(self_citation, url_override=site_url),
+    }
+    parts = [citation for citation in others if citation.get("page")]
+    if parts:
+        document["hasPart"] = [
+            _minimal_reference(citation) for citation in parts
+        ]
+    cited = [
+        citation
+        for citation in others
+        if not citation.get("page") and citation.get("in_footer")
+    ]
+    if cited:
+        document["citation"] = [_citation_node(citation) for citation in cited]
     return _serialize_jsonld(document)
 
 
 def compose_page_jsonld(
-    citations: Sequence[Mapping[str, Any]], *, page_url: str | None = None
+    citations: Sequence[Mapping[str, Any]],
+    *,
+    page_url: str | None = None,
+    self_citation: Mapping[str, Any] | None = None,
 ) -> str | None:
     """Compose the citations that claim one page as that page's own
     schema.org JSON-LD document, serialized ready to embed in a
@@ -987,6 +1033,10 @@ def compose_page_jsonld(
         is this URL plus that citation's own fragment. `None` when the site
         declares no base URL, in which case each node keeps the location its
         record already carries (the doi.org redirect).
+    self_citation
+        The site's own citation, as the same kind of mapping. Each node names
+        it as the work it is ``isPartOf``. `None` for a site that marks no
+        citation ``self``, whose works are then parts of nothing it names.
 
     Returns
     -------
@@ -1005,15 +1055,29 @@ def compose_page_jsonld(
     A single claiming citation is the document's own subject. Several are
     emitted as a ``@graph``: they are peers on the page, told apart by their
     fragments, and subordinating one to the others would misstate the page.
+
+    Each node also points back at the site's own citation as the work it is
+    ``isPartOf``, which is the other half of the ``hasPart`` relation
+    `compose_landing_page_jsonld` states site-wide. Both ends are stated so
+    that a consumer arriving at either one can reach the other, and both are
+    stated by reference (see `_minimal_reference`) so that neither repeats a
+    record the other already carries in full.
     """
     if not citations:
         return None
-    nodes = [
-        _citation_node(
+    part_of = (
+        _minimal_reference(self_citation)
+        if self_citation is not None
+        else None
+    )
+    nodes = []
+    for citation in citations:
+        node = _citation_node(
             citation, url_override=_page_node_url(citation, page_url)
         )
-        for citation in citations
-    ]
+        if part_of is not None and not citation.get("is_self"):
+            node["isPartOf"] = dict(part_of)
+        nodes.append(node)
     document: dict[str, Any]
     if len(nodes) == 1:
         document = {"@context": SCHEMA_ORG_CONTEXT, **nodes[0]}

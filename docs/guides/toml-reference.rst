@@ -102,9 +102,16 @@ Documenteer uses them to make the site a proper DOI landing page: it renders a f
 A declared citation is displayed in the :ref:`site footer <guide-footer-citations>` on every page, and with the :ref:`citation-card <guide-citation-card>` directive, which renders it as a card wherever a page asks for one.
 
 That head metadata is what a DOI registration agency, Google Scholar, and Google Dataset Search read.
-Every page carries the :ref:`self <guide-project-citations-self>` citation's DOI as a Highwire ``citation_doi`` meta tag (bare) and a Dublin Core ``DC.identifier`` meta tag (as the ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block that describes the site and the works it cites, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
-An entry that names a :ref:`page <guide-project-citations-page>` inside the site moves its own metadata to that page instead.
+Every page carries the :ref:`self <guide-project-citations-self>` citation's DOI as a Highwire ``citation_doi`` meta tag (bare) and a Dublin Core ``DC.identifier`` meta tag (as the ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block describing the site, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
+The other entries reach that block as *relations* of the site rather than as records repeated on every page of it, and which relation follows from whether the entry claims a page:
+
+- An entry that names a :ref:`page <guide-project-citations-page>` inside the site is a **part** of the site's work.
+  The site-wide block names it in ``hasPart`` by reference alone, and its full record moves to the page it claims.
+- An entry with no page is a work the site **cites**.
+  It appears in the site-wide block in full when :ref:`in_footer <guide-project-citations-in-footer>` is true, and not at all when it is false.
+
 A site that declares no citations emits none of it.
+See :ref:`guide-citation-metadata` for the whole picture.
 
 Because it is an *array* of tables, the table header is written with double brackets and repeated once per citation.
 A site can cite more than one work — the documentation itself and the dataset it describes, for example — and the order the entries are written in is the order they appear in the site footer.
@@ -213,6 +220,7 @@ The page inside this site that is the DOI's registered landing page, written as 
 Default is unset, which means the site as a whole is the landing page.
 
 Setting it moves the entry's machine-readable metadata off every page and onto that one: the claimed page carries this entry's DOI as its Highwire ``citation_doi`` and Dublin Core ``DC.identifier`` meta tags, and a JSON-LD block describing this work at the page's own URL.
+It also says what the work *is* to the site: a claimed entry is a part of the site's own work rather than something the site cites, so the site-wide block names it in ``hasPart`` and the claimed page's block points back with ``isPartOf``.
 Every other page of the site is unaffected and keeps the :ref:`self <guide-project-citations-self>` citation's metadata.
 This is what a data release's documentation needs when each of its data products has a DOI of its own that resolves to the product's page; see :ref:`guide-citation-pages`.
 
@@ -251,6 +259,9 @@ in\_footer
 Whether this citation appears in the :ref:`site footer <guide-footer-citations>`.
 Default is ``true`` for the :ref:`self <guide-project-citations-self>` entry and ``false`` for every other, so additional citations are opt-in.
 Footer citations appear in the order the entries are written.
+
+It also governs the site-wide JSON-LD block: an entry with no :ref:`page <guide-project-citations-page>` of its own is described there only when the footer shows it, so a work no page of the site mentions is not carried in the metadata of every page of it.
+An entry that sets ``page`` is a part of the site's work rather than a work it cites, and is named in the site-wide block either way.
 
 .. _guide-project-citations-note:
 

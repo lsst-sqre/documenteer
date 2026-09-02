@@ -31,6 +31,9 @@ from sphinx.testing.util import SphinxTestApp
 # there as a https://doi.org/ URL and normalized on load.
 SELF_DOI = "10.71929/rubin/2570308"
 DATASET_DOI = "10.5281/zenodo.10385500"
+# The third entry sets in_footer = false, so no page of the site displays it
+# and the site-wide JSON-LD block leaves it out.
+PAPER_DOI = "10.5281/zenodo.10385501"
 # Must match project.base_url in that same file. Pydantic's HttpUrl gives the
 # bare origin a trailing slash.
 SITE_URL = "https://example.lsst.io/"
@@ -90,7 +93,7 @@ def test_head_carries_the_self_doi(app: SphinxTestApp) -> None:
 @pytest.mark.sphinx("html", testroot="guide", srcdir="guide-head-citations")
 def test_head_carries_schema_org_jsonld(app: SphinxTestApp) -> None:
     """The head carries one JSON-LD block whose subject is the site: a node
-    identified by the self DOI, with the guide's other citations hanging off
+    identified by the self DOI, with the works the site displays hanging off
     it as schema.org ``citation`` values.
     """
     doc = _build(app)
@@ -111,18 +114,15 @@ def test_head_carries_schema_org_jsonld(app: SphinxTestApp) -> None:
     assert payload["url"] == SITE_URL
     assert payload["datePublished"] == "2025-06-30"
 
-    # Every citation that is not the site itself hangs off it, in the order
-    # documenteer.toml declares them -- head metadata describes the whole
-    # record, so an entry that opts out of the footer is still here.
-    dataset, paper = payload["citation"]
-    assert paper["name"] == "The Smoke Test Survey"
-    # Each citation is published under the schema.org type its own
-    # documenteer.toml type crosswalks to.
-    assert paper["@type"] == "ScholarlyArticle"
+    # Only the works the site actually shows reach the block, so the entry
+    # that opts out of the footer is absent: every page would otherwise carry
+    # the whole record of a work none of them mentions.
+    assert PAPER_DOI not in json.dumps(payload)
 
-    # The dataset crosswalks to a schema.org Dataset, with its authors
-    # carrying resolvable ROR and ORCID identifiers -- the ORCID is written
-    # bare in documenteer.toml and resolved to a URL here.
+    # The dataset the footer does show crosswalks to a schema.org Dataset,
+    # with its authors carrying resolvable ROR and ORCID identifiers -- the
+    # ORCID is written bare in documenteer.toml and resolved to a URL here.
+    (dataset,) = payload["citation"]
     assert dataset["@type"] == "Dataset"
     assert dataset["@id"] == f"https://doi.org/{DATASET_DOI}"
     assert dataset["creator"] == [

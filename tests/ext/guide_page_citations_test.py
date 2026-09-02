@@ -31,6 +31,10 @@ BUTLER_DOI = "10.71929/rubin/3382539"
 TAP_DOI = "10.71929/rubin/3382540"
 VISIT_DOI = "10.71929/rubin/3382541"
 MISSING_DOI = "10.71929/rubin/3382542"
+# A work the site cites rather than publishes, shown in the footer.
+PAPER_DOI = "10.5281/zenodo.10385501"
+# A work the site neither publishes nor shows anywhere site-wide.
+UNLISTED_DOI = "10.5281/zenodo.10385502"
 
 # Must match project.base_url in that same file.
 SITE_URL = "https://example.lsst.io"
@@ -109,6 +113,24 @@ def test_claimed_page_carries_its_own_doi(app: SphinxTestApp) -> None:
 @pytest.mark.sphinx(
     "html", testroot="guide-citationpage", srcdir="guide-citationpage"
 )
+def test_claimed_page_is_part_of_the_site(app: SphinxTestApp) -> None:
+    """The work a page is the landing page of is a part of the release the
+    site as a whole is, so the page's node points back at the site's citation
+    by reference -- the other half of the ``hasPart`` relation the site-wide
+    block states.
+    """
+    doc = _build(app, "products/visit")
+
+    assert _jsonld(doc)["isPartOf"] == {
+        "@type": "Dataset",
+        "@id": f"https://doi.org/{SELF_DOI}",
+        "name": "Citation Page Test Release",
+    }
+
+
+@pytest.mark.sphinx(
+    "html", testroot="guide-citationpage", srcdir="guide-citationpage"
+)
 def test_claimed_page_still_displays_the_site_citation(
     app: SphinxTestApp,
 ) -> None:
@@ -118,7 +140,7 @@ def test_claimed_page_still_displays_the_site_citation(
     """
     doc = _build(app, "products/visit")
 
-    (footer,) = doc.cssselect(".rubin-footer__citation-text")
+    footer, _ = doc.cssselect(".rubin-footer__citation-text")
     assert f"https://doi.org/{SELF_DOI}" in footer.text_content()
 
     (card,) = doc.cssselect(".documenteer-citation-card__citation")
@@ -153,8 +175,8 @@ def test_unclaimed_page_keeps_the_site_citation(
     app: SphinxTestApp, pagename: str
 ) -> None:
     """A page no entry claims is untouched: it carries the site's own DOI and
-    the site-wide JSON-LD block, with the page-claiming entries hanging off it
-    as citations exactly as they did before ``page`` existed.
+    the site-wide JSON-LD block, in which each entry appears as the relation
+    it has to the site rather than as a record repeated in full.
     """
     doc = _build(app, pagename)
 
@@ -164,12 +186,48 @@ def test_unclaimed_page_keeps_the_site_citation(
     payload = _jsonld(doc)
     assert payload["@id"] == f"https://doi.org/{SELF_DOI}"
     assert payload["url"] == f"{SITE_URL}/"
-    assert [node["@id"] for node in payload["citation"]] == [
-        f"https://doi.org/{BUTLER_DOI}",
-        f"https://doi.org/{TAP_DOI}",
-        f"https://doi.org/{VISIT_DOI}",
-        f"https://doi.org/{MISSING_DOI}",
+
+    # Every entry that claims a page is a part of the release, named by
+    # reference because its own landing page carries the full record.
+    assert payload["hasPart"] == [
+        {
+            "@type": "Dataset",
+            "@id": f"https://doi.org/{BUTLER_DOI}",
+            "name": "Object catalog (Butler)",
+        },
+        {
+            "@type": "Dataset",
+            "@id": f"https://doi.org/{TAP_DOI}",
+            "name": "Object catalog (TAP)",
+        },
+        {
+            "@type": "Dataset",
+            "@id": f"https://doi.org/{VISIT_DOI}",
+            "name": "Visit table",
+        },
+        {
+            "@type": "Dataset",
+            "@id": f"https://doi.org/{MISSING_DOI}",
+            "name": "Retired catalog",
+        },
     ]
+
+    # The footer's paper is a work the site cites, and no page of the site
+    # describes it, so it appears in full.
+    (paper,) = payload["citation"]
+    assert paper["@id"] == f"https://doi.org/{PAPER_DOI}"
+    assert paper["@type"] == "ScholarlyArticle"
+    assert paper["creator"] == [
+        {
+            "@type": "Person",
+            "@id": "https://orcid.org/0000-0003-3001-676X",
+            "name": "Jonathan Sick",
+        }
+    ]
+
+    # The entry that is neither a part nor in the footer reaches no page's
+    # site-wide block.
+    assert UNLISTED_DOI not in json.dumps(payload)
 
 
 @pytest.mark.sphinx(

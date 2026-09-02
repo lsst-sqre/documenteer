@@ -597,6 +597,9 @@ def test_landing_page_jsonld_describes_the_self_citation() -> None:
 def _dataset_citation_context() -> dict[str, object]:
     """Build a dataset citation's html_context mapping, credited to both an
     organization and a person so that both author node shapes are exercised.
+
+    The site shows it in the footer, which is what carries it into the
+    site-wide JSON-LD block.
     """
     return GuideCitation(
         citation=Citation(
@@ -617,7 +620,45 @@ def _dataset_citation_context() -> dict[str, object]:
             ),
         ),
         label="Dataset",
+        in_footer=True,
     ).to_html_context()
+
+
+def _product_citation_context(
+    *, doi: str, title: str, fragment: str | None = None
+) -> dict[str, object]:
+    """Build the html_context mapping of a citation whose landing page is a
+    page inside the site.
+    """
+    return GuideCitation(
+        citation=Citation(
+            doi=doi,
+            title=title,
+            type=CitationType.dataset,
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+        ),
+        label=title,
+        page="products/object",
+        page_fragment=fragment,
+    ).to_html_context()
+
+
+def _paper_citation_context(**overrides: object) -> dict[str, object]:
+    """Build the html_context mapping of a paper the site cites in its
+    footer.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            doi="10.5281/zenodo.10385501",
+            title="The Smoke Test Survey",
+            type=CitationType.article,
+            authors=(PersonAuthor(family_name="Sick", given_name="Jonathan"),),
+        ),
+        label="Paper",
+        in_footer=True,
+    ).to_html_context()
+    context.update(overrides)
+    return context
 
 
 @pytest.mark.parametrize(
@@ -646,6 +687,7 @@ def test_landing_page_jsonld_types_a_citation_from_its_type(
                         type=citation_type,
                     ),
                     label="Object catalog",
+                    in_footer=True,
                 ).to_html_context()
             ]
         )
@@ -692,6 +734,136 @@ def test_landing_page_jsonld_types_a_dataset() -> None:
     assert dataset["url"] == "https://doi.org/10.5281/zenodo.10385500"
 
 
+def test_landing_page_jsonld_relates_parts_and_cited_works() -> None:
+    """The site-wide block states a *relation* for each entry it carries: an
+    entry that claims a page is a part of the site's own work, an entry the
+    footer shows is a work the site cites, and an entry that is neither is
+    left out of the block entirely.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                _self_citation_context(),
+                _paper_citation_context(),
+                _product_citation_context(
+                    doi="10.71929/rubin/3382539",
+                    title="Object catalog (Butler)",
+                ),
+                _product_citation_context(
+                    doi="10.71929/rubin/3382540",
+                    title="Object catalog (TAP)",
+                ),
+                # Neither a part nor in the footer, so the site-wide block
+                # says nothing about it.
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Images & Catalogs",
+                        type=CitationType.dataset,
+                    ),
+                    label="Unlisted",
+                ).to_html_context(),
+            ],
+            site_url=SITE_URL,
+        )
+        or ""
+    )
+
+    assert payload["@id"] == "https://doi.org/10.71929/rubin/2570308"
+
+    # The parts are named by reference alone -- type, identifier, and name --
+    # because each one's own landing page carries the full record.
+    assert payload["hasPart"] == [
+        {
+            "@type": "Dataset",
+            "@id": "https://doi.org/10.71929/rubin/3382539",
+            "name": "Object catalog (Butler)",
+        },
+        {
+            "@type": "Dataset",
+            "@id": "https://doi.org/10.71929/rubin/3382540",
+            "name": "Object catalog (TAP)",
+        },
+    ]
+
+    # The cited work is the one the site displays, and it appears in full
+    # because no other page of the site describes it.
+    (paper,) = payload["citation"]
+    assert paper["@type"] == "ScholarlyArticle"
+    assert paper["name"] == "The Smoke Test Survey"
+    assert paper["creator"] == [{"@type": "Person", "name": "Jonathan Sick"}]
+
+    assert "10.5281/zenodo.10385500" not in json.dumps(payload)
+
+
+def test_landing_page_jsonld_states_no_relation_it_does_not_have() -> None:
+    """A site whose only citation is its own states neither relation: an
+    empty ``hasPart`` or ``citation`` would claim the site has parts, or
+    cites works, when it does neither.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [_self_citation_context()], site_url=SITE_URL
+        )
+        or ""
+    )
+
+    assert "hasPart" not in payload
+    assert "citation" not in payload
+
+
+def test_landing_page_jsonld_graph_makes_the_same_selection() -> None:
+    """The ``@graph`` a site without a self citation emits carries the same
+    entries the related form would — the parts and the footer's citations —
+    because there is no subject to relate them to, not because the selection
+    is different.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                _paper_citation_context(),
+                _product_citation_context(
+                    doi="10.71929/rubin/3382539",
+                    title="Object catalog (Butler)",
+                ),
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Images & Catalogs",
+                    ),
+                    label="Unlisted",
+                ).to_html_context(),
+            ]
+        )
+        or ""
+    )
+
+    assert [node["name"] for node in payload["@graph"]] == [
+        "The Smoke Test Survey",
+        "Object catalog (Butler)",
+    ]
+
+
+def test_landing_page_jsonld_without_a_selected_citation() -> None:
+    """A site whose citations are all displayed on cards alone has nothing to
+    say site-wide, so it emits no block rather than an empty one.
+    """
+    assert (
+        compose_landing_page_jsonld(
+            [
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Images & Catalogs",
+                    ),
+                    label="Unlisted",
+                ).to_html_context()
+            ]
+        )
+        is None
+    )
+
+
 def test_landing_page_jsonld_is_a_graph_without_a_self_citation() -> None:
     """A site that marks no citation as its own has no subject to make the
     document about, so its citations are emitted as a plain @graph.
@@ -719,6 +891,7 @@ def test_landing_page_jsonld_ignores_a_label_that_reads_as_a_type() -> None:
                         title="Images & Catalogs",
                     ),
                     label="Dataset",
+                    in_footer=True,
                 ).to_html_context(),
             ]
         )
@@ -775,25 +948,6 @@ def test_landing_page_jsonld_cannot_break_out_of_a_script_element() -> None:
 PAGE_URL = "https://guide.lsst.io/products/object.html"
 
 
-def _product_citation_context(
-    *, doi: str, title: str, fragment: str | None
-) -> dict[str, object]:
-    """Build the html_context mapping of a citation whose landing page is a
-    page inside the site.
-    """
-    return GuideCitation(
-        citation=Citation(
-            doi=doi,
-            title=title,
-            type=CitationType.dataset,
-            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
-        ),
-        label=title,
-        page="products/object",
-        page_fragment=fragment,
-    ).to_html_context()
-
-
 def test_page_jsonld_describes_a_single_claiming_citation() -> None:
     """A page a single citation claims is that citation's landing page, so
     the citation is the document's own subject and its url is the page's own,
@@ -819,6 +973,33 @@ def test_page_jsonld_describes_a_single_claiming_citation() -> None:
     assert payload["name"] == "Object catalog (TAP)"
     assert payload["url"] == f"{PAGE_URL}#tap"
     assert "@graph" not in payload
+
+
+def test_page_jsonld_states_the_part_relation() -> None:
+    """A page's own work is a part of the site's, so its node points back at
+    the site's citation — by reference alone, because the site's own pages
+    carry that record in full.
+    """
+    payload = json.loads(
+        compose_page_jsonld(
+            [
+                _product_citation_context(
+                    doi="10.71929/rubin/3382540",
+                    title="Object catalog (TAP)",
+                    fragment="tap",
+                )
+            ],
+            page_url=PAGE_URL,
+            self_citation=_self_citation_context(),
+        )
+        or ""
+    )
+
+    assert payload["isPartOf"] == {
+        "@type": "WebSite",
+        "@id": "https://doi.org/10.71929/rubin/2570308",
+        "name": "Data Preview 2 Documentation",
+    }
 
 
 def test_page_jsonld_graphs_several_claiming_citations() -> None:
