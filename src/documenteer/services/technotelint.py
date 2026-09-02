@@ -117,25 +117,17 @@ class Check:
 
 
 CHECKS: dict[str, Check] = {
+    # ``TN`` rules check what any technote needs; ``R`` rules check Rubin's
+    # conventions and services. A code carries its rule set's prefix, so it
+    # says which set owns it and does not have to change when the generic
+    # rules move into the technote package and this file keeps the Rubin
+    # ones. The hundreds families mean the same thing in both prefixes:
+    # 0xx structure and configuration, 1xx metadata, 2xx content.
     "TN001": Check(
         code="TN001",
         name="schema-conformance",
         description="technote.toml conforms to the technote schema.",
         severity=Severity.error,
-    ),
-    "TN002": Check(
-        code="TN002",
-        name="requirements-declare-documenteer-technote",
-        description=(
-            "requirements.txt declares documenteer with the [technote] extra."
-        ),
-        severity=Severity.warning,
-    ),
-    "TN003": Check(
-        code="TN003",
-        name="requirements-no-separate-sphinx-pin",
-        description="requirements.txt does not pin Sphinx separately.",
-        severity=Severity.warning,
     ),
     "TN004": Check(
         code="TN004",
@@ -164,24 +156,6 @@ CHECKS: dict[str, Check] = {
         description=(
             "The [technote.lint] table names rules the linter knows."
         ),
-        severity=Severity.warning,
-    ),
-    "TN101": Check(
-        code="TN101",
-        name="author-internal-id-present",
-        description="Every author declares an internal_id.",
-        severity=Severity.error,
-    ),
-    "TN102": Check(
-        code="TN102",
-        name="author-internal-id-known",
-        description="Each author's internal_id resolves in the author DB.",
-        severity=Severity.error,
-    ),
-    "TN103": Check(
-        code="TN103",
-        name="authordb-reachable",
-        description="The author database is reachable for resolution.",
         severity=Severity.warning,
     ),
     # TN104 (doi-well-formed) was retired before it shipped: technote 0.10.0
@@ -229,6 +203,42 @@ CHECKS: dict[str, Check] = {
         name="abstract-directive-not-empty",
         description="The abstract directive has body content.",
         severity=Severity.error,
+    ),
+    # The Rubin rule set. Each of these needs something beyond technote.toml
+    # and the technote package: R002/R003 encode Rubin's technote packaging
+    # convention, and R101-R103 resolve authors against the Rubin author
+    # database.
+    "R002": Check(
+        code="R002",
+        name="requirements-declare-documenteer-technote",
+        description=(
+            "requirements.txt declares documenteer with the [technote] extra."
+        ),
+        severity=Severity.warning,
+    ),
+    "R003": Check(
+        code="R003",
+        name="requirements-no-separate-sphinx-pin",
+        description="requirements.txt does not pin Sphinx separately.",
+        severity=Severity.warning,
+    ),
+    "R101": Check(
+        code="R101",
+        name="author-internal-id-present",
+        description="Every author declares an internal_id.",
+        severity=Severity.error,
+    ),
+    "R102": Check(
+        code="R102",
+        name="author-internal-id-known",
+        description="Each author's internal_id resolves in the author DB.",
+        severity=Severity.error,
+    ),
+    "R103": Check(
+        code="R103",
+        name="authordb-reachable",
+        description="The author database is reachable for resolution.",
+        severity=Severity.warning,
     ),
 }
 
@@ -489,7 +499,7 @@ class TechnoteLintService:
         Only the checks that read the parsed `TechnoteToml` model are skipped
         when ``technote.toml`` cannot be parsed. A ``technote.toml`` that is
         unreadable as TOML (TN005) or that fails schema validation (TN001)
-        therefore still gets its requirements (TN002/TN003) and content
+        therefore still gets its requirements (R002/R003) and content
         (TN2xx) findings reported, so a technote's other problems are visible
         in the same run rather than hidden behind the metadata failure. A
         directory with no ``technote.toml`` at all (TN004) is not a technote,
@@ -499,8 +509,8 @@ class TechnoteLintService:
         technote-series repository that Sphinx does not build (see
         `LintContext.is_sphinx_technote`). Only the
         ``technote.toml``-based checks — TN004/TN005/TN001 and the metadata
-        checks (TN1xx) — run for it, so a healthy non-Sphinx technote reports
-        nothing.
+        checks (TN1xx/R1xx) — run for it, so a healthy non-Sphinx technote
+        reports nothing.
         """
         return [
             finding
@@ -581,19 +591,19 @@ class TechnoteLintService:
     def _check_author_internal_ids(
         self, parsed: TechnoteToml
     ) -> list[LintFinding]:
-        """Check author ``internal_id`` metadata (TN101/TN102/TN103).
+        """Check author ``internal_id`` metadata (R101/R102/R103).
 
         Every branch that would reach the author database is gated on the
-        rule it reports, so ignoring TN101-TN103 leaves the run offline: the
-        resolution lookup is what TN102 and TN103 are, and the suggestion
-        lookup only ever decorates a TN101 or TN102 message.
+        rule it reports, so ignoring R101-R103 leaves the run offline: the
+        resolution lookup is what R102 and R103 are, and the suggestion
+        lookup only ever decorates an R101 or R102 message.
         """
         findings: list[LintFinding] = []
         for author in parsed.technote.authors:
             name = f"{author.name.given} {author.name.family}".strip()
             internal_id = author.internal_id
             if internal_id is None:
-                if self.is_enabled("TN101"):
+                if self.is_enabled("R101"):
                     findings.append(self._missing_id_finding(author, name))
                 continue
             findings.extend(
@@ -602,29 +612,29 @@ class TechnoteLintService:
         return findings
 
     def _missing_id_finding(self, author: Person, name: str) -> LintFinding:
-        """Report an author that declares no ``internal_id`` (TN101)."""
+        """Report an author that declares no ``internal_id`` (R101)."""
         message = f"Author {name} is missing an internal_id."
         suggestion = self._suggest_internal_id(author)
         if suggestion is not None:
             message += f" {suggestion.describe(name)} {suggestion.fix_hint()}"
-        return LintFinding.from_check("TN101", message)
+        return LintFinding.from_check("R101", message)
 
     def _resolve_internal_id(
         self, author: Person, name: str, internal_id: str
     ) -> list[LintFinding]:
         """Resolve a declared ``internal_id`` against the author database.
 
-        The one lookup serves both rules it can report — TN102 for an ID the
-        database does not hold, TN103 for a database that cannot answer — so
+        The one lookup serves both rules it can report — R102 for an ID the
+        database does not hold, R103 for a database that cannot answer — so
         it is worth making while either is enabled, and skipped entirely when
         neither is.
         """
-        if not (self.is_enabled("TN102") or self.is_enabled("TN103")):
+        if not (self.is_enabled("R102") or self.is_enabled("R103")):
             return []
         try:
             self._context.author_db.get_author(internal_id)
         except AuthorNotFoundError:
-            if not self.is_enabled("TN102"):
+            if not self.is_enabled("R102"):
                 return []
             message = (
                 f"Author {name} has internal_id '{internal_id}', "
@@ -633,23 +643,23 @@ class TechnoteLintService:
             suggestion = self._suggest_internal_id(author)
             if suggestion is not None:
                 message += f" {suggestion.describe(name)}"
-            return [LintFinding.from_check("TN102", message)]
+            return [LintFinding.from_check("R102", message)]
         except AuthorDbUnreachableError:
-            if not self.is_enabled("TN103"):
+            if not self.is_enabled("R103"):
                 return []
             return [
                 LintFinding.from_check(
-                    "TN103",
+                    "R103",
                     f"Could not reach the author database to verify "
                     f"internal_id '{internal_id}' for author {name}.",
                 )
             ]
         except ValidationError:
-            if not self.is_enabled("TN102"):
+            if not self.is_enabled("R102"):
                 return []
             return [
                 LintFinding.from_check(
-                    "TN102",
+                    "R102",
                     f"Author {name} has internal_id '{internal_id}', whose "
                     f"author database record is malformed.",
                 )
@@ -878,7 +888,7 @@ def _check_datacite(
 
     This rule leaves the machine, as the author checks do, but it is the only
     one that degrades to silence: an unreachable author database is reported
-    as TN103, because an unresolved ``internal_id`` blocks a DOI from being
+    as R103, because an unresolved ``internal_id`` blocks a DOI from being
     minted, while an unreachable DataCite is reported as nothing. *Not*
     answering is therefore a first-class outcome here rather than an
     afterthought, and the check is silent — no finding, and no noise about
@@ -1506,20 +1516,20 @@ def _included_sources(
 
 
 def check_requirements(context: LintContext) -> list[LintFinding]:
-    """Statically check the technote's ``requirements.txt`` (TN002/TN003).
+    """Statically check the technote's ``requirements.txt`` (R002/R003).
 
     Parses ``LintContext.requirements_text`` with
     `packaging.requirements.Requirement` and emits structural findings:
 
-    - TN002 (warning) if ``documenteer`` is absent or is declared without
+    - R002 (warning) if ``documenteer`` is absent or is declared without
       the ``[technote]`` extra — the technote build needs
       ``documenteer[technote]`` to pull in the technote theme and config.
-    - TN003 (warning) if ``sphinx`` is declared as its own requirement.
+    - R003 (warning) if ``sphinx`` is declared as its own requirement.
       ``documenteer[technote]`` already constrains Sphinx to a supported
       range, so pinning it separately risks drifting out of that window.
 
     A missing ``requirements.txt`` (no ``requirements_text``) is treated as
-    an empty file, so ``documenteer`` is absent and TN002 fires.
+    an empty file, so ``documenteer`` is absent and R002 fires.
     """
     findings: list[LintFinding] = []
     requirements = _parse_requirements(context.requirements_text or "")
@@ -1538,7 +1548,7 @@ def check_requirements(context: LintContext) -> list[LintFinding]:
     if not documenteer_reqs or "technote" not in extras:
         findings.append(
             LintFinding.from_check(
-                "TN002",
+                "R002",
                 "requirements.txt should declare 'documenteer[technote]' so "
                 "the technote theme and Sphinx configuration are installed.",
             )
@@ -1547,7 +1557,7 @@ def check_requirements(context: LintContext) -> list[LintFinding]:
     if any(canonicalize_name(req.name) == "sphinx" for req in requirements):
         findings.append(
             LintFinding.from_check(
-                "TN003",
+                "R003",
                 "requirements.txt pins 'sphinx' separately. Remove it and "
                 "rely on the Sphinx version constrained by "
                 "'documenteer[technote]' to avoid version drift.",

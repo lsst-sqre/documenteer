@@ -1,8 +1,8 @@
-:og:description: TN101 fires when a technote author has no internal_id, the key that links the author to the Rubin author database and is needed to mint a DOI.
+:og:description: R101 fires when a technote author has no internal_id, the key that links the author to the Rubin author database and is needed to mint a DOI.
 
-##################################
-author-internal-id-present (TN101)
-##################################
+#################################
+author-internal-id-present (R101)
+#################################
 
 .. list-table::
    :header-rows: 1
@@ -30,7 +30,7 @@ Example of a failing technote
 
 .. code-block:: text
 
-   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
+   [R101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
 
 When the linter can confidently match the author in the author database — by ORCID, or by a single near-exact name match — it suggests the likely ID (see :ref:`technote-lint-suggested-ids`).
 Verify the suggestion before using it; it never changes whether the command passes.
@@ -64,5 +64,5 @@ If the author has no entry in the author database yet, add one first by submitti
 See also
 ========
 
-- :doc:`TN102 <tn102>` — the entry has an ``internal_id``, but it is not in the author database.
+- :doc:`R102 <r102>` — the entry has an ``internal_id``, but it is not in the author database.
 - :doc:`../author-metadata` — how technote author metadata connects to the author database.

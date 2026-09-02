@@ -27,14 +27,14 @@ If your technote uses the standard :file:`Makefile` (see :doc:`../migrate`), the
 
    make lint
 
-The command prints each issue it finds, prefixed with its stable rule code (for example, ``[TN101]``), followed by a summary and a link to the documentation page for every rule that fired:
+The command prints each issue it finds, prefixed with its stable rule code (for example, ``[R101]``), followed by a summary and a link to the documentation page for every rule that fired:
 
 .. code-block:: text
 
-   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
+   [R101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
    Found 1 error(s) and 0 warning(s).
    Learn more:
-     TN101: https://documenteer.lsst.io/technotes/lint/tn101.html
+     R101: https://documenteer.lsst.io/technotes/lint/r101.html
 
 The command exits with a non-zero status when any *error*-level issue remains, which is what causes a CI build to fail.
 *Warning*-level issues are reported but do not fail the command unless you pass ``--strict``.
@@ -62,7 +62,10 @@ Rules
 =====
 
 Each rule has a stable code so that findings are easy to triage, and so that a technote can :ref:`switch one off <technote-lint-ignore>` by name, and a landing page describing the rule, showing a failing technote, and walking through the fix.
-Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for metadata, and ``TN2xx`` for content.
+A code's prefix names the rule set it belongs to, and the number that follows names the concern.
+``TN`` rules check what any technote needs — its :file:`technote.toml`, its content file, its abstract — while ``R`` rules check Rubin's conventions and services, such as the Rubin author database and Rubin's technote packaging.
+The linter runs both sets together, and a finding names its set so that a code never has to change when the rule that carries it moves: the ``TN`` rules are expected to move into the `technote <https://technote.lsst.io>`__ package, and the ``R`` rules to stay here.
+Within either prefix the hundreds mean the same thing: ``0xx`` for structure and configuration, ``1xx`` for metadata, and ``2xx`` for content.
 
 .. list-table:: Technote lint rules
    :header-rows: 1
@@ -76,11 +79,11 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Structural
      - :file:`technote.toml` conforms to the technote schema.
      - Error
-   * - :doc:`TN002 <tn002>`
+   * - :doc:`R002 <r002>`
      - Structural
      - :file:`requirements.txt` declares ``documenteer`` with the ``[technote]`` extra.
      - Warning
-   * - :doc:`TN003 <tn003>`
+   * - :doc:`R003 <r003>`
      - Structural
      - :file:`requirements.txt` does not pin Sphinx as a separate requirement.
      - Warning
@@ -100,15 +103,15 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Structural
      - The ``[technote.lint]`` configuration names rules the linter has.
      - Warning
-   * - :doc:`TN101 <tn101>`
+   * - :doc:`R101 <r101>`
      - Metadata
      - Every author declares an ``internal_id``.
      - Error
-   * - :doc:`TN102 <tn102>`
+   * - :doc:`R102 <r102>`
      - Metadata
      - Each author's ``internal_id`` resolves in the Rubin author database.
      - Error
-   * - :doc:`TN103 <tn103>`
+   * - :doc:`R103 <r103>`
      - Metadata
      - The author database is reachable so that IDs can be resolved.
      - Warning
@@ -141,15 +144,15 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
    :hidden:
 
    tn001
-   tn002
-   tn003
+   r002
+   r003
    tn004
    tn005
    tn006
    tn007
-   tn101
-   tn102
-   tn103
+   r101
+   r102
+   r103
    tn105
    tn106
    tn201
@@ -176,7 +179,7 @@ List such a rule's code in the ``[technote.lint]`` table of the technote's :file
    ignore = ["TN105"]
 
 An ignored rule does not run at all.
-TN105 makes no DataCite request when it is ignored, and TN101–TN103 do not query the author database, so switching a network rule off makes the run faster as well as quieter.
+TN105 makes no DataCite request when it is ignored, and R101–R103 do not query the author database, so switching a network rule off makes the run faster as well as quieter.
 
 The linter reports what it skipped, so that a rule that is *off* never looks like a rule that *passed*:
 
@@ -217,11 +220,11 @@ Running the linter offline
 ==========================
 
 Most rules read files alone; two kinds of check leave the machine.
-:doc:`TN105 <tn105>` asks DataCite what a technote's DOI is registered as, and the author checks (:doc:`TN101 <tn101>`–:doc:`TN103 <tn103>`) resolve author IDs against the Rubin author database.
+:doc:`TN105 <tn105>` asks DataCite what a technote's DOI is registered as, and the author checks (:doc:`R101 <r101>`–:doc:`R103 <r103>`) resolve author IDs against the Rubin author database.
 
 The two behave differently when the network is not there, and deliberately so:
 
-- An unreachable **author database** is reported as :doc:`TN103 <tn103>`, a warning, because an unresolved ``internal_id`` is the thing that blocks a technote's DOI from being minted — silence would hide it.
+- An unreachable **author database** is reported as :doc:`R103 <r103>`, a warning, because an unresolved ``internal_id`` is the thing that blocks a technote's DOI from being minted — silence would hide it.
 - An unreachable **DataCite** is silent. TN105 reports nothing at all, and neither does an unregistered DOI, so this check reads the same offline as it does with the network up.
 
 .. _technote-lint-suggested-ids:
@@ -229,7 +232,7 @@ The two behave differently when the network is not there, and deliberately so:
 Suggested author IDs
 ====================
 
-An author ``internal_id`` that is missing (:doc:`TN101 <tn101>`) or unknown (:doc:`TN102 <tn102>`) is a dead end on its own, so the linter tries to name the ID you probably want.
+An author ``internal_id`` that is missing (:doc:`R101 <r101>`) or unknown (:doc:`R102 <r102>`) is a dead end on its own, so the linter tries to name the ID you probably want.
 It queries the author database twice at most and appends a suggestion when one entry matches confidently:
 
 #. If the author entry declares an ``orcid``, the linter asks the author database which author holds exactly that ORCID.
@@ -237,8 +240,8 @@ It queries the author database twice at most and appends a suggestion when one e
 
 .. code-block:: text
 
-   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
-   [TN102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
+   [R101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
+   [R102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
 
 The message states what the match is based on:
 
@@ -246,7 +249,7 @@ The message states what the match is based on:
 - **matched by name** — a single near-exact name match, whose ORCID (if it has one) does not contradict yours.
 
 Declaring an ``orcid`` for an author is therefore the surest way to get a usable suggestion, and the only one that works when the author database spells the name differently than you do.
-It also changes what a TN101 finding asks of you: an ORCID match is one :command:`documenteer technote sync-authors` can act on by itself — it resolves the same ORCID and writes the ``internal_id`` in for you — so the message reads *Run 'documenteer technote sync-authors' to add it*.
+It also changes what an R101 finding asks of you: an ORCID match is one :command:`documenteer technote sync-authors` can act on by itself — it resolves the same ORCID and writes the ``internal_id`` in for you — so the message reads *Run 'documenteer technote sync-authors' to add it*.
 A name match is only a suggestion for you to verify and type in, so its message reads *… after adding it*.
 
 The suggestion is deliberately conservative and best-effort: an ambiguous search (several equally good matches, as a common family name gives) or a match contradicted by a differing ORCID adds nothing to the message, and a failed lookup leaves the finding exactly as it would otherwise read.
@@ -271,18 +274,18 @@ Non-Sphinx technotes
 ====================
 
 Some technote-series repositories are not Sphinx projects at all: they publish through the shared technote CI with a custom build command (an Org-mode deck, for example).
-When a directory has no content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`) *and* no :file:`conf.py`, the linter treats it as one of these and checks only that its :file:`technote.toml` is well formed — :doc:`TN004 <tn004>`, :doc:`TN005 <tn005>`, :doc:`TN001 <tn001>`, and the metadata rules (``TN1xx``), which read :file:`technote.toml` alone.
-The :file:`requirements.txt` rules (:doc:`TN002 <tn002>`/:doc:`TN003 <tn003>`), the content rules (``TN2xx``), and :doc:`TN006 <tn006>` are skipped, since they describe a Documenteer/Sphinx build that these repositories do not have.
+When a directory has no content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`) *and* no :file:`conf.py`, the linter treats it as one of these and checks only that its :file:`technote.toml` is well formed — :doc:`TN004 <tn004>`, :doc:`TN005 <tn005>`, :doc:`TN001 <tn001>`, and the metadata rules (``TN1xx`` and ``R1xx``), which read :file:`technote.toml` alone.
+The :file:`requirements.txt` rules (:doc:`R002 <r002>`/:doc:`R003 <r003>`), the content rules (``TN2xx``), and :doc:`TN006 <tn006>` are skipped, since they describe a Documenteer/Sphinx build that these repositories do not have.
 A repository that *does* have a :file:`conf.py` but no content file is a broken Sphinx technote, and is reported as :doc:`TN006 <tn006>`.
 
 .. note::
 
    Author ``internal_id`` values are the key to consistent author identification across Rubin documents, and a missing or unknown ID blocks DOI generation.
-   See :doc:`../author-metadata` to learn how to add and update the authors that ``TN101``–``TN103`` check.
+   See :doc:`../author-metadata` to learn how to add and update the authors that ``R101``–``R103`` check.
 
 Related documentation
 =====================
 
-- :doc:`../author-metadata` — add and update the authors that :doc:`TN101 <tn101>`–:doc:`TN103 <tn103>` check.
+- :doc:`../author-metadata` — add and update the authors that :doc:`R101 <r101>`–:doc:`R103 <r103>` check.
 - :doc:`../citation-file` — generate the :file:`CITATION.cff` that :doc:`TN106 <tn106>` keeps in sync with :file:`technote.toml`.
 - :doc:`../migrate` — the migration tool sets up the :file:`Makefile`, :file:`requirements.txt`, and abstract directive that these rules rely on.

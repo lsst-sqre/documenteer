@@ -15,7 +15,7 @@ schema-conformance (TN001)
 :file:`technote.toml` must conform to the technote metadata schema.
 The file parsed as TOML (otherwise :doc:`TN005 <tn005>` fires), but one or more of its tables or fields does not match what the `technote <https://technote.lsst.io>`__ package expects, so the technote cannot be built or its metadata published.
 
-When this rule fires, the metadata rules (``TN1xx``) are skipped — they all need the parsed metadata — but the requirements and content rules still run, so fix the schema problem first and re-run to see the full report.
+When this rule fires, the metadata rules (``TN1xx`` and ``R1xx``) are skipped — they all need the parsed metadata — but the requirements and content rules still run, so fix the schema problem first and re-run to see the full report.
 
 Example of a failing technote
 =============================

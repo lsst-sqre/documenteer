@@ -324,20 +324,22 @@ def technote_lint(
     """Lint a technote's metadata and structure.
 
     This runs three groups of checks and reports each finding with a stable
-    rule code (for example ``[TN101]``). Structural checks (``TN0xx``)
-    confirm that technote.toml exists, is valid TOML, and conforms to the
-    technote schema, and that requirements.txt declares documenteer[technote]
-    without pinning Sphinx separately. Metadata checks (``TN1xx``) confirm that
-    every author declares an internal_id that resolves in the Rubin author
-    database, that a declared DOI is a DOI whose registered DataCite metadata
-    still matches technote.toml, and that a CITATION.cff, where the repository
-    has one, still matches it too. Content checks (``TN2xx``) confirm that the
-    content declares a non-empty abstract using the abstract directive rather
-    than an ordinary section heading.
+    rule code (for example ``[R101]``). A code's prefix names the rule set it
+    belongs to: ``TN`` rules check what any technote needs, and ``R`` rules
+    check Rubin's conventions and services. Structural checks (``TN0xx`` and
+    ``R0xx``) confirm that technote.toml exists, is valid TOML, and conforms
+    to the technote schema, and that requirements.txt declares
+    documenteer[technote] without pinning Sphinx separately. Metadata checks
+    (``TN1xx`` and ``R1xx``) confirm that every author declares an internal_id
+    that resolves in the Rubin author database, that a declared DOI is a DOI
+    whose registered DataCite metadata still matches technote.toml, and that a
+    CITATION.cff, where the repository has one, still matches it too. Content
+    checks (``TN2xx``) confirm that the content declares a non-empty abstract
+    using the abstract directive rather than an ordinary section heading.
 
     Only the author checks and the DataCite cross-check use the network, and
     they degrade differently: an unreachable author database is reported
-    (TN103), because an unresolved internal_id blocks a DOI from being minted,
+    (R103), because an unresolved internal_id blocks a DOI from being minted,
     while an unreachable DataCite is silent.
 
     A directory with no content file and no conf.py is a technote that Sphinx

@@ -111,7 +111,7 @@ def _write_technote(tmp_path: Path, toml_content: str) -> LintContext:
 
     Also writes an ``index.rst`` with a well-formed abstract and a sane
     ``requirements.txt`` so the content-group abstract check (TN201/TN202)
-    and the structural requirements check (TN002/TN003) stay silent and
+    and the structural requirements check (R002/R003) stay silent and
     these metadata-focused tests observe only author/schema findings.
     """
     (tmp_path / "technote.toml").write_text(toml_content)
@@ -148,7 +148,7 @@ internal_id = "sickj"
 
 
 def test_missing_internal_id(tmp_path: Path) -> None:
-    """Each author lacking an internal_id yields one TN101 error."""
+    """Each author lacking an internal_id yields one R101 error."""
     context = _write_technote(
         tmp_path,
         """
@@ -166,14 +166,14 @@ name.family = "Economou"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101", "TN101"]
+    assert [f.code for f in findings] == ["R101", "R101"]
     assert all(f.severity is Severity.error for f in findings)
 
 
 def test_missing_internal_id_suggests_orcid_match(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A TN101 author whose ORCID is in the DB gets a suggested ID."""
+    """An R101 author whose ORCID is in the DB gets a suggested ID."""
     _mock_orcid_lookup(
         responses,
         "0009-0008-9216-7516",
@@ -200,7 +200,7 @@ orcid = "https://orcid.org/0009-0008-9216-7516"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == (
         "Author Yusra AlSayyad is missing an internal_id. Did you mean "
         "'alsayyady' (matched by ORCID)? Run 'documenteer technote "
@@ -211,7 +211,7 @@ orcid = "https://orcid.org/0009-0008-9216-7516"
 def test_internal_id_not_found(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """An internal_id absent from the author DB (404) yields TN102."""
+    """An internal_id absent from the author DB (404) yields R102."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/nobody",
         body="Not found",
@@ -231,14 +231,14 @@ internal_id = "nobody"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].severity is Severity.error
 
 
 def test_unknown_internal_id_suggests_name_match(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A TN102 author with one near-exact name match gets a suggested ID."""
+    """An R102 author with one near-exact name match gets a suggested ID."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/lynnej",
         body="Not found",
@@ -270,7 +270,7 @@ internal_id = "lynnej"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].message == (
         "Author Lynne Jones has internal_id 'lynnej', which is not in the "
         "author database. Did you mean 'jonesrl' (R. Lynne Jones, matched "
@@ -306,7 +306,7 @@ name.family = "Jones"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == "Author L. Jones is missing an internal_id."
 
 
@@ -333,7 +333,7 @@ name.family = "Nobody"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert (
         findings[0].message == "Author Nemo Nobody is missing an internal_id."
     )
@@ -370,7 +370,7 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert (
         findings[0].message == "Author Derek Jones is missing an internal_id."
     )
@@ -399,7 +399,7 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].severity is Severity.error
     assert (
         findings[0].message
@@ -408,7 +408,7 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
 
 
 def test_authordb_unreachable(tmp_path: Path, responses: RequestsMock) -> None:
-    """An unreachable author DB yields a TN103 warning, not an error."""
+    """An unreachable author DB yields an R103 warning, not an error."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/sickj",
         body=requests.ConnectionError("connection refused"),
@@ -427,7 +427,7 @@ internal_id = "sickj"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN103"]
+    assert [f.code for f in findings] == ["R103"]
     assert findings[0].severity is Severity.warning
 
 
@@ -449,7 +449,7 @@ name.family = "Economou"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    # The second author has no internal_id, but TN101 needs the parsed model,
+    # The second author has no internal_id, but R101 needs the parsed model,
     # so only the schema finding is reported.
     assert [f.code for f in findings] == ["TN001"]
     assert findings[0].severity is Severity.error
@@ -458,7 +458,7 @@ name.family = "Economou"
 def test_invalid_schema_still_runs_toml_independent_checks(
     tmp_path: Path,
 ) -> None:
-    """A schema failure no longer suppresses the TN002/TN2xx checks."""
+    """A schema failure no longer suppresses the R002/TN2xx checks."""
     (tmp_path / "technote.toml").write_text(
         """
 [technote]
@@ -475,7 +475,7 @@ name.given = "Jonathan"
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN001", "TN201", "TN002", "TN003"]
+    assert [f.code for f in findings] == ["TN001", "TN201", "R002", "R003"]
 
 
 def test_legacy_single_string_author_name_reports_tn001(
@@ -591,14 +591,14 @@ def test_malformed_toml_reports_tn005(tmp_path: Path) -> None:
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN005", "TN201", "TN002"]
+    assert [f.code for f in findings] == ["TN005", "TN201", "R002"]
     assert findings[0].severity is Severity.error
 
 
-def test_author_record_malformed_reports_tn102(
+def test_author_record_malformed_reports_r102(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A 200 response with an unparseable author body yields a TN102 error."""
+    """A 200 response with an unparseable author body yields an R102 error."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/sickj",
         body="{ not valid json",
@@ -619,7 +619,7 @@ internal_id = "sickj"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].severity is Severity.error
     assert "malformed" in findings[0].message
 
@@ -752,7 +752,7 @@ def _author_block(
 CITABLE_TOML = CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj")
 """A technote.toml with enough metadata to compose a CITATION.cff.
 
-Its one author declares an ``internal_id``, so the author checks (TN1xx)
+Its one author declares an ``internal_id``, so the author checks (R1xx)
 resolve it against the mocked author database rather than reporting.
 """
 
@@ -1619,7 +1619,7 @@ internal_id = "nobody"
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
 
 
 def _context_with_content(
@@ -1628,7 +1628,7 @@ def _context_with_content(
     """Write a minimal technote.toml plus a content file, build a context.
 
     Also writes a sane ``requirements.txt`` so the structural requirements
-    check (TN002/TN003) stays silent for content-focused tests that route
+    check (R002/R003) stays silent for content-focused tests that route
     through the full ``lint()`` aggregation.
     """
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
@@ -2067,28 +2067,28 @@ def test_sane_requirements_with_floor_pin_pass(tmp_path: Path) -> None:
     assert check_requirements(context) == []
 
 
-def test_missing_documenteer_reports_tn002(tmp_path: Path) -> None:
-    """requirements.txt without documenteer yields a TN002 warning."""
+def test_missing_documenteer_reports_r002(tmp_path: Path) -> None:
+    """requirements.txt without documenteer yields an R002 warning."""
     context = _context_with_requirements(tmp_path, "sphinx-prompt\n")
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN002"]
+    assert [f.code for f in findings] == ["R002"]
     assert findings[0].severity is Severity.warning
 
 
-def test_documenteer_without_technote_extra_reports_tn002(
+def test_documenteer_without_technote_extra_reports_r002(
     tmp_path: Path,
 ) -> None:
-    """Documenteer declared without the [technote] extra yields TN002."""
+    """Documenteer declared without the [technote] extra yields R002."""
     context = _context_with_requirements(tmp_path, "documenteer\n")
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN002"]
+    assert [f.code for f in findings] == ["R002"]
     assert findings[0].severity is Severity.warning
 
 
-def test_documenteer_with_other_extra_reports_tn002(tmp_path: Path) -> None:
-    """Documenteer with only a non-technote extra still yields TN002."""
+def test_documenteer_with_other_extra_reports_r002(tmp_path: Path) -> None:
+    """Documenteer with only a non-technote extra still yields R002."""
     context = _context_with_requirements(tmp_path, "documenteer[guide]\n")
-    assert [f.code for f in check_requirements(context)] == ["TN002"]
+    assert [f.code for f in check_requirements(context)] == ["R002"]
 
 
 def test_documenteer_extra_aggregated_across_lines(tmp_path: Path) -> None:
@@ -2099,36 +2099,36 @@ def test_documenteer_extra_aggregated_across_lines(tmp_path: Path) -> None:
     assert check_requirements(context) == []
 
 
-def test_missing_requirements_file_reports_tn002(tmp_path: Path) -> None:
-    """A technote directory with no requirements.txt yields TN002."""
+def test_missing_requirements_file_reports_r002(tmp_path: Path) -> None:
+    """A technote directory with no requirements.txt yields R002."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
     context = LintContext.from_dir(tmp_path, AuthorDb())
-    assert [f.code for f in check_requirements(context)] == ["TN002"]
+    assert [f.code for f in check_requirements(context)] == ["R002"]
 
 
-def test_sphinx_pinned_separately_reports_tn003(tmp_path: Path) -> None:
-    """A separate sphinx requirement yields a TN003 warning."""
+def test_sphinx_pinned_separately_reports_r003(tmp_path: Path) -> None:
+    """A separate sphinx requirement yields an R003 warning."""
     context = _context_with_requirements(
         tmp_path, "documenteer[technote]\nsphinx==8.1.0\n"
     )
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN003"]
+    assert [f.code for f in findings] == ["R003"]
     assert findings[0].severity is Severity.warning
 
 
-def test_sphinx_declared_without_version_reports_tn003(tmp_path: Path) -> None:
-    """An unversioned separate sphinx requirement still yields TN003."""
+def test_sphinx_declared_without_version_reports_r003(tmp_path: Path) -> None:
+    """An unversioned separate sphinx requirement still yields R003."""
     context = _context_with_requirements(
         tmp_path, "documenteer[technote]\nSphinx\n"
     )
-    assert [f.code for f in check_requirements(context)] == ["TN003"]
+    assert [f.code for f in check_requirements(context)] == ["R003"]
 
 
 def test_requirements_drift_reports_both_warnings(tmp_path: Path) -> None:
     """Missing documenteer[technote] and a separate sphinx pin both fire."""
     context = _context_with_requirements(tmp_path, "sphinx==8.1.0\n")
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN002", "TN003"]
+    assert [f.code for f in findings] == ["R002", "R003"]
     assert all(f.severity is Severity.warning for f in findings)
 
 
@@ -2144,7 +2144,7 @@ def test_requirements_findings_surface_through_lint(
     findings = service.lint()
     # Warnings only (no author or abstract errors), so --strict would
     # promote exactly these to make the run fatal.
-    assert [f.code for f in findings] == ["TN002", "TN003"]
+    assert [f.code for f in findings] == ["R002", "R003"]
     assert all(f.severity is Severity.warning for f in findings)
 
 
@@ -2204,7 +2204,7 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == (
         "Author Lynne Jones is missing an internal_id. Did you mean "
         "'jonesrl' (R. Lynne Jones, matched by ORCID)? Run 'documenteer "
@@ -2241,7 +2241,7 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == (
         "Author Lynne Jones is missing an internal_id. Did you mean "
         "'jonesrl' (R. Lynne Jones, matched by name)? Run 'documenteer "
@@ -2286,14 +2286,14 @@ orcid = "https://orcid.org/0000-0003-3001-676X-extra"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert "matched by name" in findings[0].message
 
 
-def test_both_lookups_failing_keeps_plain_tn102_message(
+def test_both_lookups_failing_keeps_plain_r102_message(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A TN102 finding is untouched when every suggestion lookup fails."""
+    """An R102 finding is untouched when every suggestion lookup fails."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/lynnej",
         body="Not found",
@@ -2319,7 +2319,7 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].severity is Severity.error
     assert findings[0].message == (
         "Author Lynne Jones has internal_id 'lynnej', which is not in the "
@@ -2402,13 +2402,13 @@ def test_ignored_rules_are_named_with_their_source(
 def test_ignored_author_rules_never_reach_the_author_database(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """Ignoring TN101-TN103 keeps the author database out of the run."""
+    """Ignoring R101-R103 keeps the author database out of the run."""
     context = _write_technote(
         tmp_path,
         CITABLE_TOML
         + """
 [technote.lint]
-ignore = ["TN101", "TN102", "TN103", "TN105"]
+ignore = ["R101", "R102", "R103", "TN105"]
 """,
     )
     assert TechnoteLintService(context).lint() == []
@@ -2570,12 +2570,12 @@ def test_command_line_ignore_combines_with_the_file(
 ignore = ["TN105"]
 """,
     )
-    service = TechnoteLintService(context, ignore=["TN101", "TN102", "TN103"])
+    service = TechnoteLintService(context, ignore=["R101", "R102", "R103"])
     assert service.lint() == []
     assert service.ignored_rules == [
-        IgnoredRule(code="TN101", source=IgnoreSource.cli),
-        IgnoredRule(code="TN102", source=IgnoreSource.cli),
-        IgnoredRule(code="TN103", source=IgnoreSource.cli),
+        IgnoredRule(code="R101", source=IgnoreSource.cli),
+        IgnoredRule(code="R102", source=IgnoreSource.cli),
+        IgnoredRule(code="R103", source=IgnoreSource.cli),
         IgnoredRule(code="TN105", source=IgnoreSource.toml),
     ]
     assert len(responses.calls) == 0
