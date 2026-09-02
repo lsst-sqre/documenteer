@@ -26,7 +26,8 @@ What gets generated
 ===================
 
 The Citation File Format allows only ``software`` or ``dataset`` as a file's top-level ``type``, and a technote is neither.
-The top level is therefore a stub describing the *repository*, and the technote itself is the file's ``preferred-citation`` — a ``report`` reference, which is what GitHub renders and what carries the DOI:
+The top level is therefore a stub describing the *repository*, and the technote itself is the file's ``preferred-citation`` — a ``report`` reference, which is what GitHub renders and what carries the technote's handle and publishing institution.
+The DOI and the release date are written in both places: not every tool reads ``preferred-citation``, and one that cites only the top-level record should still get a dated, identified citation.
 
 .. code-block:: yaml
    :caption: CITATION.cff
@@ -43,6 +44,8 @@ The top level is therefore a stub describing the *repository*, and the technote 
        affiliation: Rubin Observatory Project Office
    repository-code: https://github.com/lsst-sqre/sqr-000
    url: https://sqr-000.lsst.io/
+   doi: 10.71929/rubin/2570308
+   date-released: 2026-08-24
    preferred-citation:
      type: report
      title: The LSST DM Technical Note Publishing Platform
@@ -73,7 +76,7 @@ Each field is read from :file:`technote.toml`:
     ``technote.id``, the technote's handle within its series.
 
 ``doi``
-    ``technote.doi``, normalized to its bare ``10.NNNN/suffix`` form.
+    ``technote.doi``, normalized to its bare ``10.NNNN/suffix`` form, on both the top level and the preferred citation.
     A technote that has no DOI yet still generates a valid file; the ``doi`` field is simply omitted.
 
 ``institution``
@@ -83,7 +86,9 @@ Each field is read from :file:`technote.toml`:
     ``technote.canonical_url`` and ``technote.github_url``.
 
 ``date-released``
-    ``technote.date_updated``, falling back to ``technote.date_created``.
+    ``technote.date_updated``, the day the technote was last published, written on both the top level and the preferred citation.
+    A technote that declares no ``date_updated`` generates a file with no ``date-released`` at all, and the command says so — the Citation File Format requires the field at neither level, so an undated technote is written as undated rather than as dated to a day nobody published on.
+    ``technote.date_created`` is the day the technote was *started*, not the day it was released, and is never used for the citation.
 
 .. seealso::
 

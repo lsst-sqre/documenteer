@@ -279,6 +279,24 @@ def test_sync_cff_writes_and_is_idempotent(tmp_path: Path) -> None:
     assert cff_path.read_bytes() == written
 
 
+def test_sync_cff_warns_once_about_a_missing_date(tmp_path: Path) -> None:
+    """A technote dated only by its creation still generates a file, and the
+    command says once why that file carries no release date.
+    """
+    (tmp_path / "technote.toml").write_text(
+        CFF_TOML.replace(
+            "date_updated = 2026-08-24", "date_created = 2016-05-02T20:47:13Z"
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert result.output.count("declares no date_updated") == 1
+    assert "date-released" not in (tmp_path / "CITATION.cff").read_text()
+
+
 def test_sync_cff_check_absent(tmp_path: Path) -> None:
     """--check passes when no CITATION.cff exists: adoption is opt-in."""
     (tmp_path / "technote.toml").write_text(CFF_TOML)

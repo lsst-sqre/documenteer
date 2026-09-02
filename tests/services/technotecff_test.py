@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,17 @@ affiliations = ["Rubin Observatory"]
 )
 """A second author whose affiliations are strings rather than tables."""
 
+CREATED_ONLY_TOML = FULL_TOML.replace(
+    "date_updated = 2026-08-24", "date_created = 2016-05-02T20:47:13Z"
+)
+"""A technote dated only by the day it was started.
+
+This is the common case: most technotes never declare ``date_updated``, and
+``date_created`` is the day the document was begun, not the day it was
+published.
+"""
+
+
 STRING_TECHNOTE_TOML = 'technote = "SQR-000"\n'
 
 STRING_AUTHORS_TOML = """
@@ -82,6 +94,97 @@ title = "A technote"
 name = {given = "Jonathan", family = "Sick"}
 affiliations = "Rubin Observatory"
 """
+
+
+DOCS_PAGE = (
+    Path(__file__).parents[2] / "docs" / "technotes" / "citation-file.rst"
+)
+"""The technote guide page that shows an example CITATION.cff."""
+
+
+def read_documented_cff() -> str:
+    """Read the example :file:`CITATION.cff` the technote guide shows.
+
+    The page's example is captioned ``CITATION.cff``, which is what tells it
+    apart from the ``.pre-commit-config.yaml`` block further down.
+    """
+    lines = DOCS_PAGE.read_text(encoding="utf-8").splitlines()
+    block: list[str] = []
+    for line in lines[lines.index("   :caption: CITATION.cff") + 1 :]:
+        if not line.strip():
+            # The generated file has no blank lines in it, so the first one
+            # after the example has started ends the literal block.
+            if block:
+                break
+            continue
+        if not line.startswith("   "):
+            break
+        block.append(line[3:])
+    return "".join(f"{line}\n" for line in block)
+
+
+CFF_FILE_REQUIRED_KEYS = frozenset(
+    {"authors", "cff-version", "message", "title"}
+)
+"""The keys CFF 1.2.0 requires of a file's top-level record."""
+
+CFF_REFERENCE_REQUIRED_KEYS = frozenset({"authors", "title", "type"})
+"""The keys CFF 1.2.0 requires of a reference, ``preferred-citation``
+included."""
+
+CFF_FILE_TYPES = frozenset({"software", "dataset"})
+"""The only two values CFF 1.2.0 allows a file's top-level ``type``."""
+
+CFF_REFERENCE_TYPES = frozenset(
+    {"article", "dataset", "generic", "report", "software"}
+)
+"""The members of CFF 1.2.0's reference vocabulary this generator can write.
+
+CFF's own list is far longer; these are the ones a `CitationType` maps onto.
+"""
+
+
+def assert_valid_cff(document: object) -> None:
+    """Assert that a parsed CITATION.cff satisfies CFF 1.2.0.
+
+    cffconvert, the reference validator, is deliberately not a test
+    dependency: it pins ``jsonschema<4``, so adding it downgrades the
+    ``jsonschema`` the rest of the environment resolves — Jupyter's notebook
+    reader among it. This asserts the rules its schema states about the parts
+    of a file this generator writes: which keys a file and a reference must
+    carry, which types each allows, that every author names itself, and that
+    a date is a date. A field dropped from the generated shape is therefore
+    still caught.
+    """
+    assert isinstance(document, dict)
+    assert document["cff-version"] == "1.2.0"
+    assert not CFF_FILE_REQUIRED_KEYS - set(document)
+    assert document.get("type", "software") in CFF_FILE_TYPES
+    _assert_valid_cff_record(document)
+
+    reference = document.get("preferred-citation")
+    if reference is not None:
+        assert isinstance(reference, dict)
+        assert not CFF_REFERENCE_REQUIRED_KEYS - set(reference)
+        assert reference["type"] in CFF_REFERENCE_TYPES
+        _assert_valid_cff_record(reference)
+
+
+def _assert_valid_cff_record(record: dict[str, object]) -> None:
+    """Assert the constraints a file and a reference state alike."""
+    authors = record["authors"]
+    assert isinstance(authors, list)
+    assert authors
+    for author in authors:
+        assert isinstance(author, dict)
+        # A CFF entity names itself with `name`; a person with at least one
+        # of the name fields. Either way, an author with no name at all is a
+        # citation nobody is credited in.
+        assert author.keys() & {"name", "family-names", "given-names"}
+    if "date-released" in record:
+        assert isinstance(record["date-released"], date)
+    if "month" in record:
+        assert 1 <= record["month"] <= 12  # type: ignore[operator]
 
 
 def test_render_preferred_citation(tmp_path: Path) -> None:
@@ -348,3 +451,136 @@ def test_a_reduced_precision_date_is_written_as_year_and_month() -> None:
     assert "date-released" not in reference
     assert reference["year"] == 2022
     assert reference["month"] == 8
+
+
+def test_a_technote_dated_only_by_its_creation_carries_no_date(
+    tmp_path: Path,
+) -> None:
+    """``date_created`` is the day the technote was started, not the day it
+    was released, so a technote that declares only that one is written with
+    no release date at all — and says so, rather than dating the citation to
+    a day nobody published on.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(CREATED_ONLY_TOML)
+
+    service = TechnoteCffService.from_technote_toml(toml_path)
+    document = yaml.safe_load(service.render())
+
+    assert "date-released" not in document
+    reference = document["preferred-citation"]
+    assert "date-released" not in reference
+    assert "year" not in reference
+    assert len(service.warnings) == 1
+    assert "no date_updated" in service.warnings[0]
+
+
+def test_the_top_level_record_carries_the_doi_and_the_date(
+    tmp_path: Path,
+) -> None:
+    """A tool that reads only the top level — cffconvert, or Zenodo's GitHub
+    integration — gets a dated, identified record rather than an anonymous
+    one, so the DOI and release date the preferred citation carries are
+    mirrored above it.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(FULL_TOML)
+
+    document = yaml.safe_load(
+        TechnoteCffService.from_technote_toml(toml_path).render()
+    )
+
+    assert document["doi"] == "10.71929/rubin/2570308"
+    assert str(document["date-released"]) == "2026-08-24"
+
+
+def test_a_technote_without_a_doi_omits_it_from_the_top_level(
+    tmp_path: Path,
+) -> None:
+    """A technote that has no DOI yet mirrors nothing: the top level omits
+    the field rather than carrying an empty one.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(
+        FULL_TOML.replace('doi = "10.71929/rubin/2570308"\n', "")
+    )
+
+    document = yaml.safe_load(
+        TechnoteCffService.from_technote_toml(toml_path).render()
+    )
+
+    assert "doi" not in document
+    assert str(document["date-released"]) == "2026-08-24"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param(FULL_TOML, id="dated"),
+        pytest.param(CREATED_ONLY_TOML, id="undated"),
+    ],
+)
+def test_the_generated_file_is_valid_cff(tmp_path: Path, source: str) -> None:
+    """The generated file satisfies CFF 1.2.0 whether or not the technote
+    states a release date.
+
+    CFF requires ``date-released`` at neither level, so omitting the date a
+    technote never declared costs the file nothing.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(source)
+
+    document = yaml.safe_load(
+        TechnoteCffService.from_technote_toml(toml_path).render()
+    )
+
+    assert_valid_cff(document)
+
+
+def test_the_cff_assertion_catches_a_missing_required_key() -> None:
+    """The validity assertion has teeth: a file missing a key CFF 1.2.0
+    requires fails it, rather than passing everything handed to it.
+    """
+    document = {
+        "cff-version": "1.2.0",
+        "title": "A repository",
+        "type": "software",
+        "authors": [{"family-names": "Sick"}],
+    }
+
+    with pytest.raises(AssertionError):
+        assert_valid_cff(document)
+
+
+def test_the_documented_example_is_what_the_generator_writes(
+    tmp_path: Path,
+) -> None:
+    """The guide's example CITATION.cff is generated output rather than a
+    hand-written approximation of it, so a change to the generated shape
+    cannot leave the page describing a file Documenteer no longer writes.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(FULL_TOML)
+
+    rendered = TechnoteCffService.from_technote_toml(toml_path).render()
+
+    assert read_documented_cff() == rendered
+
+
+def test_a_date_updated_that_is_not_a_date_is_reported(
+    tmp_path: Path,
+) -> None:
+    """A ``date_updated`` written as text TOML does not read as a date is
+    named in the diagnostic, rather than reaching the citation as one.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(
+        FULL_TOML.replace("date_updated = 2026-08-24", 'date_updated = "soon"')
+    )
+
+    with pytest.raises(TechnoteCffError) as exc_info:
+        TechnoteCffService.from_technote_toml(toml_path)
+
+    assert "declares a date_updated that is not a date: soon" in str(
+        exc_info.value
+    )

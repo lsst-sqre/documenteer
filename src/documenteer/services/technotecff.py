@@ -224,6 +224,13 @@ class TechnoteCffService:
             subject="[[technote.authors]]",
             remedy=AUTHOR_TABLE_REMEDY,
         )
+        released_date = _released_date(technote)
+        if released_date is None:
+            warnings.append(
+                f"technote.toml declares no date_updated, so {CFF_FILENAME} "
+                "carries no release date. Add a date_updated field to the "
+                "[technote] table to date the citation."
+            )
         citation = Citation(
             title=title,
             # A technote is a report, and saying so here is what makes the
@@ -236,7 +243,7 @@ class TechnoteCffService:
                 for position, author in enumerate(authors, start=1)
             ),
             publisher=_text(organization.get("name")),
-            date=_released_date(technote),
+            date=released_date,
             url=_text(technote.get("canonical_url")),
             number=technote_id,
         )
@@ -260,8 +267,13 @@ class TechnoteCffService:
         ``dataset``, neither of which a technote is. The top level is
         therefore a stub describing the repository, and the technote itself
         is the ``preferred-citation`` — a ``report`` reference, which is
-        what GitHub renders and what carries the DOI, the series handle as
-        ``number``, and the publishing institution.
+        what GitHub renders and what carries the series handle as ``number``
+        and the publishing institution.
+
+        The DOI and the release date are written in *both* places. Not every
+        consumer reads ``preferred-citation``: cffconvert and Zenodo's GitHub
+        integration cite the top-level record, and would otherwise produce an
+        undated, DOI-less citation of a document that has both.
         """
         document: dict[str, Any] = {
             "cff-version": CFF_VERSION,
@@ -276,6 +288,16 @@ class TechnoteCffService:
             document["repository-code"] = self.repository_url
         if self.citation.url:
             document["url"] = self.citation.url
+        if self.citation.doi:
+            document["doi"] = self.citation.doi
+        released = _full_date(self.citation)
+        if released is not None:
+            # A top-level record states its date only as `date-released`, a
+            # full calendar date; the `year`/`month` spelling that carries a
+            # reduced-precision date is a reference's alone. Such a date is
+            # therefore left to `preferred-citation`, which can state it
+            # without rounding it to a day.
+            document["date-released"] = released
         document["preferred-citation"] = self._reference()
 
         body = yaml.dump(
@@ -353,7 +375,7 @@ class TechnoteCffService:
             # but which a `Citation` can carry — is written as the `year` and
             # `month` a CFF reference states such a date with instead. Either
             # spelling reads back at the precision it was written at.
-            released = citation.date.to_date()
+            released = _full_date(citation)
             if released is not None:
                 reference["date-released"] = released
             else:
@@ -361,6 +383,18 @@ class TechnoteCffService:
                 if citation.date.month is not None:
                     reference["month"] = citation.date.month
         return reference
+
+
+def _full_date(citation: Citation) -> date | None:
+    """Express a citation's date as the full calendar date CFF wants.
+
+    `None` when the citation is undated, or dated only to a year or a month:
+    CFF's ``date-released`` has no way to say so, and rounding such a date to
+    a day would publish a precision its source never stated.
+    """
+    if citation.date is None:
+        return None
+    return citation.date.to_date()
 
 
 def _cff_author(author: CitationAuthor) -> dict[str, str]:
@@ -437,28 +471,30 @@ def _released_date(technote: Mapping[str, Any]) -> PartialDate | None:
     """Determine the technote's release date.
 
     ``date_updated`` is the date the technote was last published, and is
-    therefore the date the citation is to; ``date_created`` stands in for a
-    technote that has never been updated. Either is a full date, so a
+    therefore the date the citation is to. It is a full date, so a dated
     technote's citation is always dated to the day.
+
+    ``date_created`` is deliberately *not* consulted: it is the day the
+    technote was started, which is neither the day it was published nor the
+    day it was last revised. Most technotes declare only that one, so reading
+    it would silently date almost every citation to a day nothing happened
+    on. A technote whose ``date_updated`` is undeclared is written with no
+    release date at all, and the caller reports the omission.
     """
-    for field in ("date_updated", "date_created"):
-        value = technote.get(field)
-        if value is None:
-            continue
-        if isinstance(value, datetime):
-            return PartialDate.from_date(value.date())
-        if isinstance(value, date):
-            return PartialDate.from_date(value)
-        try:
-            return PartialDate.from_date(
-                datetime.fromisoformat(str(value)).date()
-            )
-        except ValueError as e:
-            raise TechnoteCffError(
-                f"technote.toml declares a {field} that is not a date: "
-                f"{value}."
-            ) from e
-    return None
+    value = technote.get("date_updated")
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return PartialDate.from_date(value.date())
+    if isinstance(value, date):
+        return PartialDate.from_date(value)
+    try:
+        return PartialDate.from_date(datetime.fromisoformat(str(value)).date())
+    except ValueError as e:
+        raise TechnoteCffError(
+            "technote.toml declares a date_updated that is not a date: "
+            f"{value}."
+        ) from e
 
 
 def _table(value: Any, *, subject: str, remedy: str) -> Mapping[str, Any]:
