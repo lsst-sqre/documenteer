@@ -29,6 +29,7 @@ from documenteer.citations import (
     OrganizationAuthor,
     PartialDate,
     PersonAuthor,
+    normalize_citation_url,
 )
 
 __all__ = [
@@ -92,8 +93,8 @@ class CitationCffParseError(CitationCffError):
 
     This covers a file that is not YAML at all, one whose YAML is not the
     mapping CFF describes, one whose ``preferred-citation`` is not a
-    reference, one that names no work, and one that declares something that
-    is not a DOI.
+    reference, one that names no work, one that declares something that is
+    not a DOI, and one whose landing page is not an absolute URL.
     """
 
 
@@ -124,8 +125,9 @@ def read_citation_cff(
         Raised if no file exists at ``path``.
     CitationCffParseError
         Raised if the file is not parseable as CITATION.cff, declares a
-        ``preferred-citation`` that is not a reference, names no work, or
-        declares something that is not a DOI.
+        ``preferred-citation`` that is not a reference, names no work,
+        declares something that is not a DOI, or states a landing page that
+        is not an absolute URL.
 
     Notes
     -----
@@ -226,14 +228,14 @@ def read_citation_cff(
             # states only the repository — the shape of a CFF file written
             # for a package that has never been given a DOI — is located by
             # it, which is how CFF and GitHub cite such a package.
-            url=_text(source.get("url"))
-            or _text(source.get("repository-code")),
+            url=_url(source),
             number=_text(source.get("number")),
         )
     except ValueError as e:
-        # Citation normalizes the DOI on construction, and raises a
-        # ValueError that names the offending value but not the file it came
-        # from. The path is what a reader needs to fix it.
+        # `_url` validates the landing page, and Citation normalizes the DOI
+        # on construction; each raises a ValueError that names the offending
+        # value and its field but not the file it came from. The path is what
+        # a reader needs to fix it.
         raise CitationCffParseError(f"{path} is not citable: {e}") from e
 
 
@@ -296,6 +298,25 @@ def _citation_type(source: Mapping[str, Any]) -> CitationType | None:
     if declared is None:
         return None
     return CITATION_TYPES.get(declared.casefold())
+
+
+def _url(source: Mapping[str, Any]) -> str | None:
+    """Resolve the work's landing page from ``url`` or ``repository-code``,
+    validated as a URL a citation can link.
+
+    ``_text`` has already reduced a blank field to `None`, so what is left to
+    check is that the value is absolute: CFF declares both fields as URIs,
+    but nothing in a hand-written file enforces it, and a scheme-less value
+    would reach a site's footer as a link relative to the page being
+    rendered. Validating it here, where the file is read, is what makes a
+    landing page from a CFF file land in the same shape as one written
+    inline in documenteer.toml.
+    """
+    for field in ("url", "repository-code"):
+        value = _text(source.get(field))
+        if value is not None:
+            return normalize_citation_url(value, field=field)
+    return None
 
 
 def _doi(source: Mapping[str, Any]) -> str | None:

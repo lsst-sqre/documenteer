@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from typing import Any
+from urllib.parse import urlparse
 
 __all__ = [
     "BibtexEntryType",
@@ -37,6 +38,7 @@ __all__ = [
     "compose_landing_page_jsonld",
     "compose_page_jsonld",
     "doi_url",
+    "normalize_citation_url",
     "normalize_doi",
     "normalize_orcid",
     "orcid_url",
@@ -57,6 +59,15 @@ DOI_PREFIXES = (
 
 DOI_RESOLVER = "https://doi.org/"
 """The base URL of the DOI resolver."""
+
+CITATION_URL_SCHEMES = ("http", "https")
+"""The URL schemes a citation's landing page may be written in.
+
+A landing page is somewhere a reader is sent and a metadata consumer
+dereferences, so it has to be a URL that resolves over the web. Every other
+scheme — ``ftp:``, ``mailto:``, a bare ``file:`` path — names something a
+citation cannot link to.
+"""
 
 ORCID_RESOLVER = "https://orcid.org/"
 """The base URL of the ORCID resolver."""
@@ -210,6 +221,63 @@ def doi_url(doi: str) -> str:
         Raised if the value is not a syntactically-valid DOI.
     """
     return f"{DOI_RESOLVER}{normalize_doi(doi)}"
+
+
+def normalize_citation_url(value: str, *, field: str = "url") -> str:
+    """Normalize a citation's landing-page URL, rejecting one that could not
+    be linked.
+
+    Parameters
+    ----------
+    value
+        The landing page, as a source wrote it. Surrounding whitespace is
+        stripped.
+    field
+        The name of the field the value came from, so that the error names
+        the field a reader has to fix. It defaults to ``url``, which is what
+        both ``[[project.citations]]`` and CITATION.cff call it.
+
+    Returns
+    -------
+    str
+        The URL with its surrounding whitespace removed.
+
+    Raises
+    ------
+    ValueError
+        Raised if the value is blank, or is not an absolute ``http`` or
+        ``https`` URL.
+
+    Notes
+    -----
+    This is validation rather than repair, because there is no spelling to
+    repair *into*: a scheme-less ``github.com/lsst/daf_butler`` could mean
+    either scheme, and guessing would publish a landing page the
+    configuration never stated. Left alone it is worse than rejected:
+    ``Citation.location`` hands it to a template verbatim, where it becomes a
+    link relative to the page being rendered and a relative IRI as a JSON-LD
+    node's ``@id``.
+
+    Blankness is checked first and separately because a blank value is the
+    one that otherwise passes silently: it is truthy, so it satisfies every
+    "is a URL set?" test a caller makes, and only reduces to nothing at the
+    point where a citation is composed (see `_clean`) — yielding a citation
+    with no location at all rather than an error.
+    """
+    url = value.strip()
+    if not url:
+        raise ValueError(
+            f"The citation {field} is empty. Set it to the work's landing "
+            "page, as an absolute http or https URL, or drop it."
+        )
+    parsed = urlparse(url)
+    if parsed.scheme not in CITATION_URL_SCHEMES or not parsed.netloc:
+        raise ValueError(
+            f"The citation {field} ({value}) is not an absolute URL. Write "
+            "the work's landing page as an http or https URL, such as "
+            "https://github.com/lsst/daf_butler."
+        )
+    return url
 
 
 def _reduce_identifier(value: str) -> str:
@@ -1304,7 +1372,12 @@ def compose_page_jsonld(
         node = _citation_node(
             citation, url_override=_page_node_url(citation, page_url)
         )
-        if part_of is not None and not citation.get("is_self"):
+        if part_of is not None:
+            # No node here can be the whole it is a part of: a citation
+            # reaches this function by claiming a ``page``, and the
+            # configuration rejects an entry that claims both a page and
+            # ``self`` (see `CitationModel.validate_self_claims_no_page`), so
+            # the site's own citation is never one of these.
             node["isPartOf"] = dict(part_of)
         nodes.append(node)
     document: dict[str, Any]

@@ -416,8 +416,12 @@ It is what locates a work that has *no* DOI, such as a package or a dataset that
 
 Such a citation renders exactly as one with a DOI does, ending in a link to this URL instead of to doi.org, and its BibTeX entry carries a ``url`` field and no ``doi``.
 
+The value has to be an absolute ``http`` or ``https`` URL; a blank one, or one written without a scheme (``github.com/lsst/daf_butler``), fails the build.
+Both are values a reader cannot be sent to: a blank one renders as a citation with no link at all, and a scheme-less one is read as a path relative to whichever page carries the citation.
+
 If :ref:`cff <guide-project-citations-cff>` is set, the file supplies this field from its ``url``, or from its ``repository-code`` when it states no landing page — which is how a CFF file that has never carried a DOI locates the software it describes.
 Setting it here overrides the file's value.
+Either field of the file has to be an absolute URL for the same reason, and a blank one in the file is read as no landing page at all rather than as one.
 
 .. _guide-project-citations-cff:
 

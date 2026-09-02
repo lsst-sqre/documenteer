@@ -292,6 +292,43 @@ def test_invalid_doi(tmp_path: Path) -> None:
         read_citation_cff(path)
 
 
+def test_blank_url_falls_back_to_repository_code(tmp_path: Path) -> None:
+    """A ``url`` that holds only whitespace states no landing page, so the
+    record is located by its repository as one that omits the field is.
+
+    Every CFF field is read through the same reduction, which treats a value
+    that collapses to nothing as absent — so a blank one never reaches a
+    citation as a location that composes to no link.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\ntitle: A package\ntype: software\n"
+        'url: "   "\n'
+        "repository-code: https://github.com/lsst/package\n"
+    )
+
+    assert read_citation_cff(path).url == "https://github.com/lsst/package"
+
+
+def test_schemeless_url_rejected(tmp_path: Path) -> None:
+    """A landing page written without a scheme raises an error naming the
+    path, rather than reaching a rendered citation as a relative link.
+
+    A CFF ``url`` and ``repository-code`` are both declared as URIs by the
+    format's own schema, so a scheme-less one is already an invalid file; the
+    reader says so rather than passing it through to a site's footer, where
+    it would resolve against whatever page is being rendered.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\ntitle: A package\ntype: software\n"
+        "repository-code: github.com/lsst/package\n"
+    )
+
+    with pytest.raises(CitationCffParseError, match="not an absolute URL"):
+        read_citation_cff(path)
+
+
 def test_errors_share_a_base_class(tmp_path: Path) -> None:
     """Every failure is a CitationCffError, so a caller that only wants to
     report the path can catch one type.

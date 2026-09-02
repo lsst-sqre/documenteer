@@ -766,6 +766,42 @@ def test_citations_without_doi_or_url_rejected() -> None:
     assert "Set doi or url" in message
 
 
+EXAMPLE_CITATIONS_CFF_BLANK_URL = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+label = "Software"
+"""
+
+
+def test_citations_cff_blank_url_is_no_location(tmp_path: Path) -> None:
+    """A CITATION.cff whose url holds only whitespace supplies no landing
+    page, so an entry reading it and declaring no DOI is rejected as
+    unlocatable rather than building a citation that renders without a link.
+
+    The reader treats every field that collapses to nothing as absent, so a
+    blank one arrives here as `None` — the same shape the field validator
+    guarantees for a url written inline — and the entry falls to the check
+    that names both fields.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        'cff-version: 1.2.0\ntitle: A package\ntype: software\nurl: "   "\n'
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_BLANK_URL, root_dir=docs_dir
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    assert "neither a DOI nor a URL" in str(exc_info.value)
+
+
 EXAMPLE_CITATIONS_SELF_WITHOUT_DOI = """
 
 [project]
@@ -811,6 +847,65 @@ def test_citations_url_stands_in_for_a_doi() -> None:
 
     (entry,) = config.citations
     assert entry.citation.doi is None
+    assert entry.citation.url == "https://github.com/lsst/daf_butler"
+
+
+CITATION_URL_TEMPLATE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example Software"
+url = "{value}"
+"""
+
+
+@pytest.mark.parametrize(
+    ("written", "match"),
+    [
+        ("", "url is empty"),
+        ("  ", "url is empty"),
+        ("github.com/lsst/daf_butler", "is not an absolute URL"),
+        ("/datasets/dp1", "is not an absolute URL"),
+        ("ftp://example.org/dp1.tar", "is not an absolute URL"),
+    ],
+)
+def test_citations_unlinkable_url_rejected(written: str, match: str) -> None:
+    """A url that is not an absolute http(s) URL is rejected when the
+    configuration loads, rather than reaching a rendered citation.
+
+    A blank one is the case that would otherwise pass silently: it is truthy,
+    so it satisfies the entry-level check that a work is locatable, and only
+    reduces to nothing where the citation is composed -- a plain-text
+    citation ending in a bare period, a BibTeX entry with neither ``url`` nor
+    ``doi``, and a JSON-LD node with no ``@id``. A scheme-less or root-
+    relative one is read as a path instead: the footer and the citation card
+    link it relative to whatever page is being rendered, and it reaches the
+    JSON-LD node as a relative IRI.
+    """
+    with pytest.raises(ConfigError, match=match):
+        DocumenteerConfig.load(CITATION_URL_TEMPLATE.format(value=written))
+
+
+EXAMPLE_CITATIONS_PADDED_URL = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example Software"
+url = "  https://github.com/lsst/daf_butler  "
+"""
+
+
+def test_citations_url_is_stripped() -> None:
+    """Whitespace around a url is removed, so the value the locatable check
+    sees is the value the citation renders.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PADDED_URL)
+
+    (entry,) = config.citations
     assert entry.citation.url == "https://github.com/lsst/daf_butler"
 
 

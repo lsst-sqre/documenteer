@@ -38,6 +38,7 @@ from ..citations import (
     PartialDate,
     PersonAuthor,
     compose_landing_page_jsonld,
+    normalize_citation_url,
     normalize_doi,
 )
 from ..storage.citationcff import CitationCffError, read_citation_cff
@@ -278,9 +279,10 @@ class CitationModel(BaseModel):
     url: str | None = Field(
         None,
         description=(
-            "The work's landing page, which locates a work that has no DOI. "
-            "A ``cff`` file supplies one from its ``url``, or from its "
-            "``repository-code`` when it states no landing page."
+            "The work's landing page, which locates a work that has no DOI, "
+            "as an absolute http or https URL. A ``cff`` file supplies one "
+            "from its ``url``, or from its ``repository-code`` when it "
+            "states no landing page."
         ),
     )
 
@@ -398,6 +400,22 @@ class CitationModel(BaseModel):
         if v is None:
             return None
         return normalize_doi(v)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str | None) -> str | None:
+        """Strip the landing-page URL, rejecting one that could not be
+        linked.
+
+        The value is validated here, where it is written, rather than where a
+        citation is composed, so that the entry-level check for a locatable
+        work sees the same URL the site would render. A blank one is the case
+        that motivates it: it is truthy, so it passes that check, and then
+        composes to no link at all.
+        """
+        if v is None:
+            return None
+        return normalize_citation_url(v)
 
     @field_validator("date", mode="before")
     @classmethod
