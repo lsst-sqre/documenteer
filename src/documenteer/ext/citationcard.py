@@ -1,10 +1,18 @@
-"""``citation-card`` directive for displaying a user guide's citation.
+"""Page surfaces that display a user guide's citations: the ``citation-card``
+directive and the ``doi`` role.
 
 A site published with a DOI is that DOI's landing page, and DataCite asks a
 landing page to show a full bibliographic citation with the DOI written as a
-resolvable ``https://doi.org/`` link. This directive is the page-level surface
-that does it: it renders one of the site's ``[[project.citations]]`` entries as
-a card carrying the citation, the entry's label, and its note.
+resolvable ``https://doi.org/`` link. The ``citation-card`` directive is the
+block-level surface that does it: it renders one of the site's
+``[[project.citations]]`` entries as a card carrying the citation, the entry's
+label, and its note.
+
+A card is a block, so a page that only needs to *mention* a work -- the first
+bullet of an access list, a cell of a product table, a sentence pointing at the
+paper -- cannot use one. That is the ``doi`` role: it links a declared entry's
+DOI inline, from the same context the card reads, so such a mention stops being
+a hand-written URL that drifts from the entry it names.
 
 The citations themselves are composed once, by the guide configuration preset,
 and published into Sphinx's ``html_context`` as ``documenteer_citations`` and
@@ -26,7 +34,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from docutils import nodes
 from docutils.parsers.rst import directives
 from sphinx.util import logging
-from sphinx.util.docutils import SphinxDirective
+from sphinx.util.docutils import SphinxDirective, SphinxRole
+from sphinx.util.nodes import split_explicit_title
 
 from ..version import __version__
 
@@ -37,7 +46,7 @@ if TYPE_CHECKING:
     from sphinx.util.typing import ExtensionMetadata
     from sphinx.writers.html5 import HTML5Translator
 
-__all__ = ["CitationCard", "citation_bibtex", "setup"]
+__all__ = ["CitationCard", "CitationDoiRole", "citation_bibtex", "setup"]
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +63,18 @@ unresolvable card from failing a ``-W`` build.
 
 CARD_CLASS = "documenteer-citation-card"
 """The block class of the rendered card; its parts are BEM elements of it."""
+
+NO_CITATIONS_MESSAGE = (
+    "this site declares no citations, so there is nothing to render. "
+    "Describe the work this site is the landing page for in a "
+    "[[project.citations]] entry in documenteer.toml."
+)
+"""What every surface says when the site declares no citations at all.
+
+Both surfaces say it in the same words because it is the same problem with the
+same fix, and a reader who meets it from a card and from a role should not have
+to work out that the two warnings mean one thing.
+"""
 
 BIBTEX_SUMMARY = "BibTeX"
 """The label of the disclosure that holds a citation's BibTeX entry."""
@@ -125,11 +146,7 @@ class CitationCard(SphinxDirective):
         """
         citations = self._citations()
         if not citations:
-            self._warn(
-                "this site declares no citations, so there is nothing to "
-                "render. Describe the work this site is the landing page "
-                "for in a [[project.citations]] entry in documenteer.toml."
-            )
+            self._warn(NO_CITATIONS_MESSAGE)
             return None
 
         if label is None:
@@ -148,14 +165,10 @@ class CitationCard(SphinxDirective):
                 )
             return preferred
 
-        for citation in citations:
-            if citation.get("label") == label:
-                return citation
-        self._warn(
-            f'no citation is labelled "{label}". This site\'s citations are '
-            f"labelled {_describe_labels(citations)}."
-        )
-        return None
+        citation = _find_citation(citations, label)
+        if citation is None:
+            self._warn(_unknown_label_message(label, citations))
+        return citation
 
     def _build_card(self, citation: dict[str, Any]) -> nodes.Element:
         """Compose the card's node tree from one citation's context."""
@@ -203,13 +216,80 @@ class CitationCard(SphinxDirective):
 
     def _warn(self, message: str) -> None:
         """Log a warning about this directive, located at its own source."""
-        logger.warning(
-            "citation-card: %s",
-            message,
-            location=self.get_location(),
-            type=WARNING_TYPE,
-            subtype=WARNING_SUBTYPE,
-        )
+        _warn("citation-card", message, self.get_location())
+
+
+class CitationDoiRole(SphinxRole):
+    """Link one of the site's citations by its DOI, inline.
+
+    ``:doi:`Dataset``` renders the entry labelled "Dataset" as a link to its
+    DOI whose text is the resolvable ``https://doi.org/`` URL, which is how
+    the Crossref and DataCite display guidelines ask a DOI to be shown. The
+    standard ``text <target>`` spelling, ``:doi:`the DP2 paper <Paper>```,
+    puts custom text on the same link, for the sentence that needs to read as
+    prose rather than as an identifier.
+
+    The role always names a label -- there is no default entry -- because a
+    role appears mid-sentence, where an implicit subject would be a guess at
+    which of the site's works the sentence is about. Labels are matched
+    exactly and case-sensitively against ``documenteer_citations``, the same
+    lookup `CitationCard` does.
+
+    The output is a single `docutils.nodes.reference`, so the role composes
+    wherever inline markup does: prose, a list item, a table cell, a MyST
+    ``{doi}`` role, and the body of a ``.. |name| replace::`` substitution
+    definition. It is a link and nothing more -- no BibTeX, no note, no
+    author-year text -- because those belong to the surfaces that display the
+    whole record.
+
+    Notes
+    -----
+    An entry that declares no DOI warns and renders unlinked text, even when
+    the entry is located by a ``url``. The role's name is its contract: a
+    reader who follows a ``:doi:`` link expects to arrive at a DOI, and in the
+    role's default spelling the link's *text* is the DOI, so linking a
+    ``https://github.com/...`` landing page under this role would display that
+    URL as though it were one. Such an entry is linked with ordinary hyperlink
+    syntax, or displayed with a ``citation-card``, which shows whichever
+    location the entry has.
+    """
+
+    def run(self) -> tuple[list[nodes.Node], list[nodes.system_message]]:
+        """Run the ``doi`` role."""
+        has_title, title, label = split_explicit_title(self.text)
+        label = label.strip()
+        citation = self._select(label)
+        doi_url = citation.get("doi_url") if citation else None
+        if doi_url is None:
+            # The warning has already been logged; leaving the text in place
+            # keeps the sentence that holds the role readable, which a
+            # missing or half-built link would not.
+            return [nodes.Text(title if has_title else label)], []
+        text = title if has_title else doi_url
+        return [nodes.reference("", text, refuri=doi_url, internal=False)], []
+
+    def _select(self, label: str) -> dict[str, Any] | None:
+        """Choose the citation to link, warning and returning `None` when no
+        entry answers with a DOI.
+        """
+        citations = self.config.html_context.get("documenteer_citations") or []
+        if not citations:
+            self._warn(NO_CITATIONS_MESSAGE)
+            return None
+
+        citation = _find_citation(citations, label)
+        if citation is None:
+            self._warn(_unknown_label_message(label, citations))
+            return None
+
+        if not citation.get("doi_url"):
+            self._warn(_no_doi_message(label, citation))
+            return None
+        return citation
+
+    def _warn(self, message: str) -> None:
+        """Log a warning about this role, located at its own source."""
+        _warn("doi role", message, self.get_location())
 
 
 def _build_bibtex(bibtex: str) -> citation_bibtex:
@@ -272,6 +352,70 @@ def depart_citation_bibtex_fallback(
     """Leave the node on a builder that rendered the literal block."""
 
 
+def _find_citation(
+    citations: Sequence[dict[str, Any]], label: str
+) -> dict[str, Any] | None:
+    """Return the declared citation carrying this label, or `None`.
+
+    Matching is exact and case-sensitive. A label is a short display string an
+    author writes in :file:`documenteer.toml` and copies into a page, so a
+    near-miss is a typo in one of the two places, and matching it loosely
+    would render a citation the page did not ask for.
+
+    Both surfaces resolve a label through here, so a label that selects a card
+    always selects the same entry for a role.
+    """
+    for citation in citations:
+        if citation.get("label") == label:
+            return citation
+    return None
+
+
+def _unknown_label_message(
+    label: str, citations: Sequence[dict[str, Any]]
+) -> str:
+    """Compose the warning for a label no declared citation carries."""
+    return (
+        f'no citation is labelled "{label}". This site\'s citations are '
+        f"labelled {_describe_labels(citations)}."
+    )
+
+
+def _no_doi_message(label: str, citation: dict[str, Any]) -> str:
+    """Compose the warning for an entry the ``doi`` role cannot link because
+    the entry declares no DOI.
+
+    The message names the entry's ``url`` when it has one, because that is the
+    link the author expected and the one they can write by hand instead.
+    """
+    url = citation.get("url")
+    located = (
+        f" It is located by url ({url}) rather than by a DOI." if url else ""
+    )
+    return (
+        f'the citation labelled "{label}" declares no DOI, so there is no '
+        f"DOI to link.{located} Give the entry a `doi`, or write the link "
+        "with ordinary hyperlink syntax, or render the whole entry with a "
+        "citation-card, which displays whichever location the entry has."
+    )
+
+
+def _warn(surface: str, message: str, location: Any) -> None:
+    """Log one surface's warning, at the source of the markup that caused it.
+
+    Every warning this extension logs carries the same type and subtype, so a
+    site suppresses the citation surfaces' warnings as one name.
+    """
+    logger.warning(
+        "%s: %s",
+        surface,
+        message,
+        location=location,
+        type=WARNING_TYPE,
+        subtype=WARNING_SUBTYPE,
+    )
+
+
 def _describe_labels(citations: Sequence[dict[str, Any]]) -> str:
     """Name the labels a directive argument can select, for a warning."""
     labels = [
@@ -283,7 +427,7 @@ def _describe_labels(citations: Sequence[dict[str, Any]]) -> str:
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:
-    """Set up the ``citation-card`` directive."""
+    """Set up the ``citation-card`` directive and the ``doi`` role."""
     # Every non-HTML format gets the pass-through pair, so that the node's
     # literal_block child renders and the builder never meets an unknown node.
     fallback = (
@@ -299,6 +443,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:
         texinfo=fallback,
     )
     app.add_directive("citation-card", CitationCard)
+    app.add_role("doi", CitationDoiRole())
 
     return {
         "version": __version__,

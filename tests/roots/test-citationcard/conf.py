@@ -15,7 +15,9 @@ from documenteer.citations import (
     PartialDate,
 )
 
-extensions = ["documenteer.ext.citationcard"]
+# myst_parser is here so the root can prove the role reaches a MyST
+# document as ``{doi}``; a guide gets it from the configuration preset.
+extensions = ["documenteer.ext.citationcard", "myst_parser"]
 
 exclude_patterns = ["_build"]
 
@@ -46,6 +48,19 @@ CITATIONS = [
             date=PartialDate(2025, 1, 15),
         ),
         label="Dataset",
+    ),
+    # Located by url rather than by a DOI, which is what a package that has
+    # never been deposited looks like. The ``doi`` role has nothing to link
+    # for it.
+    GuideCitation(
+        citation=Citation(
+            title="Citation Card Test Package",
+            url="https://github.com/lsst-sqre/documenteer",
+            authors=(RUBIN,),
+            publisher="Vera C. Rubin Observatory",
+            date=PartialDate(2025, 3, 4),
+        ),
+        label="Software",
     ),
 ]
 

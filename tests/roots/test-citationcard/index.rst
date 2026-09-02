@@ -12,4 +12,7 @@ The dataset the site documents, selected by label:
 .. toctree::
    :hidden:
 
+   roles
+   roles-myst
+   role-warnings
    unknown

@@ -7,17 +7,18 @@ Citations
 #########
 
 A site that is published with a DOI is that DOI's *landing page*, and a landing page is expected to show the reader a complete bibliographic citation with the DOI written as a resolvable ``https://doi.org/`` link.
-A guide displays its citations in two places:
+A guide displays its citations in three places:
 
 - The :ref:`site footer <guide-footer-citations>`, on every page.
 - A :ref:`citation card <guide-citation-card>`, wherever a page asks for one.
+- An :ref:`inline DOI link <guide-citation-doi-role>`, wherever a sentence, a bullet, or a table cell refers to one of the works.
 
-Both read the same citations, so the two can never disagree about what the site asks to be cited as.
+All three read the same citations, so they can never disagree about what the site asks to be cited as.
 
 Declaring the citations
 =======================
 
-Both surfaces render the citations the site declares in the :ref:`[[project.citations]] <guide-project-citations>` array of :file:`documenteer.toml`; neither carries bibliographic fields of its own.
+Every one of those surfaces renders the citations the site declares in the :ref:`[[project.citations]] <guide-project-citations>` array of :file:`documenteer.toml`; none carries bibliographic fields of its own.
 A site that documents a data release typically declares two citations — the release itself, which this site is the landing page for, and the paper that describes it:
 
 .. code-block:: toml
@@ -174,13 +175,96 @@ It is the page-level counterpart to the footer citations, and is the right tool 
    ``name``
        A cross-reference target for the card.
 
-Unresolvable cards
-==================
+.. _guide-citation-doi-role:
+
+Inline DOI links
+================
+
+A card is a block, so a page that only needs to *mention* a work — the first bullet of an access list, a cell in a table of data products, a sentence pointing at the paper — cannot use one.
+The ``doi`` role links a declared citation's DOI inline instead, reading the same :ref:`[[project.citations]] <guide-project-citations>` entries the card and the footer do.
+A page that would otherwise write ``https://doi.org/10.71929/rubin/3382539`` into a sentence by hand, or into a substitution that holds it, names the entry's label and gets whatever the configuration declares.
+
+.. role:: doi
+
+   Link one of the site's :ref:`[[project.citations]] <guide-project-citations>` entries by its DOI.
+
+   The role's content is the entry's :ref:`label <guide-project-citations-label>`, matched exactly and case-sensitively — the same way the :ref:`citation-card <guide-citation-card>` directive's argument is.
+   The link's text is the resolvable ``https://doi.org/`` URL, the form the Crossref and DataCite display guidelines ask for:
+
+   .. tab-set::
+
+      .. tab-item:: reStructuredText
+         :sync: rst
+
+         .. code-block:: rst
+
+            The catalog is published as :doi:`Object catalog`.
+
+      .. tab-item:: markdown
+         :sync: md
+
+         .. code-block:: markdown
+
+            The catalog is published as {doi}`Object catalog`.
+
+   **Custom link text**
+
+   The standard ``text <target>`` spelling puts your own words on the link, for a sentence that should read as prose rather than as an identifier:
+
+   .. tab-set::
+
+      .. tab-item:: reStructuredText
+         :sync: rst
+
+         .. code-block:: rst
+
+            For processing details see :doi:`the DP2 paper <Paper>`.
+
+      .. tab-item:: markdown
+         :sync: md
+
+         .. code-block:: markdown
+
+            For processing details see {doi}`the DP2 paper <Paper>`.
+
+   **Where it works**
+
+   The role renders one external hyperlink and nothing else, so it composes wherever inline markup does: a sentence, a list item, a table cell, and the body of a ``replace`` substitution definition.
+   A data product's "Access" list is the case it was added for:
+
+   .. code-block:: rst
+
+      Access
+      ------
+
+      * DOI: :doi:`Object catalog`
+      * TAP table name: ``dp02_dc2_catalogs.Object``
+
+   .. code-block:: rst
+
+      .. |dp2_paper| replace:: :doi:`the DP2 paper <Paper>`
+
+   There is no default entry: the role always names a label.
+   A role appears mid-sentence, where an implicit subject would be a guess at which of the site's works the sentence is about.
+
+The role is a link, and only a link — no note, no BibTeX entry, no author-year text.
+A page that *is* a work's landing page should therefore carry a :ref:`card <guide-citation-card>` for it and use the role only for short references elsewhere, since the card is what shows a reader the full citation and the entry they came for.
+
+Citing works that are *not* among the site's own declared citations — a bibliography of the literature a guide discusses — is not what this role is for, and is not yet supported.
+
+Unresolvable citations
+======================
 
 A card that names a label no entry carries — and a card with no argument on a site that names no preferred citation — renders nothing and emits a build warning naming the labels the site does declare.
 The warning about a missing default asks for ``preferred = true``, since that is the field a site sets when the citation to use is published elsewhere; ``self = true`` answers it too, for a site that really is its DOI's landing page.
 
-That warning carries the subtype ``documenteer.citation_card``, so a site that knowingly keeps such a card can stop it from failing a warnings-as-errors (``-W``) build:
+A ``doi`` role that names a label no entry carries warns the same way, and renders its target as unlinked text so the sentence around it still reads in the page that ships.
+
+A role whose entry declares no DOI warns too, rather than linking that entry's :ref:`url <guide-project-citations-url>`.
+The role's name is its contract: in the default spelling the link's *text* is the DOI, so linking a repository's landing page here would display that URL as though it were one.
+Link such a work with ordinary hyperlink syntax, or show it with a :ref:`card <guide-citation-card>`, which displays whichever location the entry has.
+
+Every one of those warnings carries the subtype ``documenteer.citation_card``, so a site that knowingly keeps an unresolved reference can stop it from failing a warnings-as-errors (``-W``) build:
 
 .. code-block:: python
 

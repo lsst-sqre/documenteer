@@ -99,7 +99,7 @@ The project's version, which is set to the standard Sphinx ``version`` and ``rel
 Sites that are published with a DOI can declare their citations in the ``[[project.citations]]`` array of tables.
 Documenteer uses them to make the site a proper DOI landing page: it renders a full bibliographic citation with the DOI as a resolvable ``https://doi.org/`` link, and emits machine-readable citation metadata in the page ``<head>``.
 
-A declared citation is displayed in the :ref:`site footer <guide-footer-citations>` on every page, and with the :ref:`citation-card <guide-citation-card>` directive, which renders it as a card wherever a page asks for one.
+A declared citation is displayed in the :ref:`site footer <guide-footer-citations>` on every page, with the :ref:`citation-card <guide-citation-card>` directive, which renders it as a card wherever a page asks for one, and with the :ref:`doi role <guide-citation-doi-role>`, which links its DOI inline.
 
 That head metadata is what a DOI registration agency, Google Scholar, Zotero, and Google Dataset Search read.
 Every page describes the :ref:`self <guide-project-citations-self>` citation with the full set of `Highwire <https://scholar.google.com/intl/en/scholar/inclusion.html>`__ meta tags — ``citation_title``, a ``citation_author`` per author with its ``citation_author_institution`` and ``citation_author_orcid``, ``citation_publication_date``, ``citation_doi``, ``citation_publisher``, and ``citation_fulltext_html_url`` — plus the Dublin Core ``DC.identifier`` (the DOI as a ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block describing the site, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
@@ -190,7 +190,7 @@ label
 |optional|
 
 A short label that distinguishes this citation from the site's others, such as ``"Dataset"`` or ``"Paper"``.
-It is the label shown on the citation's card, the argument the :ref:`citation-card <guide-citation-card>` directive selects an entry with, and the name a warning about a citation uses.
+It is the label shown on the citation's card, the argument the :ref:`citation-card <guide-citation-card>` directive selects an entry with, the target the :ref:`doi role <guide-citation-doi-role>` links, and the name a warning about a citation uses.
 It is a display string only: what a work *is* is declared with :ref:`type <guide-project-citations-type>`.
 
 .. _guide-project-citations-self:
