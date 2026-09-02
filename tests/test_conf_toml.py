@@ -976,6 +976,60 @@ def test_citations_duplicate_page_rejected() -> None:
         DocumenteerConfig.load(EXAMPLE_CITATIONS_DUPLICATE_PAGE)
 
 
+EXAMPLE_CITATIONS_SELF_WITH_PAGE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+self = true
+page = "products/catalogs/object"
+"""
+
+
+def test_citations_self_with_page_rejected() -> None:
+    """``self`` says the site is the DOI's landing page and ``page`` names a
+    landing page inside the site, so an entry that sets both states two
+    landing pages for one DOI.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_WITH_PAGE)
+
+    message = str(exc_info.value)
+    assert "self = true" in message
+    assert "page = 'products/catalogs/object'" in message
+
+
+EXAMPLE_CITATIONS_PREFERRED_WITH_PAGE = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Object"
+type = "dataset"
+page = "products/catalogs/object"
+title = "Object catalog"
+preferred = true
+"""
+
+
+def test_citations_preferred_with_page_allowed() -> None:
+    """``preferred`` and ``page`` are compatible: a site can ask readers to
+    cite a work whose landing page is one of its own pages.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED_WITH_PAGE)
+
+    preferred = config.preferred_citation
+    assert preferred is not None
+    assert preferred.label == "Object"
+    assert preferred.page == "products/catalogs/object"
+    assert preferred.is_self is False
+
+
 EXAMPLE_CITATIONS_EMPTY_PAGE = """
 
 [project]

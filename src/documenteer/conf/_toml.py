@@ -441,6 +441,30 @@ class CitationModel(BaseModel):
             )
         return f"{docname}#{fragment}" if fragment else docname
 
+    @model_validator(mode="after")
+    def validate_self_claims_no_page(self) -> Self:
+        """Reject an entry that claims both the site and a page inside it as
+        the DOI's landing page.
+
+        ``self`` and ``page`` answer the same question — where this DOI
+        resolves — so an entry that sets both states two landing pages for
+        one work, and the site would publish it at both. Asking readers to
+        cite a work documented on a page of this site is a different claim,
+        made with ``preferred``, which does combine with ``page``.
+        """
+        if self.is_self and self.page is not None:
+            raise ValueError(
+                "A [[project.citations]] entry sets both self = true and "
+                f"page = {self.page!r}, but a DOI has one landing page. "
+                "The self entry's landing page is the site itself, while "
+                "page names a landing page inside the site. Drop page from "
+                "the self entry, or drop self = true so the named page is "
+                "this DOI's landing page. To ask readers to cite a work "
+                "documented on a page of this site, set preferred = true "
+                "rather than self = true."
+            )
+        return self
+
     @property
     def page_docname(self) -> str | None:
         """The docname of the claimed page, without its fragment."""

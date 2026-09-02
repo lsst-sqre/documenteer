@@ -205,6 +205,9 @@ It is what makes every page of the site carry the DOI as its Highwire ``citation
 Set it only when doi.org really does send a reader here.
 A work published somewhere else — a journal article, a Zenodo record, a dataset in another archive — has that publisher's landing page, and marking it ``self`` tells a harvester this site is something it is not.
 
+``self`` and :ref:`page <guide-project-citations-page>` are mutually exclusive, and an entry that sets both fails the build.
+Both name where the DOI resolves: the ``self`` entry's landing page is the site itself, while ``page`` names a landing page inside the site, so setting both declares two landing pages for one work.
+
 Which citation the site asks readers to *use* is a separate question, answered by :ref:`preferred <guide-project-citations-preferred>`.
 The two coincide for a site that publishes its own DOI, so a ``self`` entry is also the preferred citation unless another entry claims that.
 
@@ -259,6 +262,9 @@ Setting it moves the entry's machine-readable metadata off every page and onto t
 It also says what the work *is* to the site: a claimed entry is a part of the site's own work rather than something the site cites, so the site-wide block names it in ``hasPart`` and the claimed page's block points back with ``isPartOf``.
 Every other page of the site is unaffected and keeps the :ref:`self <guide-project-citations-self>` citation's metadata.
 This is what a data release's documentation needs when each of its data products has a DOI of its own that resolves to the product's page; see :ref:`guide-citation-pages`.
+
+An entry cannot set both ``page`` and :ref:`self <guide-project-citations-self>`; the two are mutually exclusive, since the ``self`` entry's landing page is the site itself and ``page`` names a landing page inside it.
+Asking readers to cite a work whose landing page is one of this site's pages is a different claim, made with :ref:`preferred <guide-project-citations-preferred>`, which does combine with ``page``.
 
 The docname may be followed by ``#`` and a fragment identifier, naming a location within the page:
 
