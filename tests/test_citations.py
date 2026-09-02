@@ -17,6 +17,7 @@ from documenteer.citations import (
     OrganizationAuthor,
     PersonAuthor,
     compose_landing_page_jsonld,
+    compose_page_jsonld,
     doi_url,
     normalize_doi,
     orcid_url,
@@ -769,6 +770,148 @@ def test_landing_page_jsonld_cannot_break_out_of_a_script_element() -> None:
         json.loads(serialized)["name"]
         == '</script><img src=x onerror="alert(1)"> & "quoted"'
     )
+
+
+PAGE_URL = "https://guide.lsst.io/products/object.html"
+
+
+def _product_citation_context(
+    *, doi: str, title: str, fragment: str | None
+) -> dict[str, object]:
+    """Build the html_context mapping of a citation whose landing page is a
+    page inside the site.
+    """
+    return GuideCitation(
+        citation=Citation(
+            doi=doi,
+            title=title,
+            type=CitationType.dataset,
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+        ),
+        label=title,
+        page="products/object",
+        page_fragment=fragment,
+    ).to_html_context()
+
+
+def test_page_jsonld_describes_a_single_claiming_citation() -> None:
+    """A page a single citation claims is that citation's landing page, so
+    the citation is the document's own subject and its url is the page's own,
+    fragment included, rather than the doi.org redirect.
+    """
+    payload = json.loads(
+        compose_page_jsonld(
+            [
+                _product_citation_context(
+                    doi="10.71929/rubin/3382540",
+                    title="Object catalog (TAP)",
+                    fragment="tap",
+                )
+            ],
+            page_url=PAGE_URL,
+        )
+        or ""
+    )
+
+    assert payload["@context"] == "https://schema.org"
+    assert payload["@type"] == "Dataset"
+    assert payload["@id"] == "https://doi.org/10.71929/rubin/3382540"
+    assert payload["name"] == "Object catalog (TAP)"
+    assert payload["url"] == f"{PAGE_URL}#tap"
+    assert "@graph" not in payload
+
+
+def test_page_jsonld_graphs_several_claiming_citations() -> None:
+    """Two citations whose landing page is the same page are both the
+    document's subject, so neither is subordinated to the other: they are
+    emitted as a @graph, each keeping its own fragment.
+    """
+    payload = json.loads(
+        compose_page_jsonld(
+            [
+                _product_citation_context(
+                    doi="10.71929/rubin/3382539",
+                    title="Object catalog (Butler)",
+                    fragment="butler",
+                ),
+                _product_citation_context(
+                    doi="10.71929/rubin/3382540",
+                    title="Object catalog (TAP)",
+                    fragment="tap",
+                ),
+            ],
+            page_url=PAGE_URL,
+        )
+        or ""
+    )
+
+    assert payload["@context"] == "https://schema.org"
+    butler, tap = payload["@graph"]
+    assert butler["url"] == f"{PAGE_URL}#butler"
+    assert tap["url"] == f"{PAGE_URL}#tap"
+
+
+def test_page_jsonld_without_a_fragment_is_the_page_itself() -> None:
+    """A claim that names no fragment describes the whole page."""
+    payload = json.loads(
+        compose_page_jsonld(
+            [
+                _product_citation_context(
+                    doi="10.71929/rubin/3382539",
+                    title="Object catalog",
+                    fragment=None,
+                )
+            ],
+            page_url=PAGE_URL,
+        )
+        or ""
+    )
+
+    assert payload["url"] == PAGE_URL
+
+
+def test_page_jsonld_falls_back_to_the_doi_url() -> None:
+    """A site that declares no base_url cannot know the page's own URL, so
+    the node keeps the doi.org redirect it would carry anywhere else.
+    """
+    payload = json.loads(
+        compose_page_jsonld(
+            [
+                _product_citation_context(
+                    doi="10.71929/rubin/3382540",
+                    title="Object catalog (TAP)",
+                    fragment="tap",
+                )
+            ]
+        )
+        or ""
+    )
+
+    assert payload["url"] == "https://doi.org/10.71929/rubin/3382540"
+
+
+def test_page_jsonld_without_citations() -> None:
+    """A page no citation claims gets no block of its own."""
+    assert compose_page_jsonld([], page_url=PAGE_URL) is None
+
+
+def test_page_jsonld_cannot_break_out_of_a_script_element() -> None:
+    """The page block is escaped exactly as the site-wide one is."""
+    serialized = compose_page_jsonld(
+        [
+            _product_citation_context(
+                doi="10.71929/rubin/3382540",
+                title="Object catalog </script>& more",
+                fragment="tap",
+            )
+        ],
+        page_url=PAGE_URL,
+    )
+    assert serialized is not None
+    assert "<" not in serialized
+    assert ">" not in serialized
+    assert "&" not in serialized
+    assert json.loads(serialized)["name"] == "Object catalog </script>& more"
 
 
 @pytest.mark.parametrize(

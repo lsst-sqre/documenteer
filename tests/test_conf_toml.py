@@ -763,3 +763,145 @@ def test_citation_author_naming_rejected(example: str, match: str) -> None:
     """An author must be named either as an organization or as a person."""
     with pytest.raises(ConfigError, match=match):
         DocumenteerConfig.load(example)
+
+
+EXAMPLE_CITATIONS_PAGES = """
+
+[project]
+title = "Data Preview 2 Documentation"
+base_url = "https://dp2.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+self = true
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Object (Butler)"
+type = "dataset"
+page = "products/catalogs/object#butler"
+title = "Object catalog (Butler)"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+label = "Object (TAP)"
+type = "dataset"
+page = "/products/catalogs/object#tap"
+title = "Object catalog (TAP)"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382541"
+label = "Visit"
+type = "dataset"
+page = "products/catalogs/visit"
+title = "Visit table"
+"""
+
+
+def test_citations_page_claims() -> None:
+    """A page claim is split into the docname and its fragment, with a
+    leading slash on the docname dropped; an entry that claims no page
+    carries neither.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PAGES)
+
+    site, butler, tap, visit = config.citations
+    assert site.page is None
+    assert site.page_fragment is None
+    assert butler.page == "products/catalogs/object"
+    assert butler.page_fragment == "butler"
+    assert tap.page == "products/catalogs/object"
+    assert tap.page_fragment == "tap"
+    assert visit.page == "products/catalogs/visit"
+    assert visit.page_fragment is None
+
+
+def test_citations_page_in_html_context() -> None:
+    """The page claim reaches html_context, which is where the extension
+    that rewrites a claimed page's metadata reads it from.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PAGES)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    site, butler, _, visit = html_context["documenteer_citations"]
+    assert site["page"] is None
+    assert site["page_fragment"] is None
+    assert butler["page"] == "products/catalogs/object"
+    assert butler["page_fragment"] == "butler"
+    assert visit["page"] == "products/catalogs/visit"
+    assert visit["page_fragment"] is None
+
+
+EXAMPLE_CITATIONS_DUPLICATE_PAGE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog (Butler)"
+page = "products/object#tap"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+title = "Object catalog (TAP)"
+page = "products/object#tap"
+"""
+
+
+def test_citations_duplicate_page_rejected() -> None:
+    """Two entries that name the same docname *and* fragment claim the same
+    landing page, which no page can be for two DOIs.
+    """
+    with pytest.raises(ConfigError, match="products/object#tap"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_DUPLICATE_PAGE)
+
+
+EXAMPLE_CITATIONS_EMPTY_PAGE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+page = "#butler"
+"""
+
+EXAMPLE_CITATIONS_EMPTY_FRAGMENT = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+page = "products/object#"
+"""
+
+EXAMPLE_CITATIONS_TWO_FRAGMENTS = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+page = "products/object#butler#tap"
+"""
+
+
+@pytest.mark.parametrize(
+    ("example", "match"),
+    [
+        (EXAMPLE_CITATIONS_EMPTY_PAGE, "names no page"),
+        (EXAMPLE_CITATIONS_EMPTY_FRAGMENT, "empty fragment"),
+        (EXAMPLE_CITATIONS_TWO_FRAGMENTS, "more than one"),
+    ],
+)
+def test_citations_malformed_page_rejected(example: str, match: str) -> None:
+    """A page claim is a docname with at most one non-empty fragment."""
+    with pytest.raises(ConfigError, match=match):
+        DocumenteerConfig.load(example)

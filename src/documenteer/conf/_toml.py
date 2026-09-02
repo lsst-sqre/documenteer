@@ -301,6 +301,16 @@ class CitationModel(BaseModel):
         ),
     )
 
+    page: str | None = Field(
+        None,
+        description=(
+            "The page inside this site that is the DOI's registered landing "
+            "page, as a Sphinx docname with an optional fragment "
+            "(``products/catalogs/object#tap``). Unset means the site as a "
+            "whole is the landing page."
+        ),
+    )
+
     title: str | None = Field(None, description="The title of the cited work.")
 
     authors: list[CitationAuthorModel] = Field(
@@ -340,6 +350,53 @@ class CitationModel(BaseModel):
         if v is None:
             return None
         return normalize_doi(v)
+
+    @field_validator("page")
+    @classmethod
+    def validate_page(cls, v: str | None) -> str | None:
+        """Normalize the page claim to ``docname`` or ``docname#fragment``.
+
+        A Sphinx docname carries neither a leading slash nor a file
+        extension, so a leading slash — the spelling a reader borrows from a
+        URL — is dropped rather than rejected.
+        """
+        if v is None:
+            return None
+        docname, separator, fragment = v.strip().partition("#")
+        docname = docname.strip().lstrip("/")
+        fragment = fragment.strip()
+        if not docname:
+            raise ValueError(
+                f"The citation page {v!r} names no page. Write it as a Sphinx "
+                "docname, optionally followed by #fragment."
+            )
+        if separator and not fragment:
+            raise ValueError(
+                f"The citation page {v!r} has an empty fragment. Drop the "
+                "trailing # to claim the whole page."
+            )
+        if "#" in fragment:
+            raise ValueError(
+                f"The citation page {v!r} has more than one fragment. A page "
+                "claim names one location on one page."
+            )
+        return f"{docname}#{fragment}" if fragment else docname
+
+    @property
+    def page_docname(self) -> str | None:
+        """The docname of the claimed page, without its fragment."""
+        if self.page is None:
+            return None
+        return self.page.partition("#")[0]
+
+    @property
+    def page_fragment(self) -> str | None:
+        """The fragment of the claimed page, without its leading ``#``, or
+        `None` when the whole page is claimed.
+        """
+        if self.page is None:
+            return None
+        return self.page.partition("#")[2] or None
 
     @property
     def shows_in_footer(self) -> bool:
@@ -408,6 +465,32 @@ class ProjectModel(BaseModel):
                 "true, but a site is the landing page of at most one DOI. "
                 "Set self = true on one entry only."
             )
+        return v
+
+    @field_validator("citations")
+    @classmethod
+    def validate_distinct_citation_pages(
+        cls, v: list[CitationModel]
+    ) -> list[CitationModel]:
+        """Allow at most one citation to claim each page and fragment.
+
+        Several entries may claim the same page as long as each names its own
+        fragment, since a page can describe more than one work. Two entries
+        that name the same location, though, both claim to be what a reader
+        arriving there came for.
+        """
+        claimed: set[str] = set()
+        for citation in v:
+            if citation.page is None:
+                continue
+            if citation.page in claimed:
+                raise ValueError(
+                    "Two [[project.citations]] entries set page = "
+                    f"{citation.page!r}, but a page is the landing page of at "
+                    "most one DOI. Give each entry its own #fragment, or "
+                    "claim different pages."
+                )
+            claimed.add(citation.page)
         return v
 
 
@@ -1163,6 +1246,8 @@ class DocumenteerConfig:
             is_self=entry.is_self,
             in_footer=entry.shows_in_footer,
             note=entry.note,
+            page=entry.page_docname,
+            page_fragment=entry.page_fragment,
         )
 
     def _read_citation_cff(self, entry: CitationModel, index: int) -> Citation:

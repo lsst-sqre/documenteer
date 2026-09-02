@@ -6,7 +6,8 @@ footer — and every one of them composes the same bibliographic record. This
 module is the single implementation those surfaces share: a `Citation` value
 object with `~Citation.to_plain_text` and `~Citation.to_bibtex` composers, the
 identifier normalizers that give every DOI, ORCID, and ROR in Documenteer the
-same spelling, and the schema.org JSON-LD composer that makes a guide a
+same spelling, and the schema.org JSON-LD composers that make a guide — and,
+for a site that registers a page per work, each of those pages — a
 machine-readable DOI landing page.
 
 Composition is local and deterministic. Nothing here touches the network, so
@@ -33,6 +34,7 @@ __all__ = [
     "OrganizationAuthor",
     "PersonAuthor",
     "compose_landing_page_jsonld",
+    "compose_page_jsonld",
     "doi_url",
     "normalize_doi",
     "normalize_orcid",
@@ -726,6 +728,25 @@ class GuideCitation:
     note: str | None = None
     """Free text about when to use this citation, displayed alongside it."""
 
+    page: str | None = None
+    """The docname of the page inside the site that is this DOI's landing
+    page, or `None` when the site as a whole is.
+
+    A site can be the landing page of one DOI, but a site that publishes
+    several works can register a page of its own for each — a per-product page
+    in a data release's documentation, say. That page, rather than every page
+    of the site, is the one that carries this citation's machine-readable
+    metadata.
+    """
+
+    page_fragment: str | None = None
+    """The fragment identifier within `page` that names this work, without its
+    leading ``#``, or `None` when the whole page is the landing page.
+
+    Several works can share a page and be told apart by their fragments, which
+    is why the fragment is carried separately from the docname.
+    """
+
     def to_html_context(self) -> dict[str, Any]:
         """Express the citation as the mapping published into Sphinx's
         ``html_context``.
@@ -762,6 +783,8 @@ class GuideCitation:
             "is_self": self.is_self,
             "in_footer": self.in_footer,
             "note": self.note,
+            "page": self.page,
+            "page_fragment": self.page_fragment,
             "title": citation.title,
             "authors": [
                 _author_context(author) for author in citation.authors
@@ -839,17 +862,19 @@ def _author_node(author: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _citation_node(
-    citation: Mapping[str, Any], *, site_url: str | None = None
+    citation: Mapping[str, Any], *, url_override: str | None = None
 ) -> dict[str, Any]:
     """Express one citation, as `GuideCitation.to_html_context` carries it, as
     a schema.org node following DataCite's crosswalk.
+
+    ``url_override`` is the landing page the caller knows this citation to
+    have — the site's own URL for the self citation, or a page's URL for a
+    citation that claims one. It replaces the ``url`` the context carries,
+    which falls back to the doi.org redirect and so is of less use to a
+    consumer that has already arrived at the landing page.
     """
     node: dict[str, Any] = {"@type": _schema_type(citation)}
-    url = citation.get("url")
-    if citation.get("is_self") and site_url:
-        # The site is the DOI's landing page, so its own URL is more use to a
-        # consumer than the doi.org redirect that url falls back to.
-        url = site_url
+    url = url_override or citation.get("url")
     if citation.get("doi_url"):
         node["@id"] = citation["doi_url"]
         node["identifier"] = {
@@ -915,7 +940,13 @@ def compose_landing_page_jsonld(
     if not citations:
         return None
     nodes = [
-        _citation_node(citation, site_url=site_url) for citation in citations
+        _citation_node(
+            citation,
+            # Only the site's own citation has the site as its landing page;
+            # every other work keeps the location its own record names.
+            url_override=site_url if citation.get("is_self") else None,
+        )
+        for citation in citations
     ]
     self_index = next(
         (
@@ -935,6 +966,84 @@ def compose_landing_page_jsonld(
         ]
         if cited:
             document["citation"] = cited
+    return _serialize_jsonld(document)
+
+
+def compose_page_jsonld(
+    citations: Sequence[Mapping[str, Any]], *, page_url: str | None = None
+) -> str | None:
+    """Compose the citations that claim one page as that page's own
+    schema.org JSON-LD document, serialized ready to embed in a
+    ``<script type="application/ld+json">`` element.
+
+    Parameters
+    ----------
+    citations
+        The citations whose landing page this page is — the entries whose
+        `GuideCitation.page` names it — each as the mapping
+        `GuideCitation.to_html_context` composes, in declaration order.
+    page_url
+        The page's own absolute URL, without a fragment. Each node's ``url``
+        is this URL plus that citation's own fragment. `None` when the site
+        declares no base URL, in which case each node keeps the location its
+        record already carries (the doi.org redirect).
+
+    Returns
+    -------
+    str or None
+        The serialized JSON-LD document, or `None` when no citation claims
+        the page — such a page keeps the site-wide block instead.
+
+    Notes
+    -----
+    This is the per-page counterpart of `compose_landing_page_jsonld`. Where
+    that one describes the site, this one describes only the works registered
+    against this page, because those works' landing page is *this* page and a
+    consumer arriving from doi.org must find the DOI it came for at the top of
+    the document.
+
+    A single claiming citation is the document's own subject. Several are
+    emitted as a ``@graph``: they are peers on the page, told apart by their
+    fragments, and subordinating one to the others would misstate the page.
+    """
+    if not citations:
+        return None
+    nodes = [
+        _citation_node(
+            citation, url_override=_page_node_url(citation, page_url)
+        )
+        for citation in citations
+    ]
+    document: dict[str, Any]
+    if len(nodes) == 1:
+        document = {"@context": SCHEMA_ORG_CONTEXT, **nodes[0]}
+    else:
+        document = {"@context": SCHEMA_ORG_CONTEXT, "@graph": nodes}
+    return _serialize_jsonld(document)
+
+
+def _page_node_url(
+    citation: Mapping[str, Any], page_url: str | None
+) -> str | None:
+    """Build the URL of a page-claiming citation's node: the page's URL with
+    that citation's own fragment appended.
+
+    Returns `None` when the page's URL is unknown, leaving the node with the
+    location its own record carries.
+    """
+    if not page_url:
+        return None
+    fragment = citation.get("page_fragment")
+    return f"{page_url}#{fragment}" if fragment else page_url
+
+
+def _serialize_jsonld(document: Mapping[str, Any]) -> str:
+    """Serialize a JSON-LD document for embedding in a ``<script>`` element.
+
+    The characters that could close the element early are written as JSON
+    string escapes (see `_SCRIPT_ESCAPES`), so the result is safe to emit
+    verbatim.
+    """
     return json.dumps(
         document, ensure_ascii=False, separators=(",", ":")
     ).translate(_SCRIPT_ESCAPES)

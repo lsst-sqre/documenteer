@@ -103,6 +103,7 @@ A declared citation is displayed in the :ref:`site footer <guide-footer-citation
 
 That head metadata is what a DOI registration agency, Google Scholar, and Google Dataset Search read.
 Every page carries the :ref:`self <guide-project-citations-self>` citation's DOI as a Highwire ``citation_doi`` meta tag (bare) and a Dublin Core ``DC.identifier`` meta tag (as the ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block that describes the site and the works it cites, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
+An entry that names a :ref:`page <guide-project-citations-page>` inside the site moves its own metadata to that page instead.
 A site that declares no citations emits none of it.
 
 Because it is an *array* of tables, the table header is written with double brackets and repeated once per citation.
@@ -123,7 +124,7 @@ A site can cite more than one work — the documentation itself and the dataset 
 
 Each entry carries two kinds of field.
 The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, and :ref:`date <guide-project-citations-date>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>`).
-The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`in_footer <guide-project-citations-in-footer>`, and :ref:`note <guide-project-citations-note>`) say how the site displays the citation, and are only ever set here.
+The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`page <guide-project-citations-page>`, :ref:`in_footer <guide-project-citations-in-footer>`, and :ref:`note <guide-project-citations-note>`) say how the site displays the citation, and are only ever set here.
 
 .. _guide-project-citations-doi:
 
@@ -193,6 +194,52 @@ Default is ``false``, and at most one entry can set it to ``true``.
 
 The self citation is the one whose metadata the site emits in its ``<head>``, and the one that is shown by default where a citation is displayed.
 It is also the one entry that may omit :ref:`title <guide-project-citations-title>`, since the site's own :ref:`project.title <guide-project-title>` is then the title of the work.
+
+.. _guide-project-citations-page:
+
+page
+----
+
+|optional|
+
+The page inside this site that is the DOI's registered landing page, written as a Sphinx docname — the source file's path from the documentation root, without its file extension:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382539"
+   page = "products/catalogs/object"
+
+Default is unset, which means the site as a whole is the landing page.
+
+Setting it moves the entry's machine-readable metadata off every page and onto that one: the claimed page carries this entry's DOI as its Highwire ``citation_doi`` and Dublin Core ``DC.identifier`` meta tags, and a JSON-LD block describing this work at the page's own URL.
+Every other page of the site is unaffected and keeps the :ref:`self <guide-project-citations-self>` citation's metadata.
+This is what a data release's documentation needs when each of its data products has a DOI of its own that resolves to the product's page; see :ref:`guide-citation-pages`.
+
+The docname may be followed by ``#`` and a fragment identifier, naming a location within the page:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382540"
+   page = "products/catalogs/object#tap"
+
+Several entries may claim the same page, provided each names a different fragment — two products documented in two sections of one page, for example.
+Such a page describes both works in a JSON-LD ``@graph`` and emits *no* ``citation_doi`` or ``DC.identifier`` meta tag, because those tags carry one identifier each and the page is the landing page of more than one DOI.
+Two entries that name the same docname *and* the same fragment fail the build.
+
+The claim does not change what the site *displays*: :ref:`citation-card <guide-citation-card>` with no argument still renders the :ref:`self <guide-project-citations-self>` entry, and a page that wants to show its own citation names it by :ref:`label <guide-project-citations-label>`.
+
+A ``page`` naming a docname the project does not contain is a warning, not an error: the entry still appears everywhere else the site shows its citations, but no page carries its landing-page metadata.
+That warning carries the subtype ``documenteer.citation_page``, so a site that claims a page it has not written yet can keep it from failing a warnings-as-errors (``-W``) build:
+
+.. code-block:: python
+
+   # conf.py
+   suppress_warnings = ["documenteer.citation_page"]
+
+The page's URL comes from :ref:`project.base_url <guide-project-base-url>`.
+A site that sets no ``base_url`` cannot know it, so the JSON-LD node falls back to the ``https://doi.org/`` URL, as it does elsewhere; the meta tags are unaffected.
 
 .. _guide-project-citations-in-footer:
 

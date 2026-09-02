@@ -156,6 +156,68 @@ With the configuration above, the footer reads:
 
 A guide that declares no citations, and one whose entries all set ``in_footer = false``, renders no citations block at all.
 
+.. _guide-citation-pages:
+
+Landing pages inside the site
+=============================
+
+A site is the landing page of one DOI — the entry marked :ref:`self = true <guide-project-citations-self>` — and every page of it carries that DOI's metadata.
+A site that publishes *several* works can do better than that.
+Data Preview 2, for example, mints a DOI per data product, and each of those DOIs resolves to the product's own page inside ``dp2.lsst.io`` rather than to the site root.
+Those pages are the registered landing pages of those DOIs, so they, not the home page, should be the ones saying so.
+
+An entry says which page is its landing page with :ref:`page <guide-project-citations-page>`, a Sphinx docname:
+
+.. code-block:: toml
+
+   # documenteer.toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/2570308"
+   label = "Release"
+   type = "dataset"
+   self = true
+   title = "Data Preview 2"
+   publisher = "Vera C. Rubin Observatory"
+   date = 2025-06-30
+   authors = [{ name = "Vera C. Rubin Observatory" }]
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382539"
+   label = "Object catalog (Butler)"
+   type = "dataset"
+   page = "products/catalogs/object#butler"
+   title = "DP2 Object catalog"
+   publisher = "Vera C. Rubin Observatory"
+   date = 2025-06-30
+   authors = [{ name = "Vera C. Rubin Observatory" }]
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382540"
+   label = "Object catalog (TAP)"
+   type = "dataset"
+   page = "products/catalogs/object#tap"
+   title = "DP2 Object catalog"
+   publisher = "Vera C. Rubin Observatory"
+   date = 2025-06-30
+   authors = [{ name = "Vera C. Rubin Observatory" }]
+
+With that configuration, :file:`products/catalogs/object.html` describes the two catalog DOIs — each located at its own fragment, ``#butler`` and ``#tap`` — instead of the release DOI.
+Because the page is the landing page of two DOIs, it emits a JSON-LD ``@graph`` of both and no ``citation_doi`` or ``DC.identifier`` meta tag: those tags carry a single identifier, and the page has no single one to give.
+A page a single entry claims does emit them, carrying that entry's DOI.
+
+Every page no entry claims — the home page, the rest of the guide — is unchanged and keeps the release DOI's metadata.
+
+Claiming a page changes only the machine-readable metadata; the visible surfaces are unaffected.
+The footer still shows the same citations everywhere, and ``.. citation-card::`` with no argument still renders the ``self`` entry.
+A landing page that wants to show the citation a reader arriving from doi.org came for names it by label:
+
+.. code-block:: rst
+
+   .. citation-card:: Object catalog (TAP)
+
+A ``page`` value naming a docname the project does not contain — a renamed page, or a value written as a file path rather than a docname — emits a ``documenteer.citation_page`` warning and leaves the entry working everywhere else.
+
 Related metadata
 ================
 
