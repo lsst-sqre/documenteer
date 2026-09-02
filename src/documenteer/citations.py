@@ -16,6 +16,7 @@ the same metadata always yields byte-identical output during a Sphinx build.
 
 from __future__ import annotations
 
+import html
 import json
 import re
 import unicodedata
@@ -35,6 +36,7 @@ __all__ = [
     "OrganizationAuthor",
     "PartialDate",
     "PersonAuthor",
+    "compose_highwire_tags",
     "compose_landing_page_jsonld",
     "compose_page_jsonld",
     "doi_url",
@@ -42,6 +44,7 @@ __all__ = [
     "normalize_doi",
     "normalize_orcid",
     "orcid_url",
+    "page_landing_url",
     "ror_url",
 ]
 
@@ -1041,6 +1044,131 @@ class GuideCitation:
         }
 
 
+def _meta_tag(name: str, content: str | None) -> str | None:
+    """Compose one ``<meta>`` tag, or `None` when there is no value to state.
+
+    The content is HTML-escaped with quoting on, because every value reaching
+    here is author-supplied text from :file:`documenteer.toml` or a
+    :file:`CITATION.cff` file: a title containing a double quote would
+    otherwise close the attribute and let the rest of the title be parsed as
+    markup. A value that is blank or whitespace-only is treated as absent (see
+    `_clean`), so a degenerate field emits no tag rather than an empty one.
+    """
+    text = _clean(content)
+    if text is None:
+        return None
+    return f'<meta name="{name}" content="{html.escape(text, quote=True)}">'
+
+
+def _highwire_date(value: str | None) -> str | None:
+    """Express an ISO 8601 date, at any of `PartialDate`'s three precisions,
+    in the ``YYYY/MM/DD`` form Highwire spells a date in.
+
+    Google Scholar accepts a bare year, so a date stated only to the year
+    stays a year rather than being padded with an invented month and day —
+    the same reason `PartialDate` exists.
+    """
+    text = _clean(value)
+    if text is None:
+        return None
+    return text.replace("-", "/")
+
+
+def _author_highwire_tags(author: Mapping[str, Any]) -> list[str]:
+    """Compose one author's Highwire tags: the name, then the institution and
+    ORCID that qualify it.
+
+    An author whose name is blank composes to nothing at all, rather than to
+    an orphan ``citation_author_institution`` qualifying a name no tag states
+    — the same rule `Citation._credited_authors` applies to a rendered
+    citation.
+
+    An organization author carries neither key, so only the ROR-bearing
+    ``citation_author`` tag is emitted for it. Highwire has no tag for a ROR,
+    which is why the JSON-LD block, not this one, is where an organization's
+    identifier reaches a consumer.
+    """
+    name = _meta_tag("citation_author", author.get("citation_name"))
+    if name is None:
+        return []
+    orcid = _clean(author.get("orcid"))
+    tags = [
+        name,
+        _meta_tag("citation_author_institution", author.get("affiliation")),
+        _meta_tag(
+            "citation_author_orcid", orcid_url(orcid) if orcid else None
+        ),
+    ]
+    return [tag for tag in tags if tag is not None]
+
+
+def compose_highwire_tags(
+    citation: Mapping[str, Any], *, url: str | None = None
+) -> str:
+    """Compose one citation as the Highwire ``<meta>`` tags a page carries in
+    its ``<head>``, escaped and ready to emit.
+
+    Parameters
+    ----------
+    citation
+        The citation whose landing page this page is, as the mapping
+        `GuideCitation.to_html_context` composes and Sphinx's ``html_context``
+        publishes.
+    url
+        The page's own absolute URL, emitted as ``citation_fulltext_html_url``
+        — the site's base URL for the site's own citation, or a claimed page's
+        URL. `None` when the site declares no base URL, in which case the tag
+        is omitted rather than falling back to the doi.org redirect, which is
+        not where the full text is.
+
+    Returns
+    -------
+    str
+        The tags, one per line, in this order: ``citation_title``, then a
+        ``citation_author`` per author followed by that author's
+        ``citation_author_institution`` and ``citation_author_orcid``, then
+        ``citation_publication_date``, ``citation_doi``,
+        ``citation_publisher``, ``citation_fulltext_html_url``, and
+        ``DC.identifier``. Every value is escaped with `html.escape`; a field
+        the citation does not state emits no tag.
+
+    Notes
+    -----
+    Highwire tags are what `Google Scholar's inclusion guidelines
+    <https://scholar.google.com/intl/en/scholar/inclusion.html#indexing>`__
+    specify and what Zotero's embedded-metadata translator reads, so a page
+    that carries them gets a one-click "Save to Zotero" with the right title,
+    creators, date, and DOI. The Dublin Core ``DC.identifier`` is emitted
+    alongside them as the complement DataCite's landing-page guidance asks
+    for.
+
+    These tags are single-valued and describe the page's *landing-page
+    subject*, so exactly one citation composes them: the ``self`` entry for
+    the site, or the single entry that claims a page (see
+    `documenteer.ext.citationpage`). A page several entries claim emits none
+    of them, because there is no one work the tags could be about.
+
+    The date is written as ``citation_publication_date`` rather than the
+    ``citation_date`` spelling the ``technote`` package uses: Google Scholar
+    documents the former, and both name the same thing. It keeps the
+    precision the citation states, so a work dated to the year alone emits
+    ``2025`` rather than an invented ``2025/01/01``.
+    """
+    tags = [_meta_tag("citation_title", citation.get("title"))]
+    for author in citation.get("authors", ()):
+        tags.extend(_author_highwire_tags(author))
+    tags.append(
+        _meta_tag(
+            "citation_publication_date", _highwire_date(citation.get("date"))
+        )
+    )
+    tags.append(_meta_tag("citation_doi", citation.get("doi")))
+    tags.append(_meta_tag("citation_publisher", citation.get("publisher")))
+    tags.append(_meta_tag("citation_fulltext_html_url", url))
+    tags.append(_meta_tag("DC.identifier", citation.get("doi_url")))
+    return "\n".join(tag for tag in tags if tag is not None)
+
+
 _SCRIPT_ESCAPES = {
     ord("<"): "\\u003c",
     ord(">"): "\\u003e",
@@ -1370,7 +1498,7 @@ def compose_page_jsonld(
     nodes = []
     for citation in citations:
         node = _citation_node(
-            citation, url_override=_page_node_url(citation, page_url)
+            citation, url_override=page_landing_url(citation, page_url)
         )
         if part_of is not None:
             # No node here can be the whole it is a part of: a citation
@@ -1388,14 +1516,33 @@ def compose_page_jsonld(
     return _serialize_jsonld(document)
 
 
-def _page_node_url(
+def page_landing_url(
     citation: Mapping[str, Any], page_url: str | None
 ) -> str | None:
-    """Build the URL of a page-claiming citation's node: the page's URL with
-    that citation's own fragment appended.
+    """Locate a page-claiming citation on the page it claims: the page's URL
+    with that citation's own fragment appended.
 
-    Returns `None` when the page's URL is unknown, leaving the node with the
-    location its own record carries.
+    Parameters
+    ----------
+    citation
+        The claiming citation, as the mapping
+        `GuideCitation.to_html_context` composes.
+    page_url
+        The claimed page's own absolute URL, without a fragment.
+
+    Returns
+    -------
+    str or None
+        The location, or `None` when the page's URL is unknown — a site that
+        declares no base URL — in which case the caller states no location
+        rather than inventing one.
+
+    Notes
+    -----
+    The fragment is what tells two works documented on one page apart, so
+    every surface that states where such a work lives — its JSON-LD node's
+    ``url`` and its ``citation_fulltext_html_url`` meta tag — locates it
+    through this one function and they cannot disagree.
     """
     if not page_url:
         return None

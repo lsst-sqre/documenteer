@@ -101,9 +101,10 @@ Documenteer uses them to make the site a proper DOI landing page: it renders a f
 
 A declared citation is displayed in the :ref:`site footer <guide-footer-citations>` on every page, and with the :ref:`citation-card <guide-citation-card>` directive, which renders it as a card wherever a page asks for one.
 
-That head metadata is what a DOI registration agency, Google Scholar, and Google Dataset Search read.
-Every page carries the :ref:`self <guide-project-citations-self>` citation's DOI as a Highwire ``citation_doi`` meta tag (bare) and a Dublin Core ``DC.identifier`` meta tag (as the ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block describing the site, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
-A site that marks no entry ``self`` emits no meta tags at all, and its JSON-LD block describes the site itself instead.
+That head metadata is what a DOI registration agency, Google Scholar, Zotero, and Google Dataset Search read.
+Every page describes the :ref:`self <guide-project-citations-self>` citation with the full set of `Highwire <https://scholar.google.com/intl/en/scholar/inclusion.html>`__ meta tags — ``citation_title``, a ``citation_author`` per author with its ``citation_author_institution`` and ``citation_author_orcid``, ``citation_publication_date``, ``citation_doi``, ``citation_publisher``, and ``citation_fulltext_html_url`` — plus the Dublin Core ``DC.identifier`` (the DOI as a ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block describing the site, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
+Those Highwire tags are what gives a reader a one-click "Save to Zotero" with the right title, creators, date, and DOI.
+A field the entry does not state emits no tag, and a site that marks no entry ``self`` emits no meta tags at all — its JSON-LD block describes the site itself instead.
 The other entries reach that block as *relations* of the site rather than as records repeated on every page of it, and which relation follows from whether the entry claims a page:
 
 - An entry that names a :ref:`page <guide-project-citations-page>` inside the site is a **part** of the site's work.
@@ -203,7 +204,7 @@ Whether this site is the registered landing page of this DOI.
 Default is ``false``, and at most one entry can set it to ``true``.
 
 This is a claim about where the DOI *resolves*, and nothing else.
-It is what makes every page of the site carry the DOI as its Highwire ``citation_doi`` and Dublin Core ``DC.identifier`` meta tags, and what makes the work the subject of the site-wide JSON-LD block.
+It is what makes every page of the site describe the work in its Highwire and Dublin Core meta tags, and what makes it the subject of the site-wide JSON-LD block.
 Set it only when doi.org really does send a reader here.
 A work published somewhere else — a journal article, a Zenodo record, a dataset in another archive — has that publisher's landing page, and marking it ``self`` tells a harvester this site is something it is not.
 
@@ -215,7 +216,7 @@ The two coincide for a site that publishes its own DOI, so a ``self`` entry is a
 
 The ``self`` entry is the one entry that may omit :ref:`title <guide-project-citations-title>`, since the site's own :ref:`project.title <guide-project-title>` is then the title of the work.
 
-A site that marks no entry ``self`` emits no ``citation_doi`` or ``DC.identifier`` meta tag on any page, and its site-wide JSON-LD block describes the site itself — a schema.org `WebSite <https://schema.org/WebSite>`__ carrying the site's :ref:`project.title <guide-project-title>` and :ref:`project.base_url <guide-project-base-url>` and no identifier — with the declared works hanging off it.
+A site that marks no entry ``self`` emits no citation meta tags on any page — not even the title and authors of the work it marks :ref:`preferred <guide-project-citations-preferred>`, since those tags say that *this* page is the work's full text — and its site-wide JSON-LD block describes the site itself — a schema.org `WebSite <https://schema.org/WebSite>`__ carrying the site's :ref:`project.title <guide-project-title>` and :ref:`project.base_url <guide-project-base-url>` and no identifier — with the declared works hanging off it.
 
 .. _guide-project-citations-preferred:
 
@@ -260,7 +261,7 @@ The page inside this site that is the DOI's registered landing page, written as 
 
 Default is unset, which means the site as a whole is the landing page.
 
-Setting it moves the entry's machine-readable metadata off every page and onto that one: the claimed page carries this entry's DOI as its Highwire ``citation_doi`` and Dublin Core ``DC.identifier`` meta tags, and a JSON-LD block describing this work at the page's own URL.
+Setting it moves the entry's machine-readable metadata off every page and onto that one: the claimed page's Highwire and Dublin Core meta tags describe *this* entry — its title, authors, date, DOI, publisher, and this page as its ``citation_fulltext_html_url`` — alongside a JSON-LD block describing the same work at the page's own URL.
 It also says what the work *is* to the site: a claimed entry is a part of the site's own work rather than something the site cites, so the site-wide block names it in ``hasPart`` and the claimed page's block points back with ``isPartOf``.
 Every other page of the site is unaffected and keeps the :ref:`self <guide-project-citations-self>` citation's metadata.
 This is what a data release's documentation needs when each of its data products has a DOI of its own that resolves to the product's page; see :ref:`guide-citation-pages`.
@@ -277,7 +278,7 @@ The docname may be followed by ``#`` and a fragment identifier, naming a locatio
    page = "products/catalogs/object#tap"
 
 Several entries may claim the same page, provided each names a different fragment — two products documented in two sections of one page, for example.
-Such a page describes both works in a JSON-LD ``@graph`` and emits *no* ``citation_doi`` or ``DC.identifier`` meta tag, because those tags carry one identifier each and the page is the landing page of more than one DOI.
+Such a page describes both works in a JSON-LD ``@graph`` and emits *no* citation meta tags at all, because every one of them is single-valued — one title, one DOI, one date — and the page is the landing page of more than one work.
 Two entries that name the same docname *and* the same fragment fail the build.
 
 The claim does not change what the site *displays*: :ref:`citation-card <guide-citation-card>` with no argument still renders the :ref:`self <guide-project-citations-self>` entry, and a page that wants to show its own citation names it by :ref:`label <guide-project-citations-label>`.
@@ -290,8 +291,8 @@ That warning carries the subtype ``documenteer.citation_page``, so a site that c
    # conf.py
    suppress_warnings = ["documenteer.citation_page"]
 
-The page's URL comes from :ref:`project.base_url <guide-project-base-url>`.
-A site that sets no ``base_url`` cannot know it, so the JSON-LD node falls back to the ``https://doi.org/`` URL, as it does elsewhere; the meta tags are unaffected.
+The page's URL comes from :ref:`project.base_url <guide-project-base-url>`, with the entry's fragment appended when it names one.
+A site that sets no ``base_url`` cannot know it, so the JSON-LD node falls back to the ``https://doi.org/`` URL, as it does elsewhere, and the page emits no ``citation_fulltext_html_url``; the rest of the meta tags are unaffected.
 
 .. _guide-project-citations-in-footer:
 

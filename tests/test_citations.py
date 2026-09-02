@@ -6,6 +6,7 @@ import datetime
 import importlib
 import importlib.util
 import json
+import re
 
 import pytest
 
@@ -17,6 +18,7 @@ from documenteer.citations import (
     OrganizationAuthor,
     PartialDate,
     PersonAuthor,
+    compose_highwire_tags,
     compose_landing_page_jsonld,
     compose_page_jsonld,
     doi_url,
@@ -1277,6 +1279,276 @@ def test_page_jsonld_cannot_break_out_of_a_script_element() -> None:
     assert ">" not in serialized
     assert "&" not in serialized
     assert json.loads(serialized)["name"] == "Object catalog </script>& more"
+
+
+def _highwire_names(tags: str) -> list[str]:
+    """Read the ``name`` attribute of every meta tag in a composed block, in
+    the order they are emitted.
+    """
+    return re.findall(r'<meta name="([^"]+)"', tags)
+
+
+def _full_citation_context(**overrides: object) -> dict[str, object]:
+    """Build the html_context mapping of a citation that states every field
+    the Highwire set has a tag for, credited to an organization and a person
+    so that both author shapes are exercised.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            doi="10.5281/zenodo.10385500",
+            title="Images & Catalogs",
+            type=CitationType.dataset,
+            authors=(
+                OrganizationAuthor(
+                    name="Vera C. Rubin Observatory",
+                    ror="https://ror.org/048g3cy84",
+                ),
+                PersonAuthor(
+                    family_name="Sick",
+                    given_name="Jonathan",
+                    orcid="0000-0003-3001-676X",
+                    affiliation="Rubin Observatory",
+                ),
+            ),
+            publisher="Vera C. Rubin Observatory",
+            date=PartialDate(2025, 6, 30),
+        ),
+        label="Dataset",
+        is_self=True,
+    ).to_html_context()
+    context.update(overrides)
+    return context
+
+
+def test_highwire_tags_compose_the_full_set() -> None:
+    """A citation that states every field composes the whole Highwire set,
+    with the Dublin Core identifier as its complement.
+    """
+    tags = compose_highwire_tags(_full_citation_context(), url=SITE_URL)
+
+    assert tags.splitlines() == [
+        '<meta name="citation_title" content="Images &amp; Catalogs">',
+        '<meta name="citation_author" content="Vera C. Rubin Observatory">',
+        '<meta name="citation_author" content="Sick, Jonathan">',
+        '<meta name="citation_author_institution" '
+        'content="Rubin Observatory">',
+        '<meta name="citation_author_orcid" '
+        'content="https://orcid.org/0000-0003-3001-676X">',
+        '<meta name="citation_publication_date" content="2025/06/30">',
+        '<meta name="citation_doi" content="10.5281/zenodo.10385500">',
+        '<meta name="citation_publisher" content="Vera C. Rubin Observatory">',
+        f'<meta name="citation_fulltext_html_url" content="{SITE_URL}">',
+        '<meta name="DC.identifier" '
+        'content="https://doi.org/10.5281/zenodo.10385500">',
+    ]
+
+
+def test_highwire_tags_escape_author_supplied_markup() -> None:
+    """Every content value is author-supplied text reaching the page head, so
+    a title carrying quotes and angle brackets is escaped rather than closing
+    the attribute or opening an element of its own.
+    """
+    tags = compose_highwire_tags(
+        _full_citation_context(
+            title='Images "&" <script>alert(1)</script> Catalogs'
+        ),
+        url=SITE_URL,
+    )
+
+    (title,) = [
+        line
+        for line in tags.splitlines()
+        if line.startswith('<meta name="citation_title"')
+    ]
+    assert title == (
+        '<meta name="citation_title" content="Images &quot;&amp;&quot; '
+        '&lt;script&gt;alert(1)&lt;/script&gt; Catalogs">'
+    )
+    # The escaping is what keeps the rest of the block one tag per line: an
+    # unescaped title would put markup of its own on the title's line.
+    assert len(tags.splitlines()) == 10
+
+
+def test_highwire_tags_omit_what_the_citation_does_not_state() -> None:
+    """A citation that states only a title emits only the title tag: a field
+    with no value emits no tag rather than an empty one.
+    """
+    context = GuideCitation(
+        citation=Citation(title="Untitled Dataset", url="https://example.org/")
+    ).to_html_context()
+
+    assert compose_highwire_tags(context) == (
+        '<meta name="citation_title" content="Untitled Dataset">'
+    )
+
+
+@pytest.mark.parametrize(
+    ("citation_date", "expected"),
+    [
+        (PartialDate(2025), "2025"),
+        (PartialDate(2025, 6), "2025/06"),
+        (PartialDate(2025, 6, 30), "2025/06/30"),
+    ],
+)
+def test_highwire_tags_keep_the_dates_precision(
+    citation_date: PartialDate, expected: str
+) -> None:
+    """The date tag states the precision the citation does, since Google
+    Scholar accepts a bare year and inventing a month and a day would assert
+    a date nothing said.
+    """
+    context = _full_citation_context(date=citation_date.isoformat())
+
+    assert (
+        f'<meta name="citation_publication_date" content="{expected}">'
+        in compose_highwire_tags(context, url=SITE_URL).splitlines()
+    )
+
+
+def test_highwire_tags_of_a_work_located_by_url() -> None:
+    """A citation located by a URL rather than a DOI emits no identifier tags
+    at all — neither an empty ``citation_doi`` nor an empty ``DC.identifier``
+    — while the page it is the landing page of is still stated.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            title="Object catalog",
+            url="https://example.org/object",
+            publisher="Vera C. Rubin Observatory",
+        ),
+        page="products/object",
+    ).to_html_context()
+
+    names = _highwire_names(compose_highwire_tags(context, url=PAGE_URL))
+
+    assert "citation_doi" not in names
+    assert "DC.identifier" not in names
+    assert names == [
+        "citation_title",
+        "citation_publisher",
+        "citation_fulltext_html_url",
+    ]
+
+
+def test_highwire_tags_drop_a_nameless_authors_qualifiers() -> None:
+    """An author whose name is blank composes to nothing, rather than to an
+    institution and an ORCID qualifying a name no tag states.
+    """
+    context = _full_citation_context()
+    context["authors"] = [
+        {
+            "type": "person",
+            "name": "   ",
+            "citation_name": "   ",
+            "orcid": "0000-0003-3001-676X",
+            "affiliation": "Rubin Observatory",
+        }
+    ]
+
+    names = _highwire_names(compose_highwire_tags(context, url=SITE_URL))
+
+    assert "citation_author" not in names
+    assert "citation_author_institution" not in names
+    assert "citation_author_orcid" not in names
+
+
+def test_highwire_tags_omit_the_page_url_the_site_does_not_know() -> None:
+    """A site that declares no base URL emits no ``citation_fulltext_html_url``
+    rather than falling back to the doi.org redirect, which is not where the
+    full text is.
+    """
+    names = _highwire_names(compose_highwire_tags(_full_citation_context()))
+
+    assert "citation_fulltext_html_url" not in names
+
+
+@pytest.mark.skipif(
+    not _HAS_TECHNOTE, reason="the technote extra is not installed"
+)
+def test_highwire_tags_match_technotes_formatter() -> None:
+    """Documenteer's guide composer names the fields it shares with the
+    ``technote`` package's own Highwire formatter identically, so a reader's
+    Zotero or Google Scholar reads a guide and a technote the same way.
+
+    The two formatters are separate implementations on purpose: technote's
+    reads technote's own metadata model, and importing it would make the guide
+    stack depend on the ``technote`` extra. This test is what keeps them from
+    drifting apart on the fields they both state.
+
+    The date tag is the one deliberate difference. Technote writes it as
+    ``citation_date``; Documenteer writes ``citation_publication_date``, which
+    is the spelling Google Scholar's inclusion guidelines document. Both name
+    the same field, and the difference is asserted here rather than left to be
+    discovered as a bug (upstream issue filed in lsst-sqre/technote).
+    """
+    model = importlib.import_module("technote.metadata.model")
+    highwire = importlib.import_module("technote.templating.highwire")
+
+    technote_names = _highwire_names(
+        str(
+            highwire.HighwireMetadata(
+                metadata=model.TechnoteMetadata(
+                    title="Images & Catalogs",
+                    status=model.Status(
+                        state=model.TechnoteState.stable, note=None
+                    ),
+                    canonical_url=SITE_URL,
+                    date_updated=datetime.datetime(
+                        2025, 6, 30, tzinfo=datetime.UTC
+                    ),
+                    authors=[
+                        model.Person(
+                            name=model.StructuredName(
+                                family="Sick", given="Jonathan"
+                            ),
+                            affiliations=[
+                                model.Organization(name="Rubin Observatory")
+                            ],
+                            orcid="https://orcid.org/0000-0003-3001-676X",
+                        )
+                    ],
+                    citation=model.Citation(doi="10.5281/zenodo.10385500"),
+                )
+            )
+        )
+    )
+    # The same one author on both sides, so the two orders can be compared
+    # element for element rather than as sets.
+    guide_names = _highwire_names(
+        compose_highwire_tags(
+            _full_citation_context(
+                authors=[
+                    {
+                        "type": "person",
+                        "name": "Jonathan Sick",
+                        "citation_name": "Sick, Jonathan",
+                        "orcid": "0000-0003-3001-676X",
+                        "affiliation": "Rubin Observatory",
+                    }
+                ]
+            ),
+            url=SITE_URL,
+        )
+    )
+
+    shared = {
+        "citation_title",
+        "citation_author",
+        "citation_author_institution",
+        "citation_author_orcid",
+        "citation_doi",
+    }
+    assert shared <= set(technote_names)
+    assert shared <= set(guide_names)
+    assert [name for name in technote_names if name in shared] == [
+        name for name in guide_names if name in shared
+    ]
+
+    # The deliberate difference: the same field under two spellings.
+    assert "citation_date" in technote_names
+    assert "citation_date" not in guide_names
+    assert "citation_publication_date" in guide_names
+    assert "citation_publication_date" not in technote_names
 
 
 @pytest.mark.parametrize(

@@ -76,6 +76,19 @@ def _build(app: SphinxTestApp) -> html.HtmlElement:
     )
 
 
+def _meta(doc: html.HtmlElement) -> dict[str, str]:
+    """Read the page's citation meta tags, keyed by name.
+
+    Only the tags this feature emits are collected, so the theme's own head
+    (viewport, generator, and the like) does not have to be enumerated here.
+    """
+    return {
+        element.get("name"): element.get("content")
+        for element in doc.cssselect("head meta[name]")
+        if element.get("name").startswith(("citation_", "DC."))
+    }
+
+
 @pytest.mark.sphinx("html", testroot="guide", srcdir="guide-head-citations")
 def test_head_carries_the_self_doi(app: SphinxTestApp) -> None:
     """The self citation's DOI is emitted as Highwire and Dublin Core meta
@@ -88,6 +101,25 @@ def test_head_carries_the_self_doi(app: SphinxTestApp) -> None:
     assert citation_doi.get("content") == SELF_DOI
     (dc_identifier,) = doc.cssselect('head meta[name="DC.identifier"]')
     assert dc_identifier.get("content") == f"https://doi.org/{SELF_DOI}"
+
+
+@pytest.mark.sphinx("html", testroot="guide", srcdir="guide-head-citations")
+def test_head_carries_the_full_highwire_set(app: SphinxTestApp) -> None:
+    """The self citation is described by the whole Highwire set, which is what
+    Google Scholar's inclusion guidelines specify and what Zotero's
+    embedded-metadata translator reads for a one-click "Save to Zotero".
+    """
+    doc = _build(app)
+
+    assert _meta(doc) == {
+        "citation_title": "Guide Build Smoke Test",
+        "citation_author": "Vera C. Rubin Observatory",
+        "citation_publication_date": "2025/06/30",
+        "citation_doi": SELF_DOI,
+        "citation_publisher": "Vera C. Rubin Observatory",
+        "citation_fulltext_html_url": SITE_URL,
+        "DC.identifier": f"https://doi.org/{SELF_DOI}",
+    }
 
 
 @pytest.mark.sphinx("html", testroot="guide", srcdir="guide-head-citations")

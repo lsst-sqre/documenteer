@@ -12,10 +12,11 @@ This extension is what makes such a page say so. For each page one or more
 entries claim, it replaces the ``<head>`` metadata the guide's ``layout.html``
 override emits:
 
-- ``documenteer_self_citation`` becomes the claiming entry, so the page's
-  Highwire ``citation_doi`` and Dublin Core ``DC.identifier`` tags carry the
-  DOI a reader arriving from doi.org came for. Those tags are single-valued,
-  so a page two entries claim emits neither.
+- ``documenteer_self_citation_metatags`` becomes the claiming entry's Highwire
+  and Dublin Core tags, composed against the page's own URL, so a reader
+  arriving from doi.org — or saving the page to Zotero — gets the work the
+  page is the landing page of rather than the site's own. Those tags are
+  single-valued, so a page two entries claim emits none of them.
 - ``documenteer_citations_jsonld`` becomes a block describing the claiming
   entries alone, each located at the page's own URL rather than at the doi.org
   redirect and each naming the whole it is part of — the site's own citation,
@@ -33,7 +34,11 @@ from typing import TYPE_CHECKING, Any
 
 from sphinx.util import logging
 
-from ..citations import compose_page_jsonld
+from ..citations import (
+    compose_highwire_tags,
+    compose_page_jsonld,
+    page_landing_url,
+)
 from ..version import __version__
 
 if TYPE_CHECKING:
@@ -146,25 +151,32 @@ def add_page_citations(
     if not claiming:
         return
 
-    # Read the site's own citation before the context's is replaced below:
-    # the claiming entries are parts of the site's work, and each of their
-    # nodes says so by naming it. A site that marks none is still the whole
-    # they are parts of, and is named by its title and base URL instead --
-    # the same WebSite node the site-wide block is about -- so the relation
+    # The claiming entries are parts of the site's own work, and each of
+    # their nodes says so by naming it. A site that marks none is still the
+    # whole they are parts of, and is named by its title and base URL instead
+    # -- the same WebSite node the site-wide block is about -- so the relation
     # is stated in both directions whether or not the site publishes a DOI.
     site_citation = next(
         (citation for citation in citations if citation.get("is_self")), None
     )
 
-    # Highwire and Dublin Core carry one identifier each, so a page two
-    # entries claim emits neither rather than picking a winner; the JSON-LD
-    # block below is where both are stated.
-    context["documenteer_self_citation"] = (
-        claiming[0] if len(claiming) == 1 else None
+    # Every Highwire tag is single-valued -- one title, one DOI, one date --
+    # so a page two entries claim emits none of them rather than picking a
+    # winner; the JSON-LD block below is where both are stated. Only the tags
+    # are replaced: ``documenteer_self_citation`` still names the citation the
+    # site itself publishes, which is what the visible surfaces read.
+    page_url = context.get("pageurl")
+    context["documenteer_self_citation_metatags"] = (
+        compose_highwire_tags(
+            claiming[0],
+            url=page_landing_url(claiming[0], page_url),
+        )
+        if len(claiming) == 1
+        else None
     )
     context["documenteer_citations_jsonld"] = compose_page_jsonld(
         claiming,
-        page_url=context.get("pageurl"),
+        page_url=page_url,
         self_citation=site_citation,
         site_title=app.config.project or None,
         site_url=app.config.html_baseurl or None,

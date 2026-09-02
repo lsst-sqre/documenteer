@@ -37,6 +37,7 @@ from ..citations import (
     OrganizationAuthor,
     PartialDate,
     PersonAuthor,
+    compose_highwire_tags,
     compose_landing_page_jsonld,
     normalize_citation_url,
     normalize_doi,
@@ -1391,6 +1392,12 @@ class DocumenteerConfig:
             The entry from that list whose ``is_self`` is true, or `None`.
             This is the site's claim to be a DOI's landing page, so it alone
             drives the ``<head>`` metadata.
+        ``documenteer_self_citation_metatags``
+            That entry's Highwire and Dublin Core ``<meta>`` tags, escaped and
+            ready to emit (see
+            `~documenteer.citations.compose_highwire_tags`), or `None` when no
+            entry claims the site. The tags are composed here, against the
+            site's own base URL, so that the template only emits them.
         ``documenteer_preferred_citation``
             The entry from that list whose ``is_preferred`` is true, or
             `None`. This is the citation the site asks readers to use, so it
@@ -1404,8 +1411,18 @@ class DocumenteerConfig:
         if not contexts:
             return
         html_context["documenteer_citations"] = contexts
-        html_context["documenteer_self_citation"] = next(
+        self_context = next(
             (context for context in contexts if context["is_self"]), None
+        )
+        html_context["documenteer_self_citation"] = self_context
+        # A site that claims no DOI's landing page emits no tags at all, not
+        # even the title and authors: the Highwire set describes the work a
+        # page *is* the landing page of, and stating it for a work published
+        # elsewhere would tell a harvester this site is that work's full text.
+        html_context["documenteer_self_citation_metatags"] = (
+            None
+            if self_context is None
+            else compose_highwire_tags(self_context, url=self.base_url or None)
         )
         html_context["documenteer_preferred_citation"] = next(
             (context for context in contexts if context["is_preferred"]), None

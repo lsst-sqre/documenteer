@@ -1101,6 +1101,39 @@ def test_set_citations_publishes_jsonld() -> None:
     assert payload["url"] == "https://dp0-2.lsst.io/"
 
 
+def test_set_citations_publishes_highwire_tags() -> None:
+    """set_citations also publishes the self citation's Highwire meta tags,
+    composed against the site's own base URL, ready for the guide's <head>.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    assert html_context["documenteer_self_citation_metatags"].splitlines() == [
+        '<meta name="citation_title" content="Data Preview 2">',
+        '<meta name="citation_author" content="Vera C. Rubin Observatory">',
+        '<meta name="citation_publication_date" content="2025/06/30">',
+        '<meta name="citation_doi" content="10.71929/rubin/2570308">',
+        '<meta name="citation_publisher" content="Vera C. Rubin Observatory">',
+        '<meta name="citation_fulltext_html_url" '
+        'content="https://dp0-2.lsst.io/">',
+        '<meta name="DC.identifier" '
+        'content="https://doi.org/10.71929/rubin/2570308">',
+    ]
+
+
+def test_set_citations_without_a_self_entry_emits_no_tags() -> None:
+    """A site with a preferred citation but no self entry is no DOI's landing
+    page, so it publishes no meta tags at all — not even the title and authors
+    of the work it asks readers to cite, which is published elsewhere.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    assert html_context["documenteer_self_citation_metatags"] is None
+
+
 def test_set_citations_without_citations() -> None:
     """A site without [[project.citations]] leaves html_context untouched."""
     config = DocumenteerConfig.load(EXAMPLE)

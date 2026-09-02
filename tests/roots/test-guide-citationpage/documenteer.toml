@@ -44,7 +44,11 @@ doi = "10.71929/rubin/3382541"
 label = "Visit"
 type = "dataset"
 page = "products/visit"
-title = "Visit table"
+# The title carries the characters that would break out of a meta tag's
+# content attribute or open an element of their own, so the head metadata's
+# escaping is exercised end to end rather than only in the composer's unit
+# tests.
+title = 'Visit "raw" <all> table'
 publisher = "Vera C. Rubin Observatory"
 date = 2025-06-30
 authors = [{ name = "Vera C. Rubin Observatory" }]

@@ -261,7 +261,7 @@ An entry says which page is its landing page with :ref:`page <guide-project-cita
    authors = [{ name = "Vera C. Rubin Observatory" }]
 
 With that configuration, :file:`products/catalogs/object.html` describes the two catalog DOIs — each located at its own fragment, ``#butler`` and ``#tap`` — instead of the release DOI.
-Because the page is the landing page of two DOIs, it emits a JSON-LD ``@graph`` of both and no ``citation_doi`` or ``DC.identifier`` meta tag: those tags carry a single identifier, and the page has no single one to give.
+Because the page is the landing page of two DOIs, it emits a JSON-LD ``@graph`` of both and no citation meta tags at all: every one of those tags is single-valued, and the page has no single title, DOI, or date to give.
 A page a single entry claims does emit them, carrying that entry's DOI.
 
 Every page no entry claims — the home page, the rest of the guide — is unchanged and keeps the release DOI's metadata.
@@ -282,8 +282,44 @@ A ``page`` value naming a docname the project does not contain — a renamed pag
 Related metadata
 ================
 
-Declaring ``[[project.citations]]`` also makes the site's DOI machine-readable: every page's ``<head>`` carries the ``self`` citation's DOI as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site.
+Declaring ``[[project.citations]]`` also makes the site's citation machine-readable: every page's ``<head>`` carries the ``self`` citation as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site.
 Each citation's :ref:`type <guide-project-citations-type>` decides the schema.org type it is described under there, so ``type = "dataset"`` is what makes a data release indexable by Google Dataset Search.
+
+Highwire meta tags are what `Google Scholar's inclusion guidelines <https://scholar.google.com/intl/en/scholar/inclusion.html>`__ specify and what Zotero's embedded-metadata translator reads, so a reader on a page that carries them gets a one-click "Save to Zotero" with the right title, creators, date, and DOI.
+These are the tags emitted, in this order:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Tag
+     - Value
+   * - ``citation_title``
+     - :ref:`title <guide-project-citations-title>`
+   * - ``citation_author``
+     - one per :ref:`author <guide-project-citations-authors>`, family name first; an organization's name whole
+   * - ``citation_author_institution``
+     - that author's ``affiliation``, when set
+   * - ``citation_author_orcid``
+     - that author's ``orcid`` as a resolvable ``https://orcid.org/`` URL, when set
+   * - ``citation_publication_date``
+     - :ref:`date <guide-project-citations-date>` as ``YYYY/MM/DD``, ``YYYY/MM``, or ``YYYY``, at the precision the entry states
+   * - ``citation_doi``
+     - :ref:`doi <guide-project-citations-doi>`, bare
+   * - ``citation_publisher``
+     - :ref:`publisher <guide-project-citations-publisher>`
+   * - ``citation_fulltext_html_url``
+     - the page's own URL, which needs :ref:`base_url <guide-project-base-url>`
+   * - ``DC.identifier``
+     - the DOI as a resolvable ``https://doi.org/`` URL, the Dublin Core complement DataCite's landing-page guidance asks for
+
+A field the entry does not state emits no tag, so an entry :ref:`located by url <guide-project-citations-url>` rather than by a DOI carries no ``citation_doi`` and no ``DC.identifier``.
+Every value is HTML-escaped, so a title containing quotes or angle brackets reaches the tag intact.
+
+.. note::
+
+   Documenteer writes the date tag as ``citation_publication_date``, the spelling Google Scholar documents.
+   A Rubin technote writes the same field as ``citation_date``, an older spelling of it; both name the publication date, and a consumer reads either.
 
 That JSON-LD block is *about* the ``self`` entry, and states every other entry as a relation of it rather than repeating the whole record:
 
@@ -294,7 +330,8 @@ That JSON-LD block is *about* the ``self`` entry, and states every other entry a
 - An entry that is neither a part nor shown in the footer appears in no site-wide block at all, because no page of the site mentions it.
   It still renders wherever a :ref:`citation-card <guide-citation-card>` names it by label.
 
-A site that marks no entry ``self`` publishes no DOI of its own, so it emits no ``citation_doi`` or ``DC.identifier`` meta tag on any page.
+A site that marks no entry ``self`` is no DOI's landing page, so it emits **none** of the meta tags above on any page — not the title and authors either, since stating them would tell a harvester that this site is the full text of a work published somewhere else.
+Marking an entry :ref:`preferred <guide-project-citations-preferred>` does not change that: ``preferred`` says which citation the site asks readers to use, which is a question for the visible surfaces, and only ``self`` claims that this site is where a DOI resolves.
 Its JSON-LD block still has a subject — the site itself, a schema.org ``WebSite`` carrying the site's title and URL and no identifier — and the same entries reach it under the same two relations, in the same shapes.
 Such a site can still be the landing page of someone else's DOI on a page of its own, and that page's block names this ``WebSite`` node under ``isPartOf``, so both ends of the relation are stated there too; the reference carries the site's title and URL in place of a DOI, since that is what identifies a site with no DOI to give.
 Only the subject differs, so a consumer reads the block the same way whether or not the site publishes a DOI.

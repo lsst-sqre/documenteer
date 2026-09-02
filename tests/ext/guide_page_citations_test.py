@@ -30,6 +30,9 @@ SELF_DOI = "10.71929/rubin/2570308"
 BUTLER_DOI = "10.71929/rubin/3382539"
 TAP_DOI = "10.71929/rubin/3382540"
 VISIT_DOI = "10.71929/rubin/3382541"
+# The visit entry's title carries the characters that would break out of a
+# meta tag or a script element, so every escaping path is exercised.
+VISIT_TITLE = 'Visit "raw" <all> table'
 MISSING_DOI = "10.71929/rubin/3382542"
 # A work the site cites rather than publishes, shown in the footer.
 PAPER_DOI = "10.5281/zenodo.10385501"
@@ -81,6 +84,15 @@ def _build(app: SphinxTestApp, pagename: str) -> html.HtmlElement:
     )
 
 
+def _meta(doc: html.HtmlElement) -> dict[str, str]:
+    """Read the page's citation meta tags, keyed by name."""
+    return {
+        element.get("name"): element.get("content")
+        for element in doc.cssselect("head meta[name]")
+        if element.get("name").startswith(("citation_", "DC."))
+    }
+
+
 def _jsonld(doc: html.HtmlElement) -> dict:
     """Parse the page's citation JSON-LD block."""
     (script,) = doc.cssselect(f"head script{CITATION_JSONLD}")
@@ -105,9 +117,41 @@ def test_claimed_page_carries_its_own_doi(app: SphinxTestApp) -> None:
     payload = _jsonld(doc)
     assert payload["@type"] == "Dataset"
     assert payload["@id"] == f"https://doi.org/{VISIT_DOI}"
-    assert payload["name"] == "Visit table"
+    assert payload["name"] == VISIT_TITLE
     # The claim names no fragment, so the whole page is the landing page.
     assert payload["url"] == f"{SITE_URL}/products/visit.html"
+
+
+@pytest.mark.sphinx(
+    "html", testroot="guide-citationpage", srcdir="guide-citationpage"
+)
+def test_claimed_page_carries_the_claiming_entrys_highwire_set(
+    app: SphinxTestApp,
+) -> None:
+    """The whole Highwire set on a claimed page describes the claiming entry,
+    at the page's own URL rather than the site's, and its title reaches the
+    ``content`` attribute escaped -- the quotes and angle brackets in it would
+    otherwise close the attribute and open elements of their own.
+    """
+    doc = _build(app, "products/visit")
+
+    assert _meta(doc) == {
+        "citation_title": VISIT_TITLE,
+        "citation_author": "Vera C. Rubin Observatory",
+        "citation_publication_date": "2025/06/30",
+        "citation_doi": VISIT_DOI,
+        "citation_publisher": "Vera C. Rubin Observatory",
+        "citation_fulltext_html_url": f"{SITE_URL}/products/visit.html",
+        "DC.identifier": f"https://doi.org/{VISIT_DOI}",
+    }
+
+    # The parsed attribute above proves the title survived; this proves it was
+    # written as entities rather than as raw markup the parser recovered from.
+    raw = (app.outdir / "products/visit.html").read_text(encoding="utf-8")
+    assert (
+        '<meta name="citation_title" content="Visit &quot;raw&quot; '
+        '&lt;all&gt; table">' in raw
+    )
 
 
 @pytest.mark.sphinx(
@@ -157,8 +201,9 @@ def test_doubly_claimed_page_emits_a_graph(app: SphinxTestApp) -> None:
     """
     doc = _build(app, "products/object")
 
-    assert not doc.cssselect('head meta[name="citation_doi"]')
-    assert not doc.cssselect('head meta[name="DC.identifier"]')
+    # The whole set is single-valued, so none of it is emitted rather than
+    # the site's own tags being left in place to misdescribe the page.
+    assert _meta(doc) == {}
 
     butler, tap = _jsonld(doc)["@graph"]
     assert butler["@id"] == f"https://doi.org/{BUTLER_DOI}"
@@ -203,7 +248,7 @@ def test_unclaimed_page_keeps_the_site_citation(
         {
             "@type": "Dataset",
             "@id": f"https://doi.org/{VISIT_DOI}",
-            "name": "Visit table",
+            "name": VISIT_TITLE,
         },
         {
             "@type": "Dataset",
@@ -280,4 +325,7 @@ def test_claimed_page_without_a_base_url(app: SphinxTestApp) -> None:
 
     (citation_doi,) = doc.cssselect('head meta[name="citation_doi"]')
     assert citation_doi.get("content") == VISIT_DOI
+    # There is no page URL to state, so the full-text tag is omitted rather
+    # than falling back to the doi.org redirect, which is not the full text.
+    assert "citation_fulltext_html_url" not in _meta(doc)
     assert _jsonld(doc)["url"] == f"https://doi.org/{VISIT_DOI}"
