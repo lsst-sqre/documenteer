@@ -1210,11 +1210,36 @@ def compose_landing_page_jsonld(
     return _serialize_jsonld(document)
 
 
+def _part_of_node(
+    self_citation: Mapping[str, Any] | None,
+    site_title: str | None,
+    site_url: str | None,
+) -> dict[str, Any] | None:
+    """Build the node a claimed page's work names as the whole it is part of.
+
+    A site that marks a citation ``self`` is that work, so the relation
+    points at it by reference (see `_minimal_reference`). A site that marks
+    none is still a whole its parts belong to — it is the subject of its own
+    site-wide block (see `_site_node`) — so the relation points at that same
+    ``WebSite`` node, which needs no DOI to be a valid target.
+
+    Returns `None` when neither is available: a node carrying only its
+    ``@type`` names no particular site, and asserting that a work is part of
+    *some* website says nothing a consumer can follow.
+    """
+    if self_citation is not None:
+        return _minimal_reference(self_citation)
+    site = _site_node(site_title, site_url)
+    return site if site.keys() - {"@type"} else None
+
+
 def compose_page_jsonld(
     citations: Sequence[Mapping[str, Any]],
     *,
     page_url: str | None = None,
     self_citation: Mapping[str, Any] | None = None,
+    site_title: str | None = None,
+    site_url: str | None = None,
 ) -> str | None:
     """Compose the citations that claim one page as that page's own
     schema.org JSON-LD document, serialized ready to embed in a
@@ -1234,7 +1259,15 @@ def compose_page_jsonld(
     self_citation
         The site's own citation, as the same kind of mapping. Each node names
         it as the work it is ``isPartOf``. `None` for a site that marks no
-        citation ``self``, whose works are then parts of nothing it names.
+        citation ``self``, whose parts name the site itself instead.
+    site_title
+        The site's own title, and ``site_url`` its base URL. Together they
+        describe the site as a ``WebSite`` node, which is what a part names
+        under ``isPartOf`` on a site with no ``self`` citation. Both are
+        ignored when ``self_citation`` is given, whose work is the whole
+        instead.
+    site_url
+        See ``site_title``.
 
     Returns
     -------
@@ -1254,20 +1287,18 @@ def compose_page_jsonld(
     emitted as a ``@graph``: they are peers on the page, told apart by their
     fragments, and subordinating one to the others would misstate the page.
 
-    Each node also points back at the site's own citation as the work it is
-    ``isPartOf``, which is the other half of the ``hasPart`` relation
-    `compose_landing_page_jsonld` states site-wide. Both ends are stated so
-    that a consumer arriving at either one can reach the other, and both are
-    stated by reference (see `_minimal_reference`) so that neither repeats a
-    record the other already carries in full.
+    Each node also points back at the whole it is a part of, which is the
+    other half of the ``hasPart`` relation `compose_landing_page_jsonld`
+    states site-wide. Both ends are stated so that a consumer arriving at
+    either one can reach the other, and both are stated by reference so that
+    neither repeats a record the other already carries in full. The whole is
+    the site's own citation where it marks one ``self``, and the site's own
+    ``WebSite`` node — the subject of the site-wide block — where it marks
+    none; see `_part_of_node`.
     """
     if not citations:
         return None
-    part_of = (
-        _minimal_reference(self_citation)
-        if self_citation is not None
-        else None
-    )
+    part_of = _part_of_node(self_citation, site_title, site_url)
     nodes = []
     for citation in citations:
         node = _citation_node(

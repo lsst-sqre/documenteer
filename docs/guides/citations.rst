@@ -283,6 +283,7 @@ That JSON-LD block is *about* the ``self`` entry, and states every other entry a
 
 A site that marks no entry ``self`` publishes no DOI of its own, so it emits no ``citation_doi`` or ``DC.identifier`` meta tag on any page.
 Its JSON-LD block still has a subject — the site itself, a schema.org ``WebSite`` carrying the site's title and URL and no identifier — and the same entries reach it under the same two relations, in the same shapes.
+Such a site can still be the landing page of someone else's DOI on a page of its own, and that page's block names this ``WebSite`` node under ``isPartOf``, so both ends of the relation are stated there too; the reference carries the site's title and URL in place of a DOI, since that is what identifies a site with no DOI to give.
 Only the subject differs, so a consumer reads the block the same way whether or not the site publishes a DOI.
 
 Keeping the parts to references is what lets a site publish a DOI per data product without paying for it on every page: a release with forty product DOIs states forty short references, not forty full records, and each product's own landing page carries the record that describes it.

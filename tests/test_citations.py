@@ -1110,6 +1110,82 @@ def test_page_jsonld_states_the_part_relation() -> None:
     }
 
 
+def test_page_jsonld_states_the_part_relation_to_a_site_with_no_self() -> None:
+    """A site that marks no citation ``self`` is still the whole its claimed
+    pages are parts of, so both directions of the relation are stated there
+    too: the site-wide block names the part under ``hasPart``, and the part's
+    own page names the site's ``WebSite`` node — the same subject that block
+    describes — under ``isPartOf``.
+    """
+    site_title = "Butler Guide"
+    product = _product_citation_context(
+        doi="10.71929/rubin/3382540",
+        title="Object catalog (TAP)",
+        fragment="tap",
+    )
+    site_payload = json.loads(
+        compose_landing_page_jsonld(
+            [_paper_citation_context(), product],
+            site_url=SITE_URL,
+            site_title=site_title,
+        )
+        or ""
+    )
+    page_payload = json.loads(
+        compose_page_jsonld(
+            [product],
+            page_url=PAGE_URL,
+            site_title=site_title,
+            site_url=SITE_URL,
+        )
+        or ""
+    )
+
+    # Forward: the site names the part by reference, as it does with a self
+    # citation.
+    assert site_payload["hasPart"] == [
+        {
+            "@type": "Dataset",
+            "@id": "https://doi.org/10.71929/rubin/3382540",
+            "name": "Object catalog (TAP)",
+        }
+    ]
+    # Back: the part names the site. The site publishes no DOI, so the
+    # reference is the site node itself -- name and URL, no identifier --
+    # rather than a work's minimal reference.
+    assert page_payload["isPartOf"] == {
+        "@type": "WebSite",
+        "name": site_title,
+        "url": SITE_URL,
+    }
+    # The two ends describe the same pair of works, so a consumer arriving at
+    # either one reaches the other.
+    assert page_payload["isPartOf"]["url"] == site_payload["url"]
+    assert site_payload["hasPart"][0]["@id"] == page_payload["@id"]
+
+
+def test_page_jsonld_states_no_part_relation_it_cannot_name() -> None:
+    """A site with no self citation, no title, and no base URL has nothing
+    that identifies it, so a claimed page states no ``isPartOf`` at all
+    rather than one pointing at a node saying only that some website exists.
+    """
+    payload = json.loads(
+        compose_page_jsonld(
+            [
+                _product_citation_context(
+                    doi="10.71929/rubin/3382540",
+                    title="Object catalog (TAP)",
+                    fragment="tap",
+                )
+            ],
+            page_url=PAGE_URL,
+        )
+        or ""
+    )
+
+    assert "isPartOf" not in payload
+
+
 def test_page_jsonld_graphs_several_claiming_citations() -> None:
     """Two citations whose landing page is the same page are both the
     document's subject, so neither is subordinated to the other: they are

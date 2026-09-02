@@ -37,6 +37,10 @@ PAPER_CITATION = (
 SITE_TITLE = "Preferred Citation Guide"
 # Pydantic's HttpUrl gives the bare origin a trailing slash.
 SITE_URL = "https://example.lsst.io/"
+# The one work the site *is* the landing page of, on the page it claims.
+DATASET_DOI = "10.71929/rubin/3382539"
+DATASET_DOI_URL = f"https://doi.org/{DATASET_DOI}"
+DATASET_TITLE = "Butler test dataset"
 
 CARD = ".documenteer-citation-card"
 CARD_LABEL = ".documenteer-citation-card__label"
@@ -69,9 +73,20 @@ def _build(app: SphinxTestApp) -> html.HtmlElement:
         "documenteer.ext.lastmodified.GitRepository", return_value=mock_repo
     ):
         app.build()
+    return _page(app, "index")
+
+
+def _page(app: SphinxTestApp, pagename: str) -> html.HtmlElement:
+    """Parse one page of a build that has already run."""
     return html.fromstring(
-        (app.outdir / "index.html").read_text(encoding="utf-8")
+        (app.outdir / f"{pagename}.html").read_text(encoding="utf-8")
     )
+
+
+def _jsonld(doc: html.HtmlElement) -> dict:
+    """Parse a page's citation JSON-LD block."""
+    (block,) = doc.cssselect(f"head script{CITATION_JSONLD}")
+    return json.loads(block.text_content())
 
 
 @pytest.mark.sphinx(
@@ -129,10 +144,7 @@ def test_jsonld_subject_is_the_site_without_a_self_entry(
     site's title and URL and no identifier — with the declared work under
     ``citation``.
     """
-    doc = _build(app)
-
-    (block,) = doc.cssselect(f"head script{CITATION_JSONLD}")
-    payload = json.loads(block.text_content())
+    payload = _jsonld(_build(app))
 
     assert payload["@type"] == "WebSite"
     assert payload["name"] == SITE_TITLE
@@ -144,3 +156,36 @@ def test_jsonld_subject_is_the_site_without_a_self_entry(
     assert paper["@type"] == "ScholarlyArticle"
     assert paper["@id"] == PAPER_DOI_URL
     assert paper["name"] == "The Vera C. Rubin Observatory Data Butler"
+
+
+@pytest.mark.sphinx(
+    "html", testroot="guide-preferred", srcdir="guide-preferred"
+)
+def test_claimed_page_relates_to_the_site_in_both_directions(
+    app: SphinxTestApp,
+) -> None:
+    """A site that publishes no DOI of its own can still be the landing page
+    of one, and the relation between that work and the site is stated at both
+    ends: the site-wide block names the work under ``hasPart``, and the
+    claimed page's own block names the site's ``WebSite`` node — which needs
+    no DOI to be a target — under ``isPartOf``.
+    """
+    index = _build(app)
+    dataset = _page(app, "dataset")
+
+    assert _jsonld(index)["hasPart"] == [
+        {
+            "@type": "Dataset",
+            "@id": DATASET_DOI_URL,
+            "name": DATASET_TITLE,
+        }
+    ]
+
+    payload = _jsonld(dataset)
+    assert payload["@id"] == DATASET_DOI_URL
+    assert payload["url"] == f"{SITE_URL}dataset.html"
+    assert payload["isPartOf"] == {
+        "@type": "WebSite",
+        "name": SITE_TITLE,
+        "url": SITE_URL,
+    }

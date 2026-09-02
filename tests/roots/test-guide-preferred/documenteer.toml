@@ -20,3 +20,16 @@ date = 2022-08-27
 authors = [
     { family_name = "Jenness", given_name = "Tim" },
 ]
+
+# A work this site does publish a landing page for: the site claims no DOI of
+# its own, but a page of it is still where this dataset's DOI resolves, so the
+# site is the whole that page's work is a part of.
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Dataset"
+type = "dataset"
+page = "dataset"
+title = "Butler test dataset"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]

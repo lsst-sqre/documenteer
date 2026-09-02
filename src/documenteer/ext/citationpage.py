@@ -18,7 +18,8 @@ override emits:
   so a page two entries claim emits neither.
 - ``documenteer_citations_jsonld`` becomes a block describing the claiming
   entries alone, each located at the page's own URL rather than at the doi.org
-  redirect and each naming the site's own citation as the work it is part of.
+  redirect and each naming the whole it is part of — the site's own citation,
+  or the site itself on a site that marks none.
 
 A page no entry claims is left untouched, so a site that sets no ``page``
 anywhere builds exactly as it did before. Nothing here composes a citation:
@@ -147,7 +148,10 @@ def add_page_citations(
 
     # Read the site's own citation before the context's is replaced below:
     # the claiming entries are parts of the site's work, and each of their
-    # nodes says so by naming it.
+    # nodes says so by naming it. A site that marks none is still the whole
+    # they are parts of, and is named by its title and base URL instead --
+    # the same WebSite node the site-wide block is about -- so the relation
+    # is stated in both directions whether or not the site publishes a DOI.
     site_citation = next(
         (citation for citation in citations if citation.get("is_self")), None
     )
@@ -162,6 +166,8 @@ def add_page_citations(
         claiming,
         page_url=context.get("pageurl"),
         self_citation=site_citation,
+        site_title=app.config.project or None,
+        site_url=app.config.html_baseurl or None,
     )
 
 

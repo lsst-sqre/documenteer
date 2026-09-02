@@ -7,3 +7,7 @@ citation surfaces are pinned as rendering it while the head is pinned as
 claiming nothing.
 
 .. citation-card::
+
+.. toctree::
+
+   dataset
