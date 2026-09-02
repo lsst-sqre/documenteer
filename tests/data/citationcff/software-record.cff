@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it using the metadata from this file.
+title: daf_butler
+type: software
+authors:
+  - name: Vera C. Rubin Observatory
+  - family-names: Jenness
+    given-names: Tim
+    orcid: https://orcid.org/0000-0001-5982-167X
+repository-code: https://github.com/lsst/daf_butler
+identifiers:
+  - type: swh
+    value: swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505
+preferred-citation:
+  type: article
+  title: The Vera C. Rubin Observatory Data Butler and pipeline execution system
+  authors:
+    - family-names: Jenness
+      given-names: Tim
+  doi: 10.1117/12.2629569
+  year: 2022

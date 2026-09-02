@@ -97,13 +97,21 @@ class CitationCffParseError(CitationCffError):
     """
 
 
-def read_citation_cff(path: Path) -> Citation:
+def read_citation_cff(
+    path: Path, *, use_preferred_citation: bool = True
+) -> Citation:
     """Read a CITATION.cff file as a citation.
 
     Parameters
     ----------
     path
         The path to the CITATION.cff file.
+    use_preferred_citation
+        Whether a ``preferred-citation`` the file declares is the record
+        read. The default honors it, which is what GitHub's "Cite this
+        repository" button does. Pass `False` to read the file's top-level
+        record — the software or dataset the repository itself is — which is
+        the only way to cite a repository whose file prefers a paper.
 
     Returns
     -------
@@ -135,6 +143,12 @@ def read_citation_cff(path: Path) -> Citation:
     substitute a different work than the file asked for. A key written with
     no value at all is YAML null, and counts as absent.
 
+    ``use_preferred_citation=False`` selects the other record in the file
+    rather than merging the two: the top level is read exactly as it would be
+    in a file that declared no preferred citation, and a malformed
+    ``preferred-citation`` is not even looked at, since the caller has said
+    which record it wants.
+
     The fields read are common to CFF 1.1.0 and 1.2.0, and ``cff-version`` is
     not checked: rejecting a file whose fields are all understood buys
     nothing.
@@ -162,12 +176,16 @@ def read_citation_cff(path: Path) -> Citation:
 
     # A preferred-citation is a complete Reference object, so the same
     # extraction reads it and the top level alike.
-    source = document.get("preferred-citation")
+    source = (
+        document.get("preferred-citation") if use_preferred_citation else None
+    )
     if source is None:
-        # No preferred citation — the repository's own fields are the
-        # citation. A key written with no value at all is YAML null, and is
-        # read as absent here, the way every other field of a CFF file is:
-        # it holds no citation that falling back could silently drop.
+        # Either the caller asked for the top-level record, or the file
+        # declares no preferred citation — and in both cases the
+        # repository's own fields are the citation. A key written with no
+        # value at all is YAML null, and is read as absent here, the way
+        # every other field of a CFF file is: it holds no citation that
+        # falling back could silently drop.
         source = document
     elif not isinstance(source, Mapping):
         # Present but malformed. Falling back here would cite the repository
@@ -202,7 +220,14 @@ def read_citation_cff(path: Path) -> Citation:
             publisher=_entity_name(source.get("publisher"))
             or _entity_name(source.get("institution")),
             date=published,
-            url=_text(source.get("url")),
+            # CFF defines `url` as the work's landing page and
+            # `repository-code` as where its source is kept, so the landing
+            # page wins when a record states both. A software record that
+            # states only the repository — the shape of a CFF file written
+            # for a package that has never been given a DOI — is located by
+            # it, which is how CFF and GitHub cite such a package.
+            url=_text(source.get("url"))
+            or _text(source.get("repository-code")),
             number=_text(source.get("number")),
         )
     except ValueError as e:

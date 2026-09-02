@@ -131,7 +131,7 @@ A site can cite more than one work — the documentation itself and the dataset 
    authors = [{ name = "Vera C. Rubin Observatory" }]
 
 Each entry carries two kinds of field.
-The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, and :ref:`date <guide-project-citations-date>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>`).
+The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, and :ref:`date <guide-project-citations-date>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>` and :ref:`cff_preferred <guide-project-citations-cff-preferred>`).
 The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`page <guide-project-citations-page>`, :ref:`in_footer <guide-project-citations-in-footer>`, and :ref:`note <guide-project-citations-note>`) say how the site displays the citation, and are only ever set here.
 
 .. _guide-project-citations-doi:
@@ -143,7 +143,9 @@ doi
 
 The DOI of the work being cited.
 It can be written bare (``10.71929/rubin/2570308``), as a ``https://doi.org/`` URL, or with a ``doi:`` prefix; anything else fails the build.
-Either this field or :ref:`cff <guide-project-citations-cff>` must supply a DOI.
+
+Every entry has to be locatable, so this field or :ref:`url <guide-project-citations-url>` must have a value — set here or supplied by :ref:`cff <guide-project-citations-cff>`.
+The :ref:`self <guide-project-citations-self>` entry is the exception, and needs a DOI specifically: it is the claim that this site is a DOI's landing page, which an entry with no DOI has no way to make.
 
 .. _guide-project-citations-type:
 
@@ -392,6 +394,31 @@ Writing ``2025-01-01`` for a work whose sources say only "2025" would assert a p
 
 Anything else — ``"June 2025"``, a month outside 1–12, a year that is not four digits — fails the build with a message naming the accepted forms.
 
+.. _guide-project-citations-url:
+
+url
+---
+
+|optional|
+
+The work's landing page — where a reader goes to find it.
+
+A work with a DOI is already located by it: the rendered citation ends in the ``https://doi.org/`` link, and this field is not needed.
+It is what locates a work that has *no* DOI, such as a package or a dataset that has never been deposited:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   url = "https://github.com/lsst/daf_butler"
+   type = "software"
+   title = "daf_butler"
+   label = "Software"
+
+Such a citation renders exactly as one with a DOI does, ending in a link to this URL instead of to doi.org, and its BibTeX entry carries a ``url`` field and no ``doi``.
+
+If :ref:`cff <guide-project-citations-cff>` is set, the file supplies this field from its ``url``, or from its ``repository-code`` when it states no landing page — which is how a CFF file that has never carried a DOI locates the software it describes.
+Setting it here overrides the file's value.
+
 .. _guide-project-citations-cff:
 
 cff
@@ -411,7 +438,7 @@ Since :file:`documenteer.toml` sits beside :file:`conf.py` in the documentation 
    note = "Cite this paper in publications that use the package."
 
 A repository that already maintains a :file:`CITATION.cff` for GitHub's "Cite this repository" button has written the bibliographic record down once; pointing at it keeps :file:`documenteer.toml` from restating it.
-When the file declares a ``preferred-citation``, that is the citation Documenteer reads, exactly as GitHub renders it.
+When the file declares a ``preferred-citation``, that is the citation Documenteer reads, exactly as GitHub renders it — unless the entry sets :ref:`cff_preferred = false <guide-project-citations-cff-preferred>`, which reads the file's top-level record instead.
 
 A ``preferred-citation`` is by construction a work *other* than the repository — the paper to cite instead of the software — so its landing page belongs to whoever published it, and :ref:`self <guide-project-citations-self>` is the wrong field for such an entry.
 Mark it :ref:`preferred <guide-project-citations-preferred>`, as above: the site asks readers to cite the paper without claiming to be the paper's landing page.
@@ -431,6 +458,34 @@ Any bibliographic field set alongside ``cff`` overrides the file's value, so a s
    title = "Data Preview 2 Documentation"
 
 A ``cff`` path that names no file, or a file that cannot be read as a citation, fails the build with an error naming the path.
+
+Documenteer reads only the fields a citation is composed from: ``title``, ``type``, ``authors`` (both people and entities such as an observatory), ``publisher`` or ``institution``, the dates, ``number``, and the work's location — its ``doi``, or an ``identifiers`` entry of ``type: doi``, and its ``url`` or ``repository-code``.
+Everything else a :file:`CITATION.cff` may carry — ``abstract``, ``version``, ``license``, ``keywords``, ``commit``, and ``identifiers`` of any other type, such as a Software Heritage ``swh`` identifier — is not read, and a site that wants any of it states it on the page itself.
+
+.. _guide-project-citations-cff-preferred:
+
+cff\_preferred
+--------------
+
+|optional|
+
+Which record inside the :ref:`cff <guide-project-citations-cff>` file the entry cites.
+Default is ``true``: a ``preferred-citation`` in the file is the record read, which is what GitHub's "Cite this repository" button renders.
+
+Set it to ``false`` to cite the file's *top-level* record — the software or the dataset the repository itself is:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   cff_preferred = false
+   label = "Software"
+
+That is the only way to cite a repository whose :file:`CITATION.cff` prefers a paper, and a site can do both at once by declaring two entries against the same file: one for the paper and one, with ``cff_preferred = false``, for the software.
+The top-level record's own ``type`` — which CFF restricts to ``software`` or ``dataset`` — supplies the entry's :ref:`type <guide-project-citations-type>`, and a top-level record with no DOI is located by its ``url`` or ``repository-code`` (see :ref:`url <guide-project-citations-url>`).
+
+``cff_preferred`` chooses which record of a *file* is read; :ref:`preferred <guide-project-citations-preferred>` chooses which of the site's citations is the one it asks readers to use.
+The two are unrelated, and an entry that sets ``cff_preferred`` without ``cff`` fails the build, since there is then no file whose records it could be choosing between.
 
 .. _guide-project-openapi:
 

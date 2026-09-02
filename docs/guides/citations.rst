@@ -71,6 +71,23 @@ That paper's landing page is its publisher's, so the site marks it ``preferred``
 
 The site then displays that citation everywhere it displays one, while no page of it claims to be the paper's landing page.
 
+Such a repository is often worth citing twice — the paper for the work, and the package for the code that was run.
+A second entry against the same file, with :ref:`cff_preferred = false <guide-project-citations-cff-preferred>`, reads the file's top-level record rather than its preferred citation:
+
+.. code-block:: toml
+
+   # documenteer.toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   cff_preferred = false
+   label = "Software"
+   in_footer = true
+   note = "Cite the package itself when reporting the version you ran."
+
+A package that has never been deposited for a DOI is cited by where it lives: the file's ``url``, or its ``repository-code`` when it names no landing page.
+Only the :ref:`self <guide-project-citations-self>` entry needs a DOI, because that entry is the claim that this site is a DOI's landing page.
+
 .. _guide-citation-card:
 
 Citation cards

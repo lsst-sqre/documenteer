@@ -485,6 +485,123 @@ def test_citations_from_cff(tmp_path: Path) -> None:
     assert entry.citation.title == "Example Software, version 2"
 
 
+CITATION_CFF_PREFERRED = """cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Example Software"
+type: software
+authors:
+  - name: "Vera C. Rubin Observatory"
+doi: 10.5281/zenodo.10385500
+preferred-citation:
+  type: article
+  title: "An Example Paper"
+  authors:
+    - family-names: Sick
+      given-names: Jonathan
+  doi: 10.1117/12.2629569
+  year: 2022
+"""
+
+EXAMPLE_CITATIONS_CFF_TOP_LEVEL = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+"""
+
+
+def test_citations_cff_top_level_record(tmp_path: Path) -> None:
+    """``cff_preferred = false`` cites the software the repository is, rather
+    than the paper its CITATION.cff prefers.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_PREFERRED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_TOP_LEVEL, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.title == "Example Software"
+    assert entry.citation.type is CitationType.software
+    assert entry.citation.doi == "10.5281/zenodo.10385500"
+    assert entry.citation.authors == (
+        OrganizationAuthor(name="Vera C. Rubin Observatory"),
+    )
+
+
+EXAMPLE_CITATIONS_CFF_PREFERRED_WITHOUT_CFF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example Software"
+cff_preferred = false
+"""
+
+
+def test_citations_cff_preferred_without_cff_rejected() -> None:
+    """``cff_preferred`` chooses which record of a CITATION.cff file is read,
+    so an entry that sets it without naming a file states a preference over
+    nothing.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_CFF_PREFERRED_WITHOUT_CFF)
+
+    message = str(exc_info.value)
+    assert "cff_preferred" in message
+    assert "cff" in message
+
+
+SOFTWARE_RECORD_CFF_PATH = (
+    Path(__file__).parent / "data" / "citationcff" / "software-record.cff"
+)
+"""A CITATION.cff shaped like ``lsst/daf_butler``'s: a top-level software
+record with a repository and no DOI, above a preferred citation for the paper
+that describes it.
+"""
+
+EXAMPLE_CITATIONS_CFF_SOFTWARE = """
+
+[project]
+title = "Butler Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+"""
+
+
+def test_citations_cff_software_located_by_its_repository(
+    tmp_path: Path,
+) -> None:
+    """A repository whose CITATION.cff prefers a paper can still cite the
+    software itself, which a DOI-less file locates by its repository.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        SOFTWARE_RECORD_CFF_PATH.read_text(encoding="utf-8")
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SOFTWARE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.title == "daf_butler"
+    assert entry.citation.doi is None
+    assert entry.citation.url == "https://github.com/lsst/daf_butler"
+
+
 EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE = """
 
 [project]
@@ -636,11 +753,65 @@ title = "Example"
 """
 
 
-def test_citations_without_doi_rejected() -> None:
-    """An entry that yields no DOI from either source is an error."""
+def test_citations_without_doi_or_url_rejected() -> None:
+    """An entry that yields neither a DOI nor a URL from any source is an
+    error naming both fields, since either would locate the work.
+    """
     config = DocumenteerConfig.load(EXAMPLE_CITATIONS_NO_DOI)
-    with pytest.raises(ConfigError, match="declares no DOI"):
+    with pytest.raises(ConfigError) as exc_info:
         _ = config.citations
+
+    message = str(exc_info.value)
+    assert "neither a DOI nor a URL" in message
+    assert "Set doi or url" in message
+
+
+EXAMPLE_CITATIONS_SELF_WITHOUT_DOI = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example"
+url = "https://example.lsst.io/"
+self = true
+"""
+
+
+def test_citations_self_without_doi_rejected() -> None:
+    """The self entry is the claim to be a DOI's landing page, so a URL does
+    not stand in for the DOI it would resolve to.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_WITHOUT_DOI)
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    message = str(exc_info.value)
+    assert "self = true" in message
+    assert "declares no DOI" in message
+
+
+EXAMPLE_CITATIONS_URL_ONLY = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example Software"
+type = "software"
+url = "https://github.com/lsst/daf_butler"
+"""
+
+
+def test_citations_url_stands_in_for_a_doi() -> None:
+    """A work with no DOI is citable by its landing page, which is how CFF
+    and GitHub cite software that has never been deposited.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_URL_ONLY)
+
+    (entry,) = config.citations
+    assert entry.citation.doi is None
+    assert entry.citation.url == "https://github.com/lsst/daf_butler"
 
 
 EXAMPLE_CITATIONS_FOOTER = """

@@ -269,8 +269,18 @@ class CitationModel(BaseModel):
         None,
         description=(
             "The work's DOI, written bare (``10.NNNN/suffix``), as a "
-            "https://doi.org/ URL, or with a ``doi:`` prefix. Required "
-            "unless a ``cff`` file supplies one."
+            "https://doi.org/ URL, or with a ``doi:`` prefix. Required for "
+            "the ``self`` entry; every other entry may instead be located "
+            "by ``url``. A ``cff`` file can supply either."
+        ),
+    )
+
+    url: str | None = Field(
+        None,
+        description=(
+            "The work's landing page, which locates a work that has no DOI. "
+            "A ``cff`` file supplies one from its ``url``, or from its "
+            "``repository-code`` when it states no landing page."
         ),
     )
 
@@ -371,6 +381,16 @@ class CitationModel(BaseModel):
         ),
     )
 
+    cff_preferred: bool = Field(
+        True,
+        description=(
+            "Whether a preferred-citation in the ``cff`` file is the record "
+            "read, as GitHub's “Cite this repository” button does. "
+            "Set it false to cite the file's top-level record — the "
+            "software or dataset the repository itself is — instead."
+        ),
+    )
+
     @field_validator("doi")
     @classmethod
     def validate_doi(cls, v: str | None) -> str | None:
@@ -462,6 +482,30 @@ class CitationModel(BaseModel):
                 "this DOI's landing page. To ask readers to cite a work "
                 "documented on a page of this site, set preferred = true "
                 "rather than self = true."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_cff_preferred_needs_cff(self) -> Self:
+        """Reject an entry that chooses a record inside a CITATION.cff file
+        without naming one.
+
+        ``cff_preferred`` says which of a file's two records — the
+        preferred citation or the top-level one — the entry reads, so an
+        entry with no ``cff`` states a preference over nothing and would be
+        read as having no effect. It is also the field most easily confused
+        with ``preferred``, which chooses the site's headline citation, and
+        an entry that meant that one is exactly the entry that writes this
+        one alone.
+        """
+        if "cff_preferred" in self.model_fields_set and self.cff is None:
+            raise ValueError(
+                "A [[project.citations]] entry sets "
+                f"cff_preferred = {str(self.cff_preferred).lower()} but no "
+                "cff file, and cff_preferred chooses which record of a "
+                "CITATION.cff file the entry reads. Set cff to the file, or "
+                "drop cff_preferred. To choose the citation this site asks "
+                "readers to use, set preferred instead."
             )
         return self
 
@@ -1380,12 +1424,28 @@ class DocumenteerConfig:
                 "one."
             )
         doi = entry.doi or (source.doi if source else None)
+        url = entry.url or (source.url if source else None)
         if doi is None:
-            raise ConfigError(
-                f"The {_describe_citation(entry, index)} declares no DOI. "
-                "Set doi, or set cff to a CITATION.cff file that declares "
-                "one."
-            )
+            # A work is cited by wherever it is found, which is its DOI when
+            # it has one and its landing page otherwise — the case of a
+            # package or a dataset that has never been deposited. The self
+            # entry is the exception: it *is* the claim to be a DOI's
+            # landing page, so an entry with no DOI has no claim to make.
+            if entry.is_self:
+                raise ConfigError(
+                    f"The {_describe_citation(entry, index)} sets "
+                    "self = true, which claims this site is a DOI's landing "
+                    "page, but declares no DOI. Set doi, or set cff to a "
+                    "CITATION.cff file that declares one, or drop "
+                    "self = true."
+                )
+            if url is None:
+                raise ConfigError(
+                    f"The {_describe_citation(entry, index)} declares "
+                    "neither a DOI nor a URL, so there is nowhere to cite "
+                    "it. Set doi or url, or set cff to a CITATION.cff file "
+                    "that declares a doi, a url, or a repository-code."
+                )
         authors: tuple[CitationAuthor, ...]
         if entry.authors:
             authors = tuple(
@@ -1402,7 +1462,7 @@ class DocumenteerConfig:
                 publisher=entry.publisher
                 or (source.publisher if source else None),
                 date=entry.date or (source.date if source else None),
-                url=source.url if source else None,
+                url=url,
             ),
             label=entry.label,
             is_self=entry.is_self,
@@ -1423,7 +1483,9 @@ class DocumenteerConfig:
         """
         path = (self.root_dir / cast("str", entry.cff)).resolve()
         try:
-            return read_citation_cff(path)
+            return read_citation_cff(
+                path, use_preferred_citation=entry.cff_preferred
+            )
         except CitationCffError as e:
             raise ConfigError(
                 f"The {_describe_citation(entry, index)} sets "

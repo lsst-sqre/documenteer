@@ -215,6 +215,22 @@ def technote_citation() -> Citation:
     )
 
 
+def software_citation() -> Citation:
+    """Build a software citation with no DOI, located by its repository.
+
+    This is what a CITATION.cff whose top-level record states only a
+    ``repository-code`` yields — the shape of a package that is cited but has
+    never been deposited for a DOI.
+    """
+    return Citation(
+        title="daf_butler",
+        type=CitationType.software,
+        authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+        date=PartialDate(2022),
+        url="https://github.com/lsst/daf_butler",
+    )
+
+
 def test_plain_text_for_an_organization_author() -> None:
     assert dataset_citation().to_plain_text() == (
         "Vera C. Rubin Observatory (2025). Data Preview 2. "
@@ -226,6 +242,16 @@ def test_plain_text_for_multiple_person_authors() -> None:
     assert technote_citation().to_plain_text() == (
         "Sick, Jonathan; Jones, R. Lynne (2026). Citations in Documenteer. "
         "Vera C. Rubin Observatory. https://doi.org/10.5281/zenodo.10385500"
+    )
+
+
+def test_plain_text_locates_a_doi_less_work_by_its_url() -> None:
+    """A work with no DOI ends its citation at its landing page, which is the
+    identifier a reader has.
+    """
+    assert software_citation().to_plain_text() == (
+        "Vera C. Rubin Observatory (2022). daf_butler. "
+        "https://github.com/lsst/daf_butler"
     )
 
 
@@ -361,6 +387,20 @@ def test_bibtex_url_falls_back_to_the_doi_url() -> None:
         "    title = {{Untitled}},\n"
         "    doi = {10.5281/zenodo.10385500},\n"
         "    url = {https://doi.org/10.5281/zenodo.10385500}\n"
+        "}"
+    )
+
+
+def test_bibtex_of_a_doi_less_work_carries_only_a_url() -> None:
+    """A work with no DOI writes no ``doi`` field, and its ``url`` is its own
+    landing page rather than a doi.org redirect that would not resolve.
+    """
+    assert software_citation().to_bibtex() == (
+        "@misc{veracrubinobservatory2022dafbutler,\n"
+        "    author = {{Vera C. Rubin Observatory}},\n"
+        "    title = {{daf\\_butler}},\n"
+        "    year = {2022},\n"
+        "    url = {https://github.com/lsst/daf_butler}\n"
         "}"
     )
 
@@ -795,6 +835,33 @@ def test_landing_page_jsonld_relates_parts_and_cited_works() -> None:
     assert paper["creator"] == [{"@type": "Person", "name": "Jonathan Sick"}]
 
     assert "10.5281/zenodo.10385500" not in json.dumps(payload)
+
+
+def test_landing_page_jsonld_identifies_a_doi_less_work_by_its_url() -> None:
+    """A cited work with no DOI is identified by its landing page and carries
+    no ``identifier`` block, since a PropertyValue naming no DOI would assert
+    an identifier the work does not have.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                _self_citation_context(),
+                GuideCitation(
+                    citation=software_citation(),
+                    label="Software",
+                    in_footer=True,
+                ).to_html_context(),
+            ],
+            site_url=SITE_URL,
+        )
+        or ""
+    )
+
+    (software,) = payload["citation"]
+    assert software["@type"] == "SoftwareSourceCode"
+    assert software["@id"] == "https://github.com/lsst/daf_butler"
+    assert software["url"] == "https://github.com/lsst/daf_butler"
+    assert "identifier" not in software
 
 
 def test_landing_page_jsonld_states_no_relation_it_does_not_have() -> None:

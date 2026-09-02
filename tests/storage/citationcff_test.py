@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 from documenteer.citations import (
     Citation,
@@ -21,8 +22,22 @@ from documenteer.storage.citationcff import (
     CitationCffParseError,
     read_citation_cff,
 )
+from tests.cffschema import assert_valid_cff
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "citationcff"
+
+
+@pytest.mark.parametrize(
+    "path", sorted(DATA_DIR.glob("*.cff")), ids=lambda path: path.name
+)
+def test_the_fixtures_are_valid_cff(path: Path) -> None:
+    """Every file the reader is tested against satisfies CFF 1.2.0.
+
+    A fixture that CFF itself would reject would pin the reader's behavior on
+    a file no repository can have, so the shapes read here are validated
+    against the same vendored schema the generated file is.
+    """
+    assert_valid_cff(yaml.safe_load(path.read_text(encoding="utf-8")))
 
 
 def test_minimal_file() -> None:
@@ -71,6 +86,55 @@ def test_preferred_citation_wins() -> None:
             orcid="https://orcid.org/0000-0003-3001-676X",
         ),
     )
+
+
+def test_top_level_record_ignores_preferred_citation() -> None:
+    """Asked for the file's own record, the reader returns the top-level
+    software the repository is and never looks at preferred-citation.
+    """
+    citation = read_citation_cff(
+        DATA_DIR / "software-record.cff", use_preferred_citation=False
+    )
+
+    assert citation.title == "daf_butler"
+    assert citation.type is CitationType.software
+    assert citation.doi is None
+    assert citation.authors == (
+        OrganizationAuthor(name="Vera C. Rubin Observatory"),
+        PersonAuthor(
+            family_name="Jenness",
+            given_name="Tim",
+            orcid="https://orcid.org/0000-0001-5982-167X",
+        ),
+    )
+
+
+def test_repository_code_stands_in_for_a_landing_page() -> None:
+    """A record that states no landing page is located by its source
+    repository, which is how CFF and GitHub cite software with no DOI.
+    """
+    citation = read_citation_cff(
+        DATA_DIR / "software-record.cff", use_preferred_citation=False
+    )
+
+    assert citation.url == "https://github.com/lsst/daf_butler"
+
+
+def test_landing_page_beats_repository_code(tmp_path: Path) -> None:
+    """A record that states both is located by its landing page: CFF's
+    ``url`` is defined as the work's website, where ``repository-code`` is
+    where its source is kept.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A package\n"
+        "type: software\n"
+        "url: https://package.lsst.io/\n"
+        "repository-code: https://github.com/lsst/package\n"
+    )
+
+    assert read_citation_cff(path).url == "https://package.lsst.io/"
 
 
 @pytest.mark.parametrize(
