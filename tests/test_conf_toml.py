@@ -533,6 +533,31 @@ def test_citations_two_self_entries_rejected() -> None:
         DocumenteerConfig.load(EXAMPLE_CITATIONS_TWO_SELF)
 
 
+EXAMPLE_CITATIONS_TWO_PREFERRED = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "A Dataset"
+preferred = true
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+title = "A Paper"
+preferred = true
+"""
+
+
+def test_citations_two_preferred_entries_rejected() -> None:
+    """A site asks readers to use one citation, so two entries claiming to be
+    it is a configuration error rather than a silent first-wins.
+    """
+    with pytest.raises(ConfigError, match="preferred = true"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_TWO_PREFERRED)
+
+
 EXAMPLE_CITATIONS_BAD_DOI = """
 
 [project]
@@ -641,6 +666,94 @@ in_footer = true
 """
 
 
+EXAMPLE_CITATIONS_PREFERRED = """
+
+[project]
+title = "Butler Guide"
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+type = "article"
+preferred = true
+title = "The Vera C. Rubin Observatory Data Butler"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+label = "Dataset"
+title = "A Dataset"
+"""
+
+
+def test_citations_preferred_without_self() -> None:
+    """A site whose preferred citation is a work published elsewhere marks it
+    `preferred`, which asks readers to cite it without claiming the site is
+    its landing page.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED)
+
+    preferred = config.preferred_citation
+    assert preferred is not None
+    assert preferred.label == "Paper"
+    assert preferred.is_preferred is True
+    assert preferred.is_self is False
+    # Nothing claims the site as a landing page, so no page emits the
+    # single-valued head metadata.
+    assert config.self_citation is None
+    assert [entry.in_footer for entry in config.citations] == [True, False]
+
+
+def test_set_citations_preferred_without_self() -> None:
+    """A site with a preferred citation but no self entry publishes the
+    preferred entry alone: nothing claims the site as a landing page, so the
+    head metadata has nothing to emit.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    preferred = html_context["documenteer_preferred_citation"]
+    assert preferred is not None
+    assert preferred["label"] == "Paper"
+    assert html_context["documenteer_self_citation"] is None
+
+
+EXAMPLE_CITATIONS_SELF_AND_PREFERRED = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Site"
+self = true
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+title = "A Paper"
+preferred = true
+"""
+
+
+def test_citations_self_and_preferred_are_different_entries() -> None:
+    """A site can be one DOI's landing page while asking readers to cite
+    another work, and the two claims are answered by different entries.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_AND_PREFERRED)
+
+    self_citation = config.self_citation
+    preferred = config.preferred_citation
+    assert self_citation is not None
+    assert preferred is not None
+    assert self_citation.label == "Site"
+    assert preferred.label == "Paper"
+    # An explicit preferred entry takes the footer default with it, so the
+    # site shows the citation it asks readers to use.
+    assert [entry.in_footer for entry in config.citations] == [False, True]
+
+
 def test_citations_in_footer_defaults() -> None:
     """in_footer defaults to true only for the self entry, and the array
     order is preserved.
@@ -696,6 +809,10 @@ def test_set_citations_html_context() -> None:
     assert context["bibtex"].startswith("@misc{")
     assert "doi = {10.71929/rubin/2570308}" in context["bibtex"]
     assert html_context["documenteer_self_citation"] is context
+    # The self entry is the preferred one by default, which is what keeps a
+    # configuration written before `preferred` existed unchanged.
+    assert html_context["documenteer_preferred_citation"] is context
+    assert context["is_preferred"] is True
 
 
 def test_set_citations_publishes_jsonld() -> None:

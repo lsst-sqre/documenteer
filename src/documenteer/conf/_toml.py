@@ -295,8 +295,19 @@ class CitationModel(BaseModel):
         False,
         alias="self",
         description=(
-            "Whether this is the DOI whose landing page this site is. At "
-            "most one entry can set it."
+            "Whether this site is this DOI's registered landing page. At "
+            "most one entry can set it. It says nothing about which "
+            "citation the site asks readers to use, which is ``preferred``."
+        ),
+    )
+
+    is_preferred: bool = Field(
+        False,
+        alias="preferred",
+        description=(
+            "Whether this is the citation the site asks readers to use. At "
+            "most one entry can set it; it defaults to the ``self`` entry "
+            "when the site has one."
         ),
     )
 
@@ -304,7 +315,7 @@ class CitationModel(BaseModel):
         None,
         description=(
             "Whether this citation appears in the site footer. Defaults to "
-            "true for the ``self`` entry and false for every other."
+            "true for the preferred entry and false for every other."
         ),
     )
 
@@ -446,13 +457,21 @@ class CitationModel(BaseModel):
             return None
         return self.page.partition("#")[2] or None
 
-    @property
-    def shows_in_footer(self) -> bool:
+    def shows_in_footer(self, *, is_preferred: bool) -> bool:
         """Whether the citation appears in the site footer, resolving the
-        default from whether it is the self citation.
+        default from whether it is the site's preferred citation.
+
+        Parameters
+        ----------
+        is_preferred
+            Whether this entry is the site's preferred citation, as
+            `ProjectModel.preferred_citation` resolves it. It is passed in
+            rather than read from `is_preferred` because the default is
+            inherited by the ``self`` entry of a site that marks no entry
+            ``preferred``, which an entry cannot see on its own.
         """
         if self.in_footer is None:
-            return self.is_self
+            return is_preferred
         return self.in_footer
 
 
@@ -514,6 +533,44 @@ class ProjectModel(BaseModel):
                 "Set self = true on one entry only."
             )
         return v
+
+    @field_validator("citations")
+    @classmethod
+    def validate_one_preferred_citation(
+        cls, v: list[CitationModel]
+    ) -> list[CitationModel]:
+        """Allow at most one citation to be the one the site asks readers to
+        use.
+        """
+        preferred_count = sum(1 for citation in v if citation.is_preferred)
+        if preferred_count > 1:
+            raise ValueError(
+                f"{preferred_count} [[project.citations]] entries set "
+                "preferred = true, but a site asks readers to use one "
+                "citation. Set preferred = true on one entry only."
+            )
+        return v
+
+    @property
+    def preferred_citation(self) -> CitationModel | None:
+        """The citation the site asks readers to use, or `None` when the site
+        names none.
+
+        An entry that sets ``preferred`` answers outright. Otherwise the
+        ``self`` entry answers, since a site that publishes its own DOI asks
+        to be cited by it — which is what keeps a configuration written before
+        ``preferred`` existed unchanged.
+        """
+        explicit = next(
+            (citation for citation in self.citations if citation.is_preferred),
+            None,
+        )
+        if explicit is not None:
+            return explicit
+        return next(
+            (citation for citation in self.citations if citation.is_self),
+            None,
+        )
 
     @field_validator("citations")
     @classmethod
@@ -1193,8 +1250,11 @@ class DocumenteerConfig:
         to first access and then cached: a configuration that is loaded but
         never displays a citation does no I/O.
         """
+        preferred = self.conf.project.preferred_citation
         return [
-            self._resolve_citation(entry, index)
+            self._resolve_citation(
+                entry, index, is_preferred=entry is preferred
+            )
             for index, entry in enumerate(self.conf.project.citations)
         ]
 
@@ -1208,6 +1268,22 @@ class DocumenteerConfig:
             None,
         )
 
+    @property
+    def preferred_citation(self) -> GuideCitation | None:
+        """The citation the site asks readers to use, or `None` if the site
+        names none.
+
+        This is the ``self`` citation for a site that publishes its own DOI,
+        and an entry marked ``preferred`` for one whose preferred citation is
+        a work published elsewhere — a repository whose ``CITATION.cff``
+        prefers the paper that describes it, say, whose landing page is the
+        publisher's rather than this site's.
+        """
+        return next(
+            (citation for citation in self.citations if citation.is_preferred),
+            None,
+        )
+
     def set_citations(self, html_context: MutableMapping[str, Any]) -> None:
         """Publish the resolved citations into Sphinx's ``html_context``.
 
@@ -1218,7 +1294,7 @@ class DocumenteerConfig:
 
         Notes
         -----
-        Two keys are set, and only when the site declares at least one
+        These keys are set, and only when the site declares at least one
         citation, so that a site without ``[[project.citations]]`` renders
         exactly as it did before:
 
@@ -1227,6 +1303,12 @@ class DocumenteerConfig:
             `~documenteer.citations.GuideCitation.to_html_context` composes.
         ``documenteer_self_citation``
             The entry from that list whose ``is_self`` is true, or `None`.
+            This is the site's claim to be a DOI's landing page, so it alone
+            drives the ``<head>`` metadata.
+        ``documenteer_preferred_citation``
+            The entry from that list whose ``is_preferred`` is true, or
+            `None`. This is the citation the site asks readers to use, so it
+            is what an argument-less ``citation-card`` renders.
 
         This is the whole contract with the surfaces that display a citation
         — the ``<head>`` metadata, the ``citation-card`` directive, and the
@@ -1239,19 +1321,27 @@ class DocumenteerConfig:
         html_context["documenteer_self_citation"] = next(
             (context for context in contexts if context["is_self"]), None
         )
+        html_context["documenteer_preferred_citation"] = next(
+            (context for context in contexts if context["is_preferred"]), None
+        )
         jsonld = compose_landing_page_jsonld(
-            contexts, site_url=self.base_url or None
+            contexts,
+            site_url=self.base_url or None,
+            site_title=self.project,
         )
         if jsonld is not None:
             html_context["documenteer_citations_jsonld"] = jsonld
 
     def _resolve_citation(
-        self, entry: CitationModel, index: int
+        self, entry: CitationModel, index: int, *, is_preferred: bool
     ) -> GuideCitation:
         """Compose one ``[[project.citations]]`` entry as a citation.
 
         A ``cff`` file supplies the bibliographic fields; a field set on the
-        entry itself overrides the file's value.
+        entry itself overrides the file's value. ``is_preferred`` is the
+        resolved answer to which entry the site asks readers to use (see
+        `ProjectModel.preferred_citation`), which the entry cannot decide on
+        its own because the ``self`` entry inherits it by default.
         """
         source = self._read_citation_cff(entry, index) if entry.cff else None
         title = entry.title or (source.title if source else None)
@@ -1292,7 +1382,8 @@ class DocumenteerConfig:
             ),
             label=entry.label,
             is_self=entry.is_self,
-            in_footer=entry.shows_in_footer,
+            is_preferred=is_preferred,
+            in_footer=entry.shows_in_footer(is_preferred=is_preferred),
             note=entry.note,
             page=entry.page_docname,
             page_fragment=entry.page_fragment,

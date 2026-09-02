@@ -32,6 +32,7 @@ CITATIONS = [
         ),
         label="Site",
         is_self=True,
+        is_preferred=True,
         in_footer=True,
         note="Cite this documentation.",
     ),
@@ -53,4 +54,5 @@ CITATION_CONTEXTS = [citation.to_html_context() for citation in CITATIONS]
 html_context = {
     "documenteer_citations": CITATION_CONTEXTS,
     "documenteer_self_citation": CITATION_CONTEXTS[0],
+    "documenteer_preferred_citation": CITATION_CONTEXTS[0],
 }

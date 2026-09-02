@@ -44,6 +44,33 @@ A site that documents a data release typically declares two citations — the re
    date = 2025-06-30
    authors = [{ name = "Vera C. Rubin Observatory" }]
 
+Two of the fields there answer two different questions, and it is worth keeping them apart:
+
+:ref:`self <guide-project-citations-self>`
+    Whether this site is the DOI's registered *landing page* — whether doi.org sends a reader here.
+    It alone drives the machine-readable metadata in each page's ``<head>``.
+
+:ref:`preferred <guide-project-citations-preferred>`
+    Which citation the site asks readers to *use*.
+    It is what a card with no argument renders, and what the footer shows by default.
+
+They coincide above, and a site that publishes its own DOI never needs to think about the difference: an entry marked ``self`` is the preferred citation unless another entry claims that.
+
+They part ways for a site whose citation is a work published somewhere else — a software repository whose :file:`CITATION.cff` prefers the paper that describes it, say.
+That paper's landing page is its publisher's, so the site marks it ``preferred`` and marks nothing ``self``:
+
+.. code-block:: toml
+
+   # documenteer.toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   label = "Paper"
+   preferred = true
+   note = "Cite this paper in publications that use the package."
+
+The site then displays that citation everywhere it displays one, while no page of it claims to be the paper's landing page.
+
 .. _guide-citation-card:
 
 Citation cards
@@ -61,7 +88,7 @@ It is the page-level counterpart to the footer citations, and is the right tool 
 
    **Default: the site's own citation**
 
-   With no argument, the card renders the entry marked :ref:`self = true <guide-project-citations-self>` — the work whose DOI landing page this site is:
+   With no argument, the card renders the site's :ref:`preferred <guide-project-citations-preferred>` citation — the work the site asks readers to cite, which is the entry marked :ref:`self = true <guide-project-citations-self>` on a site that marks no other:
 
    .. tab-set::
 
@@ -123,7 +150,8 @@ It is the page-level counterpart to the footer citations, and is the right tool 
 Unresolvable cards
 ==================
 
-A card that names a label no entry carries — and a card with no argument on a site where no entry is marked ``self = true`` — renders nothing and emits a build warning naming the labels the site does declare.
+A card that names a label no entry carries — and a card with no argument on a site that names no preferred citation — renders nothing and emits a build warning naming the labels the site does declare.
+The warning about a missing default asks for ``preferred = true``, since that is the field a site sets when the citation to use is published elsewhere; ``self = true`` answers it too, for a site that really is its DOI's landing page.
 
 That warning carries the subtype ``documenteer.citation_card``, so a site that knowingly keeps such a card can stop it from failing a warnings-as-errors (``-W``) build:
 
@@ -139,7 +167,7 @@ Footer citations
 
 The site footer shows the citations on every page, which is what makes each page of the guide a landing page for the site's DOI rather than only the page that carries a card.
 
-The footer shows the entry marked :ref:`self = true <guide-project-citations-self>` and every entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`, in the order :file:`documenteer.toml` declares them.
+The footer shows the site's :ref:`preferred <guide-project-citations-preferred>` citation and every entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`, in the order :file:`documenteer.toml` declares them.
 Each one shows the same three parts a card does — the :ref:`label <guide-project-citations-label>`, the citation with its DOI as a ``https://doi.org/`` hyperlink, and the :ref:`note <guide-project-citations-note>` — under a "How to cite" heading.
 With the configuration above, the footer reads:
 
@@ -210,7 +238,7 @@ Every page no entry claims — the home page, the rest of the guide — is uncha
 The claim also relates the two works: each catalog's node names the release as the work it is ``isPartOf``, and the release's own node names both catalogs under ``hasPart``, so a consumer arriving at either end can reach the other (see :ref:`guide-citation-metadata`).
 
 Claiming a page changes only the machine-readable metadata; the visible surfaces are unaffected.
-The footer still shows the same citations everywhere, and ``.. citation-card::`` with no argument still renders the ``self`` entry.
+The footer still shows the same citations everywhere, and ``.. citation-card::`` with no argument still renders the site's preferred citation.
 A landing page that wants to show the citation a reader arriving from doi.org came for names it by label:
 
 .. code-block:: rst
@@ -235,6 +263,10 @@ That JSON-LD block is *about* the ``self`` entry, and states every other entry a
 - An entry with **no** page is a work the site **cites**, and reaches the site-wide block in full — but only when the site displays it, which is to say when :ref:`in_footer <guide-project-citations-in-footer>` is true.
 - An entry that is neither a part nor shown in the footer appears in no site-wide block at all, because no page of the site mentions it.
   It still renders wherever a :ref:`citation-card <guide-citation-card>` names it by label.
+
+A site that marks no entry ``self`` publishes no DOI of its own, so it emits no ``citation_doi`` or ``DC.identifier`` meta tag on any page.
+Its JSON-LD block still has a subject — the site itself, a schema.org ``WebSite`` carrying the site's title and URL and no identifier — and the same entries reach it under the same two relations, in the same shapes.
+Only the subject differs, so a consumer reads the block the same way whether or not the site publishes a DOI.
 
 Keeping the parts to references is what lets a site publish a DOI per data product without paying for it on every page: a release with forty product DOIs states forty short references, not forty full records, and each product's own landing page carries the record that describes it.
 

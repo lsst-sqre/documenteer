@@ -8,9 +8,15 @@ a card carrying the citation, the entry's label, and its note.
 
 The citations themselves are composed once, by the guide configuration preset,
 and published into Sphinx's ``html_context`` as ``documenteer_citations`` and
-``documenteer_self_citation``. This module only reads that context; it never
-recomposes a citation, so the card, the page ``<head>`` metadata, and the site
-footer can never disagree about what the site's citation says.
+``documenteer_preferred_citation``. This module only reads that context; it
+never recomposes a citation, so the card, the page ``<head>`` metadata, and the
+site footer can never disagree about what the site's citation says.
+
+The card asks which citation the site wants *used*, which is
+``documenteer_preferred_citation`` — not ``documenteer_self_citation``, the
+narrower claim that this site is a DOI's landing page, which the ``<head>``
+metadata reads. A repository whose preferred citation is a paper published
+elsewhere answers the first and not the second.
 """
 
 from __future__ import annotations
@@ -53,11 +59,11 @@ class CitationCard(SphinxDirective):
     """Render one of the site's citations as a card.
 
     The optional argument is the ``label`` of the ``[[project.citations]]``
-    entry to render. With no argument the directive renders the entry marked
-    ``self = true`` — the work whose DOI landing page this site is — which is
+    entry to render. With no argument the directive renders the site's
+    preferred citation — the work the site asks readers to cite — which is
     what a "Citing this site" page wants.
 
-    An argument that matches no entry, and a missing ``self`` entry, are
+    An argument that matches no entry, and a site with no preferred entry, are
     warnings rather than errors: the citation metadata a site displays should
     never be the reason a page fails to build, and the warning carries a
     subtype so a site can suppress it deliberately.
@@ -102,18 +108,20 @@ class CitationCard(SphinxDirective):
             return None
 
         if label is None:
-            self_citation = self.config.html_context.get(
-                "documenteer_self_citation"
+            preferred = self.config.html_context.get(
+                "documenteer_preferred_citation"
             )
-            if self_citation is None:
+            if preferred is None:
                 self._warn(
-                    "no citation is marked `self = true`, so there is no "
-                    "default entry to render. Mark the site's own "
-                    "[[project.citations]] entry with `self = true`, or give "
+                    "no citation is marked `preferred = true`, so there is "
+                    "no default entry to render. Mark the citation this site "
+                    "asks readers to use with `preferred = true` in "
+                    "documenteer.toml -- or with `self = true` when the site "
+                    "really is that DOI's registered landing page -- or give "
                     "the directive a label to render: "
                     f"{_describe_labels(citations)}."
                 )
-            return self_citation
+            return preferred
 
         for citation in citations:
             if citation.get("label") == label:

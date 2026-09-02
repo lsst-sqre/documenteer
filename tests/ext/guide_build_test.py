@@ -168,6 +168,12 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
     )
     assert f"doi = {{{CITATION_DOI}}}" in citation["bibtex"]
     assert app.config.html_context["documenteer_self_citation"] is citation
+    # The site claims the DOI's landing page and marks no other entry
+    # preferred, so the self entry is also the one the site asks readers to
+    # use -- which is what keeps a pre-`preferred` configuration unchanged.
+    assert (
+        app.config.html_context["documenteer_preferred_citation"] is citation
+    )
     # The second entry is the dataset the guide documents, opted into the
     # footer after the self citation; the third opted out of it.
     assert citations[1]["label"] == "Dataset"

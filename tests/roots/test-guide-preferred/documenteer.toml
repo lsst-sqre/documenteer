@@ -1,0 +1,22 @@
+# The full user-guide stack for a site whose preferred citation is a work
+# published somewhere else -- the shape a repository whose CITATION.cff
+# declares a preferred-citation has. The site asks readers to cite the paper,
+# but the paper's landing page is its publisher's, so nothing is marked
+# self = true and no page of this site claims to be a DOI's landing page.
+[project]
+title = "Preferred Citation Guide"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+type = "article"
+preferred = true
+note = "Cite this paper in publications that use the package."
+title = "The Vera C. Rubin Observatory Data Butler"
+publisher = "SPIE"
+date = 2022-08-27
+authors = [
+    { family_name = "Jenness", given_name = "Tim" },
+]

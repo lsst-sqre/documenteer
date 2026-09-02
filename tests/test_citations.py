@@ -695,7 +695,7 @@ def test_landing_page_jsonld_types_a_citation_from_its_type(
         or ""
     )
 
-    (node,) = payload["@graph"]
+    (node,) = payload["citation"]
     assert node["@type"] == schema_type
 
 
@@ -813,11 +813,10 @@ def test_landing_page_jsonld_states_no_relation_it_does_not_have() -> None:
     assert "citation" not in payload
 
 
-def test_landing_page_jsonld_graph_makes_the_same_selection() -> None:
-    """The ``@graph`` a site without a self citation emits carries the same
-    entries the related form would — the parts and the footer's citations —
-    because there is no subject to relate them to, not because the selection
-    is different.
+def test_landing_page_jsonld_site_subject_makes_the_same_selection() -> None:
+    """A site without a self citation relates its entries to the site subject
+    exactly as one with a self citation relates them to its own work: the
+    same entries, under the same relations, in the same shapes.
     """
     payload = json.loads(
         compose_landing_page_jsonld(
@@ -839,10 +838,21 @@ def test_landing_page_jsonld_graph_makes_the_same_selection() -> None:
         or ""
     )
 
-    assert [node["name"] for node in payload["@graph"]] == [
-        "The Smoke Test Survey",
-        "Object catalog (Butler)",
+    # A part is named by reference alone here too: its full record lives on
+    # the page it claims, whether or not the site declares a work of its own.
+    assert payload["hasPart"] == [
+        {
+            "@type": "Dataset",
+            "@id": "https://doi.org/10.71929/rubin/3382539",
+            "name": "Object catalog (Butler)",
+        }
     ]
+    (paper,) = payload["citation"]
+    assert paper["name"] == "The Smoke Test Survey"
+    assert paper["creator"] == [{"@type": "Person", "name": "Jonathan Sick"}]
+    # The unlisted entry is neither a part nor shown in the footer, so it is
+    # absent from the block, exactly as it is with a self citation.
+    assert "10.5281/zenodo.10385500" not in json.dumps(payload)
 
 
 def test_landing_page_jsonld_without_a_selected_citation() -> None:
@@ -865,17 +875,47 @@ def test_landing_page_jsonld_without_a_selected_citation() -> None:
     )
 
 
-def test_landing_page_jsonld_is_a_graph_without_a_self_citation() -> None:
-    """A site that marks no citation as its own has no subject to make the
-    document about, so its citations are emitted as a plain @graph.
+def test_landing_page_jsonld_describes_the_site_without_a_self_citation() -> (
+    None
+):
+    """A site that claims no DOI's landing page is still a site, so the
+    document's subject is the site itself — a WebSite with no identifier —
+    and the works it declares hang off it as citations.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [_dataset_citation_context()],
+            site_url=SITE_URL,
+            site_title="Butler Guide",
+        )
+        or ""
+    )
+    assert payload["@context"] == "https://schema.org"
+    assert payload["@type"] == "WebSite"
+    assert payload["name"] == "Butler Guide"
+    assert payload["url"] == SITE_URL
+    # The site claims no DOI of its own, so the subject carries neither an
+    # identifier nor an @id that would assert one.
+    assert "@id" not in payload
+    assert "identifier" not in payload
+    assert "@graph" not in payload
+    (node,) = payload["citation"]
+    assert node["@type"] == "Dataset"
+    assert node["@id"] == "https://doi.org/10.5281/zenodo.10385500"
+
+
+def test_landing_page_jsonld_site_subject_without_a_url_or_title() -> None:
+    """A site that declares no base_url states no url rather than an empty
+    one, and the same for its title, so the subject asserts only what the
+    configuration knows.
     """
     payload = json.loads(
         compose_landing_page_jsonld([_dataset_citation_context()]) or ""
     )
-    assert payload["@context"] == "https://schema.org"
-    assert "@id" not in payload
-    (node,) = payload["@graph"]
-    assert node["@type"] == "Dataset"
+
+    assert payload["@type"] == "WebSite"
+    assert "url" not in payload
+    assert "name" not in payload
 
 
 def test_landing_page_jsonld_ignores_a_label_that_reads_as_a_type() -> None:

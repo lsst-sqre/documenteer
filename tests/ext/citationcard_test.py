@@ -127,6 +127,53 @@ def test_card_selects_an_entry_by_label(app: SphinxTestApp) -> None:
     )
 
 
+def _preferred_paper_context() -> dict[str, Any]:
+    """Compose the html_context mapping of a site whose preferred citation is
+    a paper published elsewhere — the shape a repository whose CITATION.cff
+    prefers a paper has, where the site is nobody's landing page.
+    """
+    return GuideCitation(
+        citation=Citation(
+            title="The Vera C. Rubin Observatory Data Butler",
+            doi="10.1117/12.2629569",
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+            publisher="SPIE",
+            date=PartialDate(2022, 8, 27),
+        ),
+        label="Paper",
+        is_preferred=True,
+        in_footer=True,
+    ).to_html_context()
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationcard",
+    srcdir="citationcard-preferred",
+    confoverrides={
+        "html_context": {
+            "documenteer_citations": [_preferred_paper_context()],
+            "documenteer_self_citation": None,
+            "documenteer_preferred_citation": _preferred_paper_context(),
+        }
+    },
+)
+def test_default_card_renders_the_preferred_citation(
+    app: SphinxTestApp,
+) -> None:
+    """A site that marks a citation ``preferred`` without claiming to be its
+    landing page still has a default card, because the card asks which
+    citation the site wants used, not whose landing page the site is.
+    """
+    doc = _page(app, "index")
+
+    card = doc.cssselect(CARD)[0]
+    (label,) = card.cssselect(LABEL)
+    assert _text(label) == "Paper"
+
+    assert "no citation is marked" not in app.warning.getvalue()
+
+
 # Its own srcdir: a directive's warning is emitted while a page is *read*, so
 # a test that asserts on one needs a build that has not already cached the
 # page's doctree from an earlier test.
@@ -173,17 +220,22 @@ def test_warning_is_suppressible(app: SphinxTestApp) -> None:
 @pytest.mark.sphinx(
     "html",
     testroot="citationcard",
-    srcdir="citationcard-noself",
+    srcdir="citationcard-nopreferred",
     confoverrides={
         "html_context": {
             "documenteer_citations": [_dataset_context()],
             "documenteer_self_citation": None,
+            "documenteer_preferred_citation": None,
         }
     },
 )
-def test_missing_self_entry_warns(app: SphinxTestApp) -> None:
-    """With no ``self`` entry, the default card warns and renders nothing,
+def test_missing_preferred_entry_warns(app: SphinxTestApp) -> None:
+    """With no preferred entry, the default card warns and renders nothing,
     while a card that names a label still renders.
+
+    The advice names ``preferred``, since that is what a site whose citation
+    is published elsewhere should set; ``self`` is offered only for a site
+    that really is its DOI's landing page.
     """
     doc = _page(app, "index")
 
@@ -191,7 +243,8 @@ def test_missing_self_entry_warns(app: SphinxTestApp) -> None:
     assert _text(card.cssselect(LABEL)[0]) == "Dataset"
 
     warnings = app.warning.getvalue()
-    assert "no citation is marked" in warnings
+    assert "preferred = true" in warnings
+    assert "self = true" in warnings
     assert f"[{WARNING_NAME}]" in warnings
 
 

@@ -868,8 +868,21 @@ class GuideCitation:
     """Whether this is the DOI whose landing page this site is.
 
     At most one citation on a site is the self citation. It is the one whose
-    metadata the site emits in its ``<head>``, and the one a
-    ``citation-card`` directive renders by default.
+    metadata the site emits in its ``<head>``, and the subject of the
+    site-wide JSON-LD block.
+
+    This says nothing about which citation the site *asks readers to use* —
+    that is `is_preferred`. The two coincide for a site that publishes its own
+    DOI, and part ways for one whose preferred citation is a work published
+    somewhere else, whose landing page is that publisher's.
+    """
+
+    is_preferred: bool = False
+    """Whether this is the citation the site asks readers to use.
+
+    At most one citation on a site is the preferred one. It is the entry a
+    ``citation-card`` directive renders when given no label, and the one whose
+    footer appearance is the default rather than opt-in.
     """
 
     in_footer: bool = False
@@ -931,6 +944,7 @@ class GuideCitation:
             "label": self.label,
             "type": citation.type.value if citation.type else None,
             "is_self": self.is_self,
+            "is_preferred": self.is_preferred,
             "in_footer": self.in_footer,
             "note": self.note,
             "page": self.page,
@@ -1070,8 +1084,29 @@ def _minimal_reference(citation: Mapping[str, Any]) -> dict[str, Any]:
     return node
 
 
+def _site_node(site_title: str | None, site_url: str | None) -> dict[str, Any]:
+    """Express the site itself as a schema.org node, for a site that claims no
+    DOI's landing page.
+
+    The node carries no ``@id`` and no ``identifier``: a site that marks no
+    citation ``self`` publishes no DOI of its own, and inventing an identifier
+    for it would assert exactly the claim the configuration declined to make.
+    A site that also declares no ``base_url`` states no ``url`` either, so the
+    subject asserts only what the configuration knows.
+    """
+    node: dict[str, Any] = {"@type": "WebSite"}
+    if site_title:
+        node["name"] = site_title
+    if site_url:
+        node["url"] = site_url
+    return node
+
+
 def compose_landing_page_jsonld(
-    citations: Sequence[Mapping[str, Any]], *, site_url: str | None = None
+    citations: Sequence[Mapping[str, Any]],
+    *,
+    site_url: str | None = None,
+    site_title: str | None = None,
 ) -> str | None:
     """Compose a site's citations as a schema.org JSON-LD document, serialized
     ready to embed in a ``<script type="application/ld+json">`` element.
@@ -1083,8 +1118,13 @@ def compose_landing_page_jsonld(
         `GuideCitation.to_html_context` composes and Sphinx's ``html_context``
         publishes.
     site_url
-        The site's own base URL, used as the ``url`` of the self citation's
-        node.
+        The site's own base URL, used as the ``url`` of the document's
+        subject — the self citation's node, or the site's own node when no
+        entry is the self citation.
+    site_title
+        The site's own title, used as the ``name`` of the site's own node.
+        Unused when an entry is the self citation, whose own title names the
+        subject.
 
     Returns
     -------
@@ -1114,9 +1154,16 @@ def compose_landing_page_jsonld(
 
     An entry that is neither a part nor shown in the footer therefore appears
     in no site-wide block, though a ``citation-card`` that names it still
-    renders it. A site that declares citations but marks none of them
-    ``self`` has no subject to relate them to, and the same selection is
-    emitted as a plain ``@graph`` instead.
+    renders it.
+
+    A site that declares citations but marks none of them ``self`` — one whose
+    preferred citation is a work published elsewhere, whose landing page is
+    that publisher's — is still the subject of its own document. It is
+    described as a ``WebSite`` carrying the site's title and URL and no
+    identifier at all (see `_site_node`), and the same entries reach it under
+    the same two relations, in the same shapes: a part by reference, a cited
+    work in full. Only the subject differs, so the rule a consumer reads the
+    block by does not depend on whether the site publishes a DOI of its own.
 
     The returned string is safe to place directly in a ``<script>`` element:
     the characters that could close it early are written as JSON string
@@ -1127,36 +1174,32 @@ def compose_landing_page_jsonld(
         (citation for citation in citations if citation.get("is_self")), None
     )
     if self_citation is None:
-        nodes = [
-            _citation_node(citation)
-            for citation in citations
-            if citation.get("page") or citation.get("in_footer")
-        ]
-        if not nodes:
-            return None
-        return _serialize_jsonld(
-            {"@context": SCHEMA_ORG_CONTEXT, "@graph": nodes}
-        )
-
-    others = [
-        citation for citation in citations if citation is not self_citation
-    ]
-    document: dict[str, Any] = {
-        "@context": SCHEMA_ORG_CONTEXT,
+        subject = _site_node(site_title, site_url)
+        others = list(citations)
+    else:
         # The site's own citation is the only one whose landing page is the
         # site; every other work keeps the location its own record names.
-        **_citation_node(self_citation, url_override=site_url),
-    }
-    parts = [citation for citation in others if citation.get("page")]
-    if parts:
-        document["hasPart"] = [
-            _minimal_reference(citation) for citation in parts
+        subject = _citation_node(self_citation, url_override=site_url)
+        others = [
+            citation for citation in citations if citation is not self_citation
         ]
+
+    parts = [citation for citation in others if citation.get("page")]
     cited = [
         citation
         for citation in others
         if not citation.get("page") and citation.get("in_footer")
     ]
+    if self_citation is None and not parts and not cited:
+        # A site with nothing to relate would publish a bare description of
+        # itself, which says nothing a page's own metadata does not.
+        return None
+
+    document: dict[str, Any] = {"@context": SCHEMA_ORG_CONTEXT, **subject}
+    if parts:
+        document["hasPart"] = [
+            _minimal_reference(citation) for citation in parts
+        ]
     if cited:
         document["citation"] = [_citation_node(citation) for citation in cited]
     return _serialize_jsonld(document)

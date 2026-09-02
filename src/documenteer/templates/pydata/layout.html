@@ -16,10 +16,14 @@
   {# DOI landing-page metadata for the site's [[project.citations]].
      DataCite asks that a DOI's landing page carry its DOI in machine-readable
      form; these are the Highwire and Dublin Core spellings of it, for the one
-     citation marked `self`. Both values, and the JSON-LD block below, are
-     composed by documenteer.citations and published into html_context by the
-     guide preset -- nothing is composed here. A site that declares no
-     citations sets none of these variables and emits nothing. #}
+     citation marked `self`. `self` is the claim that this site is where that
+     DOI resolves, and it alone belongs here -- which citation the site asks
+     readers to *use* is `preferred`, and that is a question for the visible
+     surfaces, not for a harvester. Both values, and the JSON-LD block below,
+     are composed by documenteer.citations and published into html_context by
+     the guide preset -- nothing is composed here. A site that declares no
+     citations, or none marked `self`, sets none of these variables and emits
+     nothing. #}
   {%- if documenteer_self_citation %}
   <meta name="citation_doi" content="{{ documenteer_self_citation.doi|e }}">
   <meta name="DC.identifier" content="{{ documenteer_self_citation.doi_url|e }}">
