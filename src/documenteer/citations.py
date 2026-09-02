@@ -32,6 +32,7 @@ __all__ = [
     "CitationType",
     "GuideCitation",
     "OrganizationAuthor",
+    "PartialDate",
     "PersonAuthor",
     "compose_landing_page_jsonld",
     "compose_page_jsonld",
@@ -437,6 +438,150 @@ SCHEMA_ORG_TYPES: dict[str, str] = {
 crosswalk from ``resourceTypeGeneral`` to schema.org.
 """
 
+_MIN_YEAR = 1000
+_MAX_YEAR = 9999
+"""The range a publication year is accepted in.
+
+ISO 8601 writes a year with four digits, and a value outside that range is a
+typo rather than a date.
+"""
+
+_NOT_A_DATE = (
+    'Not a date ({value!r}). Write it as "2025", "2025-06", or "2025-06-30".'
+)
+"""The message `PartialDate.parse` rejects text with."""
+
+
+@dataclass(frozen=True)
+class PartialDate:
+    """A publication date stated to the precision its source knows.
+
+    A bibliographic source rarely states a full day. A ``.bib`` file, a
+    journal's front matter, and a CITATION.cff reference commonly give a year
+    alone, and DataCite's own mandatory metadata is a ``publicationYear``.
+    Carrying such a date as a `datetime.date` would mean inventing a month and
+    a day — and since Documenteer publishes the date as schema.org
+    ``datePublished``, the invented day would then be asserted as fact on
+    every page of a site. ISO 8601 spells reduced precision as ``YYYY`` and
+    ``YYYY-MM``, schema.org ``Date`` is ISO 8601, and DataCite's crosswalk
+    maps ``publicationYear`` onto ``datePublished`` as a bare year; this type
+    is that spelling.
+
+    A rendered citation shows only the year at every precision, so stating a
+    date to the year costs a reader nothing: only the machine-readable
+    metadata tells the three precisions apart.
+    """
+
+    year: int
+    """The publication year."""
+
+    month: int | None = None
+    """The month, when the source states one."""
+
+    day: int | None = None
+    """The day, when the source states one."""
+
+    def __post_init__(self) -> None:
+        if not _MIN_YEAR <= self.year <= _MAX_YEAR:
+            raise ValueError(
+                f"Not a year ({self.year}). A publication year is written "
+                "with four digits, as 2025."
+            )
+        if self.month is None:
+            if self.day is not None:
+                raise ValueError(
+                    f"The date {self.year} states a day ({self.day}) without "
+                    "a month. State a date as a year, a year and a month, or "
+                    "a full date."
+                )
+            return
+        # Composing the date is what range-checks the day against the month it
+        # falls in, so that February 30 is rejected here rather than published
+        # as a datePublished no calendar has.
+        try:
+            date(self.year, self.month, self.day or 1)
+        except ValueError as e:
+            raise ValueError(f"Not a date ({self.isoformat()}): {e}.") from e
+
+    @classmethod
+    def from_date(cls, value: date) -> PartialDate:
+        """Express a full calendar date at day precision.
+
+        Parameters
+        ----------
+        value
+            The date.
+
+        Returns
+        -------
+        PartialDate
+            The same date, stated to the day.
+        """
+        return cls(value.year, value.month, value.day)
+
+    @classmethod
+    def parse(cls, value: str) -> PartialDate:
+        """Read a date written as ``YYYY``, ``YYYY-MM``, or ``YYYY-MM-DD``.
+
+        Parameters
+        ----------
+        value
+            The date, in one of the three ISO 8601 precisions.
+
+        Returns
+        -------
+        PartialDate
+            The date at the precision the text states.
+
+        Raises
+        ------
+        ValueError
+            Raised if the text is not one of the three forms, or states a
+            month or a day outside its range.
+        """
+        parts = _collapse_whitespace(value).split("-")
+        # ISO 8601 fixes the width of every component, so a two-digit year or
+        # a one-digit month is a typo rather than a date to be guessed at.
+        if (
+            len(parts) > 3
+            or not all(part.isdigit() for part in parts)
+            or len(parts[0]) != 4
+            or any(len(part) != 2 for part in parts[1:])
+        ):
+            raise ValueError(_NOT_A_DATE.format(value=value))
+        return cls(*(int(part) for part in parts))
+
+    def isoformat(self) -> str:
+        """Express the date as ISO 8601 at its own precision.
+
+        Returns
+        -------
+        str
+            ``YYYY``, ``YYYY-MM``, or ``YYYY-MM-DD``.
+        """
+        if self.month is None:
+            return f"{self.year:04d}"
+        if self.day is None:
+            return f"{self.year:04d}-{self.month:02d}"
+        return f"{self.year:04d}-{self.month:02d}-{self.day:02d}"
+
+    def __str__(self) -> str:
+        return self.isoformat()
+
+    def to_date(self) -> date | None:
+        """Express the date as a `datetime.date`, when it states a full one.
+
+        Returns
+        -------
+        datetime.date or None
+            The calendar date, or `None` when the date is stated only to the
+            year or the month — in which case there is no day to return, and
+            inventing one is what this type exists to avoid.
+        """
+        if self.month is None or self.day is None:
+            return None
+        return date(self.year, self.month, self.day)
+
 
 @dataclass(frozen=True, kw_only=True)
 class Citation:
@@ -475,8 +620,13 @@ class Citation:
     publisher: str | None = None
     """The organization that published the work."""
 
-    date: date | None = None
-    """The publication date. Only its year appears in a citation."""
+    date: PartialDate | None = None
+    """The publication date, at the precision its source stated.
+
+    Only its year appears in a rendered citation; the precision matters to the
+    machine-readable metadata, which publishes the date as schema.org
+    ``datePublished`` (see `PartialDate`).
+    """
 
     url: str | None = None
     """The work's landing page, when it is not simply the DOI's target."""

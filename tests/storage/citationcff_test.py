@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import re
-from datetime import date
 from pathlib import Path
 
 import pytest
 
 from documenteer.citations import (
+    Citation,
     CitationType,
     OrganizationAuthor,
+    PartialDate,
     PersonAuthor,
 )
 from documenteer.services.technotecff import TechnoteCffService
@@ -34,7 +35,7 @@ def test_minimal_file() -> None:
     assert citation.type is CitationType.software
     assert citation.doi == "10.5281/zenodo.10385500"
     assert citation.url == "https://documenteer.lsst.io/"
-    assert citation.date == date(2026, 8, 24)
+    assert citation.date == PartialDate(2026, 8, 24)
     assert citation.publisher is None
     assert citation.authors == (
         PersonAuthor(
@@ -61,7 +62,7 @@ def test_preferred_citation_wins() -> None:
     assert citation.publisher == "Vera C. Rubin Observatory"
     assert citation.number == "SQR-000"
     assert citation.url == "https://sqr-000.lsst.io/"
-    assert citation.date == date(2026, 8, 24)
+    assert citation.date == PartialDate(2026, 8, 24)
     assert citation.authors == (
         OrganizationAuthor(name="Vera C. Rubin Observatory"),
         PersonAuthor(
@@ -141,9 +142,9 @@ def test_publisher_preferred_over_institution(tmp_path: Path) -> None:
     assert read_citation_cff(path).publisher == "A Publisher"
 
 
-def test_year_stands_in_for_a_date(tmp_path: Path) -> None:
+def test_year_and_month_stay_a_month(tmp_path: Path) -> None:
     """A reference that dates itself with year and month, as most published
-    works do, still yields a publication date.
+    works do, yields a date stated to the month and no finer.
     """
     path = tmp_path / "CITATION.cff"
     path.write_text(
@@ -157,7 +158,7 @@ def test_year_stands_in_for_a_date(tmp_path: Path) -> None:
         "  month: 6\n"
     )
 
-    assert read_citation_cff(path).date == date(2024, 6, 1)
+    assert read_citation_cff(path).date == PartialDate(2024, 6)
 
 
 def test_name_particle_joins_the_family_name(tmp_path: Path) -> None:
@@ -318,3 +319,39 @@ def test_null_preferred_citation_falls_back(tmp_path: Path) -> None:
     )
 
     assert read_citation_cff(path).title == "A repository"
+
+
+def test_a_bare_year_stays_a_year(tmp_path: Path) -> None:
+    """A reference that states only a year keeps that precision, so the site
+    that publishes it never asserts a day the file did not state.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "preferred-citation:\n"
+        "  type: article\n"
+        "  title: An article\n"
+        "  year: 2022\n"
+    )
+
+    assert read_citation_cff(path).date == PartialDate(2022)
+
+
+def test_round_trip_of_a_reduced_precision_date(tmp_path: Path) -> None:
+    """A citation dated only to a month survives the round trip through a
+    generated CITATION.cff, which states such a date as year and month
+    rather than as the full ``date-released`` CFF requires.
+    """
+    service = TechnoteCffService(
+        Citation(
+            title="An article",
+            type=CitationType.report,
+            date=PartialDate(2022, 8),
+        )
+    )
+    path = tmp_path / "CITATION.cff"
+    service.sync(path)
+
+    assert read_citation_cff(path) == service.citation

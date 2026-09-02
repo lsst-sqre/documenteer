@@ -15,6 +15,7 @@ from documenteer.citations import (
     CitationType,
     GuideCitation,
     OrganizationAuthor,
+    PartialDate,
     PersonAuthor,
     compose_landing_page_jsonld,
     compose_page_jsonld,
@@ -127,7 +128,7 @@ def test_citation_normalizes_its_doi() -> None:
         title="Data Preview 2",
         authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
         publisher="Vera C. Rubin Observatory",
-        date=datetime.date(2025, 6, 30),
+        date=PartialDate(2025, 6, 30),
         url="https://dp2.lsst.io/",
     )
     assert citation.doi == "10.71929/rubin/2570308"
@@ -189,7 +190,7 @@ def dataset_citation() -> Citation:
         title="Data Preview 2",
         authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
         publisher="Vera C. Rubin Observatory",
-        date=datetime.date(2025, 6, 30),
+        date=PartialDate(2025, 6, 30),
         url="https://dp2.lsst.io/",
     )
 
@@ -208,7 +209,7 @@ def technote_citation() -> Citation:
             PersonAuthor(family_name="Jones", given_name="R. Lynne"),
         ),
         publisher="Vera C. Rubin Observatory",
-        date=datetime.date(2026, 8, 24),
+        date=PartialDate(2026, 8, 24),
         url="https://sqr-000.lsst.io/",
         number="SQR-000",
     )
@@ -308,7 +309,7 @@ def test_composers_credit_a_family_only_author() -> None:
         authors=(
             PersonAuthor(family_name="Survey Cadence Optimization Committee"),
         ),
-        date=datetime.date(2025, 6, 30),
+        date=PartialDate(2025, 6, 30),
     )
     assert citation.to_plain_text() == (
         "Survey Cadence Optimization Committee (2025). "
@@ -422,7 +423,7 @@ def test_html_context_for_a_person_author() -> None:
                     affiliation="Rubin Observatory",
                 ),
             ),
-            date=datetime.date(2026, 2, 1),
+            date=PartialDate(2026, 2, 1),
         ),
         label="Software",
         is_self=True,
@@ -497,7 +498,7 @@ def test_html_context_splits_the_citation_for_linking() -> None:
             doi="10.5281/zenodo.10385500",
             title="Documenteer",
             authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
-            date=datetime.date(2026, 2, 1),
+            date=PartialDate(2026, 2, 1),
         )
     ).to_html_context()
 
@@ -553,7 +554,7 @@ def _self_citation_context(**overrides: object) -> dict[str, object]:
             title="Data Preview 2 Documentation",
             authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
             publisher="Vera C. Rubin Observatory",
-            date=datetime.date(2025, 6, 30),
+            date=PartialDate(2025, 6, 30),
         ),
         label="Site",
         is_self=True,
@@ -1113,3 +1114,85 @@ def test_orcid_url_accepts_spellings(value: str) -> None:
 )
 def test_ror_url_accepts_spellings(value: str) -> None:
     assert ror_url(value) == "https://ror.org/048g3cy84"
+
+
+def test_partial_date_states_the_precision_it_was_given() -> None:
+    """A publication date isoformats at the precision its source stated,
+    rather than being padded out to a day nobody wrote down.
+    """
+    assert PartialDate(2025).isoformat() == "2025"
+    assert PartialDate(2025, 6).isoformat() == "2025-06"
+    assert PartialDate(2025, 6, 30).isoformat() == "2025-06-30"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("2025", PartialDate(2025)),
+        ("2025-06", PartialDate(2025, 6)),
+        ("2025-06-30", PartialDate(2025, 6, 30)),
+        (" 2025-06 ", PartialDate(2025, 6)),
+    ],
+)
+def test_partial_date_parses_each_iso_precision(
+    text: str, expected: PartialDate
+) -> None:
+    """Each of ISO 8601's three date precisions reads back at that
+    precision.
+    """
+    assert PartialDate.parse(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "June 2025",
+        "2025-13",
+        "2025-6",
+        "25-06",
+        "2025-06-31",
+        "2025-02-30",
+        "2025-06-30-01",
+        "2025/06/30",
+        "",
+        "-2025",
+    ],
+)
+def test_partial_date_rejects_text_that_is_not_a_date(text: str) -> None:
+    """Text that is not one of the three ISO 8601 forms, or that states a
+    month or a day outside its range, is rejected rather than guessed at.
+    """
+    with pytest.raises(ValueError, match="date"):
+        PartialDate.parse(text)
+
+
+def test_partial_date_rejects_a_year_that_is_not_four_digits() -> None:
+    """A year outside four digits is a typo, not a publication year."""
+    with pytest.raises(ValueError, match="four digits"):
+        PartialDate(20250)
+
+
+def test_partial_date_rejects_a_day_without_a_month() -> None:
+    """A day is only meaningful within a month, so stating one without the
+    other is an error rather than a date with a hole in it.
+    """
+    with pytest.raises(ValueError, match="without a month"):
+        PartialDate(2025, day=30)
+
+
+def test_partial_date_round_trips_a_calendar_date() -> None:
+    """A full calendar date survives the trip through the partial date and
+    back, and a reduced-precision date has no day to return.
+    """
+    full = PartialDate.from_date(datetime.date(2025, 6, 30))
+    assert full == PartialDate(2025, 6, 30)
+    assert full.to_date() == datetime.date(2025, 6, 30)
+    assert PartialDate(2025, 6).to_date() is None
+    assert PartialDate(2025).to_date() is None
+
+
+def test_partial_date_is_its_iso_form_as_text() -> None:
+    """A partial date renders as its ISO form wherever text is wanted, so a
+    template or an f-string never has to reach for ``isoformat``.
+    """
+    assert f"{PartialDate(2025, 6)}" == "2025-06"

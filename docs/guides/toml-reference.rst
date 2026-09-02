@@ -333,8 +333,22 @@ date
 
 |optional|
 
-The work's publication date, written as a TOML date (``2025-06-30``).
-Only its year appears in a rendered citation.
+The work's publication date, at the precision its source states.
+
+A source that knows the day is written as a TOML date; one that knows only the year, or only the year and month, has no TOML type for that — a TOML date is always a full date — so it is written as an integer year or as a quoted ISO 8601 date:
+
+.. code-block:: toml
+
+   date = 2025-06-30   # a full date
+   date = 2025         # a year
+   date = "2025-06"    # a year and a month
+   date = "2025"       # a year, quoted
+
+Only the year appears in a rendered citation, so all four forms display alike.
+The precision matters to the machine-readable metadata: the date is published as the schema.org ``datePublished`` of the entry's JSON-LD block, exactly as written here.
+Writing ``2025-01-01`` for a work whose sources say only "2025" would assert a publication day on every page of the site that nothing stands behind, which is why the reduced forms exist.
+
+Anything else — ``"June 2025"``, a month outside 1–12, a year that is not four digits — fails the build with a message naming the accepted forms.
 
 .. _guide-project-citations-cff:
 
@@ -359,6 +373,8 @@ When the file declares a ``preferred-citation``, that is the citation Documentee
 
 The file's own ``type`` supplies the entry's :ref:`type <guide-project-citations-type>`, so a repository that describes itself as ``type: software``, or whose preferred citation is an ``article`` or a ``report``, is typed without restating it.
 A CFF type that Documenteer has no counterpart for leaves the entry untyped.
+
+The file's date is likewise kept at the precision it is written in: a ``date-released`` or ``date-published`` dates the work to the day, and a reference that carries only a ``year``, or a ``year`` and a ``month``, dates it to the year or the month (see :ref:`date <guide-project-citations-date>`).
 
 Any bibliographic field set alongside ``cff`` overrides the file's value, so a single field can be corrected without abandoning the file:
 

@@ -35,6 +35,7 @@ from ..citations import (
     CitationType,
     GuideCitation,
     OrganizationAuthor,
+    PartialDate,
     PersonAuthor,
     compose_landing_page_jsonld,
     normalize_doi,
@@ -237,6 +238,20 @@ class CitationAuthorModel(BaseModel):
         )
 
 
+_NOT_A_CITATION_DATE = (
+    "The citation date {value!r} is not a date. Write it as a TOML date "
+    "(date = 2025-06-30), as an integer year (date = 2025), or as a quoted "
+    'ISO 8601 date at a reduced precision (date = "2025-06" or '
+    'date = "2025").'
+)
+"""How a citation date is rejected, naming the three forms it is written in.
+
+TOML has a date type but no year or year-month type, so the reduced
+precisions borrow the types TOML does have. Naming all three is what turns a
+rejection into an instruction.
+"""
+
+
 class CitationModel(BaseModel):
     """Model for an entry in the ``[[project.citations]]`` array of
     documenteer.toml.
@@ -326,11 +341,13 @@ class CitationModel(BaseModel):
         None, description="The organization that published the work."
     )
 
-    date: datetime.date | None = Field(
+    date: PartialDate | None = Field(
         None,
         description=(
-            "The work's publication date. Only its year appears in a "
-            "rendered citation."
+            "The work's publication date, stated to the precision its source "
+            "knows: a TOML date (2025-06-30), a bare year (2025), or a "
+            'quoted ISO 8601 date ("2025-06" or "2025"). Only its year '
+            "appears in a rendered citation."
         ),
     )
 
@@ -350,6 +367,37 @@ class CitationModel(BaseModel):
         if v is None:
             return None
         return normalize_doi(v)
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def validate_date(cls, v: Any) -> PartialDate | None:
+        """Read the publication date at the precision it is written in.
+
+        A source that knows the day writes a TOML date, ``2025-06-30``. One
+        that knows only the year or the month has no TOML type for that — TOML
+        dates are always full — so it writes the year as an integer,
+        ``2025``, or the reduced ISO 8601 date as a string, ``"2025-06"``.
+        Every form is kept at its own precision, because the date reaches each
+        page's schema.org ``datePublished`` and a filled-in day would publish
+        a date the configuration never stated.
+        """
+        if v is None or isinstance(v, PartialDate):
+            return v
+        try:
+            if isinstance(v, datetime.datetime):
+                return PartialDate.from_date(v.date())
+            if isinstance(v, datetime.date):
+                return PartialDate.from_date(v)
+            # bool is an int in Python, but `date = true` is not a year.
+            if isinstance(v, int) and not isinstance(v, bool):
+                return PartialDate(v)
+            if isinstance(v, str):
+                return PartialDate.parse(v)
+        except ValueError as e:
+            raise ValueError(
+                f"{_NOT_A_CITATION_DATE.format(value=v)} {e}"
+            ) from e
+        raise ValueError(_NOT_A_CITATION_DATE.format(value=v))
 
     @field_validator("page")
     @classmethod

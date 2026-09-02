@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from documenteer.citations import Citation, CitationType, PartialDate
 from documenteer.services.technotecff import (
     CffStatus,
     TechnoteCffError,
@@ -328,3 +329,22 @@ def test_wrong_toml_type_is_reported(
         TechnoteCffService.from_technote_toml(toml_path)
 
     assert expected in str(exc_info.value)
+
+
+def test_a_reduced_precision_date_is_written_as_year_and_month() -> None:
+    """CFF's ``date-released`` is a full calendar date, so a citation dated
+    only to a month is written with the ``year`` and ``month`` a CFF
+    reference states such a date with — and reads back at that precision.
+    """
+    service = TechnoteCffService(
+        Citation(
+            title="An article",
+            type=CitationType.report,
+            date=PartialDate(2022, 8),
+        )
+    )
+
+    reference = yaml.safe_load(service.render())["preferred-citation"]
+    assert "date-released" not in reference
+    assert reference["year"] == 2022
+    assert reference["month"] == 8

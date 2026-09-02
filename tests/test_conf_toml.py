@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,7 @@ from sphinx.errors import ConfigError
 from documenteer.citations import (
     CitationType,
     OrganizationAuthor,
+    PartialDate,
     PersonAuthor,
 )
 from documenteer.conf import DocumenteerConfig
@@ -424,7 +424,7 @@ def test_citations_inline() -> None:
     assert entry.citation.doi == "10.71929/rubin/2570308"
     assert entry.citation.title == "Data Preview 2"
     assert entry.citation.publisher == "Vera C. Rubin Observatory"
-    assert entry.citation.date == date(2025, 6, 30)
+    assert entry.citation.date == PartialDate(2025, 6, 30)
     assert entry.citation.authors == (
         OrganizationAuthor(
             name="Vera C. Rubin Observatory", ror="https://ror.org/048g3cy84"
@@ -473,7 +473,7 @@ def test_citations_from_cff(tmp_path: Path) -> None:
     # From the CITATION.cff file.
     assert entry.citation.type is CitationType.software
     assert entry.citation.doi == "10.5281/zenodo.10385500"
-    assert entry.citation.date == date(2026, 2, 1)
+    assert entry.citation.date == PartialDate(2026, 2, 1)
     assert entry.citation.authors == (
         PersonAuthor(
             family_name="Sick",
@@ -905,3 +905,119 @@ def test_citations_malformed_page_rejected(example: str, match: str) -> None:
     """A page claim is a docname with at most one non-empty fragment."""
     with pytest.raises(ConfigError, match=match):
         DocumenteerConfig.load(example)
+
+
+CITATION_DATE_TEMPLATE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+self = true
+date = {value}
+"""
+
+
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("2025-06-30", PartialDate(2025, 6, 30)),
+        ("2025", PartialDate(2025)),
+        ('"2025-06"', PartialDate(2025, 6)),
+        ('"2025"', PartialDate(2025)),
+    ],
+)
+def test_citation_date_keeps_the_precision_it_is_written_in(
+    written: str, expected: PartialDate
+) -> None:
+    """A citation date is written as a TOML date, a bare year, or a quoted
+    ISO 8601 date, and each is kept at the precision it states — TOML has a
+    date type but no year or year-month type.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_DATE_TEMPLATE.format(value=written)
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.date == expected
+
+
+@pytest.mark.parametrize(
+    "written", ['"June 2025"', '"2025-13"', "20250", "true"]
+)
+def test_citation_date_rejects_a_value_that_is_not_a_date(
+    written: str,
+) -> None:
+    """A value that is not one of the three forms is rejected with a message
+    that names all three, rather than being read as some nearby date.
+    """
+    with pytest.raises(ConfigError, match=r"date = 2025-06-30"):
+        DocumenteerConfig.load(CITATION_DATE_TEMPLATE.format(value=written))
+
+
+@pytest.mark.parametrize(
+    ("written", "published"),
+    [("2025-06-30", "2025-06-30"), ("2025", "2025"), ('"2025-06"', "2025-06")],
+)
+def test_citation_json_ld_publishes_the_stated_precision(
+    written: str, published: str
+) -> None:
+    """The schema.org ``datePublished`` a page carries is the date the
+    configuration stated, never a day it filled in.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_DATE_TEMPLATE.format(value=written)
+    )
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    assert payload["datePublished"] == published
+
+
+CITATION_CFF_YEAR = """cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Example Software"
+type: software
+preferred-citation:
+  type: article
+  title: "An article"
+  doi: 10.5281/zenodo.10385500
+  year: 2022
+"""
+
+EXAMPLE_CITATIONS_CFF_SELF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+self = true
+"""
+
+
+@pytest.mark.parametrize(
+    ("extra", "published"),
+    [("", "2022"), ("  month: 8\n", "2022-08")],
+)
+def test_cff_citation_publishes_the_files_precision(
+    tmp_path: Path, extra: str, published: str
+) -> None:
+    """A CITATION.cff that dates a work to the year, or to the month, is
+    published at that precision rather than at a day the file never wrote.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_YEAR + extra)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SELF, root_dir=docs_dir
+    )
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    assert payload["datePublished"] == published

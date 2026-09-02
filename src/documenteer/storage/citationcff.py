@@ -27,6 +27,7 @@ from documenteer.citations import (
     CitationAuthor,
     CitationType,
     OrganizationAuthor,
+    PartialDate,
     PersonAuthor,
 )
 
@@ -293,30 +294,32 @@ def _doi(source: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _date(source: Mapping[str, Any], *, path: Path) -> date | None:
-    """Determine the publication date.
+def _date(source: Mapping[str, Any], *, path: Path) -> PartialDate | None:
+    """Determine the publication date, at the precision the file states it.
 
     ``date-released`` is the field CFF's top level and Documenteer's own
-    generated files use. A reference to a published work more often carries
-    ``date-published``, or only a ``year`` and ``month`` — and since a
-    citation displays nothing finer than the year, a bare year is worth
-    honoring rather than dropping.
+    generated files use, and CFF requires a full date there. A reference to a
+    published work more often carries ``date-published``, or only a ``year``
+    and ``month`` — and a work dated to the year is read as a work dated to
+    the year, since the date reaches a page's schema.org ``datePublished``
+    and a filled-in day would publish a date the file never stated.
     """
     for field in ("date-released", "date-published"):
         value = source.get(field)
         if value is None:
             continue
-        return _as_date(value, field=field, path=path)
+        return PartialDate.from_date(_as_date(value, field=field, path=path))
 
     year = source.get("year")
     if year is None:
         return None
+    month = source.get("month")
     try:
-        return date(int(year), int(source.get("month") or 1), 1)
+        return PartialDate(int(year), None if month is None else int(month))
     except (TypeError, ValueError) as e:
         raise CitationCffParseError(
             f"{path} declares a year or month that is not a date: "
-            f"year {year!r}, month {source.get('month')!r}."
+            f"year {year!r}, month {month!r}. {e}"
         ) from e
 
 

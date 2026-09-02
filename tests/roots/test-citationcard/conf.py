@@ -8,9 +8,12 @@ composing it here keeps the build small enough to exercise several
 configurations.
 """
 
-from datetime import date
-
-from documenteer.citations import Citation, GuideCitation, OrganizationAuthor
+from documenteer.citations import (
+    Citation,
+    GuideCitation,
+    OrganizationAuthor,
+    PartialDate,
+)
 
 extensions = ["documenteer.ext.citationcard"]
 
@@ -25,7 +28,7 @@ CITATIONS = [
             doi="10.71929/rubin/2570308",
             authors=(RUBIN,),
             publisher="Vera C. Rubin Observatory",
-            date=date(2025, 6, 30),
+            date=PartialDate(2025, 6, 30),
         ),
         label="Site",
         is_self=True,
@@ -39,7 +42,7 @@ CITATIONS = [
             doi="10.5281/zenodo.10385500",
             authors=(RUBIN,),
             publisher="Vera C. Rubin Observatory",
-            date=date(2025, 1, 15),
+            date=PartialDate(2025, 1, 15),
         ),
         label="Dataset",
     ),

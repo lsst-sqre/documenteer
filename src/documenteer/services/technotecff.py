@@ -15,6 +15,7 @@ from documenteer.citations import (
     CitationAuthor,
     CitationType,
     OrganizationAuthor,
+    PartialDate,
     PersonAuthor,
 )
 from documenteer.storage.authordb import normalize_orcid
@@ -346,8 +347,19 @@ class TechnoteCffService:
         location = citation.url or citation.doi_url
         if location:
             reference["url"] = location
-        if citation.date:
-            reference["date-released"] = citation.date
+        if citation.date is not None:
+            # CFF's `date-released` is a full calendar date, so a citation
+            # dated only to a year or a month — which a technote's never is,
+            # but which a `Citation` can carry — is written as the `year` and
+            # `month` a CFF reference states such a date with instead. Either
+            # spelling reads back at the precision it was written at.
+            released = citation.date.to_date()
+            if released is not None:
+                reference["date-released"] = released
+            else:
+                reference["year"] = citation.date.year
+                if citation.date.month is not None:
+                    reference["month"] = citation.date.month
         return reference
 
 
@@ -421,23 +433,26 @@ def _citation_author(entry: Any, position: int) -> CitationAuthor:
     )
 
 
-def _released_date(technote: Mapping[str, Any]) -> date | None:
+def _released_date(technote: Mapping[str, Any]) -> PartialDate | None:
     """Determine the technote's release date.
 
     ``date_updated`` is the date the technote was last published, and is
     therefore the date the citation is to; ``date_created`` stands in for a
-    technote that has never been updated.
+    technote that has never been updated. Either is a full date, so a
+    technote's citation is always dated to the day.
     """
     for field in ("date_updated", "date_created"):
         value = technote.get(field)
         if value is None:
             continue
         if isinstance(value, datetime):
-            return value.date()
+            return PartialDate.from_date(value.date())
         if isinstance(value, date):
-            return value
+            return PartialDate.from_date(value)
         try:
-            return datetime.fromisoformat(str(value)).date()
+            return PartialDate.from_date(
+                datetime.fromisoformat(str(value)).date()
+            )
         except ValueError as e:
             raise TechnoteCffError(
                 f"technote.toml declares a {field} that is not a date: "

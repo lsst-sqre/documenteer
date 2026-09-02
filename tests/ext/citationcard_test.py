@@ -11,14 +11,18 @@ project whose ``conf.py`` populates that context directly (see
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 import pytest
 from lxml import html
 from sphinx.testing.util import SphinxTestApp
 
-from documenteer.citations import Citation, GuideCitation, OrganizationAuthor
+from documenteer.citations import (
+    Citation,
+    GuideCitation,
+    OrganizationAuthor,
+    PartialDate,
+)
 
 # Must match tests/roots/test-citationcard/conf.py.
 SELF_DOI_URL = "https://doi.org/10.71929/rubin/2570308"
@@ -55,7 +59,7 @@ def _dataset_context() -> dict[str, Any]:
             doi="10.5281/zenodo.10385500",
             authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
             publisher="Vera C. Rubin Observatory",
-            date=date(2025, 1, 15),
+            date=PartialDate(2025, 1, 15),
         ),
         label="Dataset",
     ).to_html_context()
