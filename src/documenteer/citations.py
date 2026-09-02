@@ -266,6 +266,11 @@ def normalize_citation_url(value: str, *, field: str = "url") -> str:
     "is a URL set?" test a caller makes, and only reduces to nothing at the
     point where a citation is composed (see `_clean`) — yielding a citation
     with no location at all rather than an error.
+
+    Each of the three ways a value can fail names *that* failure, rather than
+    sharing one message: ``ftp://example.org/dp1.tar`` is a perfectly
+    absolute URL, and telling its author it "is not an absolute URL" sends
+    them looking for a missing scheme instead of at the scheme they wrote.
     """
     url = value.strip()
     if not url:
@@ -274,10 +279,17 @@ def normalize_citation_url(value: str, *, field: str = "url") -> str:
             "page, as an absolute http or https URL, or drop it."
         )
     parsed = urlparse(url)
-    if parsed.scheme not in CITATION_URL_SCHEMES or not parsed.netloc:
+    problem: str | None = None
+    if not parsed.scheme:
+        problem = "is not an absolute URL"
+    elif parsed.scheme not in CITATION_URL_SCHEMES:
+        problem = f"uses the {parsed.scheme} scheme"
+    elif not parsed.netloc:
+        problem = "names no host"
+    if problem is not None:
         raise ValueError(
-            f"The citation {field} ({value}) is not an absolute URL. Write "
-            "the work's landing page as an http or https URL, such as "
+            f"The citation {field} ({value}) {problem}. Write the work's "
+            "landing page as an http or https URL, such as "
             "https://github.com/lsst/daf_butler."
         )
     return url
@@ -1062,16 +1074,31 @@ def _meta_tag(name: str, content: str | None) -> str | None:
 
 def _highwire_date(value: str | None) -> str | None:
     """Express an ISO 8601 date, at any of `PartialDate`'s three precisions,
-    in the ``YYYY/MM/DD`` form Highwire spells a date in.
+    in one of the two forms Highwire spells a date in.
 
-    Google Scholar accepts a bare year, so a date stated only to the year
-    stays a year rather than being padded with an invented month and day —
-    the same reason `PartialDate` exists.
+    `Google Scholar's inclusion guidelines
+    <https://scholar.google.com/intl/en/scholar/inclusion.html>`__ document
+    exactly two: "Provide full dates in the ``2010/5/12`` format if
+    available; or a year alone otherwise." So a date stated to the day
+    becomes ``YYYY/MM/DD``, and a date stated to the year stays a year rather
+    than being padded with an invented month and day — the same reason
+    `PartialDate` exists.
+
+    A month-precision date has no form of its own here, so it states its
+    year. ``2025/06`` is not a form the guidelines describe, and a value
+    Scholar does not parse risks being ignored altogether — dropping the
+    month is the lossy-but-read choice over the precise-but-unread one. The
+    month is not lost to every consumer: the schema.org ``datePublished`` in
+    the page's JSON-LD block still carries the full ``2025-06``, which is
+    valid ISO 8601 at that precision.
     """
     text = _clean(value)
     if text is None:
         return None
-    return text.replace("-", "/")
+    parts = text.split("-")
+    if len(parts) == 3:
+        return "/".join(parts)
+    return parts[0]
 
 
 def _author_highwire_tags(author: Mapping[str, Any]) -> list[str]:
@@ -1150,9 +1177,11 @@ def compose_highwire_tags(
 
     The date is written as ``citation_publication_date`` rather than the
     ``citation_date`` spelling the ``technote`` package uses: Google Scholar
-    documents the former, and both name the same thing. It keeps the
-    precision the citation states, so a work dated to the year alone emits
-    ``2025`` rather than an invented ``2025/01/01``.
+    documents the former, and both name the same thing. Scholar documents
+    only two forms for its value — a full ``YYYY/MM/DD`` date, or a year
+    alone — so a work dated to the year alone emits ``2025`` rather than an
+    invented ``2025/01/01``, and a work dated to the month emits its year
+    rather than a ``2025/06`` no guideline describes (see `_highwire_date`).
     """
     tags = [_meta_tag("citation_title", citation.get("title"))]
     for author in citation.get("authors", ()):

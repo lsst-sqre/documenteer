@@ -1386,16 +1386,22 @@ def test_highwire_tags_omit_what_the_citation_does_not_state() -> None:
     ("citation_date", "expected"),
     [
         (PartialDate(2025), "2025"),
-        (PartialDate(2025, 6), "2025/06"),
+        (PartialDate(2025, 6), "2025"),
         (PartialDate(2025, 6, 30), "2025/06/30"),
     ],
 )
-def test_highwire_tags_keep_the_dates_precision(
+def test_highwire_tags_date_in_a_form_scholar_documents(
     citation_date: PartialDate, expected: str
 ) -> None:
-    """The date tag states the precision the citation does, since Google
-    Scholar accepts a bare year and inventing a month and a day would assert
-    a date nothing said.
+    """The date tag uses one of the two forms Google Scholar's inclusion
+    guidelines describe -- a full ``YYYY/MM/DD`` date, or a year alone.
+
+    A citation dated to the year alone stays a year, since inventing a month
+    and a day would assert a date nothing said. A citation dated to the month
+    states its year too: ``2025/06`` is not a documented form, and a value
+    Scholar cannot parse risks being ignored outright, where the year is read.
+    The month still reaches a consumer through the schema.org
+    ``datePublished``, which is valid ISO 8601 at that precision.
     """
     context = _full_citation_context(date=citation_date.isoformat())
 

@@ -393,7 +393,7 @@ These are the tags emitted, in this order:
    * - ``citation_author_orcid``
      - that author's ``orcid`` as a resolvable ``https://orcid.org/`` URL, when set
    * - ``citation_publication_date``
-     - :ref:`date <guide-project-citations-date>` as ``YYYY/MM/DD``, ``YYYY/MM``, or ``YYYY``, at the precision the entry states
+     - :ref:`date <guide-project-citations-date>` as ``YYYY/MM/DD``, or as ``YYYY`` when the entry dates the work to the year or the month
    * - ``citation_doi``
      - :ref:`doi <guide-project-citations-doi>`, bare
    * - ``citation_publisher``
@@ -410,6 +410,9 @@ Every value is HTML-escaped, so a title containing quotes or angle brackets reac
 
    Documenteer writes the date tag as ``citation_publication_date``, the spelling Google Scholar documents.
    A Rubin technote writes the same field as ``citation_date``, an older spelling of it; both name the publication date, and a consumer reads either.
+
+   Google Scholar's inclusion guidelines describe only two forms for the value — a full date, or a year alone — so an entry dated to the month states its year in this tag rather than a ``2025/06`` no guideline covers, which Scholar may not parse at all.
+   The month is not lost: the schema.org ``datePublished`` in the page's JSON-LD block carries the entry's date at the precision it states, ``2025-06`` included.
 
 That JSON-LD block is *about* the ``self`` entry, and states every other entry as a relation of it rather than repeating the whole record:
 

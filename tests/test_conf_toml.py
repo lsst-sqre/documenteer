@@ -868,7 +868,9 @@ url = "{value}"
         ("  ", "url is empty"),
         ("github.com/lsst/daf_butler", "is not an absolute URL"),
         ("/datasets/dp1", "is not an absolute URL"),
-        ("ftp://example.org/dp1.tar", "is not an absolute URL"),
+        ("ftp://example.org/dp1.tar", "uses the ftp scheme"),
+        ("mailto:data@example.org", "uses the mailto scheme"),
+        ("https:///datasets/dp1", "names no host"),
     ],
 )
 def test_citations_unlinkable_url_rejected(written: str, match: str) -> None:
@@ -883,6 +885,10 @@ def test_citations_unlinkable_url_rejected(written: str, match: str) -> None:
     relative one is read as a path instead: the footer and the citation card
     link it relative to whatever page is being rendered, and it reaches the
     JSON-LD node as a relative IRI.
+
+    Each failure names itself: an ``ftp`` or ``mailto`` URL *is* absolute, so
+    reporting it as "not an absolute URL" would send its author looking for a
+    scheme they already wrote.
     """
     with pytest.raises(ConfigError, match=match):
         DocumenteerConfig.load(CITATION_URL_TEMPLATE.format(value=written))
