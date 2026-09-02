@@ -1062,7 +1062,7 @@ def test_citation_date_keeps_the_precision_it_is_written_in(
 
 
 @pytest.mark.parametrize(
-    "written", ['"June 2025"', '"2025-13"', "20250", "true"]
+    "written", ['"June 2025"', '"2025-13"', '"2025-06-00"', "20250", "true"]
 )
 def test_citation_date_rejects_a_value_that_is_not_a_date(
     written: str,

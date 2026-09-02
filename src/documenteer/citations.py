@@ -497,9 +497,11 @@ class PartialDate:
             return
         # Composing the date is what range-checks the day against the month it
         # falls in, so that February 30 is rejected here rather than published
-        # as a datePublished no calendar has.
+        # as a datePublished no calendar has. The day is composed as stated —
+        # substituting a first-of-the-month for a falsy day would let a zero
+        # day, which is no day at all, pass the very check it is here for.
         try:
-            date(self.year, self.month, self.day or 1)
+            date(self.year, self.month, 1 if self.day is None else self.day)
         except ValueError as e:
             raise ValueError(f"Not a date ({self.isoformat()}): {e}.") from e
 
@@ -541,10 +543,13 @@ class PartialDate:
         """
         parts = _collapse_whitespace(value).split("-")
         # ISO 8601 fixes the width of every component, so a two-digit year or
-        # a one-digit month is a typo rather than a date to be guessed at.
+        # a one-digit month is a typo rather than a date to be guessed at. A
+        # component must also be ASCII digits: `str.isdigit` is true of the
+        # other digit forms Unicode carries, and `int` reads them, so an
+        # Arabic-Indic "٢٠٢٥" would otherwise parse as a year nobody wrote.
         if (
             len(parts) > 3
-            or not all(part.isdigit() for part in parts)
+            or not all(part.isascii() and part.isdigit() for part in parts)
             or len(parts[0]) != 4
             or any(len(part) != 2 for part in parts[1:])
         ):

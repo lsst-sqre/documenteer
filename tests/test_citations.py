@@ -1192,10 +1192,13 @@ def test_partial_date_parses_each_iso_precision(
         "25-06",
         "2025-06-31",
         "2025-02-30",
+        "2025-06-00",
         "2025-06-30-01",
         "2025/06/30",
         "",
         "-2025",
+        # Arabic-Indic digits, which int() reads but ISO 8601 does not write.
+        "٢٠٢٥-٠٦-٣٠",
     ],
 )
 def test_partial_date_rejects_text_that_is_not_a_date(text: str) -> None:
@@ -1218,6 +1221,14 @@ def test_partial_date_rejects_a_day_without_a_month() -> None:
     """
     with pytest.raises(ValueError, match="without a month"):
         PartialDate(2025, day=30)
+
+
+def test_partial_date_rejects_a_day_of_zero() -> None:
+    """A zero day is a day no calendar has, so it is range-checked as
+    written rather than as a first-of-the-month substituted for it.
+    """
+    with pytest.raises(ValueError, match="Not a date"):
+        PartialDate(2025, 6, 0)
 
 
 def test_partial_date_round_trips_a_calendar_date() -> None:
