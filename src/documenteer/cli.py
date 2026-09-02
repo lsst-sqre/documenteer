@@ -308,7 +308,19 @@ def technote_migrate(
     default=False,
     help="Promote warnings to errors",
 )
-def technote_lint(root_dir: str, *, strict: bool) -> None:
+@click.option(
+    "--ignore",
+    "ignore_codes",
+    metavar="CODE",
+    multiple=True,
+    help=(
+        "Rule code to skip, such as TN105. Repeatable, and additive with "
+        "the [technote.lint] ignore list in technote.toml."
+    ),
+)
+def technote_lint(
+    root_dir: str, ignore_codes: tuple[str, ...], *, strict: bool
+) -> None:
     """Lint a technote's metadata and structure.
 
     This runs three groups of checks and reports each finding with a stable
@@ -338,6 +350,12 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
 
     The command exits non-zero when any error remains. Use ``--strict`` to
     promote warnings to errors.
+
+    A rule that cannot be satisfied for a particular technote can be switched
+    off, either in that technote's ``[technote.lint] ignore`` list or with
+    ``--ignore CODE`` here. An ignored rule does not run at all — TN105 makes
+    no DataCite request when it is ignored — and the summary names it, so CI
+    output shows the rule is off rather than passing.
     """
     # Imported here, rather than at module scope, because the lint service is
     # the only part of the CLI that needs the `technote` package (a
@@ -354,7 +372,7 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
 
     author_db = AuthorDb()
     context = LintContext.from_dir(Path(root_dir), author_db)
-    service = TechnoteLintService(context)
+    service = TechnoteLintService(context, ignore=ignore_codes)
     findings = service.lint()
 
     # Split into errors and warnings; --strict promotes warnings to errors.
@@ -370,11 +388,26 @@ def technote_lint(root_dir: str, *, strict: bool) -> None:
     for finding in (*errors, *warnings):
         click.echo(f"[{finding.code}] {finding.message}")
 
+    # Ignored rules are counted apart from errors and warnings: they did not
+    # pass, they did not run, and a reader of CI output has to be able to see
+    # the difference. Exit codes are unaffected by them.
+    ignored = service.ignored_rules
+    if ignored:
+        listing = ", ".join(f"{rule.code} ({rule.source})" for rule in ignored)
+        noun = "rule" if len(ignored) == 1 else "rules"
+        ignored_summary = f"Ignored {len(ignored)} {noun}: {listing}."
+    else:
+        ignored_summary = None
+
     if not errors and not warnings:
         click.echo("✅ Technote lint passed with no issues.")
+        if ignored_summary is not None:
+            click.echo(ignored_summary)
         return
 
     click.echo(f"Found {len(errors)} error(s) and {len(warnings)} warning(s).")
+    if ignored_summary is not None:
+        click.echo(ignored_summary)
 
     # Point at the landing page for each distinct rule that fired.
     click.echo("Learn more:")

@@ -38,10 +38,13 @@ from documenteer.storage.datacite import (
     DataCiteRecord,
     DataCiteUnavailableError,
 )
+from documenteer.storage.technotetoml import TechnoteTomlFile
 
 __all__ = [
     "CHECKS",
     "Check",
+    "IgnoreSource",
+    "IgnoredRule",
     "LintContext",
     "LintFinding",
     "Severity",
@@ -52,12 +55,26 @@ __all__ = [
 ]
 
 DOCS_BASE_URL = "https://documenteer.lsst.io/technotes/lint"
-"""Base URL for the lint rule documentation pages."""
+"""Base URL for Documenteer's own lint rule documentation pages."""
+
+
+def _documenteer_rule_url(code: str) -> str:
+    """Return the Documenteer landing page URL a rule code documents at."""
+    return f"{DOCS_BASE_URL}/{code.lower()}.html"
 
 
 def rule_url(code: str) -> str:
-    """Return the documentation landing page URL for a lint rule code."""
-    return f"{DOCS_BASE_URL}/{code.lower()}.html"
+    """Return the documentation landing page URL for a lint rule code.
+
+    A registered rule answers with its own `Check.docs_url`, so a rule set
+    that documents itself somewhere other than Documenteer is linked where it
+    actually lives. An unregistered code falls back to the Documenteer page
+    its name would have.
+    """
+    check = CHECKS.get(code)
+    if check is not None:
+        return check.docs_url
+    return _documenteer_rule_url(code)
 
 
 class Severity(StrEnum):
@@ -82,6 +99,21 @@ class Check:
     name: str
     description: str
     severity: Severity
+    docs_url: str = ""
+    """The page that documents this rule, and that a finding links to.
+
+    Left empty, it defaults to the Documenteer page for the code — where
+    every rule in this registry is documented today. A rule set that
+    documents itself elsewhere (a future ``technote``-package rule set, say)
+    sets it, so the code stays the stable identifier while the page that
+    explains it can move.
+    """
+
+    def __post_init__(self) -> None:
+        if not self.docs_url:
+            object.__setattr__(
+                self, "docs_url", _documenteer_rule_url(self.code)
+            )
 
 
 CHECKS: dict[str, Check] = {
@@ -125,6 +157,14 @@ CHECKS: dict[str, Check] = {
             "content file."
         ),
         severity=Severity.error,
+    ),
+    "TN007": Check(
+        code="TN007",
+        name="lint-configuration-valid",
+        description=(
+            "The [technote.lint] table names rules the linter knows."
+        ),
+        severity=Severity.warning,
     ),
     "TN101": Check(
         code="TN101",
@@ -241,6 +281,25 @@ class _AuthorSuggestion:
         if self.basis == "ORCID":
             return "Run 'documenteer technote sync-authors' to add it."
         return "Run 'documenteer technote sync-authors' after adding it."
+
+
+class IgnoreSource(StrEnum):
+    """Where a rule's ignore instruction was configured.
+
+    The value is how the source is named in the lint report, so a reader of
+    CI output can find the place to change.
+    """
+
+    toml = "technote.toml [technote.lint]"
+    cli = "--ignore"
+
+
+@dataclass(frozen=True)
+class IgnoredRule:
+    """A rule this lint run skips, and where it was told to."""
+
+    code: str
+    source: IgnoreSource
 
 
 @dataclass(frozen=True)
@@ -377,13 +436,55 @@ class LintContext:
 
 
 class TechnoteLintService:
-    """Validate a technote's metadata, producing a list of findings."""
+    """Validate a technote's metadata, producing a list of findings.
 
-    def __init__(self, context: LintContext) -> None:
+    Parameters
+    ----------
+    context
+        The files and services this run reads.
+    ignore
+        Rule codes to skip, from outside ``technote.toml`` — the command
+        line's ``--ignore`` option. They add to the codes the technote's own
+        ``[technote.lint] ignore`` names rather than replacing them.
+    """
+
+    def __init__(
+        self, context: LintContext, *, ignore: Sequence[str] = ()
+    ) -> None:
         self._context = context
+        self._ignored, self._ignore_findings = _resolve_ignores(
+            context, ignore
+        )
+        self._ignored_codes = frozenset(rule.code for rule in self._ignored)
+
+    @property
+    def ignored_rules(self) -> list[IgnoredRule]:
+        """The rules this run skips, in code order.
+
+        A report names these so that CI output shows a rule is *off* rather
+        than passing.
+        """
+        return list(self._ignored)
+
+    def is_enabled(self, code: str) -> bool:
+        """Whether a rule runs in this lint run.
+
+        A check consults this before doing work that costs something — TN105's
+        DataCite request, the author checks' author-database lookups — so an
+        ignored rule is not merely silent but never leaves the machine.
+        """
+        return code not in self._ignored_codes
 
     def lint(self) -> list[LintFinding]:
-        """Run the registered checks and aggregate their findings.
+        """Run the enabled checks and aggregate their findings.
+
+        Rules named by ``[technote.lint] ignore`` and by the ``ignore``
+        argument report nothing: the ignore set is applied once, here, both
+        by gating the checks that cost network requests and by filtering
+        whatever the remaining checks produce, so no ignored finding can
+        escape by a route a check forgot to gate. A configuration this cannot
+        make sense of is reported as TN007 rather than dropped, and the valid
+        entries still apply.
 
         Only the checks that read the parsed `TechnoteToml` model are skipped
         when ``technote.toml`` cannot be parsed. A ``technote.toml`` that is
@@ -401,17 +502,30 @@ class TechnoteLintService:
         checks (TN1xx) — run for it, so a healthy non-Sphinx technote reports
         nothing.
         """
-        findings: list[LintFinding] = []
+        return [
+            finding
+            for finding in self._collect_findings()
+            if self.is_enabled(finding.code)
+        ]
+
+    def _collect_findings(self) -> list[LintFinding]:
+        """Run every enabled check, in the order their findings report."""
+        # TN007 — whatever the ignore configuration itself got wrong. It is
+        # reported like any other finding, and can itself be ignored: a
+        # writer who lists TN007 has asked not to hear about their own
+        # configuration.
+        findings: list[LintFinding] = list(self._ignore_findings)
 
         # TN004 — technote.toml must exist. A missing file short-circuits the
         # remaining checks because the directory is not a technote.
         if self._context.toml_text is None:
-            return [
+            findings.append(
                 LintFinding.from_check(
                     "TN004",
                     f"technote.toml not found in {self._context.root_dir}.",
                 )
-            ]
+            )
+            return findings
 
         # TN005/TN001 — the technote.toml must be valid TOML (TN005) and then
         # conform to the schema (TN001). Either failure leaves the parsed
@@ -433,8 +547,15 @@ class TechnoteLintService:
 
         if parsed is not None:
             findings.extend(self._check_author_internal_ids(parsed))
-            findings.extend(_check_datacite(parsed, self._context.datacite))
-            findings.extend(_check_citation_cff(self._context))
+            # Gated rather than filtered: TN105 reads the registered metadata
+            # over the network, and an ignored rule must not spend a request
+            # on a finding that is thrown away.
+            if self.is_enabled("TN105"):
+                findings.extend(
+                    _check_datacite(parsed, self._context.datacite)
+                )
+            if self.is_enabled("TN106"):
+                findings.extend(_check_citation_cff(self._context))
 
         # A technote that Sphinx does not build has no requirements.txt or
         # content-file contract to check, so the technote.toml-based checks
@@ -460,49 +581,80 @@ class TechnoteLintService:
     def _check_author_internal_ids(
         self, parsed: TechnoteToml
     ) -> list[LintFinding]:
-        """Check author ``internal_id`` metadata (TN101/TN102/TN103)."""
+        """Check author ``internal_id`` metadata (TN101/TN102/TN103).
+
+        Every branch that would reach the author database is gated on the
+        rule it reports, so ignoring TN101-TN103 leaves the run offline: the
+        resolution lookup is what TN102 and TN103 are, and the suggestion
+        lookup only ever decorates a TN101 or TN102 message.
+        """
         findings: list[LintFinding] = []
         for author in parsed.technote.authors:
             name = f"{author.name.given} {author.name.family}".strip()
-            if author.internal_id is None:
-                message = f"Author {name} is missing an internal_id."
-                suggestion = self._suggest_internal_id(author)
-                if suggestion is not None:
-                    message += (
-                        f" {suggestion.describe(name)} {suggestion.fix_hint()}"
-                    )
-                findings.append(LintFinding.from_check("TN101", message))
+            internal_id = author.internal_id
+            if internal_id is None:
+                if self.is_enabled("TN101"):
+                    findings.append(self._missing_id_finding(author, name))
                 continue
-            try:
-                self._context.author_db.get_author(author.internal_id)
-            except AuthorNotFoundError:
-                message = (
-                    f"Author {name} has internal_id '{author.internal_id}', "
-                    f"which is not in the author database."
-                )
-                suggestion = self._suggest_internal_id(author)
-                if suggestion is not None:
-                    message += f" {suggestion.describe(name)}"
-                findings.append(LintFinding.from_check("TN102", message))
-            except AuthorDbUnreachableError:
-                findings.append(
-                    LintFinding.from_check(
-                        "TN103",
-                        f"Could not reach the author database to verify "
-                        f"internal_id '{author.internal_id}' for author "
-                        f"{name}.",
-                    )
-                )
-            except ValidationError:
-                findings.append(
-                    LintFinding.from_check(
-                        "TN102",
-                        f"Author {name} has internal_id "
-                        f"'{author.internal_id}', whose author database "
-                        f"record is malformed.",
-                    )
-                )
+            findings.extend(
+                self._resolve_internal_id(author, name, internal_id)
+            )
         return findings
+
+    def _missing_id_finding(self, author: Person, name: str) -> LintFinding:
+        """Report an author that declares no ``internal_id`` (TN101)."""
+        message = f"Author {name} is missing an internal_id."
+        suggestion = self._suggest_internal_id(author)
+        if suggestion is not None:
+            message += f" {suggestion.describe(name)} {suggestion.fix_hint()}"
+        return LintFinding.from_check("TN101", message)
+
+    def _resolve_internal_id(
+        self, author: Person, name: str, internal_id: str
+    ) -> list[LintFinding]:
+        """Resolve a declared ``internal_id`` against the author database.
+
+        The one lookup serves both rules it can report — TN102 for an ID the
+        database does not hold, TN103 for a database that cannot answer — so
+        it is worth making while either is enabled, and skipped entirely when
+        neither is.
+        """
+        if not (self.is_enabled("TN102") or self.is_enabled("TN103")):
+            return []
+        try:
+            self._context.author_db.get_author(internal_id)
+        except AuthorNotFoundError:
+            if not self.is_enabled("TN102"):
+                return []
+            message = (
+                f"Author {name} has internal_id '{internal_id}', "
+                f"which is not in the author database."
+            )
+            suggestion = self._suggest_internal_id(author)
+            if suggestion is not None:
+                message += f" {suggestion.describe(name)}"
+            return [LintFinding.from_check("TN102", message)]
+        except AuthorDbUnreachableError:
+            if not self.is_enabled("TN103"):
+                return []
+            return [
+                LintFinding.from_check(
+                    "TN103",
+                    f"Could not reach the author database to verify "
+                    f"internal_id '{internal_id}' for author {name}.",
+                )
+            ]
+        except ValidationError:
+            if not self.is_enabled("TN102"):
+                return []
+            return [
+                LintFinding.from_check(
+                    "TN102",
+                    f"Author {name} has internal_id '{internal_id}', whose "
+                    f"author database record is malformed.",
+                )
+            ]
+        return []
 
     def _suggest_internal_id(self, author: Person) -> _AuthorSuggestion | None:
         """Look up the ``internal_id`` an author most likely meant.
@@ -550,6 +702,139 @@ class TechnoteLintService:
             # response (pydantic ValidationError) are all ValueErrors, and
             # none of them should disturb the primary check.
             return None
+
+
+def _resolve_ignores(
+    context: LintContext, cli_codes: Sequence[str]
+) -> tuple[list[IgnoredRule], list[LintFinding]]:
+    """Resolve the rules a run skips, and report a configuration it cannot use.
+
+    The technote's own ``[technote.lint] ignore`` and the command line's
+    ``--ignore`` are additive: a rule either source names is skipped, and a
+    rule both name is attributed to the file, which is the durable of the
+    two. Every entry is validated against the `CHECKS` registry, so a rule
+    set that adds, retires, or renames a code needs no second list of code
+    names kept in step with it.
+
+    Anything the configuration got wrong is returned as a TN007 finding
+    rather than raised or dropped: a mistyped code must not stop a lint run,
+    and it must not silently leave a rule on that the writer believes is off.
+    """
+    findings: list[LintFinding] = []
+    rules: dict[str, IgnoredRule] = {}
+    file_setting, file_findings = _file_ignore_setting(context)
+    findings.extend(file_findings)
+    for source, raw in (
+        (IgnoreSource.toml, file_setting),
+        (IgnoreSource.cli, list(cli_codes)),
+    ):
+        if raw is None:
+            continue
+        codes, entry_findings = _validate_ignore_codes(raw, source)
+        findings.extend(entry_findings)
+        for code in codes:
+            rules.setdefault(code, IgnoredRule(code=code, source=source))
+    return [rules[code] for code in sorted(rules)], findings
+
+
+def _file_ignore_setting(
+    context: LintContext,
+) -> tuple[Any, list[LintFinding]]:
+    """Read the raw ``[technote.lint] ignore`` value from technote.toml.
+
+    The file is read with Documenteer's own tomlkit-backed reader rather than
+    through technote's parsed model, because the configuration has to be
+    available even when the rest of the file fails schema validation
+    (TN001) — a technote may well be ignoring a rule *about* the metadata
+    that fails.
+
+    A file that is not valid TOML yields nothing and no finding of its own:
+    TN005 already reports it, and there is no configuration to read out of a
+    file that cannot be parsed.
+    """
+    if context.toml_text is None:
+        return None, []
+    try:
+        toml_file = TechnoteTomlFile(context.toml_text)
+    except ValueError:
+        # tomlkit's ParseError is a ValueError; TN005 reports the file.
+        return None, []
+    settings = toml_file.lint_settings
+    if settings is None:
+        return None, []
+    if not isinstance(settings, dict):
+        return None, [
+            LintFinding.from_check(
+                "TN007",
+                f"[technote.lint] in technote.toml must be a table, not "
+                f"{_describe_toml_type(settings)}. No lint configuration was "
+                f"read from it.",
+            )
+        ]
+    return settings.get("ignore"), []
+
+
+def _validate_ignore_codes(
+    raw: Any, source: IgnoreSource
+) -> tuple[list[str], list[LintFinding]]:
+    """Validate one source's ignore entries against the `CHECKS` registry.
+
+    Codes are matched case-insensitively, so ``tn105`` names the same rule as
+    ``TN105``. Every entry is judged on its own: an entry that is not a rule
+    code is reported and skipped, and the valid entries around it still apply.
+    """
+    if isinstance(raw, str) or not isinstance(raw, list | tuple):
+        return [], [
+            LintFinding.from_check(
+                "TN007",
+                f"The ignore setting in {source} must be an array of rule "
+                f"codes, not {_describe_toml_type(raw)}. No rules are "
+                f"ignored from it.",
+            )
+        ]
+
+    codes: list[str] = []
+    findings: list[LintFinding] = []
+    for entry in raw:
+        if not isinstance(entry, str):
+            findings.append(
+                LintFinding.from_check(
+                    "TN007",
+                    f"The ignore setting in {source} lists {entry!r}, which "
+                    f"is not a rule code. Entries are strings such as "
+                    f"'TN105'; the other entries still apply.",
+                )
+            )
+            continue
+        code = entry.strip().upper()
+        if code not in CHECKS:
+            findings.append(
+                LintFinding.from_check(
+                    "TN007",
+                    f"'{entry}' in {source} is not a lint rule code, so no "
+                    f"rule is ignored for it.",
+                )
+            )
+            continue
+        codes.append(code)
+    return codes, findings
+
+
+def _describe_toml_type(value: Any) -> str:
+    """Name a TOML value's type as the file's writer would recognize it."""
+    if isinstance(value, bool):
+        return "a boolean"
+    if isinstance(value, str):
+        return "a string"
+    if isinstance(value, int):
+        return "an integer"
+    if isinstance(value, float):
+        return "a float"
+    if isinstance(value, dict):
+        return "a table"
+    if isinstance(value, list | tuple):
+        return "an array"
+    return f"a {type(value).__name__}"
 
 
 def _check_citation_cff(context: LintContext) -> list[LintFinding]:

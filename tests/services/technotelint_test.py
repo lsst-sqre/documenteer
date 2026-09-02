@@ -13,6 +13,9 @@ from responses import RequestsMock, matchers
 from documenteer.services.technotecff import TechnoteCffService
 from documenteer.services.technotelint import (
     CHECKS,
+    Check,
+    IgnoredRule,
+    IgnoreSource,
     LintContext,
     Severity,
     TechnoteLintService,
@@ -2322,3 +2325,276 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
         "Author Lynne Jones has internal_id 'lynnej', which is not in the "
         "author database."
     )
+
+
+def test_check_defaults_its_docs_url_to_the_documenteer_page() -> None:
+    """A check that names no page documents itself on documenteer.lsst.io."""
+    check = Check(
+        code="TN999",
+        name="a-rule",
+        description="A rule.",
+        severity=Severity.warning,
+    )
+    assert (
+        check.docs_url
+        == "https://documenteer.lsst.io/technotes/lint/tn999.html"
+    )
+
+
+def test_check_can_document_itself_elsewhere() -> None:
+    """A rule set documented outside Documenteer names its own page.
+
+    Rule codes are stable identifiers a repository configures against, so a
+    rule set that moves — into the ``technote`` package, say — keeps its
+    codes and changes only where it is documented.
+    """
+    check = Check(
+        code="TN999",
+        name="a-rule",
+        description="A rule.",
+        severity=Severity.warning,
+        docs_url="https://example.org/rules/tn999.html",
+    )
+    assert check.docs_url == "https://example.org/rules/tn999.html"
+
+
+IGNORE_TN105 = """
+[technote.lint]
+ignore = ["TN105"]
+"""
+"""The ``[technote.lint]`` table that switches the DataCite rule off."""
+
+
+def test_ignored_rule_reports_nothing_and_asks_datacite_nothing(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A rule named in [technote.lint] ignore does not run at all.
+
+    No DataCite request is the substance of the feature, not a detail: a
+    permanently-warning rule that still leaves the machine on every run
+    would only be half switched off. The registered record is deliberately
+    not mocked here, so a request would fail the run's ``responses`` fixture
+    rather than pass silently.
+    """
+    _mock_author(responses)
+    context = _write_technote(tmp_path, CITABLE_TOML + IGNORE_TN105)
+    assert TechnoteLintService(context).lint() == []
+    assert not [
+        call
+        for call in responses.calls
+        if "api.datacite.org" in str(call.request.url)
+    ]
+
+
+def test_ignored_rules_are_named_with_their_source(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """The run reports which rules it skipped and where that was configured."""
+    _mock_author(responses)
+    context = _write_technote(tmp_path, CITABLE_TOML + IGNORE_TN105)
+    service = TechnoteLintService(context)
+    service.lint()
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN105", source=IgnoreSource.toml)
+    ]
+
+
+def test_ignored_author_rules_never_reach_the_author_database(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Ignoring TN101-TN103 keeps the author database out of the run."""
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["TN101", "TN102", "TN103", "TN105"]
+""",
+    )
+    assert TechnoteLintService(context).lint() == []
+    assert len(responses.calls) == 0
+
+
+def test_unknown_ignore_code_reports_tn007(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A code no rule carries is reported, and the valid entries still hold."""
+    _mock_author(responses)
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["TN150", "TN105"]
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN007"]
+    assert "TN150" in findings[0].message
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN105", source=IgnoreSource.toml)
+    ]
+    assert not [
+        call
+        for call in responses.calls
+        if "api.datacite.org" in str(call.request.url)
+    ]
+
+
+def test_non_list_ignore_reports_tn007(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An ignore setting that is not an array ignores nothing."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = "TN105"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN007"]
+    assert "array of rule codes" in findings[0].message
+    assert "a string" in findings[0].message
+    assert service.ignored_rules == []
+
+
+def test_non_string_ignore_entry_reports_tn007(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An entry that is not a rule code is reported, entry by entry."""
+    _mock_author(responses)
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = [105, "TN105"]
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN007"]
+    assert "105" in findings[0].message
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN105", source=IgnoreSource.toml)
+    ]
+
+
+def test_non_table_lint_settings_reports_tn007(tmp_path: Path) -> None:
+    """A [technote.lint] that is not a table has no settings to read."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+title = "The technote"
+lint = "off"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN007"]
+    assert "[technote.lint]" in findings[0].message
+    assert service.ignored_rules == []
+
+
+def test_ignore_codes_are_matched_case_insensitively(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """``tn105`` names the same rule as ``TN105``."""
+    _mock_author(responses)
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["tn105"]
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN105", source=IgnoreSource.toml)
+    ]
+
+
+def test_ignore_survives_a_schema_invalid_technote_toml(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A file that fails schema validation still configures the linter.
+
+    The lint configuration is read from the file's own text rather than
+    through technote's parsed model, precisely so that a technote can ignore
+    a rule while another part of the file is what a rule is reporting on.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = "Jonathan Sick"
+
+[technote.lint]
+ignore = ["TN001"]
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN001", source=IgnoreSource.toml)
+    ]
+
+
+def test_command_line_ignore_combines_with_the_file(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """``--ignore`` adds to the file's list rather than replacing it."""
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["TN105"]
+""",
+    )
+    service = TechnoteLintService(context, ignore=["TN101", "TN102", "TN103"])
+    assert service.lint() == []
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN101", source=IgnoreSource.cli),
+        IgnoredRule(code="TN102", source=IgnoreSource.cli),
+        IgnoredRule(code="TN103", source=IgnoreSource.cli),
+        IgnoredRule(code="TN105", source=IgnoreSource.toml),
+    ]
+    assert len(responses.calls) == 0
+
+
+def test_unknown_command_line_ignore_code_reports_tn007(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A ``--ignore`` typo is validated the same way the file's list is."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    service = TechnoteLintService(context, ignore=["TN150"])
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN007"]
+    assert "--ignore" in findings[0].message
+    assert service.ignored_rules == []

@@ -67,6 +67,7 @@ Decide which side is right — the finding does not assume :file:`technote.toml`
 - **The technote changed.** Release the technote again so that its DOI's metadata is updated from the current :file:`technote.toml`. Rubin's technote CI registers metadata as part of a release, so publishing a new version brings the record back in step.
 - **The registered record is right and :file:`technote.toml` drifted** — a title that was edited in the wrong place, an author who was removed by accident, or a mistyped ``orcid``. Correct :file:`technote.toml`, and regenerate :file:`CITATION.cff` (:doc:`TN106 <tn106>`) if the repository has one.
 - **The registered record is wrong and a release will not fix it.** Ask in the ``#square-help`` Slack channel for the DataCite record to be corrected; DOI metadata is registered by Rubin's services rather than from your working copy.
+- **Nobody at Rubin can change the registered record.** See :ref:`technote-lint-tn105-unchangeable` below.
 
 This rule is a **warning**: it does not fail a lint run unless you pass ``--strict``.
 That is deliberate — the registered metadata is not something a technote author can always change on their own, so the finding informs rather than blocks.
@@ -114,6 +115,33 @@ A :file:`technote.toml` with no ``title``, or a registered record that lists no 
 Other metadata a DOI record carries — the publication year, the publisher, the landing-page URL, affiliations — is not compared.
 Those fields are set by the minting service at release time and legitimately differ from what :file:`technote.toml` says, so comparing them would produce findings nobody should act on.
 
+.. _technote-lint-tn105-unchangeable:
+
+When the registered record cannot be changed
+============================================
+
+Some technotes carry a DOI that Rubin did not mint and cannot re-register.
+A DOI created years ago by the Zenodo–GitHub release integration is the common case: Zenodo registered the metadata it derived from the GitHub release, which is why such a record often carries a machine-made title (``Smtn-005 V1.0 Cloud Statistics Via All-Sky Camera``) and a creator who was a repository contributor rather than an author of the document.
+
+TN105 reports that drift correctly, and none of the fixes above reach it.
+A Rubin release only re-registers ``10.71929/rubin`` DOIs, so publishing again changes nothing; editing :file:`technote.toml` to match the registered record would make the technote itself wrong; and only the owner of the Zenodo deposit can edit that record.
+The warning is permanent, and it keeps ``--strict`` out of reach for the whole repository.
+
+Switch the rule off for that technote, and say why:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote.lint]
+   # Zenodo DOI minted in 2016; a Rubin release cannot update its metadata.
+   ignore = ["TN105"]
+
+The rule then makes no DataCite request at all for this technote, and the lint summary names it as ignored rather than passing.
+See :ref:`technote-lint-ignore` for the full behavior of the ignore list.
+
+Ignore TN105 only when the registered record is genuinely beyond reach.
+A record that a release *would* fix, or one ``#square-help`` can correct, should be fixed: the rule exists because a stale DOI record is what the rest of the scholarly world reads.
+
 .. _technote-lint-tn105-offline:
 
 When DataCite is not reachable
@@ -134,4 +162,5 @@ See also
 
 - :doc:`TN001 <tn001>` — :file:`technote.toml` does not conform to the schema, which is how a ``doi`` that is not a DOI is reported. TN105 never sees such a technote, because parsing fails before any metadata rule runs.
 - :doc:`TN106 <tn106>` — :file:`CITATION.cff` is out of date with :file:`technote.toml`. TN106 compares the same metadata against a *local* file, where TN105 compares it against the registered record.
+- :doc:`TN007 <tn007>` — the ``[technote.lint]`` ignore list itself, and what happens when it names a rule that does not exist.
 - :doc:`../citation-file` — how a technote's citation metadata is composed from :file:`technote.toml`.

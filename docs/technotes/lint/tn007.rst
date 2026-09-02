@@ -1,0 +1,70 @@
+:og:description: TN007 fires when a technote's [technote.lint] configuration names a rule the linter does not have, or is written in a shape the linter cannot read, so a rule the technote means to ignore is still running.
+
+################################
+lint-configuration-valid (TN007)
+################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Structural
+     - Warning
+
+A technote can switch a rule off for itself, in the ``[technote.lint] ignore`` list of its :file:`technote.toml` or with ``--ignore`` on the command line (see :ref:`technote-lint-ignore`).
+This rule reports an ignore list the linter cannot act on: a code no rule carries, an entry that is not a rule code at all, or a setting written in the wrong shape.
+
+The point is that a mistake here is *silent* otherwise.
+A technote that lists ``TN150`` believes a rule is off; the rule it meant to name goes on firing, and nothing says why.
+TN007 turns that into a finding, and the run continues with whichever entries are valid — one bad entry never switches off the rest of the list, and never stops the lint run.
+
+Example of a failing technote
+=============================
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote.lint]
+   ignore = ["TN150"]
+
+.. code-block:: text
+
+   [TN007] 'TN150' in technote.toml [technote.lint] is not a lint rule code, so no rule is ignored for it.
+
+An ``ignore`` written as a bare string rather than an array ignores nothing at all:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote.lint]
+   ignore = "TN105"
+
+.. code-block:: text
+
+   [TN007] The ignore setting in technote.toml [technote.lint] must be an array of rule codes, not a string. No rules are ignored from it.
+
+The same messages report a mistyped ``--ignore`` on the command line, naming ``--ignore`` as the source instead of the file.
+
+How to fix it
+=============
+
+Check the code against the :ref:`rule table <technote-lint-rules>`, which lists every code the linter knows, and write the list as an array of strings:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote.lint]
+   # Zenodo DOI minted in 2016; a Rubin release cannot update its metadata.
+   ignore = ["TN105"]
+
+Codes are matched without regard to case, so ``tn105`` and ``TN105`` name the same rule.
+Each entry should be commented with *why* the rule is off, since the next person to read the file cannot tell an unfixable finding from an unfixed one.
+
+This rule is a **warning**: a configuration mistake does not fail a lint run on its own, though ``--strict`` promotes it like any other warning.
+
+See also
+========
+
+- :ref:`technote-lint-ignore` — how to switch a rule off for one technote, and when that is the right answer.
+- :doc:`TN105 <tn105>` — the DataCite cross-check, the rule most likely to need ignoring, for a DOI whose registered record cannot be changed.

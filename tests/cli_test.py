@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from click.testing import CliRunner
 from responses import RequestsMock, matchers
 
 from documenteer.cli import main
+from documenteer.services.technotelint import CHECKS
 
 AUTHOR_JSON = """
 {
@@ -108,6 +110,90 @@ def test_lint_missing_internal_id(tmp_path: Path) -> None:
         "TN101: https://documenteer.lsst.io/technotes/lint/tn101.html"
         in result.output
     )
+
+
+def test_lint_ignore_option_silences_a_rule(tmp_path: Path) -> None:
+    """--ignore turns a rule off and says so in the summary."""
+    (tmp_path / "technote.toml").write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["technote", "lint", "-d", str(tmp_path), "--ignore", "TN101"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "[TN101]" not in result.output
+    assert "Ignored 1 rule: TN101 (--ignore)." in result.output
+
+
+def test_lint_file_ignore_names_its_source(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A rule ignored by technote.toml is reported as off, not as passing."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    (tmp_path / "technote.toml").write_text(
+        VALID_TOML + '\n[technote.lint]\nignore = ["TN002", "TN003"]\n'
+    )
+    (tmp_path / "index.rst").write_text(
+        "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
+    )
+    # documenteer[technote] absent and sphinx pinned separately: TN002/TN003.
+    (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "lint", "-d", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "[TN002]" not in result.output
+    assert (
+        "Ignored 2 rules: TN002 (technote.toml [technote.lint]), "
+        "TN003 (technote.toml [technote.lint])." in result.output
+    )
+    # --strict has nothing left to promote, so the run stays green.
+    strict = runner.invoke(
+        main, ["technote", "lint", "-d", str(tmp_path), "--strict"]
+    )
+    assert strict.exit_code == 0, strict.output
+
+
+def test_lint_unknown_ignore_code_reports_tn007(tmp_path: Path) -> None:
+    """A --ignore typo is a TN007 finding, not a silently ignored option."""
+    (tmp_path / "technote.toml").write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["technote", "lint", "-d", str(tmp_path), "--ignore", "TN150"],
+    )
+    assert result.exit_code == 1, result.output
+    assert "[TN007]" in result.output
+    assert "[TN101]" in result.output
+
+
+def test_lint_footer_links_come_from_the_check_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The "Learn more" footer links where the rule says it is documented.
+
+    Every rule in the registry documents itself on documenteer.lsst.io today,
+    so this is the only way to see that the footer reads `Check.docs_url`
+    rather than deriving a Documenteer URL from the code.
+    """
+    monkeypatch.setitem(
+        CHECKS,
+        "TN101",
+        replace(CHECKS["TN101"], docs_url="https://example.org/tn101.html"),
+    )
+    (tmp_path / "technote.toml").write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "lint", "-d", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "TN101: https://example.org/tn101.html" in result.output
 
 
 def test_lint_missing_toml_reports_tn004(tmp_path: Path) -> None:

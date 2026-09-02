@@ -51,12 +51,17 @@ Options
     Promote all warnings to errors.
     With this flag, any finding — including the warning-level rules below — causes the command to exit non-zero.
 
+``--ignore <code>``
+    Switch off the rule with this code for this run, in addition to whatever :file:`technote.toml` already ignores.
+    Repeat the option to ignore several rules (``--ignore TN105 --ignore TN106``).
+    See :ref:`technote-lint-ignore`.
+
 .. _technote-lint-rules:
 
 Rules
 =====
 
-Each rule has a stable code so that findings are easy to triage (and, in the future, to except individually), and a landing page describing the rule, showing a failing technote, and walking through the fix.
+Each rule has a stable code so that findings are easy to triage, and so that a technote can :ref:`switch one off <technote-lint-ignore>` by name, and a landing page describing the rule, showing a failing technote, and walking through the fix.
 Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for metadata, and ``TN2xx`` for content.
 
 .. list-table:: Technote lint rules
@@ -91,6 +96,10 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Structural
      - The technote has a content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`).
      - Error
+   * - :doc:`TN007 <tn007>`
+     - Structural
+     - The ``[technote.lint]`` configuration names rules the linter has.
+     - Warning
    * - :doc:`TN101 <tn101>`
      - Metadata
      - Every author declares an ``internal_id``.
@@ -137,6 +146,7 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
    tn004
    tn005
    tn006
+   tn007
    tn101
    tn102
    tn103
@@ -146,6 +156,60 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
    tn202
    tn203
    tn204
+
+.. _technote-lint-ignore:
+
+Ignoring a rule
+===============
+
+Occasionally a rule fires on a technote that cannot fix it, and will never be able to.
+A technote whose DOI was minted by some other service is the standing example: :doc:`TN105 <tn105>` correctly reports that the registered title and creators do not match :file:`technote.toml`, and none of its fixes apply, because only the owner of that deposit can edit the record (see :ref:`technote-lint-tn105-unchangeable`).
+Left alone, the warning is permanent and ``--strict`` is out of reach forever.
+
+List such a rule's code in the ``[technote.lint]`` table of the technote's :file:`technote.toml`:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote.lint]
+   # Zenodo DOI minted in 2016; a Rubin release cannot update its metadata.
+   ignore = ["TN105"]
+
+An ignored rule does not run at all.
+TN105 makes no DataCite request when it is ignored, and TN101–TN103 do not query the author database, so switching a network rule off makes the run faster as well as quieter.
+
+The linter reports what it skipped, so that a rule that is *off* never looks like a rule that *passed*:
+
+.. code-block:: text
+
+   ✅ Technote lint passed with no issues.
+   Ignored 1 rule: TN105 (technote.toml [technote.lint]).
+
+Ignored rules are counted apart from errors and warnings and never affect the exit code.
+A technote whose only finding is ignored passes ``--strict``, which is the point: an unfixable warning should not keep a repository from making every other warning fatal.
+
+Write a comment above each entry saying *why* the rule is off.
+The next person to read the file cannot otherwise tell a finding that is unfixable from one that is merely unfixed, and an ignore that outlives its reason quietly stops checking something worth checking.
+
+You can also ignore a rule for a single run, without editing the file, which is useful for trying ``--strict`` out:
+
+.. prompt:: bash
+
+   documenteer technote lint --ignore TN105 --strict
+
+The option is repeatable and adds to the file's list rather than replacing it.
+Codes are matched without regard to case in both places.
+
+A code that no rule carries — a typo, or a rule that has been retired — is reported as :doc:`TN007 <tn007>` rather than silently doing nothing, and so is an ``ignore`` written in a shape the linter cannot read.
+The valid entries around it still apply.
+
+.. note::
+
+   The ``[technote.lint]`` table is named for the thing it configures rather than for the tool that reads it.
+   Today that tool is Documenteer's :command:`documenteer technote lint`; the linter is expected to move into the `technote <https://technote.lsst.io>`__ package, which will then own this table's schema.
+   Writing the table now is safe either way: technote's own configuration model ignores keys it does not know.
+
+   What a rule set cannot change is its **codes**, which repositories and CI configurations refer to; a rule set that documents its rules somewhere other than documenteer.lsst.io links its findings there instead.
 
 .. _technote-lint-offline:
 

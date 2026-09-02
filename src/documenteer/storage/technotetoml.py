@@ -120,6 +120,26 @@ class TechnoteTomlFile:
         path.write_text(tomlkit.dumps(self._doc))
 
     @property
+    def lint_settings(self) -> Any:
+        """The raw ``[technote.lint]`` value, or `None` when there is none.
+
+        The value is returned unwrapped and *unvalidated* — including when it
+        is not a table at all — because the lint service is what knows which
+        settings it understands, and reports a configuration it cannot use
+        rather than dropping it silently.
+
+        Lint configuration is read here, from the file's own text, rather
+        than from technote's parsed model: a technote.toml that fails schema
+        validation is exactly the file whose lint configuration still has to
+        be honored, since the failure is itself a finding the configuration
+        may name.
+        """
+        technote = self.data.get("technote")
+        if not isinstance(technote, dict):
+            return None
+        return technote.get("lint")
+
+    @property
     def technote_table(self) -> tomlkit.items.Table:
         """The technote table."""
         if "technote" not in self._doc:
