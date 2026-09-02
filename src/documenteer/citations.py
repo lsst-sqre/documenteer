@@ -28,6 +28,7 @@ __all__ = [
     "BibtexEntryType",
     "Citation",
     "CitationAuthor",
+    "CitationType",
     "GuideCitation",
     "OrganizationAuthor",
     "PersonAuthor",
@@ -388,6 +389,53 @@ class BibtexEntryType(StrEnum):
     """For technical reports, including Rubin technotes."""
 
 
+class CitationType(StrEnum):
+    """The kind of work a citation describes.
+
+    This is the citation's counterpart to DataCite's
+    ``resourceTypeGeneral``: it says what the cited thing *is*, which is what
+    decides the schema.org type a landing page publishes it under (see
+    ``SCHEMA_ORG_TYPES``). A work whose type is unstated is not forced into one
+    — an untyped citation keeps the generic default — so the vocabulary can
+    stay small and every member can mean something definite.
+    """
+
+    dataset = "dataset"
+    """A data release, catalog, or other published dataset.
+
+    This is the type Google Dataset Search indexes, so it is the one worth
+    setting on every data product a site publishes.
+    """
+
+    article = "article"
+    """A paper published in a journal or conference proceedings."""
+
+    software = "software"
+    """A software package or codebase."""
+
+    report = "report"
+    """A technical report, including a Rubin technote."""
+
+    other = "other"
+    """A work that none of the other types describes.
+
+    Setting it says the type was considered, where leaving the type unset
+    says nothing at all; both publish the same generic schema.org type.
+    """
+
+
+SCHEMA_ORG_TYPES: dict[str, str] = {
+    CitationType.dataset: "Dataset",
+    CitationType.article: "ScholarlyArticle",
+    CitationType.software: "SoftwareSourceCode",
+    CitationType.report: "Report",
+    CitationType.other: "CreativeWork",
+}
+"""The schema.org type each `CitationType` publishes as, following DataCite's
+crosswalk from ``resourceTypeGeneral`` to schema.org.
+"""
+
+
 @dataclass(frozen=True, kw_only=True)
 class Citation:
     """A bibliographic citation for a work, composable as plain text or
@@ -401,6 +449,15 @@ class Citation:
 
     title: str
     """The title of the work."""
+
+    type: CitationType | None = None
+    """The kind of work being cited.
+
+    A citation that states its type is published under the matching
+    schema.org type, which is what makes a dataset discoverable as one. The
+    type is unset when nothing says what the work is, and a citation
+    composes to the same plain text and BibTeX either way.
+    """
 
     doi: str | None = None
     """The work's DOI, normalized to its bare ``10.NNNN/suffix`` form.
@@ -701,6 +758,7 @@ class GuideCitation:
         location = citation.location
         return {
             "label": self.label,
+            "type": citation.type.value if citation.type else None,
             "is_self": self.is_self,
             "in_footer": self.in_footer,
             "note": self.note,
@@ -741,21 +799,19 @@ consumer that hands the block to a JavaScript parser would read them as line
 terminators.
 """
 
-DATASET_LABEL = "dataset"
-"""The citation label, matched case-insensitively, that types a citation as a
-schema.org ``Dataset`` rather than a generic creative work."""
-
 
 def _schema_type(citation: Mapping[str, Any]) -> str:
     """Choose the schema.org type that represents one citation.
 
-    A citation labelled "Dataset" is a ``Dataset``, which is the type Google
-    Dataset Search and DataCite's own crosswalk key on; the site's own
-    citation is a ``WebSite``; anything else is a generic ``CreativeWork``.
+    A citation that declares a `CitationType` is published under the matching
+    schema.org type — a ``Dataset`` is what Google Dataset Search and
+    DataCite's own crosswalk key on. An untyped citation says nothing about
+    what the work is, so it falls back to the generic type: the site's own
+    citation is a ``WebSite``, and any other work is a ``CreativeWork``.
     """
-    label = (citation.get("label") or "").strip().casefold()
-    if label == DATASET_LABEL:
-        return "Dataset"
+    citation_type = citation.get("type")
+    if citation_type in SCHEMA_ORG_TYPES:
+        return SCHEMA_ORG_TYPES[citation_type]
     return "WebSite" if citation.get("is_self") else "CreativeWork"
 
 

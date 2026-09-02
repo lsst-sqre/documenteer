@@ -113,6 +113,7 @@ A site can cite more than one work — the documentation itself and the dataset 
    [[project.citations]]
    doi = "10.71929/rubin/2570308"
    label = "Dataset"
+   type = "dataset"
    self = true
    note = "Cite the DP2 dataset and this documentation."
    title = "Data Preview 2"
@@ -121,7 +122,7 @@ A site can cite more than one work — the documentation itself and the dataset 
    authors = [{ name = "Vera C. Rubin Observatory" }]
 
 Each entry carries two kinds of field.
-The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, and :ref:`date <guide-project-citations-date>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>`).
+The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, and :ref:`date <guide-project-citations-date>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>`).
 The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`in_footer <guide-project-citations-in-footer>`, and :ref:`note <guide-project-citations-note>`) say how the site displays the citation, and are only ever set here.
 
 .. _guide-project-citations-doi:
@@ -135,6 +136,40 @@ The DOI of the work being cited.
 It can be written bare (``10.71929/rubin/2570308``), as a ``https://doi.org/`` URL, or with a ``doi:`` prefix; anything else fails the build.
 Either this field or :ref:`cff <guide-project-citations-cff>` must supply a DOI.
 
+.. _guide-project-citations-type:
+
+type
+----
+
+|optional|
+
+The kind of work being cited, which decides the schema.org type the site publishes it under in its JSON-LD metadata:
+
+.. list-table::
+   :header-rows: 1
+
+   * - ``type``
+     - schema.org type
+   * - ``"dataset"``
+     - `Dataset <https://schema.org/Dataset>`__
+   * - ``"article"``
+     - `ScholarlyArticle <https://schema.org/ScholarlyArticle>`__
+   * - ``"software"``
+     - `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__
+   * - ``"report"``
+     - `Report <https://schema.org/Report>`__
+   * - ``"other"``
+     - `CreativeWork <https://schema.org/CreativeWork>`__
+
+Any other value fails the build.
+
+Set ``type = "dataset"`` on every data product the site publishes: `Dataset <https://schema.org/Dataset>`__ is the type Google Dataset Search indexes, and it is the one that makes a data release discoverable as data rather than as a page about data.
+
+A citation that declares no type says nothing about what the work is, and is published as a `WebSite <https://schema.org/WebSite>`__ if it is the :ref:`self <guide-project-citations-self>` citation and a `CreativeWork <https://schema.org/CreativeWork>`__ otherwise.
+The ``self`` entry is typed like any other, so a site that is a data release's landing page declares ``type = "dataset"`` there too.
+
+If :ref:`cff <guide-project-citations-cff>` is set, the file's own ``type`` supplies this field, and setting it here overrides the file's value.
+
 .. _guide-project-citations-label:
 
 label
@@ -143,10 +178,8 @@ label
 |optional|
 
 A short label that distinguishes this citation from the site's others, such as ``"Dataset"`` or ``"Paper"``.
-It is the label shown on the citation's card, and the argument the :ref:`citation-card <guide-citation-card>` directive selects an entry with.
-
-The label ``"Dataset"`` (matched without regard to case) also types the citation as a schema.org `Dataset <https://schema.org/Dataset>`__ in the site's JSON-LD metadata, which is the type Google Dataset Search indexes.
-Every other citation is a schema.org `WebSite <https://schema.org/WebSite>`__ if it is the :ref:`self <guide-project-citations-self>` citation and a `CreativeWork <https://schema.org/CreativeWork>`__ otherwise.
+It is the label shown on the citation's card, the argument the :ref:`citation-card <guide-citation-card>` directive selects an entry with, and the name a warning about a citation uses.
+It is a display string only: what a work *is* is declared with :ref:`type <guide-project-citations-type>`.
 
 .. _guide-project-citations-self:
 
@@ -265,6 +298,9 @@ Since :file:`documenteer.toml` sits beside :file:`conf.py` in the documentation 
 
 A repository that already maintains a :file:`CITATION.cff` for GitHub's "Cite this repository" button has written the bibliographic record down once; pointing at it keeps :file:`documenteer.toml` from restating it.
 When the file declares a ``preferred-citation``, that is the citation Documenteer reads, exactly as GitHub renders it.
+
+The file's own ``type`` supplies the entry's :ref:`type <guide-project-citations-type>`, so a repository that describes itself as ``type: software``, or whose preferred citation is an ``article`` or a ``report``, is typed without restating it.
+A CFF type that Documenteer has no counterpart for leaves the entry untyped.
 
 Any bibliographic field set alongside ``cff`` overrides the file's value, so a single field can be corrected without abandoning the file:
 

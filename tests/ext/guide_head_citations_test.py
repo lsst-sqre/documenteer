@@ -116,10 +116,13 @@ def test_head_carries_schema_org_jsonld(app: SphinxTestApp) -> None:
     # record, so an entry that opts out of the footer is still here.
     dataset, paper = payload["citation"]
     assert paper["name"] == "The Smoke Test Survey"
+    # Each citation is published under the schema.org type its own
+    # documenteer.toml type crosswalks to.
+    assert paper["@type"] == "ScholarlyArticle"
 
-    # The "Dataset"-labelled citation crosswalks to a schema.org Dataset, with
-    # its authors carrying resolvable ROR and ORCID identifiers -- the ORCID
-    # is written bare in documenteer.toml and resolved to a URL here.
+    # The dataset crosswalks to a schema.org Dataset, with its authors
+    # carrying resolvable ROR and ORCID identifiers -- the ORCID is written
+    # bare in documenteer.toml and resolved to a URL here.
     assert dataset["@type"] == "Dataset"
     assert dataset["@id"] == f"https://doi.org/{DATASET_DOI}"
     assert dataset["creator"] == [

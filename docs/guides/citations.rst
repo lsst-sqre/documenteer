@@ -27,6 +27,7 @@ A site that documents a data release typically declares two citations — the re
    [[project.citations]]
    doi = "10.71929/rubin/2570308"
    label = "Dataset"
+   type = "dataset"
    self = true
    note = "To be used when citing the DP2 dataset and this documentation."
    title = "Data Preview 2"
@@ -37,6 +38,7 @@ A site that documents a data release typically declares two citations — the re
    [[project.citations]]
    doi = "10.5281/zenodo.1234567"
    label = "Paper"
+   type = "article"
    title = "The Data Preview 2 release"
    publisher = "Zenodo"
    date = 2025-06-30
@@ -158,4 +160,5 @@ Related metadata
 ================
 
 Declaring ``[[project.citations]]`` also makes the site's DOI machine-readable: every page's ``<head>`` carries the ``self`` citation's DOI as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site and the works it cites.
+Each citation's :ref:`type <guide-project-citations-type>` decides the schema.org type it is described under there, so ``type = "dataset"`` is what makes a data release indexable by Google Dataset Search.
 See :ref:`[[project.citations]] <guide-project-citations>` for the full field reference.

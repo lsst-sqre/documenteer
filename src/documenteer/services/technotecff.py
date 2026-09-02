@@ -13,6 +13,7 @@ import yaml
 from documenteer.citations import (
     Citation,
     CitationAuthor,
+    CitationType,
     OrganizationAuthor,
     PersonAuthor,
 )
@@ -224,6 +225,10 @@ class TechnoteCffService:
         )
         citation = Citation(
             title=title,
+            # A technote is a report, and saying so here is what makes the
+            # citation read back from the generated file identical to this
+            # one -- the round trip `tests/storage/citationcff_test.py` pins.
+            type=CitationType.report,
             doi=_text(technote.get("doi")),
             authors=tuple(
                 _citation_author(author, position)

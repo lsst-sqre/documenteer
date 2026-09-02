@@ -8,7 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from documenteer.citations import OrganizationAuthor, PersonAuthor
+from documenteer.citations import (
+    CitationType,
+    OrganizationAuthor,
+    PersonAuthor,
+)
 from documenteer.services.technotecff import TechnoteCffService
 from documenteer.storage.citationcff import (
     CitationCffError,
@@ -27,6 +31,7 @@ def test_minimal_file() -> None:
     citation = read_citation_cff(DATA_DIR / "minimal.cff")
 
     assert citation.title == "Documenteer"
+    assert citation.type is CitationType.software
     assert citation.doi == "10.5281/zenodo.10385500"
     assert citation.url == "https://documenteer.lsst.io/"
     assert citation.date == date(2026, 8, 24)
@@ -49,6 +54,9 @@ def test_preferred_citation_wins() -> None:
     citation = read_citation_cff(DATA_DIR / "preferred-citation.cff")
 
     assert citation.title == "The LSST DM Technical Note Publishing Platform"
+    # The preferred citation's own type, not the software type the repository
+    # stub above it declares.
+    assert citation.type is CitationType.report
     assert citation.doi == "10.71929/rubin/2570308"
     assert citation.publisher == "Vera C. Rubin Observatory"
     assert citation.number == "SQR-000"
@@ -62,6 +70,41 @@ def test_preferred_citation_wins() -> None:
             orcid="https://orcid.org/0000-0003-3001-676X",
         ),
     )
+
+
+@pytest.mark.parametrize(
+    ("cff_type", "expected"),
+    [
+        ("dataset", CitationType.dataset),
+        ("database", CitationType.dataset),
+        ("article", CitationType.article),
+        ("conference-paper", CitationType.article),
+        ("magazine-article", CitationType.article),
+        ("software", CitationType.software),
+        ("software-code", CitationType.software),
+        ("report", CitationType.report),
+        # CFF's vocabulary is far larger than Documenteer's, and a type with
+        # no counterpart leaves the work untyped rather than guessing.
+        ("thesis", None),
+        (None, None),
+    ],
+)
+def test_type_is_mapped(
+    tmp_path: Path, cff_type: str | None, expected: CitationType | None
+) -> None:
+    """A CFF record's own type is carried onto the citation, so an entry that
+    points at the file is typed without restating the type.
+    """
+    path = tmp_path / "CITATION.cff"
+    declaration = f"type: {cff_type}\n" if cff_type else ""
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A work\n"
+        f"{declaration}"
+        "doi: 10.71929/rubin/2570308\n"
+    )
+
+    assert read_citation_cff(path).type is expected
 
 
 def test_doi_url_is_normalized(tmp_path: Path) -> None:

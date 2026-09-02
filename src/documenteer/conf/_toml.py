@@ -32,6 +32,7 @@ from sphinx.errors import ConfigError
 from ..citations import (
     Citation,
     CitationAuthor,
+    CitationType,
     GuideCitation,
     OrganizationAuthor,
     PersonAuthor,
@@ -263,6 +264,15 @@ class CitationModel(BaseModel):
         description=(
             "A short label distinguishing this citation from the site's "
             'others, such as "Dataset" or "Paper".'
+        ),
+    )
+
+    type: CitationType | None = Field(
+        None,
+        description=(
+            "The kind of work being cited, which decides the schema.org "
+            "type the site publishes it under. A cff file supplies one when "
+            "this is unset."
         ),
     )
 
@@ -1141,6 +1151,7 @@ class DocumenteerConfig:
         return GuideCitation(
             citation=Citation(
                 title=title,
+                type=entry.type or (source.type if source else None),
                 doi=doi,
                 authors=authors,
                 publisher=entry.publisher

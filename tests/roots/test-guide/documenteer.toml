@@ -16,6 +16,7 @@ authors = [{ name = "Vera C. Rubin Observatory" }]
 [[project.citations]]
 doi = "10.5281/zenodo.10385500"
 label = "Dataset"
+type = "dataset"
 in_footer = true
 note = "Cite the dataset this guide documents."
 title = "Smoke Test Images & Catalogs"
@@ -30,6 +31,7 @@ authors = [
 [[project.citations]]
 doi = "10.5281/zenodo.10385501"
 label = "Paper"
+type = "article"
 in_footer = false
 note = "Cite the paper describing the survey."
 title = "The Smoke Test Survey"

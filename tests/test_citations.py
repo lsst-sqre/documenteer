@@ -12,6 +12,7 @@ import pytest
 from documenteer.citations import (
     BibtexEntryType,
     Citation,
+    CitationType,
     GuideCitation,
     OrganizationAuthor,
     PersonAuthor,
@@ -600,6 +601,7 @@ def _dataset_citation_context() -> dict[str, object]:
         citation=Citation(
             doi="10.5281/zenodo.10385500",
             title="Images & Catalogs",
+            type=CitationType.dataset,
             authors=(
                 OrganizationAuthor(
                     name="Vera C. Rubin Observatory",
@@ -617,8 +619,44 @@ def _dataset_citation_context() -> dict[str, object]:
     ).to_html_context()
 
 
-def test_landing_page_jsonld_types_a_dataset_label() -> None:
-    """A citation labelled "Dataset" is a schema.org Dataset hanging off the
+@pytest.mark.parametrize(
+    ("citation_type", "schema_type"),
+    [
+        (CitationType.dataset, "Dataset"),
+        (CitationType.article, "ScholarlyArticle"),
+        (CitationType.software, "SoftwareSourceCode"),
+        (CitationType.report, "Report"),
+        (CitationType.other, "CreativeWork"),
+    ],
+)
+def test_landing_page_jsonld_types_a_citation_from_its_type(
+    citation_type: CitationType, schema_type: str
+) -> None:
+    """A citation's type chooses the schema.org type of its node, so a work
+    is typed by what it is rather than by how its label happens to read.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Object catalog",
+                        type=citation_type,
+                    ),
+                    label="Object catalog",
+                ).to_html_context()
+            ]
+        )
+        or ""
+    )
+
+    (node,) = payload["@graph"]
+    assert node["@type"] == schema_type
+
+
+def test_landing_page_jsonld_types_a_dataset() -> None:
+    """A citation typed as a dataset is a schema.org Dataset hanging off the
     self citation, and its authors carry resolvable ORCID and ROR ids.
     """
     payload = json.loads(
@@ -664,6 +702,46 @@ def test_landing_page_jsonld_is_a_graph_without_a_self_citation() -> None:
     assert "@id" not in payload
     (node,) = payload["@graph"]
     assert node["@type"] == "Dataset"
+
+
+def test_landing_page_jsonld_ignores_a_label_that_reads_as_a_type() -> None:
+    """A label is a display string and carries no schema semantics, so an
+    untyped citation labelled "Dataset" is still a generic CreativeWork.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                _self_citation_context(),
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Images & Catalogs",
+                    ),
+                    label="Dataset",
+                ).to_html_context(),
+            ]
+        )
+        or ""
+    )
+
+    (node,) = payload["citation"]
+    assert node["@type"] == "CreativeWork"
+
+
+def test_landing_page_jsonld_types_a_self_citation() -> None:
+    """A self citation that declares a type is published under it, so a site
+    that is a data release's landing page is a Dataset rather than a WebSite.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [_self_citation_context(type="dataset")], site_url=SITE_URL
+        )
+        or ""
+    )
+
+    assert payload["@type"] == "Dataset"
+    # It is still the document's own subject, described by the site's URL.
+    assert payload["url"] == SITE_URL
 
 
 def test_landing_page_jsonld_without_citations() -> None:

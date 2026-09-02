@@ -10,7 +10,11 @@ from typing import Any
 import pytest
 from sphinx.errors import ConfigError
 
-from documenteer.citations import OrganizationAuthor, PersonAuthor
+from documenteer.citations import (
+    CitationType,
+    OrganizationAuthor,
+    PersonAuthor,
+)
 from documenteer.conf import DocumenteerConfig
 
 EXAMPLE = """
@@ -394,6 +398,7 @@ github_url = "https://github.com/lsst-sqre/documenteer"
 [[project.citations]]
 doi = "https://doi.org/10.71929/rubin/2570308"
 label = "Dataset"
+type = "dataset"
 self = true
 note = "Cite the DP2 dataset and this documentation."
 title = "Data Preview 2"
@@ -413,6 +418,7 @@ def test_citations_inline() -> None:
 
     (entry,) = config.citations
     assert entry.label == "Dataset"
+    assert entry.citation.type is CitationType.dataset
     assert entry.is_self is True
     assert entry.note == "Cite the DP2 dataset and this documentation."
     assert entry.citation.doi == "10.71929/rubin/2570308"
@@ -430,6 +436,7 @@ def test_citations_inline() -> None:
 CITATION_CFF = """cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Example Software"
+type: software
 authors:
   - family-names: Sick
     given-names: Jonathan
@@ -464,6 +471,7 @@ def test_citations_from_cff(tmp_path: Path) -> None:
     (entry,) = config.citations
     assert entry.label == "Software"
     # From the CITATION.cff file.
+    assert entry.citation.type is CitationType.software
     assert entry.citation.doi == "10.5281/zenodo.10385500"
     assert entry.citation.date == date(2026, 2, 1)
     assert entry.citation.authors == (
@@ -475,6 +483,33 @@ def test_citations_from_cff(tmp_path: Path) -> None:
     )
     # Set inline alongside cff, so it overrides the file's title.
     assert entry.citation.title == "Example Software, version 2"
+
+
+EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+type = "dataset"
+"""
+
+
+def test_citations_type_overrides_cff(tmp_path: Path) -> None:
+    """A type set alongside cff overrides the file's own, the way every
+    other bibliographic field does.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.type is CitationType.dataset
 
 
 EXAMPLE_CITATIONS_TWO_SELF = """
@@ -513,6 +548,30 @@ def test_citations_malformed_doi_rejected() -> None:
     """A value that is not a DOI is rejected when the config is loaded."""
     with pytest.raises(ConfigError, match="Not a DOI"):
         DocumenteerConfig.load(EXAMPLE_CITATIONS_BAD_DOI)
+
+
+EXAMPLE_CITATIONS_BAD_TYPE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+type = "preprint"
+"""
+
+
+def test_citations_unknown_type_rejected() -> None:
+    """A type outside the vocabulary is rejected when the config is loaded,
+    with a message naming the values that are accepted.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_BAD_TYPE)
+
+    message = str(exc_info.value)
+    for value in ("dataset", "article", "software", "report", "other"):
+        assert value in message
 
 
 EXAMPLE_CITATIONS_MISSING_CFF = """
@@ -615,6 +674,7 @@ def test_set_citations_html_context() -> None:
 
     (context,) = html_context["documenteer_citations"]
     assert context["label"] == "Dataset"
+    assert context["type"] == "dataset"
     assert context["is_self"] is True
     assert context["in_footer"] is True
     assert context["doi"] == "10.71929/rubin/2570308"
@@ -648,8 +708,8 @@ def test_set_citations_publishes_jsonld() -> None:
 
     payload = json.loads(html_context["documenteer_citations_jsonld"])
     assert payload["@context"] == "https://schema.org"
-    # The self citation is labelled "Dataset", and the label decides the
-    # schema.org type: this site is a data release's landing page.
+    # The self citation declares type = "dataset", so the site is published
+    # as a data release's landing page rather than as a plain WebSite.
     assert payload["@type"] == "Dataset"
     assert payload["@id"] == "https://doi.org/10.71929/rubin/2570308"
     assert payload["identifier"]["value"] == "10.71929/rubin/2570308"

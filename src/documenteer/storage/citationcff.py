@@ -25,6 +25,7 @@ import yaml
 from documenteer.citations import (
     Citation,
     CitationAuthor,
+    CitationType,
     OrganizationAuthor,
     PersonAuthor,
 )
@@ -38,6 +39,31 @@ __all__ = [
 
 DOI_IDENTIFIER_TYPE = "doi"
 """The ``identifiers`` entry type that carries a DOI."""
+
+CITATION_TYPES: dict[str, CitationType] = {
+    "article": CitationType.article,
+    "conference-paper": CitationType.article,
+    "magazine-article": CitationType.article,
+    "newspaper-article": CitationType.article,
+    "data": CitationType.dataset,
+    "database": CitationType.dataset,
+    "dataset": CitationType.dataset,
+    "report": CitationType.report,
+    "software": CitationType.software,
+    "software-code": CitationType.software,
+    "software-container": CitationType.software,
+    "software-executable": CitationType.software,
+    "software-virtual-machine": CitationType.software,
+}
+"""The `~documenteer.citations.CitationType` each CFF ``type`` maps onto.
+
+CFF's own vocabulary is far larger than this — its top level accepts
+``software`` and ``dataset``, and a reference accepts several dozen types —
+so only the ones with a counterpart are listed. A type outside this mapping
+leaves the citation untyped, which publishes the same generic schema.org type
+a file that declares no type at all does; guessing would be worse than saying
+nothing.
+"""
 
 
 class CitationCffError(ValueError):
@@ -169,6 +195,7 @@ def read_citation_cff(path: Path) -> Citation:
     try:
         return Citation(
             title=title,
+            type=_citation_type(source),
             doi=_doi(source),
             authors=authors,
             publisher=_entity_name(source.get("publisher"))
@@ -229,6 +256,20 @@ def _author(entry: Any, *, path: Path) -> CitationAuthor:
         orcid=_text(entry.get("orcid")),
         affiliation=_text(entry.get("affiliation")),
     )
+
+
+def _citation_type(source: Mapping[str, Any]) -> CitationType | None:
+    """Map the record's ``type`` onto Documenteer's citation vocabulary.
+
+    The type read is the one on whichever record is being cited: a
+    ``preferred-citation``'s own type when the file declares one, and the top
+    level's otherwise. The top level describes the *repository*, so its type
+    would misreport the paper or report a preferred citation names.
+    """
+    declared = _text(source.get("type"))
+    if declared is None:
+        return None
+    return CITATION_TYPES.get(declared.casefold())
 
 
 def _doi(source: Mapping[str, Any]) -> str | None:
