@@ -868,8 +868,9 @@ url = "{value}"
         ("  ", "url is empty"),
         ("github.com/lsst/daf_butler", "is not an absolute URL"),
         ("/datasets/dp1", "is not an absolute URL"),
-        ("ftp://example.org/dp1.tar", "uses the ftp scheme"),
-        ("mailto:data@example.org", "uses the mailto scheme"),
+        ("ftp://example.org/dp1.tar", "starts with ftp: rather than"),
+        ("mailto:data@example.org", "starts with mailto: rather than"),
+        ("localhost:8080/dp1", "starts with localhost: rather than"),
         ("https:///datasets/dp1", "names no host"),
     ],
 )
