@@ -1135,7 +1135,7 @@ def compose_highwire_tags(
     Notes
     -----
     Highwire tags are what `Google Scholar's inclusion guidelines
-    <https://scholar.google.com/intl/en/scholar/inclusion.html#indexing>`__
+    <https://scholar.google.com/intl/en/scholar/inclusion.html>`__
     specify and what Zotero's embedded-metadata translator reads, so a page
     that carries them gets a one-click "Save to Zotero" with the right title,
     creators, date, and DOI. The Dublin Core ``DC.identifier`` is emitted
