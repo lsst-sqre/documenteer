@@ -33,16 +33,20 @@
 
   {# The works this site asks to be cited as: every [[project.citations]]
      entry in documenteer.toml whose in_footer is set, in the order the file
-     declares them. in_footer defaults to true for the site's preferred
-     citation -- the entry marked `preferred`, or the `self` entry of a site
-     that marks no other -- and to false for the rest, so the entry the site
-     asks readers to use is here without saying so twice.
+     declares them. in_footer defaults to true for the entry filling either
+     role -- the site's preferred citation and the `self` entry, which are
+     the same entry unless the site marks them separately -- and to false for
+     the rest, so the entries the site is about are here without saying so
+     twice.
 
      A site published with a DOI is that DOI's landing page, and DataCite asks
      a landing page to show a full bibliographic citation with the DOI as a
      resolvable link -- putting it in the footer is what makes every page of
      the site such a landing page, not only the one that carries a
-     citation-card directive.
+     citation-card directive. That is why the `self` entry defaults in on its
+     own account: a site that asks readers to cite some other work still owes
+     the reader the citation of the DOI it is the landing page of, so such a
+     site shows both by default and opts one out explicitly if it wants one.
 
      Everything here comes from the html_context the guide preset composes
      (documenteer.citations), including the split of the citation text at the

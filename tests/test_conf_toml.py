@@ -1015,8 +1015,38 @@ def test_citations_self_and_preferred_are_different_entries() -> None:
     assert preferred is not None
     assert self_citation.label == "Site"
     assert preferred.label == "Paper"
-    # An explicit preferred entry takes the footer default with it, so the
-    # site shows the citation it asks readers to use.
+    # Both default into the footer, in array order: the site is a landing
+    # page, which DataCite asks to display the citation of the DOI it is the
+    # landing page of, and it also asks readers to cite the paper.
+    assert [entry.in_footer for entry in config.citations] == [True, True]
+
+
+EXAMPLE_CITATIONS_SELF_OUT_OF_FOOTER = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Site"
+self = true
+in_footer = false
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+title = "A Paper"
+preferred = true
+"""
+
+
+def test_citations_self_can_opt_out_of_the_footer() -> None:
+    """A site that wants one footer citation rather than two writes
+    in_footer = false, and the explicit value wins over the default.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_OUT_OF_FOOTER)
+
     assert [entry.in_footer for entry in config.citations] == [False, True]
 
 

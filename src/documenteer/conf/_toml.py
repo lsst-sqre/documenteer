@@ -328,7 +328,9 @@ class CitationModel(BaseModel):
         None,
         description=(
             "Whether this citation appears in the site footer. Defaults to "
-            "true for the preferred entry and false for every other."
+            "true for the preferred entry and for the ``self`` entry — the "
+            "same entry unless the site separates them — and false for "
+            "every other."
         ),
     )
 
@@ -546,7 +548,18 @@ class CitationModel(BaseModel):
 
     def shows_in_footer(self, *, is_preferred: bool) -> bool:
         """Whether the citation appears in the site footer, resolving the
-        default from whether it is the site's preferred citation.
+        default from the entry's two roles.
+
+        An entry defaults into the footer when it fills either role. The
+        preferred citation is there because it is what the site asks readers
+        to use. The ``self`` entry is there because the site is that DOI's
+        landing page, and DataCite asks a landing page to display the
+        citation of the DOI it is the landing page of — which the footer is
+        what makes true of *every* page of the site. The two are the same
+        entry on a site that marks no other ``preferred``, so only a site
+        that separates them shows two footer citations by default, which is
+        the honest rendering of a site that both is a landing page and asks
+        readers to cite something else.
 
         Parameters
         ----------
@@ -558,7 +571,7 @@ class CitationModel(BaseModel):
             ``preferred``, which an entry cannot see on its own.
         """
         if self.in_footer is None:
-            return is_preferred
+            return is_preferred or self.is_self
         return self.in_footer
 
 

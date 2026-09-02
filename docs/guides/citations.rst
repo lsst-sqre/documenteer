@@ -53,7 +53,7 @@ Two of the fields there answer two different questions, and it is worth keeping 
 
 :ref:`preferred <guide-project-citations-preferred>`
     Which citation the site asks readers to *use*.
-    It is what a card with no argument renders, and what the footer shows by default.
+    It is what a card with no argument renders.
 
 They coincide above, and a site that publishes its own DOI never needs to think about the difference: an entry marked ``self`` is the preferred citation unless another entry claims that.
 
@@ -88,6 +88,10 @@ A second entry against the same file, with :ref:`cff_preferred = false <guide-pr
 
 A package that has never been deposited for a DOI is cited by where it lives: the file's ``url``, or its ``repository-code`` when it names no landing page.
 Only the :ref:`self <guide-project-citations-self>` entry needs a DOI, because that entry is the claim that this site is a DOI's landing page.
+
+A site can also set ``self`` and ``preferred`` on *different* entries, which is the site published with a DOI of its own that nonetheless asks readers to cite something else.
+The :ref:`footer <guide-footer-citations>` then shows both by default, because a landing page owes its reader the citation of the DOI it is the landing page of whether or not that is the citation it asks for.
+Such a site shows one of them instead by writing :ref:`in_footer = false <guide-project-citations-in-footer>` on the other.
 
 .. _guide-citation-card:
 
@@ -278,7 +282,9 @@ Footer citations
 
 The site footer shows the citations on every page, which is what makes each page of the guide a landing page for the site's DOI rather than only the page that carries a card.
 
-The footer shows the site's :ref:`preferred <guide-project-citations-preferred>` citation and every entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`, in the order :file:`documenteer.toml` declares them.
+The footer shows the site's :ref:`preferred <guide-project-citations-preferred>` citation, its :ref:`self <guide-project-citations-self>` entry, and every entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`, in the order :file:`documenteer.toml` declares them.
+The first two are one entry on a site that publishes its own DOI, so such a site shows one citation.
+A site that separates them shows both, and writes :ref:`in_footer = false <guide-project-citations-in-footer>` on one to show only the other.
 Each one shows the same three parts a card does — the :ref:`label <guide-project-citations-label>`, the citation with its DOI as a ``https://doi.org/`` hyperlink, and the :ref:`note <guide-project-citations-note>` — under a "How to cite" heading.
 With the configuration above, the footer reads:
 

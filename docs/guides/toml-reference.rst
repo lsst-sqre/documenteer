@@ -214,6 +214,9 @@ Both name where the DOI resolves: the ``self`` entry's landing page is the site 
 Which citation the site asks readers to *use* is a separate question, answered by :ref:`preferred <guide-project-citations-preferred>`.
 The two coincide for a site that publishes its own DOI, so a ``self`` entry is also the preferred citation unless another entry claims that.
 
+A ``self`` entry's :ref:`in_footer <guide-project-citations-in-footer>` defaults to ``true`` on its own account, not only by way of being the preferred citation, since displaying the citation is part of being a landing page.
+A site that marks a *different* entry ``preferred`` therefore shows both in the footer, and writes ``in_footer = false`` on one if it wants only the other.
+
 The ``self`` entry is the one entry that may omit :ref:`title <guide-project-citations-title>`, since the site's own :ref:`project.title <guide-project-title>` is then the title of the work.
 
 A site that marks no entry ``self`` emits no citation meta tags on any page — not even the title and authors of the work it marks :ref:`preferred <guide-project-citations-preferred>`, since those tags say that *this* page is the work's full text — and its site-wide JSON-LD block describes the site itself — a schema.org `WebSite <https://schema.org/WebSite>`__ carrying the site's :ref:`project.title <guide-project-title>` and :ref:`project.base_url <guide-project-base-url>` and no identifier — with the declared works hanging off it.
@@ -228,7 +231,7 @@ preferred
 Whether this is the citation the site asks readers to use.
 Default is ``false``, and at most one entry can set it to ``true``.
 
-The preferred citation is the entry a :ref:`citation-card <guide-citation-card>` renders when it is given no label, and the entry whose :ref:`in_footer <guide-project-citations-in-footer>` defaults to ``true``.
+The preferred citation is the entry a :ref:`citation-card <guide-citation-card>` renders when it is given no label, and one of the two entries whose :ref:`in_footer <guide-project-citations-in-footer>` defaults to ``true`` — the other being the :ref:`self <guide-project-citations-self>` entry, which is the same entry unless this field names another.
 
 A :ref:`self <guide-project-citations-self>` entry is the preferred citation when no entry sets this field, so a site that publishes its own DOI states neither field twice.
 Set ``preferred`` when the citation to use is *not* a work this site is the landing page of:
@@ -302,7 +305,8 @@ in\_footer
 |optional|
 
 Whether this citation appears in the :ref:`site footer <guide-footer-citations>`.
-Default is ``true`` for the :ref:`preferred <guide-project-citations-preferred>` entry — which is the :ref:`self <guide-project-citations-self>` entry on a site that marks no other — and ``false`` for every other, so additional citations are opt-in.
+Default is ``true`` for the entry filling either role — the :ref:`preferred <guide-project-citations-preferred>` citation, because it is what the site asks readers to use, and the :ref:`self <guide-project-citations-self>` entry, because a landing page is asked to display the citation of the DOI it is the landing page of — and ``false`` for every other, so additional citations are opt-in.
+Those are one entry on a site that marks no separate ``preferred``, which is the usual case; a site that separates them shows two footer citations unless it writes ``in_footer = false`` on one.
 Footer citations appear in the order the entries are written.
 
 It also governs the site-wide JSON-LD block: an entry with no :ref:`page <guide-project-citations-page>` of its own is described there only when the footer shows it, so a work no page of the site mentions is not carried in the metadata of every page of it.
