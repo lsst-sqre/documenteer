@@ -97,7 +97,11 @@ def test_the_article_ends_with_the_citation(app: SphinxTestApp) -> None:
     assert _text(heading) == "Citing this document"
 
     (text,) = section.cssselect(TEXT)
-    assert _text(text) == CITATION_TEXT
+    # Uncollapsed, because the template's one job here is to put nothing
+    # between the lead and the link it ends in: a newline or an indent there
+    # would collapse away to the single space the citation already has, and
+    # the reader would copy a reference with a gap in it.
+    assert text.text_content() == CITATION_TEXT
 
 
 @pytest.mark.sphinx(
