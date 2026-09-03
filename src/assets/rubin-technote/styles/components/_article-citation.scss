@@ -1,0 +1,38 @@
+/*
+ * The "Citing this document" section at the end of the article
+ * (templates/technote/sections/article-footer.html): the technote's full
+ * bibliographic citation, with the DOI written as a resolvable link.
+ *
+ * The theme leaves sections/article-footer.html empty and gives it no
+ * styling, so unlike the sidebar's Cite section -- which slots into the
+ * theme's own sidebar vocabulary -- this section supplies its own frame.
+ * Everything is built from the technote theme's --tn- tokens, which is what
+ * makes the light/dark switch work without a second set of rules.
+ */
+
+/* A rule sets the end matter apart from the last paragraph of the document
+ * without boxing it: the citation is part of the page, not a callout on it.
+ * The theme constrains every direct child of the article container to the
+ * reading column, so the rule spans exactly the text above it. */
+.technote-article-citation {
+  margin-top: var(--tn-space-lg-fixed);
+  border-top: var(--tn-sphinx-block-border-thickness) solid
+    var(--tn-sphinx-block-border-color);
+  padding-top: var(--tn-space-sm-fixed);
+}
+
+/* Set below the document's own section headings: this names end matter, and
+ * should not read as another section of the technote. */
+.technote-article-citation__heading {
+  margin: 0 0 var(--tn-space-xs-fixed);
+  font-size: var(--tn-component-h3-size);
+  font-weight: var(--tn-component-h3-weight);
+}
+
+/* The citation ends in a DOI URL: one unbreakable token long enough to
+ * overflow the reading column on a phone. Wrapping anywhere keeps it inside
+ * the column instead of pushing a scrollbar onto the page. */
+.technote-article-citation__text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
