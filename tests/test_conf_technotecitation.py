@@ -96,7 +96,12 @@ def test_plain_text_lead_stops_where_the_doi_link_begins() -> None:
     """
     citation = TechnoteCitation(make_metadata())
 
-    assert citation.plain_text_lead + citation.doi_url == citation.plain_text
+    lead = citation.plain_text_lead
+    doi_url = citation.doi_url
+    assert lead is not None
+    assert doi_url is not None
+
+    assert lead + doi_url == citation.plain_text
 
 
 @pytest.mark.parametrize(
