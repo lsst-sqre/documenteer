@@ -84,18 +84,16 @@ class TechnoteCitation:
         A displayed citation ends in a hyperlink to the work, so the text is
         offered pre-split at that point: writing `plain_text_lead` and then a
         link to `doi_url` reproduces `plain_text` exactly, and a template
-        never has to do string surgery to hyperlink the DOI. The guide's
-        citations are split the same way in
-        `documenteer.citations.GuideCitation.to_html_context`, which is what
-        keeps the two surfaces from disagreeing about where the text ends and
-        the link begins.
+        never has to do string surgery to hyperlink the DOI. The split is
+        `documenteer.citations.Citation.to_plain_text_parts`, the one place
+        that decides where a citation's text ends and its link begins, so
+        this surface and the guide's cannot part company over it.
         """
         citation = self._compose()
         if citation is None:
             return None
-        text = citation.to_plain_text()
-        location = citation.location
-        return text[: -len(location)] if location else text
+        lead, _ = citation.to_plain_text_parts()
+        return lead
 
     @property
     def bibtex(self) -> str | None:
