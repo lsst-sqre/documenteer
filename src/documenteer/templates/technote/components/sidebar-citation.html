@@ -1,0 +1,55 @@
+{# How to cite the technote: the DOI written as a resolvable link, and the
+   BibTeX entry with a button that copies it.
+
+   A technote registered with a DOI is that DOI's landing page, and DataCite
+   asks a landing page to show the DOI as a resolvable link together with a
+   bibliographic record. Both values come from the html_context that
+   documenteer.conf.technote publishes (documenteer.citations composes them);
+   this template composes nothing. A technote without a DOI leaves
+   documenteer_technote_citation unset, so nothing at all is rendered -- not
+   even an empty section.
+
+   Every interpolated value is escaped explicitly, because Sphinx's Jinja
+   environment does not autoescape and a citation is composed from free text
+   in technote.toml -- a title with an ampersand in it is ordinary. #}
+{%- if documenteer_technote_citation and documenteer_technote_citation.doi_url %}
+<section class="technote-sidebar-section technote-sidebar-citation">
+  <h2 class="technote-sidebar-section__heading">Cite</h2>
+
+  <ul class="technote-sidebar-metadata-list technote-icon-pair-list">
+    <li>
+      <div class="technote-icon-metadata technote-sidebar-citation__doi">
+        <div class="technote-icon-metadata__icon">
+          <a href="{{ documenteer_technote_citation.doi_url|e }}">
+            <svg class="technote-svg-icon">
+              <use href="#svg-octicon-mortar-board-16">
+            </svg>
+          </a>
+        </div>
+        <p class="technote-icon-metadata__value">
+          <a href="{{ documenteer_technote_citation.doi_url|e }}">{{ documenteer_technote_citation.doi_url|e }}</a>
+        </p>
+      </div>
+    </li>
+  </ul>
+
+  {#- The BibTeX entry, offered to be copied rather than downloaded, the way
+      GitHub, Zenodo, and ADS offer one. The <pre> holds the only copy of it,
+      so rubin-citation-copy.js reads the text from there rather than from a
+      duplicated data- payload, and the entry stays selectable on a page whose
+      script never runs. The guide's citation surfaces carry the same markup
+      under their own block classes, so every surface reads identically.
+
+      Nothing may separate <pre><code> from the entry: whitespace inside a
+      <pre> is content, and a stray newline is a leading blank line in what
+      the reader copies. #}
+  {%- if documenteer_technote_citation.bibtex %}
+  <details class="technote-sidebar-citation__bibtex">
+    <summary class="technote-sidebar-citation__bibtex-summary">BibTeX</summary>
+    <pre class="technote-sidebar-citation__bibtex-entry"><code>{{ documenteer_technote_citation.bibtex|e }}</code></pre>
+    <button type="button" class="technote-sidebar-citation__copy">Copy BibTeX</button>
+    <span class="technote-sidebar-citation__copy-status" role="status" aria-live="polite"></span>
+  </details>
+  {%- endif %}
+</section>
+{%- endif %}
