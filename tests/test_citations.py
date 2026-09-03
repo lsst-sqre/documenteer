@@ -293,6 +293,40 @@ def test_plain_text_omits_a_blank_url() -> None:
     assert citation.to_plain_text() == "Real Title."
 
 
+@pytest.mark.parametrize(
+    "citation",
+    [
+        pytest.param(dataset_citation(), id="doi"),
+        pytest.param(software_citation(), id="url"),
+        pytest.param(Citation(title="Untitled"), id="no-location"),
+    ],
+)
+def test_plain_text_parts_reconstitute_the_citation(
+    citation: Citation,
+) -> None:
+    """The two halves the split offers always join back into the citation
+    exactly, whatever the work is located by.
+
+    This is the invariant every linked citation surface rests on: it writes
+    the lead as text and the location as a hyperlink, so a split that lost or
+    duplicated a character would show as a malformed reference.
+    """
+    lead, location = citation.to_plain_text_parts()
+
+    assert location == citation.location
+    assert lead + (location or "") == citation.to_plain_text()
+
+
+def test_plain_text_parts_of_a_location_less_citation_are_all_lead() -> None:
+    """A work with neither a DOI nor a landing page has nothing to link, so
+    its lead is the whole reference and its location half is absent.
+    """
+    lead, location = Citation(title="Untitled").to_plain_text_parts()
+
+    assert location is None
+    assert lead == "Untitled."
+
+
 def test_bibtex_misc_for_an_organization_author() -> None:
     assert dataset_citation().to_bibtex() == (
         "@misc{veracrubinobservatory2025data,\n"
