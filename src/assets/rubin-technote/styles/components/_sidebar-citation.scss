@@ -1,0 +1,78 @@
+/*
+ * The sidebar's Cite section (templates/technote/components/
+ * sidebar-citation.html): the technote's DOI as a resolvable link, and its
+ * BibTeX entry behind a copy button. The section's frame, heading, and
+ * icon-and-value row are the theme's own sidebar vocabulary; only the parts
+ * the theme has no equivalent for are styled here.
+ *
+ * The guide's citation surfaces (rubin-pydata-theme.scss) are the same three
+ * parts under their own block classes; these rules keep the technote's
+ * reading identical while building from the technote theme's tokens, which
+ * is what makes the light/dark switch work without a second set of rules.
+ */
+
+/* A DOI URL is one unbreakable token, long enough to outrun a sidebar
+ * column. Wrapping anywhere keeps it inside the sidebar instead of pushing a
+ * scrollbar onto the page. */
+.technote-sidebar-citation__doi .technote-icon-metadata__value {
+  overflow-wrap: anywhere;
+}
+
+.technote-sidebar-citation__bibtex {
+  margin-top: var(--tn-space-xs-fixed);
+  font-size: 0.875em;
+}
+
+/* Only the word is the hit target, not the full width of the sidebar. */
+.technote-sidebar-citation__bibtex-summary {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: bold;
+  color: var(--tn-component-sidebar-header-color);
+}
+
+/* The entry is copied rather than downloaded, so the <pre> is both what
+ * rubin-citation-copy.js reads and the fallback a reader selects by hand
+ * when no script runs -- which is why it is set as a legible code block
+ * rather than hidden behind the button. A BibTeX field broken across lines
+ * is no longer the entry that was composed, so the block scrolls rather
+ * than wraps. */
+.technote-sidebar-citation__bibtex-entry {
+  margin: var(--tn-space-xxs-fixed) 0 0;
+  padding: var(--tn-space-xs-fixed);
+  border: var(--tn-sphinx-code-block-border-thickness) solid
+    var(--tn-sphinx-code-block-border-color);
+  border-radius: var(--tn-sphinx-code-block-border-radius);
+  overflow-x: auto;
+  font-family: var(--tn-component-code-font-family);
+  font-size: 0.8125em;
+  line-height: 1.4;
+}
+
+/* Inside the entry a bare <code> is only there to say the text is code; it
+ * takes the block's own styling rather than the theme's inline-code look. */
+.technote-sidebar-citation__bibtex-entry code {
+  padding: 0;
+  background-color: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.technote-sidebar-citation__copy {
+  margin-top: var(--tn-space-xxs-fixed);
+  padding: var(--tn-space-xxxs-fixed) var(--tn-space-xs-fixed);
+  border: var(--tn-sphinx-code-block-border-thickness) solid
+    var(--tn-sphinx-code-block-border-color);
+  border-radius: var(--tn-border-radius-1);
+  background-color: transparent;
+  color: var(--tn-component-text-color);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.technote-sidebar-citation__copy:hover {
+  border-color: var(--tn-component-link-color);
+  color: var(--tn-component-link-color);
+}
