@@ -871,6 +871,7 @@ url = "{value}"
         ("ftp://example.org/dp1.tar", "starts with ftp: rather than"),
         ("mailto:data@example.org", "starts with mailto: rather than"),
         ("localhost:8080/dp1", "starts with localhost: rather than"),
+        ("C:/data/dp1", "starts with C: rather than"),
         ("https:///datasets/dp1", "names no host"),
     ],
 )

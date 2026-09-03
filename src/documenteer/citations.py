@@ -283,14 +283,15 @@ def normalize_citation_url(value: str, *, field: str = "url") -> str:
     if not parsed.scheme:
         problem = "is not an absolute URL"
     elif parsed.scheme not in CITATION_URL_SCHEMES:
-        # Phrased around what the value starts with rather than what scheme it
-        # "uses", because urlparse reads everything before the first colon as a
-        # scheme: a host:port like localhost:8080 parses with scheme
-        # "localhost", and calling that a scheme in the message would be as
-        # untrue as the generic wording this branch replaced.
-        problem = (
-            f"starts with {parsed.scheme}: rather than http:// or https://"
-        )
+        # Phrased around what the value starts with rather than what scheme
+        # it "uses", because urlparse reads everything before the first colon
+        # as a scheme: a host:port like localhost:8080 parses with scheme
+        # "localhost". The prefix is re-read from the value rather than taken
+        # from parsed.scheme, which urlparse has lowercased -- it is the same
+        # span, and quoting it as written keeps C:\data\dp1 from being
+        # reported back as "starts with c:".
+        prefix = url.partition(":")[0]
+        problem = f"starts with {prefix}: rather than http:// or https://"
     elif not parsed.netloc:
         problem = "names no host"
     if problem is not None:
