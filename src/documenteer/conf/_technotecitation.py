@@ -65,6 +65,39 @@ class TechnoteCitation:
         return None if citation is None else citation.doi_url
 
     @property
+    def plain_text(self) -> str | None:
+        """The technote's citation as a plain-text bibliographic reference,
+        or `None` when it has no DOI.
+
+        This is the citation DataCite asks a landing page to display:
+        creators, year, title, publisher, and then the DOI written as a
+        resolvable URL.
+        """
+        citation = self._compose()
+        return None if citation is None else citation.to_plain_text()
+
+    @property
+    def plain_text_lead(self) -> str | None:
+        """`plain_text` up to the DOI URL it ends in, or `None` when the
+        technote has no DOI.
+
+        A displayed citation ends in a hyperlink to the work, so the text is
+        offered pre-split at that point: writing `plain_text_lead` and then a
+        link to `doi_url` reproduces `plain_text` exactly, and a template
+        never has to do string surgery to hyperlink the DOI. The guide's
+        citations are split the same way in
+        `documenteer.citations.GuideCitation.to_html_context`, which is what
+        keeps the two surfaces from disagreeing about where the text ends and
+        the link begins.
+        """
+        citation = self._compose()
+        if citation is None:
+            return None
+        text = citation.to_plain_text()
+        location = citation.location
+        return text[: -len(location)] if location else text
+
+    @property
     def bibtex(self) -> str | None:
         """The technote's BibTeX entry, or `None` when it has no DOI.
 

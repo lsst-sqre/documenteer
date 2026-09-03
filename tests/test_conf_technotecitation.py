@@ -74,7 +74,34 @@ def test_bibtex_is_a_techreport_entry() -> None:
     )
 
 
-@pytest.mark.parametrize("attribute", ["doi_url", "bibtex"])
+def test_plain_text_is_the_datacite_display_citation() -> None:
+    """The plain-text citation is DataCite's recommended display form —
+    creators, year, title, publisher, then the DOI as a resolvable URL — so
+    a reader can copy the whole line into a bibliography.
+    """
+    citation = TechnoteCitation(make_metadata())
+
+    assert citation.plain_text == (
+        "Sick, Jonathan; Lovelace, Ada (2025). The Technote Title. "
+        "Vera C. Rubin Observatory. "
+        "https://doi.org/10.71929/rubin/2570545"
+    )
+
+
+def test_plain_text_lead_stops_where_the_doi_link_begins() -> None:
+    """The lead is the citation up to the DOI URL it ends in, so a template
+    can hyperlink the DOI by writing the lead and then the link — never by
+    doing string surgery of its own. Concatenating the two reproduces the
+    citation exactly.
+    """
+    citation = TechnoteCitation(make_metadata())
+
+    assert citation.plain_text_lead + citation.doi_url == citation.plain_text
+
+
+@pytest.mark.parametrize(
+    "attribute", ["doi_url", "bibtex", "plain_text", "plain_text_lead"]
+)
 def test_a_technote_without_a_doi_composes_nothing(attribute: str) -> None:
     """Nothing is composed for a technote that has no DOI, which is what
     keeps its pages free of an empty citation surface.
