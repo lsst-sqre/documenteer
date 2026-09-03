@@ -1,9 +1,11 @@
 // Copy a citation's BibTeX entry to the clipboard.
 //
-// Both citation surfaces of a user guide -- the card the citation-card
-// directive renders (documenteer.ext.citationcard) and the citations in the
-// page footer (rubin-footer.html) -- put the entry in a collapsed <details>
-// alongside a button. This script is what makes the button work.
+// Every citation surface Documenteer renders -- the card the citation-card
+// directive renders (documenteer.ext.citationcard) and the citations in a
+// user guide's page footer (rubin-footer.html), and the Cite section of a
+// technote's sidebar (components/sidebar-citation.html) -- puts the entry in
+// a collapsed <details> alongside a button. This script is what makes the
+// button work.
 //
 // The entry lives in the <details>'s <pre> and nowhere else: reading the text
 // from there rather than from a duplicated data- attribute means what is
@@ -15,13 +17,16 @@
 (function () {
   'use strict';
 
-  // The card and the footer name their parts under their own block classes;
-  // only these hooks are shared.
+  // Each surface names its parts under its own block class; only these
+  // hooks are shared.
   var BUTTONS =
-    '.documenteer-citation-card__copy, .rubin-footer__citation-copy';
+    '.documenteer-citation-card__copy, ' +
+    '.rubin-footer__citation-copy, ' +
+    '.technote-sidebar-citation__copy';
   var STATUSES =
     '.documenteer-citation-card__copy-status, ' +
-    '.rubin-footer__citation-copy-status';
+    '.rubin-footer__citation-copy-status, ' +
+    '.technote-sidebar-citation__copy-status';
 
   var COPIED_LABEL = 'Copied';
   var FAILED_LABEL = 'Press Ctrl+C to copy';
