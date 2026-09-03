@@ -196,6 +196,11 @@ exclude_lines = [
 # otherwise be collected alongside the real ones.
 norecursedirs = ["node_modules", ".stoker"]
 python_files = ["tests/*.py", "tests/*/*.py"]
+# Collect only the test suite when pytest is invoked with no arguments. The
+# python_files patterns above match any path ending in tests/*.py, so without
+# this a scratch or backup copy of the suite anywhere under the working
+# directory would be collected alongside it.
+testpaths = ["tests"]
 
 [tool.mypy]
 disallow_untyped_defs = true
