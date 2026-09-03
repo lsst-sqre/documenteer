@@ -11,6 +11,16 @@ outlived the template that was their only source of markup.
 
 This test is the build failure that was missing: every class the technote
 SCSS styles has to be written by something that can put it on a page.
+
+Its scope is ``styles/components/``, the partials that style markup a
+template or a script renders and so the only ones a template
+reorganization can strand. The two partials above that directory sit
+outside it deliberately: ``_properties.scss`` declares custom properties
+and font faces without naming a class at all, and ``_hacks.scss`` styles
+``.highlight-default .highlight``, markup Sphinx's highlighter emits
+rather than any template this test can read. A new partial that styles
+rendered markup therefore belongs in ``components/``, where this guard
+sees it; one added above that directory is not covered.
 """
 
 from __future__ import annotations
@@ -57,6 +67,14 @@ def _rendered_markup() -> str:
     templates, the templates its Sphinx extensions render, and the Python and
     JavaScript that build nodes. Stylesheets are deliberately excluded: a
     class that only a stylesheet names is exactly the dead rule being hunted.
+
+    The Python corpus is every module under ``src/documenteer``, not only
+    the ones that build nodes, so a styled class named in a docstring or a
+    comment reads as rendered and could mask a dead rule. That is the
+    direction worth being wrong in: the guard then fails only on a class
+    nothing in either package mentions anywhere, whereas an explicit list
+    of node-building modules would go stale in silence the first time an
+    extension started emitting markup.
     """
     documenteer = REPO_ROOT / "src" / "documenteer"
     technote_package = Path(technote.__file__).parent
