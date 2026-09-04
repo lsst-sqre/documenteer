@@ -23,6 +23,7 @@ from documenteer.services.technotelint import (
     check_requirements,
     rule_url,
 )
+from documenteer.services.technoteread import TechnoteDocument, read_technote
 from documenteer.storage.authordb import AuthorDb
 
 AUTHOR_JSON = """
@@ -106,17 +107,26 @@ def _mock_name_search(
     )
 
 
+CONF_PY = "from documenteer.conf.technote import *  # noqa: F401,F403\n"
+"""The conf.py every technote has, and that the lint's Sphinx read needs."""
+
+
 def _write_technote(tmp_path: Path, toml_content: str) -> LintContext:
     """Write a technote.toml into ``tmp_path`` and build a context.
 
-    Also writes an ``index.rst`` with a well-formed abstract and a sane
-    ``requirements.txt`` so the content-group abstract check (TN201/TN202)
-    and the structural requirements check (R002/R003) stay silent and
-    these metadata-focused tests observe only author/schema findings.
+    Also writes a ``conf.py``, an ``index.rst`` with a well-formed abstract,
+    and a sane ``requirements.txt``, so the content-group abstract check
+    (TN201/TN202) and the structural requirements check (R002/R003) stay
+    silent and these metadata-focused tests observe only author/schema
+    findings. The document's H1 is the technote's title whenever the TOML
+    declares none, so it is written as something a title comparison can
+    recognize.
     """
     (tmp_path / "technote.toml").write_text(toml_content)
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
-        "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
+        "############\nThe technote\n############\n\n"
+        ".. abstract::\n\n   An abstract.\n"
     )
     (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
     return LintContext.from_dir(tmp_path, AuthorDb())
@@ -458,7 +468,13 @@ name.family = "Economou"
 def test_invalid_schema_still_runs_toml_independent_checks(
     tmp_path: Path,
 ) -> None:
-    """A schema failure no longer suppresses the R002/TN2xx checks."""
+    """A schema failure no longer suppresses the requirements checks.
+
+    The content checks are the exception: they read the document through
+    the technote's own Sphinx build, which cannot be configured from a
+    technote.toml that does not conform, so TN001 is the whole story about
+    the metadata and nothing is said twice.
+    """
     (tmp_path / "technote.toml").write_text(
         """
 [technote]
@@ -468,6 +484,7 @@ id = "SQR-000"
 name.given = "Jonathan"
 """
     )
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
     )
@@ -475,7 +492,7 @@ name.given = "Jonathan"
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN001", "TN201", "R002", "R003"]
+    assert [f.code for f in findings] == ["TN001", "R002", "R003"]
 
 
 def test_legacy_single_string_author_name_reports_tn001(
@@ -581,17 +598,20 @@ def test_missing_toml_reports_tn004(tmp_path: Path) -> None:
 def test_malformed_toml_reports_tn005(tmp_path: Path) -> None:
     """A syntactically broken technote.toml yields a TN005 error.
 
-    The TOML-independent checks still run, so the missing abstract and
-    requirements.txt are reported in the same pass.
+    The TOML-independent checks still run, so the missing requirements.txt
+    is reported in the same pass. The content checks do not: Sphinx cannot
+    be configured from a technote.toml it cannot read, and TN005 has already
+    said so.
     """
     (tmp_path / "technote.toml").write_text("[technote\nid = ")
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
     )
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN005", "TN201", "R002"]
+    assert [f.code for f in findings] == ["TN005", "R002"]
     assert findings[0].severity is Severity.error
 
 
@@ -813,23 +833,110 @@ def test_absent_citation_cff_passes(
     assert service.lint() == []
 
 
-def test_uncitable_technote_toml_skips_tn106(tmp_path: Path) -> None:
-    """Metadata that cannot compose a citation reports no staleness.
+def test_citation_cff_is_compared_against_the_document_title(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """TN106 titles the generated file the way sync-cff does.
 
-    A technote.toml that names the technote neither by title nor by id
-    stops the CITATION.cff generator, so there is nothing to compare the
-    stale-looking file against and TN106 is silent. (The DOI is no longer a
-    way to reach this path: technote 0.10.0 validates ``[technote] doi``
-    inside ``parse_toml``, so a malformed one fails schema conformance long
-    before the CITATION.cff comparison — see #439.)
+    A technote that declares no ``[technote] title`` is titled by its H1, so
+    a CITATION.cff carrying that title is current — comparing against a file
+    titled by the technote's id instead would report every such repository as
+    permanently stale.
     """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    untitled = CITABLE_TOML.replace('title = "The technote"\n', "")
+    context = _write_technote(tmp_path, untitled)
+    generator = TechnoteCffService.from_technote_toml(
+        tmp_path / "technote.toml", document_title="The technote"
+    )
+    (tmp_path / "CITATION.cff").write_text(generator.render())
+
+    assert TechnoteLintService(context).lint() == []
+    assert "The technote" in (tmp_path / "CITATION.cff").read_text()
+
+
+def test_unreadable_technote_reports_tn203(tmp_path: Path) -> None:
+    """A technote Sphinx cannot read is one error, naming what went wrong."""
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "index.rst").write_text(RST_WITH_ABSTRACT)
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
+    # No conf.py, so there is no Sphinx build to read the document through.
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+
+    findings = TechnoteLintService(context).lint()
+
+    assert [f.code for f in findings] == ["TN203"]
+    assert findings[0].severity is Severity.error
+    assert "index.rst" in findings[0].message
+    assert "conf.py" in findings[0].message
+
+
+def test_the_technote_is_read_once_per_lint_run(
+    tmp_path: Path, responses: RequestsMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every rule that needs the document shares one Sphinx read.
+
+    This run has three askers — the abstract check, TN105's title
+    comparison, and TN106's CITATION.cff comparison — and a Sphinx build
+    each would be three times the cost for one answer.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    # CITABLE_TOML already declares the DOI TN105 cross-checks; dropping the
+    # title is what sends TN105 and TN106 to the document for one.
     context = _write_technote(
-        tmp_path,
-        """
-[technote]
-""",
+        tmp_path, CITABLE_TOML.replace('title = "The technote"\n', "")
     )
     (tmp_path / "CITATION.cff").write_text("cff-version: 1.2.0\n")
+
+    reads: list[Path] = []
+
+    def counting_read(root_dir: Path) -> TechnoteDocument:
+        reads.append(root_dir)
+        return read_technote(root_dir)
+
+    monkeypatch.setattr(
+        "documenteer.services.technotelint.read_technote", counting_read
+    )
+
+    findings = TechnoteLintService(context).lint()
+
+    assert reads == [tmp_path]
+    # TN106: the hand-written CITATION.cff is not what sync-cff generates.
+    assert [f.code for f in findings] == ["TN106"]
+
+
+def test_uncitable_technote_toml_skips_tn106(tmp_path: Path) -> None:
+    """A technote nothing can name reports no CITATION.cff staleness.
+
+    A technote that declares neither a title nor an id, and whose document
+    supplies no title either, stops the CITATION.cff generator, so there is
+    nothing to compare the stale-looking file against and TN106 is silent.
+    This one is a technote-series repository Sphinx does not build, which is
+    what leaves the title unresolved. (The DOI is no longer a way to reach
+    this path: technote 0.10.0 validates ``[technote] doi`` inside
+    ``parse_toml``, so a malformed one fails schema conformance long before
+    the CITATION.cff comparison — see #439.)
+    """
+    (tmp_path / "technote.toml").write_text("[technote]\n")
+    (tmp_path / "requirements.txt").write_text("")
+    (tmp_path / "CITATION.cff").write_text("cff-version: 1.2.0\n")
+    context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
     assert [f.code for f in findings] == []
@@ -1504,10 +1611,16 @@ title = "The technote"
     assert len(responses.calls) == 0
 
 
-def test_untitled_technote_skips_the_title_comparison(
+def test_title_comparison_uses_the_document_title(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A technote.toml that declares no title cannot disagree about one."""
+    """A technote titled by its own H1 is compared on that title.
+
+    ``technote migrate`` never writes a ``[technote] title``, so this is the
+    normal technote: the title DataCite registers is the document's heading,
+    and comparing only what technote.toml declares would skip the check for
+    almost every technote there is.
+    """
     responses.get(
         DATACITE_URL,
         body=_datacite_body(title="A registered title", creators=()),
@@ -1522,6 +1635,35 @@ id = "SQR-000"
 doi = "10.71929/rubin/2570308"
 """,
     )
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "A registered title" in findings[0].message
+    # The H1 of the index.rst `_write_technote` writes.
+    assert "The technote" in findings[0].message
+
+
+def test_untitled_technote_skips_the_title_comparison(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote with no title anywhere cannot disagree about one.
+
+    This one is a technote-series repository Sphinx does not build, so there
+    is no document to take a title from either.
+    """
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="A registered title", creators=()),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    (tmp_path / "technote.toml").write_text(
+        """[technote]
+id = "SQR-000"
+doi = "10.71929/rubin/2570308"
+"""
+    )
+    (tmp_path / "requirements.txt").write_text("")
+    context = LintContext.from_dir(tmp_path, AuthorDb())
     assert TechnoteLintService(context).lint() == []
 
 
@@ -1627,11 +1769,13 @@ def _context_with_content(
 ) -> LintContext:
     """Write a minimal technote.toml plus a content file, build a context.
 
-    Also writes a sane ``requirements.txt`` so the structural requirements
-    check (R002/R003) stays silent for content-focused tests that route
-    through the full ``lint()`` aggregation.
+    Also writes the ``conf.py`` the lint's Sphinx read builds through and a
+    sane ``requirements.txt``, so the structural requirements check
+    (R002/R003) stays silent for content-focused tests that route through the
+    full ``lint()`` aggregation.
     """
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / filename).write_text(content)
     (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
     return LintContext.from_dir(tmp_path, AuthorDb())
@@ -1790,7 +1934,9 @@ Body text.
     findings = check_abstract(context)
     assert [f.code for f in findings] == ["TN204"]
     assert findings[0].severity is Severity.error
-    assert findings[0].message.startswith("index.rst:5:")
+    # docutils records no line for the node an rST directive returns, so the
+    # finding locates the file it is written in and stops there.
+    assert findings[0].message.startswith("index.rst: ")
     assert ".. abstract::" in findings[0].message
 
 
@@ -1856,7 +2002,9 @@ Body text.
     findings = check_abstract(context)
     assert [f.code for f in findings] == ["TN202"]
     assert findings[0].severity is Severity.error
-    assert findings[0].message.startswith("index.rst:5:")
+    # The line is docutils': for an rST section it is the title's adornment
+    # line, one below the title text.
+    assert findings[0].message.startswith("index.rst:6:")
     assert ".. abstract::" in findings[0].message
 
 
@@ -1938,8 +2086,13 @@ def test_include_of_missing_file_reports_tn201(tmp_path: Path) -> None:
     assert [f.code for f in check_abstract(context)] == ["TN201"]
 
 
-def test_include_outside_technote_root_is_ignored(tmp_path: Path) -> None:
-    """An include that escapes the technote root is not scanned."""
+def test_include_outside_technote_root_passes(tmp_path: Path) -> None:
+    """An include that reaches outside the technote root is still an abstract.
+
+    The check reports what the *document* publishes, and Sphinx pulls the
+    file in wherever it lives, so an abstract factored out one directory up
+    is an abstract.
+    """
     (tmp_path / "abstract.rst").write_text(
         ".. abstract::\n\n   A web-native single page document.\n"
     )
@@ -1951,7 +2104,7 @@ def test_include_outside_technote_root_is_ignored(tmp_path: Path) -> None:
         "Introduction\n============\n\nBody text.\n"
     )
     context = _context_with_content(root, "index.rst", content)
-    assert [f.code for f in check_abstract(context)] == ["TN201"]
+    assert check_abstract(context) == []
 
 
 def test_empty_notebook_abstract_reports_tn204_without_line(
@@ -2137,6 +2290,7 @@ def test_requirements_findings_surface_through_lint(
 ) -> None:
     """check_requirements' warnings are aggregated by the service."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(RST_WITH_ABSTRACT)
     (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
     context = LintContext.from_dir(tmp_path, AuthorDb())

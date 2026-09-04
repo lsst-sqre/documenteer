@@ -117,7 +117,7 @@ Within either prefix the hundreds mean the same thing: ``0xx`` for structure and
      - Warning
    * - :doc:`TN105 <tn105>`
      - Metadata
-     - The metadata registered with DataCite for the DOI matches :file:`technote.toml`.
+     - The metadata registered with DataCite for the DOI matches the technote.
      - Warning
    * - :doc:`TN106 <tn106>`
      - Metadata
@@ -133,7 +133,7 @@ Within either prefix the hundreds mean the same thing: ``0xx`` for structure and
      - Error
    * - :doc:`TN203 <tn203>`
      - Content
-     - The content file can be parsed to scan for an abstract.
+     - Sphinx can read the technote's document.
      - Error
    * - :doc:`TN204 <tn204>`
      - Content
@@ -219,13 +219,15 @@ An ``ignore`` written in the wrong shape — a bare string rather than an array,
 Running the linter offline
 ==========================
 
-Most rules read files alone; two kinds of check leave the machine.
+Most rules read files and the technote's own Sphinx build alone; two kinds of check leave the machine.
 :doc:`TN105 <tn105>` asks DataCite what a technote's DOI is registered as, and the author checks (:doc:`R101 <r101>`–:doc:`R103 <r103>`) resolve author IDs against the Rubin author database.
 
 The two behave differently when the network is not there, and deliberately so:
 
 - An unreachable **author database** is reported as :doc:`R103 <r103>`, a warning, because an unresolved ``internal_id`` is the thing that blocks a technote's DOI from being minted — silence would hide it.
 - An unreachable **DataCite** is silent. TN105 reports nothing at all, and neither does an unregistered DOI, so this check reads the same offline as it does with the network up.
+
+The Sphinx read the content and title rules use (:ref:`technote-lint-sphinx-read`) is offline too: it switches off the bibliography cache and the intersphinx inventories that a real technote build fetches, since neither changes what the document says.
 
 .. _technote-lint-suggested-ids:
 
@@ -260,13 +262,29 @@ A suggestion never changes whether the command passes or fails — verify it bef
 How the abstract is found
 =========================
 
-The abstract rules (``TN2xx``) work by scanning the source, not by running a Sphinx build, so it is worth knowing what the scan does and does not see.
+The abstract rules (``TN2xx``) read the document Sphinx builds — see :ref:`technote-lint-sphinx-read` — rather than scanning the source themselves, so what they report is what the published page carries:
 
 - Both the reStructuredText directive (``.. abstract::``) and the MyST fenced directive (a triple-backtick or ``:::`` fence opening with ``{abstract}``) are recognized, in any letter case — docutils lowercases directive names, so a ``{Abstract}`` fence builds and passes.
 - In reStructuredText, text on the marker line itself (``.. abstract:: The abstract.``) is directive content and passes.
-- Directive *options* (for example ``:class: dropdown``) are configuration rather than content, so a directive holding only options is empty (:doc:`TN204 <tn204>`).
-- An abstract factored into another file and pulled in with ``.. include::`` or a MyST ``{include}`` fence is found: those includes are resolved one level deep, relative to the content file. Includes within an included file are not followed, and an include that is missing or points outside the technote directory is ignored (Sphinx reports those itself).
-- An :file:`index.ipynb` notebook's markdown cells are concatenated before scanning, so its findings name the file without a line number.
+- Directive *options* (for example ``:class: dropdown``) are not content the directive publishes. The abstract directive declares no options, so docutils parses an option line as a field list, and a directive holding only options publishes nothing and is empty (:doc:`TN204 <tn204>`).
+- An abstract factored into another file and pulled in with ``.. include::`` or a MyST ``{include}`` fence is found, wherever that file lives and however deeply the includes nest: Sphinx resolves the includes, and the abstract is in the document either way. An include Sphinx cannot resolve simply contributes nothing, and Sphinx reports it when the technote is built.
+- A finding's ``file:line:`` prefix comes from the parsed document, so it names the file the markup is written in — the included file, where the abstract was factored out. Where the document records no line, the finding names the file alone. An :file:`index.ipynb` notebook is always located by file alone: MyST-NB numbers a notebook's lines per cell, so a line number there corresponds to nothing you could find in the file.
+
+.. _technote-lint-sphinx-read:
+
+The linter builds the technote
+==============================
+
+The rules about what a technote *publishes* — its abstract (``TN2xx``), and the title that :doc:`TN105 <tn105>` and :doc:`TN106 <tn106>` compare — get their answer by building the technote with Sphinx, once per run, using the ``dummy`` builder that reads the document and writes nothing.
+That is the technote's own build: its :file:`conf.py`, its extensions, its markup.
+A technote is titled by its document's top-level heading unless :file:`technote.toml` declares a ``title``, and :command:`documenteer technote migrate` never writes one, so reading the document is the only way to know what the technote is called.
+
+Two things follow:
+
+- :command:`documenteer technote lint` needs the ``technote`` extra: install :samp:`documenteer[technote]`, which a technote's :file:`requirements.txt` declares anyway (:doc:`R002 <r002>`).
+- A technote Sphinx cannot read — a missing :file:`index` file, a notebook that is not valid JSON, a :file:`conf.py` that raises — is reported as :doc:`TN203 <tn203>` carrying Sphinx's own message, rather than as a missing abstract.
+
+The read is quiet, writes its output to a temporary directory that is removed afterwards, and forces the technote's network-using extensions off, so it neither leaves anything behind in the repository nor breaks the linter's offline behavior.
 
 .. _technote-lint-non-sphinx:
 

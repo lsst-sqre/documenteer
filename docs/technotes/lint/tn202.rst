@@ -33,7 +33,9 @@ Example of a failing technote
 
 .. code-block:: text
 
-   [TN202] index.rst:5: the abstract is declared as an ordinary 'Abstract' section heading. Use the '.. abstract::' directive instead so the abstract is captured in the technote metadata.
+   [TN202] index.rst:6: the abstract is declared as an ordinary 'Abstract' section heading. Use the '.. abstract::' directive instead so the abstract is captured in the technote metadata.
+
+The line is the one the parsed document records for the heading, which in reStructuredText is the title's adornment line.
 
 How to fix it
 =============

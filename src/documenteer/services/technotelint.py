@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-import json
 import re
-import string
 import tomllib
 import unicodedata
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from docutils import nodes
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from pydantic import ValidationError
+from technote.ext.abstract import AbstractNode
 from technote.sources.tomlsettings import (
     LINT_RULE_CODE_PATTERN,
     Person,
@@ -27,6 +27,11 @@ from documenteer.services.technotecff import (
     CFF_FILENAME,
     CffStatus,
     TechnoteCffService,
+)
+from documenteer.services.technoteread import (
+    TechnoteDocument,
+    TechnoteReadError,
+    read_technote,
 )
 from documenteer.storage.authordb import (
     Author,
@@ -171,7 +176,7 @@ CHECKS: dict[str, Check] = {
         code="TN105",
         name="datacite-metadata-current",
         description=(
-            "The metadata registered for the DOI matches technote.toml."
+            "The metadata registered for the DOI matches the technote."
         ),
         severity=Severity.warning,
     ),
@@ -198,8 +203,8 @@ CHECKS: dict[str, Check] = {
     ),
     "TN203": Check(
         code="TN203",
-        name="content-file-parseable",
-        description="The content file can be parsed to scan for an abstract.",
+        name="document-readable",
+        description="Sphinx can read the technote's document.",
         severity=Severity.error,
     ),
     "TN204": Check(
@@ -373,6 +378,9 @@ class LintContext:
         self.requirements_text = requirements_text
         self.author_db = author_db
         self.datacite = datacite if datacite is not None else DataCiteClient()
+        self._document: TechnoteDocument | None = None
+        self._read_error: TechnoteReadError | None = None
+        self._read_attempted = False
 
     @classmethod
     def from_dir(
@@ -432,6 +440,46 @@ class LintContext:
         Documenteer/Sphinx build.
         """
         return self.content_path is not None or self.conf_path is not None
+
+    def read_document(self) -> TechnoteDocument:
+        """Read the technote's document with Sphinx, at most once per run.
+
+        Several rules need what the *built* technote says rather than what
+        ``technote.toml`` declares — the title a document resolves from its
+        H1, and the abstract the ``abstract`` directive publishes. They all
+        share this one read, and share its failure too: a technote Sphinx
+        cannot read fails once and every caller sees the same error.
+
+        Raises
+        ------
+        TechnoteReadError
+            Raised if the technote cannot be read. The message carries
+            Sphinx's own diagnosis.
+        """
+        if not self._read_attempted:
+            self._read_attempted = True
+            try:
+                self._document = read_technote(self.root_dir)
+            except TechnoteReadError as e:
+                self._read_error = e
+        if self._read_error is not None:
+            raise self._read_error
+        if self._document is None:  # pragma: no cover - unreachable
+            raise RuntimeError("the technote read produced no document")
+        return self._document
+
+    @property
+    def document_title(self) -> str | None:
+        """The title the technote's own document resolves to.
+
+        `None` when the technote cannot be read at all. A rule that compares
+        titles then has nothing to compare and says nothing: the read failure
+        is TN203's to report, once, rather than every title rule's.
+        """
+        try:
+            return self.read_document().title
+        except TechnoteReadError:
+            return None
 
     def parse_toml(self) -> TechnoteToml:
         """Parse the ``technote.toml`` text into a `TechnoteToml` model.
@@ -565,9 +613,7 @@ class TechnoteLintService:
             # over the network, and an ignored rule must not spend a request
             # on a finding that is thrown away.
             if self.is_enabled("TN105"):
-                findings.extend(
-                    _check_datacite(parsed, self._context.datacite)
-                )
+                findings.extend(_check_datacite(parsed, self._context))
             if self.is_enabled("TN106"):
                 findings.extend(_check_citation_cff(self._context))
 
@@ -578,7 +624,7 @@ class TechnoteLintService:
             return findings
 
         # TN006 — a Sphinx technote needs a content file for Sphinx to build
-        # and for the abstract scan to read.
+        # and for the abstract check to read.
         if self._context.content_path is None:
             findings.append(
                 LintFinding.from_check(
@@ -588,7 +634,13 @@ class TechnoteLintService:
                     f"file.",
                 )
             )
-        findings.extend(check_abstract(self._context))
+        elif parsed is not None:
+            # The content checks read the document through the technote's own
+            # Sphinx build, which cannot be configured from a technote.toml
+            # that does not parse. TN005 or TN001 has already reported that,
+            # and reporting the document as unreadable (TN203) would say the
+            # same thing a second time, in words that point at the wrong file.
+            findings.extend(check_abstract(self._context))
         findings.extend(check_requirements(self._context))
         return findings
 
@@ -874,25 +926,33 @@ def _check_citation_cff(context: LintContext) -> list[LintFinding]:
 
     The comparison is the one `TechnoteCffService` performs for
     ``documenteer technote sync-cff --check``: the file is regenerated
-    from ``technote.toml`` in memory and compared with what is on disk, so the
-    linter and that CI gate can never disagree about whether a file is stale.
-    Generation is deterministic and offline, which is what makes a content
+    from ``technote.toml`` — and from the title the technote's document
+    resolves, exactly as the command does — and compared with what is on
+    disk, so the linter and that CI gate can never disagree about whether a
+    file is stale. Generation is deterministic, which is what makes a content
     comparison meaningful.
 
-    A repository with no CITATION.cff is silent: adoption is opt-in per
-    repository, so an absent file means the repository has not asked for one
-    rather than that it is missing something.
+    A repository with no CITATION.cff is silent, and is answered before the
+    technote is read at all: adoption is opt-in per repository, so an absent
+    file means the repository has not asked for one rather than that it is
+    missing something, and a repository that has not opted in should not pay
+    for a Sphinx run to be told so.
 
     A ``technote.toml`` that cannot be composed into a citation at all — one
     declaring an author with no name, say — is silent too. Staleness is not
     the finding to report about it, and TN001 has already reported the schema
     failure underneath.
     """
+    cff_path = context.root_dir / CFF_FILENAME
+    if not cff_path.is_file():
+        return []
     try:
-        service = TechnoteCffService.from_technote_toml(context.toml_path)
+        service = TechnoteCffService.from_technote_toml(
+            context.toml_path, document_title=context.document_title
+        )
     except ValueError:
         return []
-    if service.status(context.root_dir / CFF_FILENAME) is not CffStatus.stale:
+    if service.status(cff_path) is not CffStatus.stale:
         return []
     return [
         LintFinding.from_check(
@@ -904,9 +964,9 @@ def _check_citation_cff(context: LintContext) -> list[LintFinding]:
 
 
 def _check_datacite(
-    parsed: TechnoteToml, client: DataCiteClient
+    parsed: TechnoteToml, context: LintContext
 ) -> list[LintFinding]:
-    """Check technote.toml against the DOI's registered metadata (TN105).
+    """Check the technote against the DOI's registered metadata (TN105).
 
     This rule leaves the machine, as the author checks do, but it is the only
     one that degrades to silence: an unreachable author database is reported
@@ -939,6 +999,13 @@ def _check_datacite(
     identify the same person by name but register different ORCIDs, one of
     the two identifiers names somebody else, and the tolerance that keeps a
     reworded name quiet would only hide it.
+
+    The title compared is the one the technote *publishes*: ``[technote]
+    title`` when the file declares one, and otherwise the title its document
+    resolves from its own H1, which is the normal case and the title
+    registered with the DOI. A technote whose title cannot be resolved at all
+    — the document does not read, or it has no heading — is not compared on
+    the title, only on its authors.
     """
     doi = parsed.technote.doi
     if doi is None:
@@ -948,46 +1015,51 @@ def _check_datacite(
     except ValueError:
         return []
     try:
-        record = client.get_record(normalized)
+        record = context.datacite.get_record(normalized)
     except DataCiteUnavailableError:
         return []
     if record is None:
         return []
 
-    differences = _datacite_differences(parsed, record)
+    # Read the document only when technote.toml leaves the title to it, so a
+    # titled technote's cross-check stays a single HTTP request.
+    title = parsed.technote.title
+    if title is None:
+        title = context.document_title
+
+    differences = _datacite_differences(parsed, record, title=title)
     if not differences:
         return []
     drift = "; ".join(differences)
     return [
         LintFinding.from_check(
             "TN105",
-            f"The metadata registered for DOI {normalized} differs from "
-            f"technote.toml: {drift}. Compare with the registered metadata "
-            f"at {record.url}.",
+            f"The metadata registered for DOI {normalized} differs from the "
+            f"technote: {drift}. Compare with the registered metadata at "
+            f"{record.url}.",
         )
     ]
 
 
 def _datacite_differences(
-    parsed: TechnoteToml, record: DataCiteRecord
+    parsed: TechnoteToml, record: DataCiteRecord, *, title: str | None
 ) -> list[str]:
-    """Phrase each field where technote.toml and DataCite disagree.
+    """Phrase each field where the technote and DataCite disagree.
 
-    A side that declares nothing at all — a technote.toml with no title, a
-    record that registers no creators — is not compared on that field, since
-    an absent value is not a claim that disagrees with anything.
+    A side that declares nothing at all — a technote with no resolvable
+    title, a record that registers no creators — is not compared on that
+    field, since an absent value is not a claim that disagrees with anything.
     """
     differences: list[str] = []
 
-    title = parsed.technote.title
     if (
         title is not None
         and record.title is not None
         and _fold(title) != _fold(record.title)
     ):
         differences.append(
-            f"the registered title is '{record.title}', but technote.toml "
-            f"declares '{title}'"
+            f"the registered title is '{record.title}', but the technote is "
+            f"titled '{title}'"
         )
 
     if parsed.technote.authors and record.creators:
@@ -1274,214 +1346,117 @@ def _normalize_name(name: str) -> str:
     return _fold(name)
 
 
-# The reStructuredText abstract directive marker: ``.. abstract::``, with any
-# text that trails it on the marker line. docutils lowercases directive names,
-# so ``.. Abstract::`` builds too.
-_RST_ABSTRACT_DIRECTIVE = re.compile(
-    r"^(?P<indent>\s*)\.\.\s+abstract::(?P<trailing>.*)$", re.IGNORECASE
-)
-# A reStructuredText title line reading exactly "Abstract" (case-insensitive).
-_RST_ABSTRACT_TITLE = re.compile(r"^\s*abstract\s*$", re.IGNORECASE)
-# MyST abstract directives: ```` ```{abstract} ```` and ``:::{abstract}``.
-# Matched case-insensitively because docutils lowercases directive names.
-_MYST_BACKTICK_ABSTRACT = re.compile(
-    r"^\s*`{3,}\{abstract\}\s*$", re.IGNORECASE
-)
-_MYST_COLON_ABSTRACT = re.compile(r"^\s*:{3,}\{abstract\}\s*$", re.IGNORECASE)
-# Closing fences for the corresponding MyST directives.
-_BACKTICK_FENCE = re.compile(r"^\s*`{3,}\s*$")
-_COLON_FENCE = re.compile(r"^\s*:{3,}\s*$")
-# A Markdown ATX heading reading exactly "Abstract" (case-insensitive).
-_MD_ABSTRACT_HEADING = re.compile(r"^\s*#{1,6}\s+abstract\s*$", re.IGNORECASE)
-# A Markdown Setext heading underline: a line of only ``=`` or only ``-``.
-_MD_SETEXT_UNDERLINE = re.compile(r"^\s*(=+|-+)\s*$")
-# A MyST/rST directive *option* line, e.g. ``:class: dropdown``. These are
-# directive configuration, not body content, so an options-only abstract is
-# still empty.
-_DIRECTIVE_OPTION_LINE = re.compile(r"^\s*:[\w-]+:")
-# Include directives, whose target is scanned for an abstract as well: rST
-# ``.. include:: path`` and MyST ```` ```{include} path ```` / ``:::{include}
-# path``.
-_RST_INCLUDE_DIRECTIVE = re.compile(
-    r"^\s*\.\.\s+include::\s*(?P<path>\S.*?)\s*$", re.IGNORECASE
-)
-_MYST_INCLUDE_DIRECTIVE = re.compile(
-    r"^\s*(?:`{3,}|:{3,})\{include\}\s*(?P<path>\S.*?)\s*$", re.IGNORECASE
-)
-
-
-@dataclass(frozen=True)
-class _DirectiveScan:
-    """The outcome of scanning one source for an abstract directive.
-
-    Three outcomes are distinguished: no directive at all (``found`` false and
-    ``empty_line`` ``None``), a directive whose body is empty (``empty_line``
-    holds the 1-indexed line of its marker), and a non-empty directive
-    (``found`` true).
-    """
-
-    found: bool
-    empty_line: int | None = None
-
-
 @dataclass(frozen=True)
 class _FormatRules:
-    """How one markup format is scanned for an abstract, and described.
+    """How one markup format's abstract is named in a finding.
 
-    ``directive_hint`` names the format's abstract directive in a finding's
-    message, and ``empty_advice`` completes the TN204 message that a present
-    directive has no body.
+    ``directive_hint`` names the format's abstract directive, and
+    ``empty_advice`` completes the TN204 message that a present directive has
+    no body. Which set applies is decided by the content file's suffix, so a
+    Markdown author is pointed at the fenced directive and an rST author at
+    ``.. abstract::``.
     """
 
-    scan_directive: Callable[[str], _DirectiveScan]
-    find_heading: Callable[[str], int | None]
-    include_pattern: re.Pattern[str]
     directive_hint: str
     empty_advice: str
 
 
-@dataclass(frozen=True)
-class _Source:
-    """One body of text scanned for an abstract.
+_RST_RULES = _FormatRules(
+    directive_hint="'.. abstract::'",
+    empty_advice="indent the abstract text under the directive.",
+)
+"""How a reStructuredText technote's abstract is described."""
 
-    ``name`` is how the source is identified in a finding. ``locatable`` is
-    false for a notebook, whose markdown cells are concatenated before
-    scanning, so line numbers in the scanned text locate nothing in the file.
-    """
-
-    name: str
-    text: str
-    locatable: bool = True
-
-    def locate(self, line: int) -> str:
-        """Format the ``file:line:`` prefix for a line in this source."""
-        if not self.locatable:
-            return f"{self.name}: "
-        return f"{self.name}:{line}: "
-
-
-@dataclass(frozen=True)
-class _AbstractSearch:
-    """What scanning a content file and its includes turned up.
-
-    At most one of the fields is set, in priority order: a non-empty directive
-    anywhere wins (``found``); otherwise the first empty directive
-    (``empty_location``); otherwise the first ``Abstract`` heading
-    (``heading_location``). The locations are preformatted ``file:line:``
-    prefixes.
-    """
-
-    found: bool = False
-    empty_location: str | None = None
-    heading_location: str | None = None
-
-
-def _search_abstract(
-    sources: list[_Source], rules: _FormatRules
-) -> _AbstractSearch:
-    """Scan each source for an abstract directive, then for a heading."""
-    empty_location: str | None = None
-    heading_location: str | None = None
-    for source in sources:
-        scan = rules.scan_directive(source.text)
-        if scan.found:
-            return _AbstractSearch(found=True)
-        if empty_location is None and scan.empty_line is not None:
-            empty_location = source.locate(scan.empty_line)
-        if heading_location is None:
-            heading_line = rules.find_heading(source.text)
-            if heading_line is not None:
-                heading_location = source.locate(heading_line)
-    return _AbstractSearch(
-        empty_location=empty_location, heading_location=heading_location
-    )
+_MYST_RULES = _FormatRules(
+    directive_hint="'```{abstract}' fenced",
+    empty_advice=(
+        "put the abstract text between the opening and closing fences."
+    ),
+)
+"""How a MyST Markdown or notebook technote's abstract is described."""
 
 
 def check_abstract(context: LintContext) -> list[LintFinding]:
-    """Statically check that the technote content declares an abstract.
+    """Check that the technote's document publishes an abstract.
 
-    Locates ``index.{rst,md,ipynb}`` via the context's content path and
-    scans its source (no Sphinx build) for a non-empty abstract directive.
+    The technote is read by Sphinx (`LintContext.read_document`) and the
+    resulting doctree is interrogated, so what this reports is what the
+    published page carries rather than a second opinion from a parser
+    Documenteer would have to keep in step with Sphinx, MyST, and the
+    ``abstract`` directive. An abstract factored into an included file, or
+    written in a notebook cell, is found because the *document* contains it.
+
     Five outcomes are distinguished (TN2xx content checks):
 
-    - A non-empty abstract *directive* (rST ``.. abstract::``; MyST
-      ```` ```{abstract} ```` or ``:::{abstract}``; ``.ipynb`` markdown
-      cells) → no findings.
-    - A directive that is present but has no body → a TN204 finding locating
-      the directive marker. The common cause is an abstract left unindented
-      under ``.. abstract::``, which docutils reads as an empty directive and
-      which publishes an empty abstract section.
+    - A non-empty ``abstract`` directive (rST ``.. abstract::``; MyST
+      ```` ```{abstract} ```` or ``:::{abstract}``; a notebook markdown
+      cell) → no findings.
+    - A directive that is present but publishes nothing → a TN204 finding.
+      The common cause is an abstract left unindented under
+      ``.. abstract::``, which docutils reads as an empty directive. A
+      directive holding only option lines counts as empty too: the
+      ``abstract`` directive declares no options, so docutils parses them as
+      a field list, and publishing ``:class: dropdown`` as the abstract is
+      the same mistake wearing different clothes.
     - No directive but an ordinary ``Abstract`` section heading → a TN202
-      finding locating the heading and pointing authors to the format's
+      finding locating the heading and pointing authors at the format's
       abstract directive.
     - None of the above → a TN201 finding: no abstract found.
-    - A ``.ipynb`` file that is not valid JSON → a TN203 finding: the content
-      file could not be parsed to scan for an abstract.
+    - A technote Sphinx cannot read → a TN203 finding carrying Sphinx's own
+      message.
 
-    The suggested-directive text in the messages is format-aware:
-    reStructuredText content is pointed at ``.. abstract::`` and MyST/notebook
-    content at the ```` ```{abstract} ```` fenced directive.
+    TN202 and TN204 findings are prefixed with a ``file:line:`` location,
+    which comes from the doctree and so names the file the markup is actually
+    written in — an included file, where the abstract was factored into one.
+    A location the doctree does not carry degrades to the file alone, and a
+    notebook is located by file alone always: MyST-NB numbers a notebook's
+    lines per cell, so a line number there corresponds to nothing in the
+    file.
 
-    An abstract that the content factors into another file and pulls in with
-    an include directive is found as well; see `_included_sources`.
-
-    TN202 and TN204 findings are prefixed with a ``file:line:`` location. A
-    notebook's markdown cells are concatenated before scanning, so its
-    findings carry the file name alone rather than a line number that does not
-    correspond to anything in the file.
-
-    A directory with no content file at all produces no findings here: that is
-    a structural condition, reported as TN006 by the lint runner.
+    A directory with no content file at all produces no findings here, and is
+    not read: that is a structural condition, reported as TN006 by the lint
+    runner.
     """
     content_path = context.content_path
     if content_path is None:
         return []
 
     suffix = content_path.suffix.lower()
-    if suffix == ".ipynb":
-        try:
-            text = _read_notebook_markdown(content_path)
-        except json.JSONDecodeError as e:
-            return [
-                LintFinding.from_check(
-                    "TN203",
-                    f"{content_path.name} could not be parsed as a notebook "
-                    f"(invalid JSON): {e}",
-                )
-            ]
-        is_rst = False
-    else:
-        text = content_path.read_text(encoding="utf-8")
-        is_rst = suffix == ".rst"
+    rules = _RST_RULES if suffix == ".rst" else _MYST_RULES
 
-    rules = _RST_RULES if is_rst else _MYST_RULES
-    sources = [_Source(content_path.name, text, locatable=suffix != ".ipynb")]
-    sources.extend(
-        _included_sources(
-            text,
-            content_path=content_path,
-            root_dir=context.root_dir,
-            pattern=rules.include_pattern,
-        )
-    )
-    search = _search_abstract(sources, rules)
+    try:
+        document = context.read_document()
+    except TechnoteReadError as e:
+        return [
+            LintFinding.from_check(
+                "TN203",
+                f"{content_path.name} could not be read by Sphinx: {e}",
+            )
+        ]
 
-    if search.found:
+    abstracts = list(document.doctree.findall(AbstractNode))
+    if any(_publishes_text(node) for node in abstracts):
         return []
-    if search.empty_location is not None:
+    if abstracts:
+        location = _locate(
+            abstracts[0], context=context, fallback=content_path
+        )
         return [
             LintFinding.from_check(
                 "TN204",
-                f"{search.empty_location}the {rules.directive_hint} directive "
-                f"is empty — {rules.empty_advice}",
+                f"{location}the {rules.directive_hint} directive is empty — "
+                f"{rules.empty_advice}",
             )
         ]
-    if search.heading_location is not None:
+
+    heading = _abstract_heading(document.doctree)
+    if heading is not None:
+        location = _locate(heading, context=context, fallback=content_path)
         return [
             LintFinding.from_check(
                 "TN202",
-                f"{search.heading_location}the abstract is declared as an "
-                f"ordinary 'Abstract' section heading. Use the "
+                f"{location}the abstract is declared as an ordinary "
+                f"'Abstract' section heading. Use the "
                 f"{rules.directive_hint} directive instead so the abstract is "
                 f"captured in the technote metadata.",
             )
@@ -1496,45 +1471,72 @@ def check_abstract(context: LintContext) -> list[LintFinding]:
     ]
 
 
-def _included_sources(
-    text: str, *, content_path: Path, root_dir: Path, pattern: re.Pattern[str]
-) -> list[_Source]:
-    """Read the files the content includes, one level deep.
+def _publishes_text(node: AbstractNode) -> bool:
+    """Whether an ``abstract`` directive publishes anything to read.
 
-    A technote may factor its abstract into a separate file pulled in with an
-    include directive, so those files are scanned for an abstract too. The
-    resolution is deliberately shallow — includes within an included file are
-    not followed — because this is a source scan, not a full parse.
-
-    Paths are resolved relative to the content file's directory (or, for the
-    rST convention of a leading ``/``, relative to the technote root). A path
-    that escapes the technote root is skipped, as is one that cannot be read:
-    Sphinx reports a broken include itself, and the linter should not fail
-    on it twice.
+    A field list is not text the directive publishes as an abstract: the
+    ``abstract`` directive declares no options, so docutils parses an option
+    line such as ``:class: dropdown`` as directive *content* and builds a
+    field list out of it. Counting that as an abstract would pass a directive
+    whose published summary reads "class dropdown".
     """
-    root = root_dir.resolve()
-    sources: list[_Source] = []
-    for line in text.splitlines():
-        match = pattern.match(line)
-        if match is None:
-            continue
-        raw_path = match.group("path")
-        if raw_path.startswith("/"):
-            candidate = root_dir.joinpath(*raw_path.lstrip("/").split("/"))
-        else:
-            candidate = content_path.parent / raw_path
-        resolved = candidate.resolve()
-        if (
-            not resolved.is_relative_to(root)
-            or resolved == content_path.resolve()
-        ):
-            continue
-        try:
-            included_text = resolved.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        sources.append(_Source(str(resolved.relative_to(root)), included_text))
-    return sources
+    return any(
+        not isinstance(child, nodes.field_list) and child.astext().strip()
+        for child in node.children
+    )
+
+
+def _abstract_heading(doctree: nodes.document) -> nodes.title | None:
+    """Find the title of a section named ``Abstract``, if the document has one.
+
+    The ``abstract`` directive builds an `AbstractNode`, never a section, so
+    a section titled "Abstract" is always an ordinary heading standing in for
+    the directive.
+    """
+    for section in doctree.findall(nodes.section):
+        title = next(iter(section.findall(nodes.title)), None)
+        if title is not None and _fold(title.astext()) == "abstract":
+            return title
+    return None
+
+
+def _locate(node: nodes.Node, *, context: LintContext, fallback: Path) -> str:
+    """Format the ``file:line:`` prefix that locates a node in its source.
+
+    The source is reported relative to the technote root when the markup
+    lives inside it, and by file name otherwise — an abstract included from
+    outside the technote directory still gets named. ``fallback`` names the
+    file for a node the doctree records no source for at all.
+    """
+    source = _node_source(node)
+    path = Path(source) if source is not None else fallback
+    try:
+        name = str(path.resolve().relative_to(context.root_dir.resolve()))
+    except ValueError:
+        name = path.name
+    line = getattr(node, "line", None)
+    if line is None or path.suffix.lower() == ".ipynb":
+        # MyST-NB offsets a notebook's line numbers by cell, so a line number
+        # read back from a notebook's doctree locates nothing a reader could
+        # find in the file.
+        return f"{name}: "
+    return f"{name}:{line}: "
+
+
+def _node_source(node: nodes.Node) -> str | None:
+    """Find the source file a node came from, looking to its ancestors.
+
+    docutils sets ``source`` on the nodes a parser creates, but a node a
+    directive returns carries whatever the directive gave it — for the
+    ``abstract`` directive, nothing. The enclosing section knows.
+    """
+    current: nodes.Node | None = node
+    while current is not None:
+        source = getattr(current, "source", None)
+        if source:
+            return str(source)
+        current = current.parent
+    return None
 
 
 def check_requirements(context: LintContext) -> list[LintFinding]:
@@ -1693,176 +1695,3 @@ def _parse_requirements(text: str) -> list[Requirement]:
         except InvalidRequirement:
             continue
     return requirements
-
-
-def _read_notebook_markdown(path: Path) -> str:
-    """Concatenate the source of every markdown cell in a notebook.
-
-    Raises
-    ------
-    json.JSONDecodeError
-        If the notebook file is not valid JSON. Callers translate this into a
-        TN203 finding rather than letting it propagate as a traceback.
-    """
-    data = json.loads(path.read_text(encoding="utf-8"))
-    parts: list[str] = []
-    for cell in data.get("cells", []):
-        if cell.get("cell_type") != "markdown":
-            continue
-        source = cell.get("source", "")
-        if isinstance(source, list):
-            parts.append("".join(source))
-        else:
-            parts.append(source)
-    return "\n\n".join(parts)
-
-
-def _scan_rst_abstract_directive(text: str) -> _DirectiveScan:
-    """Scan reStructuredText for an ``.. abstract::`` directive.
-
-    Distinguishes a non-empty directive from one whose body is missing (the
-    common case being a body left unindented at column 0, which docutils
-    reads as an empty directive and which publishes an empty abstract).
-    """
-    empty_line: int | None = None
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        match = _RST_ABSTRACT_DIRECTIVE.match(line)
-        if match is None:
-            continue
-        # Text trailing the marker is body content: the directive declares no
-        # arguments and no options, so docutils folds the whole directive
-        # block into its content.
-        if match.group("trailing").strip():
-            return _DirectiveScan(found=True)
-        marker_indent = len(match.group("indent"))
-        # Otherwise the directive body is the indented block that follows. An
-        # indented, non-blank line that is not an option line counts as
-        # content. Option lines (``:class: dropdown``) are directive
-        # configuration, so an options-only directive stays empty.
-        if _rst_block_has_body(lines[i + 1 :], marker_indent):
-            return _DirectiveScan(found=True)
-        if empty_line is None:
-            empty_line = i + 1
-    return _DirectiveScan(found=False, empty_line=empty_line)
-
-
-def _rst_block_has_body(lines: list[str], marker_indent: int) -> bool:
-    """Whether the indented block after a directive marker has content."""
-    for body_line in lines:
-        if body_line.strip() == "":
-            continue
-        indent = len(body_line) - len(body_line.lstrip())
-        if indent <= marker_indent:
-            return False
-        if _DIRECTIVE_OPTION_LINE.match(body_line):
-            continue
-        return True
-    return False
-
-
-def _scan_myst_abstract_directive(text: str) -> _DirectiveScan:
-    """Scan MyST/Markdown for a fenced abstract directive.
-
-    Like the reStructuredText scan, distinguishes a directive that is missing
-    from one that is present but has no body between its fences.
-    """
-    empty_line: int | None = None
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        if _MYST_BACKTICK_ABSTRACT.match(line):
-            closer = _BACKTICK_FENCE
-        elif _MYST_COLON_ABSTRACT.match(line):
-            closer = _COLON_FENCE
-        else:
-            continue
-        if _myst_fence_has_body(lines, i, closer):
-            return _DirectiveScan(found=True)
-        if empty_line is None:
-            empty_line = i + 1
-    return _DirectiveScan(found=False, empty_line=empty_line)
-
-
-def _myst_fence_has_body(
-    lines: list[str], open_index: int, closer: re.Pattern[str]
-) -> bool:
-    """Whether a MyST fenced directive has non-blank body before it closes.
-
-    Option lines (``:class: dropdown``) are directive configuration rather
-    than body content, so a directive containing only options is still empty.
-    """
-    for line in lines[open_index + 1 :]:
-        if closer.match(line):
-            return False
-        if _DIRECTIVE_OPTION_LINE.match(line):
-            continue
-        if line.strip():
-            return True
-    return False
-
-
-def _find_rst_abstract_heading(text: str) -> int | None:
-    """Find an ``Abstract`` reStructuredText section title.
-
-    Returns the 1-indexed line of the title, or `None` if there is none.
-    """
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        if not _RST_ABSTRACT_TITLE.match(line):
-            continue
-        title_len = len(line.strip())
-        if i + 1 < len(lines) and _is_rst_adornment(lines[i + 1], title_len):
-            return i + 1
-    return None
-
-
-def _is_rst_adornment(line: str, min_length: int) -> bool:
-    """Whether a line is a reStructuredText title adornment underline."""
-    stripped = line.rstrip()
-    if len(stripped) < min_length or not stripped:
-        return False
-    char = stripped[0]
-    if char not in string.punctuation:
-        return False
-    return all(c == char for c in stripped)
-
-
-def _find_markdown_abstract_heading(text: str) -> int | None:
-    """Find a Markdown ``Abstract`` heading.
-
-    Detects both ATX headings (``## Abstract``) and Setext headings (an
-    ``Abstract`` line underlined by ``===`` or ``---``), returning the
-    1-indexed line of the heading text, or `None` if there is none.
-    """
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        if _MD_ABSTRACT_HEADING.match(line):
-            return i + 1
-        if (
-            _RST_ABSTRACT_TITLE.match(line)
-            and i + 1 < len(lines)
-            and _MD_SETEXT_UNDERLINE.match(lines[i + 1])
-        ):
-            return i + 1
-    return None
-
-
-_RST_RULES = _FormatRules(
-    scan_directive=_scan_rst_abstract_directive,
-    find_heading=_find_rst_abstract_heading,
-    include_pattern=_RST_INCLUDE_DIRECTIVE,
-    directive_hint="'.. abstract::'",
-    empty_advice="indent the abstract text under the directive.",
-)
-"""How reStructuredText content is scanned for an abstract."""
-
-_MYST_RULES = _FormatRules(
-    scan_directive=_scan_myst_abstract_directive,
-    find_heading=_find_markdown_abstract_heading,
-    include_pattern=_MYST_INCLUDE_DIRECTIVE,
-    directive_hint="'```{abstract}' fenced",
-    empty_advice=(
-        "put the abstract text between the opening and closing fences."
-    ),
-)
-"""How MyST Markdown and notebook content is scanned for an abstract."""

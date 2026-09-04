@@ -5,13 +5,14 @@ Generating a CITATION.cff
 A technote is a citable document: it has a DOI, authors with ORCIDs, a publisher, and a handle like :samp:`SQR-000`.
 GitHub surfaces that citation through a :file:`CITATION.cff` file at the repository's root — the "Cite this repository" button in the sidebar.
 
-Documenteer generates that file from :file:`technote.toml`, so the citation GitHub shows is the same metadata the technote itself is published with.
+Documenteer generates that file from :file:`technote.toml` and the technote's own document, so the citation GitHub shows is the same metadata the technote itself is published with.
 
 .. prompt:: bash
 
    documenteer technote sync-cff
 
 Run the command from the technote's repository root, or point it elsewhere with the ``-d/--dir`` option.
+The command builds the technote to read its title, so it needs the ``technote`` extra — :samp:`pip install documenteer[technote]`, which a technote's :file:`requirements.txt` declares anyway.
 
 :file:`technote.toml` is the canonical source
 =============================================
@@ -19,8 +20,13 @@ Run the command from the technote's repository root, or point it elsewhere with 
 :file:`CITATION.cff` is *fully managed*: every run regenerates it from scratch, and the generated file says so in a comment on its first line.
 To change the citation, edit :file:`technote.toml` and run the command again — an edit made directly to :file:`CITATION.cff` is lost on the next sync.
 
-Generation is deterministic and entirely offline.
-The same :file:`technote.toml` always produces byte-identical output, so re-running the command on an up-to-date file changes nothing at all.
+The one field :file:`technote.toml` does not usually supply is the **title**: a technote is titled by its document's top-level heading unless the ``[technote]`` table declares a ``title``, and :command:`documenteer technote migrate` never writes one.
+The command therefore builds the technote with Sphinx — quietly, writing nothing, in a temporary directory — and takes the title from the document Sphinx read, so :file:`CITATION.cff` names the technote the same way the published page does.
+A technote-series repository with no :file:`conf.py` is not built by Sphinx, and is generated from :file:`technote.toml` alone.
+
+Generation is deterministic.
+The same :file:`technote.toml` and the same document always produce byte-identical output, so re-running the command on an up-to-date file changes nothing at all.
+Nothing in the generated file comes from the clock or from the network: in particular the release date is read from :file:`technote.toml`, never defaulted to the day the file was generated.
 
 What gets generated
 ===================
@@ -61,12 +67,11 @@ The DOI and the release date are written in both places: not every tool reads ``
      url: https://sqr-000.lsst.io/
      date-released: 2026-08-24
 
-Each field is read from :file:`technote.toml`:
+Each field is read from :file:`technote.toml`, except the title:
 
 ``title``
-    ``technote.title``.
-    A technote normally takes its title from the document's own heading rather than declaring one in :file:`technote.toml`; add a ``title`` field to the ``[technote]`` table so the citation names the document.
-    Without one, the command falls back to the technote's ID and says so.
+    ``technote.title``, or — as is normal, since :file:`technote.toml` usually declares no title — the top-level heading of the technote's own document, read by building it.
+    A technote that has a title in neither place is cited by its ID, and the command says so.
 
 ``authors``
     The ``[[technote.authors]]`` entries, in order.
@@ -97,7 +102,7 @@ Each field is read from :file:`technote.toml`:
 Checking the file in CI
 =======================
 
-The ``--check`` option compares the file on disk against what :file:`technote.toml` generates, without writing anything:
+The ``--check`` option compares the file on disk against what the technote generates, without writing anything:
 
 .. prompt:: bash
 
@@ -106,24 +111,7 @@ The ``--check`` option compares the file on disk against what :file:`technote.to
 It exits non-zero only when :file:`CITATION.cff` exists and is *stale*.
 A repository with no :file:`CITATION.cff` has simply not adopted the file, and passes.
 
+This is the mechanism to keep the file current: run it in CI, where the technote is built anyway, and a metadata or title change that was not synced fails the build with the command to run.
+Rubin's shared technote workflow runs it for you.
+
 :command:`documenteer technote lint` reports the same staleness as :doc:`TN106 <lint/tn106>`, using this same comparison, so a technote's CI catches an unsynced file whether it runs the linter, this check, or both.
-
-.. _technote-cff-pre-commit:
-
-Running the sync as a pre-commit hook
-=====================================
-
-Documenteer ships a ``technote-sync-cff`` `pre-commit <https://pre-commit.com>`__ hook, so a technote repository can keep :file:`CITATION.cff` current without remembering to run the command.
-Add it to the technote's :file:`.pre-commit-config.yaml`:
-
-.. code-block:: yaml
-   :caption: .pre-commit-config.yaml
-
-   repos:
-     - repo: https://github.com/lsst-sqre/documenteer
-       rev: 2.5.0
-       hooks:
-         - id: technote-sync-cff
-
-The hook runs whenever :file:`technote.toml` is staged and rewrites :file:`CITATION.cff` in place, so a metadata change and the citation it implies land in the same commit.
-Set ``rev`` to the Documenteer release you want to pin to; :command:`pre-commit autoupdate` moves it forward.

@@ -19,6 +19,7 @@ from documenteer.services.technotecff import (
     TechnoteCffService,
 )
 from documenteer.services.technotemigration import TechnoteMigrationService
+from documenteer.services.technoteread import TechnoteReadError, read_technote
 from documenteer.storage.authordb import (
     AuthorDb,
     AuthorDbUnreachableError,
@@ -342,6 +343,12 @@ def technote_lint(
     (R103), because an unresolved internal_id blocks a DOI from being minted,
     while an unreachable DataCite is silent.
 
+    The rules about what a technote *publishes* — its abstract, and the title
+    the DataCite and CITATION.cff comparisons use — read the document by
+    building the technote with Sphinx, so this command needs the ``technote``
+    extra (``pip install documenteer[technote]``). The build is quiet, writes
+    nothing, and happens once per run.
+
     A directory with no content file and no conf.py is a technote that Sphinx
     does not build, so only the technote.toml checks (structural and metadata)
     apply to it.
@@ -359,11 +366,11 @@ def technote_lint(
     no DataCite request when it is ignored — and the summary names it, so CI
     output shows the rule is off rather than passing.
     """
-    # Imported here, rather than at module scope, because the lint service is
-    # the only part of the CLI that needs the `technote` package (a
-    # documenteer[technote] extra). Keeping it lazy means the rest of the
-    # CLI — `sync-cff` in particular, which runs as a pre-commit hook from a
-    # plain documenteer install — works without the extra.
+    # Imported here, rather than at module scope, because the lint service
+    # imports the `technote` package (a documenteer[technote] extra) at
+    # module scope. Keeping it lazy means the rest of the CLI still loads
+    # from a plain documenteer install, and a missing extra is an ImportError
+    # from this one command rather than from `documenteer --help`.
     from documenteer.services.technotelint import (  # noqa: PLC0415
         LintContext,
         LintFinding,
@@ -454,17 +461,38 @@ def technote_sync_cff(root_dir: str, *, check: bool) -> None:
     :file:`technote.toml` is the canonical source: the file is regenerated
     from scratch on every run, so edit technote.toml rather than
     CITATION.cff. Generation is deterministic, which makes ``--check`` a
-    content comparison suitable for CI and pre-commit. ``--check`` exits
-    non-zero only when CITATION.cff exists and is stale; a repository with
-    no CITATION.cff has simply not opted in, and passes.
+    content comparison suitable for CI. ``--check`` exits non-zero only when
+    CITATION.cff exists and is stale; a repository with no CITATION.cff has
+    simply not opted in, and passes.
+
+    The technote's title is the one exception to technote.toml being
+    canonical, because it is the one field a technote normally leaves to its
+    document: the citation is titled by the document's top-level heading
+    unless technote.toml declares a ``title``. The title is read by building
+    the technote with Sphinx, so this command needs the ``technote`` extra
+    (``pip install documenteer[technote]``) and reports a document Sphinx
+    cannot read rather than citing the technote by its handle. A
+    technote-series repository with no :file:`conf.py` is not built by
+    Sphinx, and is generated from technote.toml alone.
     """
     root = Path(root_dir)
     toml_path = root / "technote.toml"
     if not toml_path.is_file():
         raise click.ClickException(f"No technote.toml found in {root}.")
 
+    document_title: str | None = None
+    if (root / "conf.py").is_file():
+        try:
+            document_title = read_technote(root).title
+        except TechnoteReadError as e:
+            raise click.ClickException(
+                f"Could not read the technote in {root}: {e}"
+            ) from e
+
     try:
-        service = TechnoteCffService.from_technote_toml(toml_path)
+        service = TechnoteCffService.from_technote_toml(
+            toml_path, document_title=document_title
+        )
     except ValueError as e:
         # Malformed TOML, a DOI that is not a DOI, or metadata too sparse to
         # cite: all of them are something to fix in technote.toml, not a

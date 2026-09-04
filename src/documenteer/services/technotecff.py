@@ -115,11 +115,12 @@ class TechnoteCffService:
     """Generates a technote repository's CITATION.cff from its technote.toml.
 
     ``technote.toml`` is the canonical source of a technote's metadata, and
-    CITATION.cff is generated from it. Generation is deterministic and
-    entirely local: the same technote.toml always yields byte-identical
-    output, which is what lets `status` decide staleness by comparing content
-    and lets ``--check`` — and the TN106 lint rule, which reuses this same
-    comparison — run in CI without writing anything.
+    CITATION.cff is generated from it — with the title as the one exception,
+    because a technote normally declares none and is titled by its document's
+    own heading. Generation is deterministic: the same inputs always yield
+    byte-identical output, which is what lets `status` decide staleness by
+    comparing content and lets ``--check`` — and the TN106 lint rule, which
+    reuses this same comparison — run in CI without writing anything.
 
     Parameters
     ----------
@@ -144,13 +145,18 @@ class TechnoteCffService:
         self.warnings = tuple(warnings)
 
     @classmethod
-    def from_technote_toml(cls, path: Path) -> Self:
+    def from_technote_toml(
+        cls, path: Path, *, document_title: str | None = None
+    ) -> Self:
         """Create the service by reading a technote.toml file.
 
         Parameters
         ----------
         path
             The path to the technote.toml file.
+        document_title
+            The title the technote's own document resolves to, from a Sphinx
+            read of it. Used only when ``technote.toml`` declares no title.
 
         Returns
         -------
@@ -163,16 +169,26 @@ class TechnoteCffService:
             Raised if the file is not valid TOML, or if it does not declare
             the metadata a citation needs.
         """
-        return cls.from_metadata(TechnoteTomlFile.open(path).data)
+        return cls.from_metadata(
+            TechnoteTomlFile.open(path).data, document_title=document_title
+        )
 
     @classmethod
-    def from_metadata(cls, data: Mapping[str, Any]) -> Self:
+    def from_metadata(
+        cls,
+        data: Mapping[str, Any],
+        *,
+        document_title: str | None = None,
+    ) -> Self:
         """Create the service from parsed technote.toml data.
 
         Parameters
         ----------
         data
             The content of a technote.toml file as plain Python data.
+        document_title
+            The title the technote's own document resolves to, from a Sphinx
+            read of it. Used only when ``technote.toml`` declares no title.
 
         Returns
         -------
@@ -187,6 +203,16 @@ class TechnoteCffService:
             TOML type.
         ValueError
             Raised if the technote declares something that is not a DOI.
+
+        Notes
+        -----
+        Everything but the title is read from ``technote.toml``, including
+        the release date, which a Sphinx read cannot supply: the technote
+        package defaults an undeclared ``date_updated`` to the moment of the
+        build, and a citation dated by the clock would make every run
+        generate a different file. The title is the one field the *document*
+        resolves — a technote normally declares none in ``technote.toml`` and
+        is titled by its H1 — so it is the one field taken from the read.
         """
         technote = _table(
             data.get("technote"),
@@ -196,7 +222,7 @@ class TechnoteCffService:
         warnings: list[str] = []
 
         technote_id = _text(technote.get("id"))
-        title = _text(technote.get("title"))
+        title = _text(technote.get("title")) or _text(document_title)
         if title is None:
             if technote_id is None:
                 raise TechnoteCffError(
@@ -206,9 +232,10 @@ class TechnoteCffService:
                 )
             title = technote_id
             warnings.append(
-                f"technote.toml declares no title, so {CFF_FILENAME} is "
-                f"titled '{technote_id}'. Add a title field to the "
-                "[technote] table to cite the technote by name."
+                f"This technote has no title, so {CFF_FILENAME} is titled "
+                f"'{technote_id}'. Give the document a top-level heading, or "
+                "add a title field to the [technote] table, to cite the "
+                "technote by name."
             )
 
         organization = _table(
@@ -501,13 +528,13 @@ def _table(value: Any, *, subject: str, remedy: str) -> Mapping[str, Any]:
     """Read a TOML value that has to be a table, or report that it is not.
 
     ``sync-cff`` reads technote.toml through Documenteer's own reader rather
-    than the technote package's pydantic models — deliberately, so that it
-    runs without the technote extra — so nothing has validated the shape of
-    what it reads. A hand-edited file can put a string where a table belongs,
-    and the reader that then asks it for a field would raise an
+    than the technote package's pydantic models, so nothing has validated the
+    shape of what it reads. A hand-edited file can put a string where a table
+    belongs, and the reader that then asks it for a field would raise an
     `AttributeError` naming neither the value nor where it came from. Saying
     both is what lets the person editing technote.toml find the entry to fix
-    without bisecting the file.
+    without bisecting the file, and says it about the entry rather than about
+    the whole file the way a schema failure would.
     """
     if value is None:
         return {}

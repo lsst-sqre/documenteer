@@ -13,7 +13,7 @@ citation-cff-current (TN106)
      - Error
 
 A technote repository can publish its citation to GitHub through a :file:`CITATION.cff` file, which Documenteer generates from :file:`technote.toml` (see :doc:`../citation-file`).
-That file is *fully managed*: :command:`documenteer technote sync-cff` regenerates it from scratch on every run, deterministically and offline.
+That file is *fully managed*: :command:`documenteer technote sync-cff` regenerates it from scratch on every run, deterministically.
 This rule regenerates it in memory and compares it with the file on disk, so a :file:`technote.toml` edit that was never synced is caught before the stale citation is published.
 
 The comparison is the one :command:`documenteer technote sync-cff --check` runs, so the linter and that check never disagree about whether a file is stale.
@@ -49,8 +49,7 @@ Regenerate the file:
 Commit the result alongside the :file:`technote.toml` change that caused it.
 Edit :file:`technote.toml`, never :file:`CITATION.cff` — a hand-edit to the generated file is what this rule reports, and it is lost on the next sync.
 
-To keep the two in step without remembering the command, add Documenteer's ``technote-sync-cff`` `pre-commit <https://pre-commit.com>`__ hook to the repository; it rewrites :file:`CITATION.cff` whenever :file:`technote.toml` is staged.
-See :ref:`the pre-commit hook <technote-cff-pre-commit>` for the configuration.
+To catch the two drifting apart before a reviewer does, run :command:`documenteer technote sync-cff --check` in CI; it fails the build with the command to run, and Rubin's shared technote workflow runs it for you.
 
 If the repository no longer wants a :file:`CITATION.cff` at all, delete the file: an absent file passes.
 

@@ -16,7 +16,7 @@ The technote's content file must declare an abstract with the abstract directive
 The abstract is part of the technote's metadata: it is published in the technote's structured metadata, shown in document listings, and used as the page's ``og:description`` for link previews.
 A technote without one publishes with no summary anywhere.
 
-The abstract is found by scanning the source — see :ref:`technote-lint-abstract-scan` for exactly what the scan recognizes (including abstracts pulled in with ``include`` directives).
+The abstract is found in the document Sphinx builds — see :ref:`technote-lint-abstract-scan` for exactly what counts (including abstracts pulled in with ``include`` directives).
 
 Example of a failing technote
 =============================

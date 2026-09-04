@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 import pytest_responses  # noqa: F401
 import requests
-import yaml
 from click.testing import CliRunner
 from responses import RequestsMock, matchers
 
@@ -26,6 +24,9 @@ AUTHOR_JSON = """
     "orcid": "https://orcid.org/0000-0003-3001-676X"
 }
 """
+
+CONF_PY = "from documenteer.conf.technote import *  # noqa: F401,F403\n"
+"""The conf.py the lint's Sphinx read builds the technote through."""
 
 VALID_TOML = """
 [technote]
@@ -56,6 +57,7 @@ def test_lint_success(tmp_path: Path, responses: RequestsMock) -> None:
         status=200,
     )
     (tmp_path / "technote.toml").write_text(VALID_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
@@ -77,6 +79,7 @@ def test_lint_requirements_drift_strict(
         status=200,
     )
     (tmp_path / "technote.toml").write_text(VALID_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
@@ -139,6 +142,7 @@ def test_lint_file_ignore_names_its_source(
     (tmp_path / "technote.toml").write_text(
         VALID_TOML + '\n[technote.lint]\nignore = ["R002", "R003"]\n'
     )
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
@@ -481,12 +485,81 @@ def test_sync_cff_malformed_author_shape(
     assert not (tmp_path / "CITATION.cff").exists()
 
 
-def test_precommit_hook_definition() -> None:
-    """The repository ships a technote-sync-cff pre-commit hook."""
-    hooks_path = Path(__file__).parent.parent / ".pre-commit-hooks.yaml"
-    hooks = yaml.safe_load(hooks_path.read_text())
+def test_sync_cff_titles_the_citation_from_the_document(
+    tmp_path: Path,
+) -> None:
+    """A technote with no TOML title is cited by its document's heading.
 
-    hook = next(h for h in hooks if h["id"] == "technote-sync-cff")
-    assert hook["entry"] == "documenteer technote sync-cff"
-    assert hook["pass_filenames"] is False
-    assert re.match(hook["files"], "technote.toml")
+    This is the normal technote: `technote migrate` never writes a
+    ``[technote] title``, and the built page publishes the H1.
+    """
+    (tmp_path / "technote.toml").write_text(
+        CFF_TOML.replace(
+            'title = "The LSST DM Technical Note Publishing Platform"\n', ""
+        )
+    )
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    (tmp_path / "index.rst").write_text(
+        "############################\n"
+        "A Title in the Document Only\n"
+        "############################\n"
+        "\n.. abstract::\n\n   An abstract.\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "no title" not in result.output
+    cff = (tmp_path / "CITATION.cff").read_text()
+    assert "title: A Title in the Document Only" in cff
+    assert "SQR-000" in cff  # still the series handle, as `number`
+
+
+def test_sync_cff_output_is_unchanged_by_the_document(tmp_path: Path) -> None:
+    """A technote.toml that declares a title keeps its byte-for-byte output.
+
+    An existing `--check` in CI has to stay green across this change, so a
+    titled technote must generate exactly what it generated before the
+    document was read at all.
+    """
+    without = tmp_path / "without"
+    without.mkdir()
+    (without / "technote.toml").write_text(CFF_TOML)
+
+    with_document = tmp_path / "with"
+    with_document.mkdir()
+    (with_document / "technote.toml").write_text(CFF_TOML)
+    (with_document / "conf.py").write_text(CONF_PY)
+    (with_document / "index.rst").write_text(
+        "#############\nA Different Heading Entirely\n#############\n"
+        "\n.. abstract::\n\n   An abstract.\n"
+    )
+
+    runner = CliRunner()
+    for root in (without, with_document):
+        assert (
+            runner.invoke(
+                main, ["technote", "sync-cff", "-d", str(root)]
+            ).exit_code
+            == 0
+        )
+
+    assert (with_document / "CITATION.cff").read_bytes() == (
+        without / "CITATION.cff"
+    ).read_bytes()
+
+
+def test_sync_cff_reports_an_unreadable_document(tmp_path: Path) -> None:
+    """A technote Sphinx cannot read is an error naming what went wrong."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    # A conf.py with no content file: Sphinx has no master document to read.
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "index.rst, index.md, index.ipynb" in result.output
+    assert not (tmp_path / "CITATION.cff").exists()
+    assert result.exception is None or isinstance(result.exception, SystemExit)

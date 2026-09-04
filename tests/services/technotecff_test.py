@@ -590,3 +590,41 @@ def test_a_date_updated_that_is_not_a_date_is_reported(
     assert "declares a date_updated that is not a date: soon" in str(
         exc_info.value
     )
+
+
+def test_document_title_names_an_untitled_technote(tmp_path: Path) -> None:
+    """A title resolved from the document is used, with no warning.
+
+    This is the normal case: ``technote migrate`` never writes a
+    ``[technote] title``, so the built page is titled by its own H1 and the
+    citation has to say the same thing.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(
+        FULL_TOML.replace(
+            'title = "The LSST DM Technical Note Publishing Platform"\n', ""
+        )
+    )
+
+    service = TechnoteCffService.from_technote_toml(
+        toml_path, document_title="A Title from the Document"
+    )
+
+    assert yaml.safe_load(service.render())["title"] == (
+        "A Title from the Document"
+    )
+    assert service.warnings == ()
+
+
+def test_toml_title_wins_over_the_document_title(tmp_path: Path) -> None:
+    """technote.toml stays canonical when it declares a title itself."""
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(FULL_TOML)
+
+    with_document = TechnoteCffService.from_technote_toml(
+        toml_path, document_title="A Title from the Document"
+    ).render()
+
+    assert with_document == (
+        TechnoteCffService.from_technote_toml(toml_path).render()
+    )
