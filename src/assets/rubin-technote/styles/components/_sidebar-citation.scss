@@ -76,3 +76,21 @@
   border-color: var(--tn-component-link-color);
   color: var(--tn-component-link-color);
 }
+
+/* Announced, not shown: the button's own label reports the outcome visually,
+ * and this region reports it to a screen reader that is not on the button.
+ * The same recipe as the guide's status regions (rubin-pydata-theme.scss);
+ * it is written in fixed pixels rather than the technote's spacing tokens
+ * because what it describes is a box small enough to disappear, not a
+ * measure of the layout. */
+.technote-sidebar-citation__copy-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
