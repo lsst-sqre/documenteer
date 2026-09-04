@@ -1,0 +1,69 @@
+:og:description: TN106 fires when a technote repository's CITATION.cff no longer matches what technote.toml generates, so the citation GitHub shows is out of date.
+
+############################
+citation-cff-current (TN106)
+############################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Metadata
+     - Error
+
+A technote repository can publish its citation to GitHub through a :file:`CITATION.cff` file, which Documenteer generates from :file:`technote.toml` (see :doc:`../citation-file`).
+That file is *fully managed*: :command:`documenteer technote sync-cff` regenerates it from scratch on every run, deterministically.
+This rule regenerates it in memory and compares it with the file on disk, so a :file:`technote.toml` edit that was never synced is caught before the stale citation is published.
+
+The comparison is the one :command:`documenteer technote sync-cff --check` runs, so the linter and that check never disagree about whether a file is stale.
+
+A repository with **no** :file:`CITATION.cff` is not flagged.
+Adopting the file is opt-in per repository: an absent file means the repository has not asked for one, not that it is missing something.
+
+A technote Sphinx cannot read is not flagged either.
+The citation is titled by the technote's own top-level heading (see :doc:`../citation-file`), so a document that does not read leaves this rule with nothing to compare titles by; the read failure is reported once, as :doc:`TN203 <tn203>`.
+
+Example of a failing technote
+=============================
+
+A title is added to :file:`technote.toml`, but :file:`CITATION.cff` still carries the old one:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   id = "SQR-000"
+   title = "The LSST DM Technical Note Publishing Platform"
+
+.. code-block:: text
+
+   [TN106] CITATION.cff is out of date with technote.toml. Run 'documenteer technote sync-cff' to regenerate it.
+
+How to fix it
+=============
+
+Regenerate the file:
+
+.. prompt:: bash
+
+   documenteer technote sync-cff
+
+Commit the result alongside the :file:`technote.toml` change that caused it.
+Edit :file:`technote.toml`, never :file:`CITATION.cff` — a hand-edit to the generated file is what this rule reports, and it is lost on the next sync.
+
+To catch the two drifting apart before a reviewer does, run :command:`documenteer technote sync-cff --check` in CI; it fails the build with the command to run, and Rubin's shared technote workflow runs it for you.
+
+If the repository no longer wants a :file:`CITATION.cff` at all, delete the file: an absent file passes.
+
+.. note::
+
+   Documenteer generates :file:`CITATION.cff` from a technote's own metadata, so a finding can also appear after a Documenteer upgrade that changes what is generated.
+   Running the command resolves it the same way.
+
+See also
+========
+
+- :doc:`../citation-file` — what is generated, and how each field is read from :file:`technote.toml`.
+- :doc:`TN001 <tn001>` — :file:`technote.toml` does not conform to the schema, which is how a ``doi`` that is not a DOI is reported. Such a file cannot be parsed into metadata at all, so this rule stays silent until it is fixed.
+- :doc:`TN203 <tn203>` — Sphinx cannot read the technote's document, which is reported instead of this rule.

@@ -193,6 +193,9 @@ extensions = [
     "documenteer.ext.linkcheckservice",
     "documenteer.ext.intersphinxcache",
     "documenteer.ext.autotypes",
+    "documenteer.ext.citationcard",
+    "documenteer.ext.citationdate",
+    "documenteer.ext.citationpage",
 ]
 _conf.append_extensions(extensions)
 
@@ -397,6 +400,13 @@ favicons = [
 # Configure the "Edit this page" link
 _conf.set_edit_on_github(html_theme_options, html_context)
 
+# Publish the site's citations ([[project.citations]] in documenteer.toml)
+# into html_context, resolved and composed. This is the only place a citation
+# is composed: the head metadata, the citation-card directive, and the footer
+# all read documenteer_citations / documenteer_self_citation from the
+# context. Nothing is set when the site declares no citations.
+_conf.set_citations(html_context)
+
 # Specifies templates to put in the primary (left) sidebars of
 # specific pages (by their docname or pattern). An empty list results in the
 # sidebar being dropped altogether.
@@ -442,6 +452,15 @@ html_js_files: list[str] = ["rubin-footer-align.js"]
 if documenteer_last_modified_enabled:
     html_static_path.append(get_asset_path("rubin-last-modified.js"))
     html_js_files.append("rubin-last-modified.js")
+
+# Both citation surfaces -- the citation-card directive and the footer
+# citations -- offer the entry's BibTeX with a button that copies it;
+# rubin-citation-copy.js is what makes those buttons work, and removes them
+# where the clipboard API is unavailable. A site that declares no citations
+# renders neither surface, so it has no button to wire and ships no script.
+if html_context.get("documenteer_citations"):
+    html_static_path.append(get_asset_path("rubin-citation-copy.js"))
+    html_js_files.append("rubin-citation-copy.js")
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

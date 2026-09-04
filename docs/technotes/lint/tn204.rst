@@ -34,9 +34,10 @@ reStructuredText scopes directive content by indentation, so the unindented para
 
 .. code-block:: text
 
-   [TN204] index.rst:5: the '.. abstract::' directive is empty — indent the abstract text under the directive.
+   [TN204] index.rst: the '.. abstract::' directive is empty — indent the abstract text under the directive.
 
-Directive *options* do not count as content either: a directive holding only ``:class: dropdown`` (for example) is still empty.
+Directive *options* do not count as content either.
+The abstract directive declares no options, so docutils parses a line such as ``:class: dropdown`` as a field list rather than as configuration, and a directive holding only that publishes "class dropdown" as the technote's summary.
 
 How to fix it
 =============

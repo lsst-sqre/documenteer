@@ -1,0 +1,7 @@
+# The full user-guide stack with no [[project.citations]] at all, so that the
+# citation surfaces can be pinned as emitting nothing on a site that declares
+# no DOI.
+[project]
+title = "Guide Without Citations"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"

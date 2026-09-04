@@ -6,6 +6,13 @@ A minimal page that exercises the full user-guide stack
 build renders the navbar GitHub icon link and the "Help improve this page"
 box with its last-updated timestamp.
 
+Citing this site
+----------------
+
+.. citation-card::
+
+.. citation-card:: Dataset
+
 .. toctree::
 
    hidden

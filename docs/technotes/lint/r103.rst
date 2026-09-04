@@ -1,8 +1,8 @@
-:og:description: TN103 fires when the Rubin author database cannot be reached over the network, so author internal_id values cannot be verified.
+:og:description: R103 fires when the Rubin author database cannot be reached over the network, so author internal_id values cannot be verified.
 
-##########################
-authordb-reachable (TN103)
-##########################
+#########################
+authordb-reachable (R103)
+#########################
 
 .. list-table::
    :header-rows: 1
@@ -16,7 +16,7 @@ The linter verifies each author's ``internal_id`` against the Rubin author datab
 When that service cannot be reached, the ID cannot be verified either way, so the linter reports this warning instead of guessing.
 
 This rule fires only for *transport* failures: a connection error, a timeout, or an HTTP error status other than 404.
-(A 404 means the database was reached and does not know the ID — that is :doc:`TN102 <tn102>` — and a malformed record for a known ID is also reported as :doc:`TN102 <tn102>`.)
+(A 404 means the database was reached and does not know the ID — that is :doc:`R102 <r102>` — and a malformed record for a known ID is also reported as :doc:`R102 <r102>`.)
 
 Example
 =======
@@ -25,7 +25,7 @@ Running the linter without network access, or while the service is down:
 
 .. code-block:: text
 
-   [TN103] Could not reach the author database to verify internal_id 'sickj' for author Jonathan Sick.
+   [R103] Could not reach the author database to verify internal_id 'sickj' for author Jonathan Sick.
 
 Because this is a warning, the command still exits 0 (unless you pass ``--strict``): an outage should not fail a technote whose metadata may be perfectly fine.
 
@@ -41,4 +41,4 @@ There is usually nothing to change in the technote:
 See also
 ========
 
-- :doc:`TN102 <tn102>` — the database was reached but does not know the ID.
+- :doc:`R102 <r102>` — the database was reached but does not know the ID.

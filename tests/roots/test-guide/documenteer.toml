@@ -2,3 +2,41 @@
 title = "Guide Build Smoke Test"
 base_url = "https://example.lsst.io"
 github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "https://doi.org/10.71929/rubin/2570308"
+label = "Site"
+self = true
+note = "Cite this documentation."
+title = "Guide Build Smoke Test"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+label = "Dataset"
+type = "dataset"
+in_footer = true
+note = "Cite the dataset this guide documents."
+title = "Smoke Test Images & Catalogs"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-01-15
+authors = [
+    { name = "Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+    { family_name = "Sick", given_name = "Jonathan", orcid = "0000-0003-3001-676X", affiliation = "Rubin Observatory" },
+]
+
+# Opted out of the footer, so the footer surface has an entry to omit.
+[[project.citations]]
+doi = "10.5281/zenodo.10385501"
+label = "Paper"
+type = "article"
+in_footer = false
+note = "Cite the paper describing the survey."
+title = "The Smoke Test Survey"
+publisher = "Zenodo"
+date = 2024-11-02
+authors = [
+    { family_name = "Sick", given_name = "Jonathan", orcid = "0000-0003-3001-676X" },
+]

@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+from typing import Any
+
 import pytest
 from sphinx.errors import ConfigError
 
+from documenteer.citations import (
+    CitationType,
+    OrganizationAuthor,
+    PartialDate,
+    PersonAuthor,
+)
 from documenteer.conf import DocumenteerConfig
 
 EXAMPLE = """
@@ -376,3 +386,1191 @@ def test_intersphinx_cache_negative_ttl_rejected() -> None:
     """
     with pytest.raises(ConfigError):
         DocumenteerConfig.load(EXAMPLE_NEGATIVE_TTL)
+
+
+EXAMPLE_CITATIONS_INLINE = """
+
+[project]
+title = "Data Preview 2 Documentation"
+base_url = "https://dp0-2.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "https://doi.org/10.71929/rubin/2570308"
+label = "Dataset"
+type = "dataset"
+self = true
+note = "Cite the DP2 dataset and this documentation."
+title = "Data Preview 2"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [
+    { name = "Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+]
+"""
+
+
+def test_citations_inline() -> None:
+    """A [[project.citations]] entry composes a citation from its own
+    fields, normalizing the DOI.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+
+    (entry,) = config.citations
+    assert entry.label == "Dataset"
+    assert entry.citation.type is CitationType.dataset
+    assert entry.is_self is True
+    assert entry.note == "Cite the DP2 dataset and this documentation."
+    assert entry.citation.doi == "10.71929/rubin/2570308"
+    assert entry.citation.title == "Data Preview 2"
+    assert entry.citation.publisher == "Vera C. Rubin Observatory"
+    assert entry.citation.date == PartialDate(2025, 6, 30)
+    assert entry.citation.authors == (
+        OrganizationAuthor(
+            name="Vera C. Rubin Observatory", ror="https://ror.org/048g3cy84"
+        ),
+    )
+    assert config.self_citation is entry
+
+
+CITATION_CFF = """cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Example Software"
+type: software
+authors:
+  - family-names: Sick
+    given-names: Jonathan
+    orcid: "https://orcid.org/0000-0003-3001-676X"
+doi: 10.5281/zenodo.10385500
+date-released: 2026-02-01
+"""
+
+EXAMPLE_CITATIONS_CFF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+self = true
+label = "Software"
+title = "Example Software, version 2"
+"""
+
+
+def test_citations_from_cff(tmp_path: Path) -> None:
+    """A cff-sourced entry composes from the CITATION.cff file, and an
+    inline field overrides the file's value.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_CFF, root_dir=docs_dir)
+
+    (entry,) = config.citations
+    assert entry.label == "Software"
+    # From the CITATION.cff file.
+    assert entry.citation.type is CitationType.software
+    assert entry.citation.doi == "10.5281/zenodo.10385500"
+    assert entry.citation.date == PartialDate(2026, 2, 1)
+    assert entry.citation.authors == (
+        PersonAuthor(
+            family_name="Sick",
+            given_name="Jonathan",
+            orcid="https://orcid.org/0000-0003-3001-676X",
+        ),
+    )
+    # Set inline alongside cff, so it overrides the file's title.
+    assert entry.citation.title == "Example Software, version 2"
+
+
+CITATION_CFF_PREFERRED = """cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Example Software"
+type: software
+authors:
+  - name: "Vera C. Rubin Observatory"
+doi: 10.5281/zenodo.10385500
+preferred-citation:
+  type: article
+  title: "An Example Paper"
+  authors:
+    - family-names: Sick
+      given-names: Jonathan
+  doi: 10.1117/12.2629569
+  year: 2022
+"""
+
+EXAMPLE_CITATIONS_CFF_TOP_LEVEL = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+"""
+
+
+def test_citations_cff_top_level_record(tmp_path: Path) -> None:
+    """``cff_preferred = false`` cites the software the repository is, rather
+    than the paper its CITATION.cff prefers.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_PREFERRED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_TOP_LEVEL, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.title == "Example Software"
+    assert entry.citation.type is CitationType.software
+    assert entry.citation.doi == "10.5281/zenodo.10385500"
+    assert entry.citation.authors == (
+        OrganizationAuthor(name="Vera C. Rubin Observatory"),
+    )
+
+
+EXAMPLE_CITATIONS_CFF_PREFERRED_WITHOUT_CFF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example Software"
+cff_preferred = false
+"""
+
+
+def test_citations_cff_preferred_without_cff_rejected() -> None:
+    """``cff_preferred`` chooses which record of a CITATION.cff file is read,
+    so an entry that sets it without naming a file states a preference over
+    nothing.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_CFF_PREFERRED_WITHOUT_CFF)
+
+    message = str(exc_info.value)
+    assert "cff_preferred" in message
+    assert "cff" in message
+
+
+SOFTWARE_RECORD_CFF_PATH = (
+    Path(__file__).parent / "data" / "citationcff" / "software-record.cff"
+)
+"""A CITATION.cff shaped like ``lsst/daf_butler``'s: a top-level software
+record with a repository and no DOI, above a preferred citation for the paper
+that describes it.
+"""
+
+EXAMPLE_CITATIONS_CFF_SOFTWARE = """
+
+[project]
+title = "Butler Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+"""
+
+
+def test_citations_cff_software_located_by_its_repository(
+    tmp_path: Path,
+) -> None:
+    """A repository whose CITATION.cff prefers a paper can still cite the
+    software itself, which a DOI-less file locates by its repository.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        SOFTWARE_RECORD_CFF_PATH.read_text(encoding="utf-8")
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SOFTWARE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.title == "daf_butler"
+    assert entry.citation.doi is None
+    assert entry.citation.url == "https://github.com/lsst/daf_butler"
+
+
+def test_citations_cff_provenance_reaches_the_html_context(
+    tmp_path: Path,
+) -> None:
+    """A cff-sourced entry carries which file and which record supplied its
+    fields, so a build reporting a field neither source states can name where
+    the value belongs.
+
+    The software record of this file dates nothing — no date-released, no
+    date-published, no year — where its preferred citation is dated, which is
+    why the record has to be carried alongside the path.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        SOFTWARE_RECORD_CFF_PATH.read_text(encoding="utf-8")
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SOFTWARE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.date is None
+    # The path as documenteer.toml wrote it, which is what an author edits.
+    assert entry.cff == "../CITATION.cff"
+    assert entry.cff_preferred is False
+    context = entry.to_html_context()
+    assert context["date"] is None
+    assert context["cff"] == "../CITATION.cff"
+    assert context["cff_preferred"] is False
+
+
+def test_citations_inline_entry_has_no_cff_provenance() -> None:
+    """An entry that states its own fields names no file, so a build reporting
+    a missing field offers only the entry's own field as the fix.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+
+    (entry,) = config.citations
+    assert entry.cff is None
+    assert entry.to_html_context()["cff"] is None
+
+
+EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+type = "dataset"
+"""
+
+
+def test_citations_type_overrides_cff(tmp_path: Path) -> None:
+    """A type set alongside cff overrides the file's own, the way every
+    other bibliographic field does.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.type is CitationType.dataset
+
+
+EXAMPLE_CITATIONS_TWO_SELF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+self = true
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+self = true
+"""
+
+
+def test_citations_two_self_entries_rejected() -> None:
+    """A site is the landing page of at most one DOI."""
+    with pytest.raises(ConfigError, match="self = true"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_TWO_SELF)
+
+
+EXAMPLE_CITATIONS_TWO_PREFERRED = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "A Dataset"
+preferred = true
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+title = "A Paper"
+preferred = true
+"""
+
+
+def test_citations_two_preferred_entries_rejected() -> None:
+    """A site asks readers to use one citation, so two entries claiming to be
+    it is a configuration error rather than a silent first-wins.
+    """
+    with pytest.raises(ConfigError, match="preferred = true"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_TWO_PREFERRED)
+
+
+EXAMPLE_CITATIONS_BAD_DOI = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "not-a-doi"
+title = "Example"
+"""
+
+
+def test_citations_malformed_doi_rejected() -> None:
+    """A value that is not a DOI is rejected when the config is loaded."""
+    with pytest.raises(ConfigError, match="Not a DOI"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_BAD_DOI)
+
+
+EXAMPLE_CITATIONS_BAD_TYPE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+type = "preprint"
+"""
+
+
+def test_citations_unknown_type_rejected() -> None:
+    """A type outside the vocabulary is rejected when the config is loaded,
+    with a message naming the values that are accepted.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_BAD_TYPE)
+
+    message = str(exc_info.value)
+    for value in ("dataset", "article", "software", "report", "other"):
+        assert value in message
+
+
+EXAMPLE_CITATIONS_MISSING_CFF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+label = "Software"
+"""
+
+
+def test_citations_missing_cff_file(tmp_path: Path) -> None:
+    """A cff path that names no file fails with an error naming the path."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_MISSING_CFF, root_dir=docs_dir
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    message = str(exc_info.value)
+    assert "label 'Software'" in message
+    assert str(tmp_path / "CITATION.cff") in message
+
+
+EXAMPLE_CITATIONS_NO_DOI = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example"
+"""
+
+
+def test_citations_without_doi_or_url_rejected() -> None:
+    """An entry that yields neither a DOI nor a URL from any source is an
+    error naming both fields, since either would locate the work.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_NO_DOI)
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    message = str(exc_info.value)
+    assert "neither a DOI nor a URL" in message
+    assert "Set doi or url" in message
+
+
+EXAMPLE_CITATIONS_CFF_BLANK_URL = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+label = "Software"
+"""
+
+
+def test_citations_cff_blank_url_is_no_location(tmp_path: Path) -> None:
+    """A CITATION.cff whose url holds only whitespace supplies no landing
+    page, so an entry reading it and declaring no DOI is rejected as
+    unlocatable rather than building a citation that renders without a link.
+
+    The reader treats every field that collapses to nothing as absent, so a
+    blank one arrives here as `None` — the same shape the field validator
+    guarantees for a url written inline — and the entry falls to the check
+    that names both fields.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        'cff-version: 1.2.0\ntitle: A package\ntype: software\nurl: "   "\n'
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_BLANK_URL, root_dir=docs_dir
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    assert "neither a DOI nor a URL" in str(exc_info.value)
+
+
+EXAMPLE_CITATIONS_SELF_WITHOUT_DOI = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example"
+url = "https://example.lsst.io/"
+self = true
+"""
+
+
+def test_citations_self_without_doi_rejected() -> None:
+    """The self entry is the claim to be a DOI's landing page, so a URL does
+    not stand in for the DOI it would resolve to.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_WITHOUT_DOI)
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    message = str(exc_info.value)
+    assert "self = true" in message
+    assert "declares no DOI" in message
+
+
+EXAMPLE_CITATIONS_URL_ONLY = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example Software"
+type = "software"
+url = "https://github.com/lsst/daf_butler"
+"""
+
+
+def test_citations_url_stands_in_for_a_doi() -> None:
+    """A work with no DOI is citable by its landing page, which is how CFF
+    and GitHub cite software that has never been deposited.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_URL_ONLY)
+
+    (entry,) = config.citations
+    assert entry.citation.doi is None
+    assert entry.citation.url == "https://github.com/lsst/daf_butler"
+
+
+CITATION_URL_TEMPLATE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example Software"
+url = "{value}"
+"""
+
+
+@pytest.mark.parametrize(
+    ("written", "match"),
+    [
+        ("", "url is empty"),
+        ("  ", "url is empty"),
+        ("github.com/lsst/daf_butler", "is not an absolute URL"),
+        ("/datasets/dp1", "is not an absolute URL"),
+        ("ftp://example.org/dp1.tar", "starts with ftp: rather than"),
+        ("mailto:data@example.org", "starts with mailto: rather than"),
+        ("localhost:8080/dp1", "starts with localhost: rather than"),
+        ("C:/data/dp1", "starts with C: rather than"),
+        ("https:///datasets/dp1", "names no host"),
+    ],
+)
+def test_citations_unlinkable_url_rejected(written: str, match: str) -> None:
+    """A url that is not an absolute http(s) URL is rejected when the
+    configuration loads, rather than reaching a rendered citation.
+
+    A blank one is the case that would otherwise pass silently: it is truthy,
+    so it satisfies the entry-level check that a work is locatable, and only
+    reduces to nothing where the citation is composed -- a plain-text
+    citation ending in a bare period, a BibTeX entry with neither ``url`` nor
+    ``doi``, and a JSON-LD node with no ``@id``. A scheme-less or root-
+    relative one is read as a path instead: the footer and the citation card
+    link it relative to whatever page is being rendered, and it reaches the
+    JSON-LD node as a relative IRI.
+
+    Each failure names itself: an ``ftp`` or ``mailto`` URL *is* absolute, so
+    reporting it as "not an absolute URL" would send its author looking for a
+    scheme they already wrote.
+    """
+    with pytest.raises(ConfigError, match=match):
+        DocumenteerConfig.load(CITATION_URL_TEMPLATE.format(value=written))
+
+
+EXAMPLE_CITATIONS_PADDED_URL = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Example Software"
+url = "  https://github.com/lsst/daf_butler  "
+"""
+
+
+def test_citations_url_is_stripped() -> None:
+    """Whitespace around a url is removed, so the value the locatable check
+    sees is the value the citation renders.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PADDED_URL)
+
+    (entry,) = config.citations
+    assert entry.citation.url == "https://github.com/lsst/daf_butler"
+
+
+EXAMPLE_CITATIONS_FOOTER = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+label = "Paper"
+title = "A Paper"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Site"
+self = true
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385501"
+label = "Dataset"
+title = "A Dataset"
+in_footer = true
+"""
+
+
+EXAMPLE_CITATIONS_PREFERRED = """
+
+[project]
+title = "Butler Guide"
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+type = "article"
+preferred = true
+title = "The Vera C. Rubin Observatory Data Butler"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+label = "Dataset"
+title = "A Dataset"
+"""
+
+
+def test_citations_preferred_without_self() -> None:
+    """A site whose preferred citation is a work published elsewhere marks it
+    `preferred`, which asks readers to cite it without claiming the site is
+    its landing page.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED)
+
+    preferred = config.preferred_citation
+    assert preferred is not None
+    assert preferred.label == "Paper"
+    assert preferred.is_preferred is True
+    assert preferred.is_self is False
+    # Nothing claims the site as a landing page, so no page emits the
+    # single-valued head metadata.
+    assert config.self_citation is None
+    assert [entry.in_footer for entry in config.citations] == [True, False]
+
+
+def test_set_citations_preferred_without_self() -> None:
+    """A site with a preferred citation but no self entry publishes the
+    preferred entry alone: nothing claims the site as a landing page, so the
+    head metadata has nothing to emit.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    preferred = html_context["documenteer_preferred_citation"]
+    assert preferred is not None
+    assert preferred["label"] == "Paper"
+    assert html_context["documenteer_self_citation"] is None
+
+
+EXAMPLE_CITATIONS_SELF_AND_PREFERRED = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Site"
+self = true
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+title = "A Paper"
+preferred = true
+"""
+
+
+def test_citations_self_and_preferred_are_different_entries() -> None:
+    """A site can be one DOI's landing page while asking readers to cite
+    another work, and the two claims are answered by different entries.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_AND_PREFERRED)
+
+    self_citation = config.self_citation
+    preferred = config.preferred_citation
+    assert self_citation is not None
+    assert preferred is not None
+    assert self_citation.label == "Site"
+    assert preferred.label == "Paper"
+    # Both default into the footer, in array order: the site is a landing
+    # page, which DataCite asks to display the citation of the DOI it is the
+    # landing page of, and it also asks readers to cite the paper.
+    assert [entry.in_footer for entry in config.citations] == [True, True]
+
+
+EXAMPLE_CITATIONS_SELF_OUT_OF_FOOTER = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Site"
+self = true
+in_footer = false
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+title = "A Paper"
+preferred = true
+"""
+
+
+def test_citations_self_can_opt_out_of_the_footer() -> None:
+    """A site that wants one footer citation rather than two writes
+    in_footer = false, and the explicit value wins over the default.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_OUT_OF_FOOTER)
+
+    assert [entry.in_footer for entry in config.citations] == [False, True]
+
+
+def test_citations_in_footer_defaults() -> None:
+    """in_footer defaults to true only for the self entry, and the array
+    order is preserved.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_FOOTER)
+
+    assert [entry.label for entry in config.citations] == [
+        "Paper",
+        "Site",
+        "Dataset",
+    ]
+    assert [entry.in_footer for entry in config.citations] == [
+        False,
+        True,
+        True,
+    ]
+    self_citation = config.self_citation
+    assert self_citation is not None
+    assert self_citation.label == "Site"
+    # The self entry takes its title from the project when it declares none.
+    assert self_citation.citation.title == "Example Guide"
+
+
+def test_set_citations_html_context() -> None:
+    """set_citations publishes the resolved citations into html_context,
+    including the plain-text and BibTeX renderings.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    (context,) = html_context["documenteer_citations"]
+    assert context["label"] == "Dataset"
+    assert context["type"] == "dataset"
+    assert context["is_self"] is True
+    assert context["in_footer"] is True
+    assert context["doi"] == "10.71929/rubin/2570308"
+    assert context["doi_url"] == "https://doi.org/10.71929/rubin/2570308"
+    assert context["year"] == 2025
+    assert context["date"] == "2025-06-30"
+    assert context["authors"] == [
+        {
+            "type": "organization",
+            "name": "Vera C. Rubin Observatory",
+            "citation_name": "Vera C. Rubin Observatory",
+            "ror": "https://ror.org/048g3cy84",
+        }
+    ]
+    assert context["plain_text"] == (
+        "Vera C. Rubin Observatory (2025). Data Preview 2. "
+        "Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308"
+    )
+    # The entry declares type = "dataset", so it copies out as the biblatex
+    # @dataset entry rather than as the generic @misc.
+    assert context["bibtex"].startswith("@dataset{")
+    assert "doi = {10.71929/rubin/2570308}" in context["bibtex"]
+    assert html_context["documenteer_self_citation"] is context
+    # The self entry is the preferred one by default, which is what keeps a
+    # configuration written before `preferred` existed unchanged.
+    assert html_context["documenteer_preferred_citation"] is context
+    assert context["is_preferred"] is True
+
+
+def test_set_citations_publishes_jsonld() -> None:
+    """set_citations also publishes the citations as a serialized schema.org
+    JSON-LD document, ready for the guide's <head>.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    assert payload["@context"] == "https://schema.org"
+    # The self citation declares type = "dataset", so the site is published
+    # as a data release's landing page rather than as a plain WebSite.
+    assert payload["@type"] == "Dataset"
+    assert payload["@id"] == "https://doi.org/10.71929/rubin/2570308"
+    assert payload["identifier"]["value"] == "10.71929/rubin/2570308"
+    assert payload["name"] == "Data Preview 2"
+    # The site's own base_url, not the doi.org redirect, is the node's url.
+    assert payload["url"] == "https://dp0-2.lsst.io/"
+
+
+def test_set_citations_publishes_highwire_tags() -> None:
+    """set_citations also publishes the self citation's Highwire meta tags,
+    composed against the site's own base URL, ready for the guide's <head>.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    assert html_context["documenteer_self_citation_metatags"].splitlines() == [
+        '<meta name="citation_title" content="Data Preview 2">',
+        '<meta name="citation_author" content="Vera C. Rubin Observatory">',
+        '<meta name="citation_publication_date" content="2025/06/30">',
+        '<meta name="citation_doi" content="10.71929/rubin/2570308">',
+        '<meta name="citation_publisher" content="Vera C. Rubin Observatory">',
+        '<meta name="citation_fulltext_html_url" '
+        'content="https://dp0-2.lsst.io/">',
+        '<meta name="DC.identifier" '
+        'content="https://doi.org/10.71929/rubin/2570308">',
+    ]
+
+
+def test_set_citations_without_a_self_entry_emits_no_tags() -> None:
+    """A site with a preferred citation but no self entry is no DOI's landing
+    page, so it publishes no meta tags at all — not even the title and authors
+    of the work it asks readers to cite, which is published elsewhere.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    assert html_context["documenteer_self_citation_metatags"] is None
+
+
+def test_set_citations_without_citations() -> None:
+    """A site without [[project.citations]] leaves html_context untouched."""
+    config = DocumenteerConfig.load(EXAMPLE)
+    assert config.citations == []
+    assert config.self_citation is None
+
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+    assert html_context == {}
+
+
+EXAMPLE_CITATIONS_NAMELESS_AUTHOR = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+authors = [{ orcid = "0000-0003-3001-676X" }]
+"""
+
+EXAMPLE_CITATIONS_DOUBLE_NAMED_AUTHOR = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+authors = [{ name = "Rubin Observatory", family_name = "Sick" }]
+"""
+
+
+@pytest.mark.parametrize(
+    ("example", "match"),
+    [
+        (EXAMPLE_CITATIONS_NAMELESS_AUTHOR, "has no name"),
+        (EXAMPLE_CITATIONS_DOUBLE_NAMED_AUTHOR, "both name and family_name"),
+    ],
+)
+def test_citation_author_naming_rejected(example: str, match: str) -> None:
+    """An author must be named either as an organization or as a person."""
+    with pytest.raises(ConfigError, match=match):
+        DocumenteerConfig.load(example)
+
+
+EXAMPLE_CITATIONS_PAGES = """
+
+[project]
+title = "Data Preview 2 Documentation"
+base_url = "https://dp2.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+self = true
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Object (Butler)"
+type = "dataset"
+page = "products/catalogs/object#butler"
+title = "Object catalog (Butler)"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+label = "Object (TAP)"
+type = "dataset"
+page = "/products/catalogs/object#tap"
+title = "Object catalog (TAP)"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382541"
+label = "Visit"
+type = "dataset"
+page = "products/catalogs/visit"
+title = "Visit table"
+"""
+
+
+def test_citations_page_claims() -> None:
+    """A page claim is split into the docname and its fragment, with a
+    leading slash on the docname dropped; an entry that claims no page
+    carries neither.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PAGES)
+
+    site, butler, tap, visit = config.citations
+    assert site.page is None
+    assert site.page_fragment is None
+    assert butler.page == "products/catalogs/object"
+    assert butler.page_fragment == "butler"
+    assert tap.page == "products/catalogs/object"
+    assert tap.page_fragment == "tap"
+    assert visit.page == "products/catalogs/visit"
+    assert visit.page_fragment is None
+
+
+def test_citations_page_in_html_context() -> None:
+    """The page claim reaches html_context, which is where the extension
+    that rewrites a claimed page's metadata reads it from.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PAGES)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    site, butler, _, visit = html_context["documenteer_citations"]
+    assert site["page"] is None
+    assert site["page_fragment"] is None
+    assert butler["page"] == "products/catalogs/object"
+    assert butler["page_fragment"] == "butler"
+    assert visit["page"] == "products/catalogs/visit"
+    assert visit["page_fragment"] is None
+
+
+EXAMPLE_CITATIONS_DUPLICATE_PAGE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog (Butler)"
+page = "products/object#tap"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+title = "Object catalog (TAP)"
+page = "products/object#tap"
+"""
+
+
+def test_citations_duplicate_page_rejected() -> None:
+    """Two entries that name the same docname *and* fragment claim the same
+    landing page, which no page can be for two DOIs.
+    """
+    with pytest.raises(ConfigError, match="products/object#tap"):
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_DUPLICATE_PAGE)
+
+
+EXAMPLE_CITATIONS_SELF_WITH_PAGE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+self = true
+page = "products/catalogs/object"
+"""
+
+
+def test_citations_self_with_page_rejected() -> None:
+    """``self`` says the site is the DOI's landing page and ``page`` names a
+    landing page inside the site, so an entry that sets both states two
+    landing pages for one DOI.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_SELF_WITH_PAGE)
+
+    message = str(exc_info.value)
+    assert "self = true" in message
+    assert "page = 'products/catalogs/object'" in message
+
+
+EXAMPLE_CITATIONS_PREFERRED_WITH_PAGE = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Object"
+type = "dataset"
+page = "products/catalogs/object"
+title = "Object catalog"
+preferred = true
+"""
+
+
+def test_citations_preferred_with_page_allowed() -> None:
+    """``preferred`` and ``page`` are compatible: a site can ask readers to
+    cite a work whose landing page is one of its own pages.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PREFERRED_WITH_PAGE)
+
+    preferred = config.preferred_citation
+    assert preferred is not None
+    assert preferred.label == "Object"
+    assert preferred.page == "products/catalogs/object"
+    assert preferred.is_self is False
+
+
+EXAMPLE_CITATIONS_EMPTY_PAGE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+page = "#butler"
+"""
+
+EXAMPLE_CITATIONS_EMPTY_FRAGMENT = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+page = "products/object#"
+"""
+
+EXAMPLE_CITATIONS_TWO_FRAGMENTS = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+page = "products/object#butler#tap"
+"""
+
+
+@pytest.mark.parametrize(
+    ("example", "match"),
+    [
+        (EXAMPLE_CITATIONS_EMPTY_PAGE, "names no page"),
+        (EXAMPLE_CITATIONS_EMPTY_FRAGMENT, "empty fragment"),
+        (EXAMPLE_CITATIONS_TWO_FRAGMENTS, "more than one"),
+    ],
+)
+def test_citations_malformed_page_rejected(example: str, match: str) -> None:
+    """A page claim is a docname with at most one non-empty fragment."""
+    with pytest.raises(ConfigError, match=match):
+        DocumenteerConfig.load(example)
+
+
+CITATION_DATE_TEMPLATE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+title = "Example"
+self = true
+date = {value}
+"""
+
+
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("2025-06-30", PartialDate(2025, 6, 30)),
+        ("2025", PartialDate(2025)),
+        ('"2025-06"', PartialDate(2025, 6)),
+        ('"2025"', PartialDate(2025)),
+    ],
+)
+def test_citation_date_keeps_the_precision_it_is_written_in(
+    written: str, expected: PartialDate
+) -> None:
+    """A citation date is written as a TOML date, a bare year, or a quoted
+    ISO 8601 date, and each is kept at the precision it states — TOML has a
+    date type but no year or year-month type.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_DATE_TEMPLATE.format(value=written)
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.date == expected
+
+
+@pytest.mark.parametrize(
+    "written", ['"June 2025"', '"2025-13"', '"2025-06-00"', "20250", "true"]
+)
+def test_citation_date_rejects_a_value_that_is_not_a_date(
+    written: str,
+) -> None:
+    """A value that is not one of the three forms is rejected with a message
+    that names all three, rather than being read as some nearby date.
+    """
+    with pytest.raises(ConfigError, match=r"date = 2025-06-30"):
+        DocumenteerConfig.load(CITATION_DATE_TEMPLATE.format(value=written))
+
+
+@pytest.mark.parametrize(
+    ("written", "published"),
+    [("2025-06-30", "2025-06-30"), ("2025", "2025"), ('"2025-06"', "2025-06")],
+)
+def test_citation_json_ld_publishes_the_stated_precision(
+    written: str, published: str
+) -> None:
+    """The schema.org ``datePublished`` a page carries is the date the
+    configuration stated, never a day it filled in.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_DATE_TEMPLATE.format(value=written)
+    )
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    assert payload["datePublished"] == published
+
+
+CITATION_CFF_YEAR = """cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Example Software"
+type: software
+preferred-citation:
+  type: article
+  title: "An article"
+  doi: 10.5281/zenodo.10385500
+  year: 2022
+"""
+
+EXAMPLE_CITATIONS_CFF_SELF = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+self = true
+"""
+
+
+@pytest.mark.parametrize(
+    ("extra", "published"),
+    [("", "2022"), ("  month: 8\n", "2022-08")],
+)
+def test_cff_citation_publishes_the_files_precision(
+    tmp_path: Path, extra: str, published: str
+) -> None:
+    """A CITATION.cff that dates a work to the year, or to the month, is
+    published at that precision rather than at a day the file never wrote.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_YEAR + extra)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SELF, root_dir=docs_dir
+    )
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    assert payload["datePublished"] == published

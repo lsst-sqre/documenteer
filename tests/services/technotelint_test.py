@@ -5,12 +5,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import pytest_responses  # noqa: F401
 import requests
 from responses import RequestsMock, matchers
 
+from documenteer.services.technotecff import TechnoteCffService
 from documenteer.services.technotelint import (
     CHECKS,
+    Check,
+    IgnoredRule,
+    IgnoreSource,
     LintContext,
     Severity,
     TechnoteLintService,
@@ -18,6 +23,7 @@ from documenteer.services.technotelint import (
     check_requirements,
     rule_url,
 )
+from documenteer.services.technoteread import TechnoteDocument, read_technote
 from documenteer.storage.authordb import AuthorDb
 
 AUTHOR_JSON = """
@@ -101,17 +107,26 @@ def _mock_name_search(
     )
 
 
+CONF_PY = "from documenteer.conf.technote import *  # noqa: F401,F403\n"
+"""The conf.py every technote has, and that the lint's Sphinx read needs."""
+
+
 def _write_technote(tmp_path: Path, toml_content: str) -> LintContext:
     """Write a technote.toml into ``tmp_path`` and build a context.
 
-    Also writes an ``index.rst`` with a well-formed abstract and a sane
-    ``requirements.txt`` so the content-group abstract check (TN201/TN202)
-    and the structural requirements check (TN002/TN003) stay silent and
-    these metadata-focused tests observe only author/schema findings.
+    Also writes a ``conf.py``, an ``index.rst`` with a well-formed abstract,
+    and a sane ``requirements.txt``, so the content-group abstract check
+    (TN201/TN202) and the structural requirements check (R002/R003) stay
+    silent and these metadata-focused tests observe only author/schema
+    findings. The document's H1 is the technote's title whenever the TOML
+    declares none, so it is written as something a title comparison can
+    recognize.
     """
     (tmp_path / "technote.toml").write_text(toml_content)
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
-        "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
+        "############\nThe technote\n############\n\n"
+        ".. abstract::\n\n   An abstract.\n"
     )
     (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
     return LintContext.from_dir(tmp_path, AuthorDb())
@@ -143,7 +158,7 @@ internal_id = "sickj"
 
 
 def test_missing_internal_id(tmp_path: Path) -> None:
-    """Each author lacking an internal_id yields one TN101 error."""
+    """Each author lacking an internal_id yields one R101 error."""
     context = _write_technote(
         tmp_path,
         """
@@ -161,14 +176,14 @@ name.family = "Economou"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101", "TN101"]
+    assert [f.code for f in findings] == ["R101", "R101"]
     assert all(f.severity is Severity.error for f in findings)
 
 
 def test_missing_internal_id_suggests_orcid_match(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A TN101 author whose ORCID is in the DB gets a suggested ID."""
+    """An R101 author whose ORCID is in the DB gets a suggested ID."""
     _mock_orcid_lookup(
         responses,
         "0009-0008-9216-7516",
@@ -195,7 +210,7 @@ orcid = "https://orcid.org/0009-0008-9216-7516"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == (
         "Author Yusra AlSayyad is missing an internal_id. Did you mean "
         "'alsayyady' (matched by ORCID)? Run 'documenteer technote "
@@ -206,7 +221,7 @@ orcid = "https://orcid.org/0009-0008-9216-7516"
 def test_internal_id_not_found(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """An internal_id absent from the author DB (404) yields TN102."""
+    """An internal_id absent from the author DB (404) yields R102."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/nobody",
         body="Not found",
@@ -226,14 +241,14 @@ internal_id = "nobody"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].severity is Severity.error
 
 
 def test_unknown_internal_id_suggests_name_match(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A TN102 author with one near-exact name match gets a suggested ID."""
+    """An R102 author with one near-exact name match gets a suggested ID."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/lynnej",
         body="Not found",
@@ -265,7 +280,7 @@ internal_id = "lynnej"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].message == (
         "Author Lynne Jones has internal_id 'lynnej', which is not in the "
         "author database. Did you mean 'jonesrl' (R. Lynne Jones, matched "
@@ -301,7 +316,7 @@ name.family = "Jones"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == "Author L. Jones is missing an internal_id."
 
 
@@ -328,7 +343,7 @@ name.family = "Nobody"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert (
         findings[0].message == "Author Nemo Nobody is missing an internal_id."
     )
@@ -365,7 +380,7 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert (
         findings[0].message == "Author Derek Jones is missing an internal_id."
     )
@@ -394,7 +409,7 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].severity is Severity.error
     assert (
         findings[0].message
@@ -403,7 +418,7 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
 
 
 def test_authordb_unreachable(tmp_path: Path, responses: RequestsMock) -> None:
-    """An unreachable author DB yields a TN103 warning, not an error."""
+    """An unreachable author DB yields an R103 warning, not an error."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/sickj",
         body=requests.ConnectionError("connection refused"),
@@ -422,7 +437,7 @@ internal_id = "sickj"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN103"]
+    assert [f.code for f in findings] == ["R103"]
     assert findings[0].severity is Severity.warning
 
 
@@ -444,7 +459,7 @@ name.family = "Economou"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    # The second author has no internal_id, but TN101 needs the parsed model,
+    # The second author has no internal_id, but R101 needs the parsed model,
     # so only the schema finding is reported.
     assert [f.code for f in findings] == ["TN001"]
     assert findings[0].severity is Severity.error
@@ -453,7 +468,13 @@ name.family = "Economou"
 def test_invalid_schema_still_runs_toml_independent_checks(
     tmp_path: Path,
 ) -> None:
-    """A schema failure no longer suppresses the TN002/TN2xx checks."""
+    """A schema failure no longer suppresses the requirements checks.
+
+    The content checks are the exception: they read the document through
+    the technote's own Sphinx build, which cannot be configured from a
+    technote.toml that does not conform, so TN001 is the whole story about
+    the metadata and nothing is said twice.
+    """
     (tmp_path / "technote.toml").write_text(
         """
 [technote]
@@ -463,6 +484,7 @@ id = "SQR-000"
 name.given = "Jonathan"
 """
     )
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
     )
@@ -470,7 +492,7 @@ name.given = "Jonathan"
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN001", "TN201", "TN002", "TN003"]
+    assert [f.code for f in findings] == ["TN001", "R002", "R003"]
 
 
 def test_legacy_single_string_author_name_reports_tn001(
@@ -576,24 +598,27 @@ def test_missing_toml_reports_tn004(tmp_path: Path) -> None:
 def test_malformed_toml_reports_tn005(tmp_path: Path) -> None:
     """A syntactically broken technote.toml yields a TN005 error.
 
-    The TOML-independent checks still run, so the missing abstract and
-    requirements.txt are reported in the same pass.
+    The TOML-independent checks still run, so the missing requirements.txt
+    is reported in the same pass. The content checks do not: Sphinx cannot
+    be configured from a technote.toml it cannot read, and TN005 has already
+    said so.
     """
     (tmp_path / "technote.toml").write_text("[technote\nid = ")
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\nIntroduction\n============\n\nBody.\n"
     )
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN005", "TN201", "TN002"]
+    assert [f.code for f in findings] == ["TN005", "R002"]
     assert findings[0].severity is Severity.error
 
 
-def test_author_record_malformed_reports_tn102(
+def test_author_record_malformed_reports_r102(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A 200 response with an unparseable author body yields a TN102 error."""
+    """A 200 response with an unparseable author body yields an R102 error."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/sickj",
         body="{ not valid json",
@@ -614,9 +639,1084 @@ internal_id = "sickj"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].severity is Severity.error
     assert "malformed" in findings[0].message
+
+
+def test_malformed_doi_reports_schema_error(tmp_path: Path) -> None:
+    """A [technote] doi that is not a DOI is a schema-conformance error.
+
+    technote 0.10.0 validates and normalizes ``[technote] doi`` inside
+    ``TechnoteToml.parse_toml``, so a malformed DOI raises
+    `pydantic.ValidationError` before any rule sees a parsed model and the
+    linter reports it as TN001. That is why the DOI has no rule of its own:
+    the TN001 finding names both the ``technote.doi`` field and the offending
+    value, so it stands alone as the report.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+doi = "10.71929"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN001"]
+    assert findings[0].severity is Severity.error
+    assert "technote.doi" in findings[0].message
+    assert "10.71929" in findings[0].message
+
+
+@pytest.mark.parametrize(
+    "doi",
+    [
+        "10.71929/rubin/2570308",
+        "https://doi.org/10.71929/rubin/2570308",
+        "doi:10.71929/rubin/2570308",
+        "doi: 10.71929/rubin/2570308",
+    ],
+)
+def test_well_formed_doi_passes(
+    tmp_path: Path, responses: RequestsMock, doi: str
+) -> None:
+    """Every spelling the DOI normalizer accepts is silent."""
+    # A well-formed DOI reaches TN105's DataCite cross-check, so the
+    # registered metadata has to be answered here: without this
+    # registration the request is refused, TN105 degrades down its
+    # DataCite-unreachable path, and this test would pass for that reason
+    # rather than for the spelling it is about. One registration serves
+    # every parametrization because each spelling normalizes to this same
+    # API URL, and the fixture's assert_all_requests_are_fired makes that
+    # normalization an assertion.
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        f"""
+[technote]
+id = "SQR-000"
+doi = "{doi}"
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_absent_doi_passes(tmp_path: Path) -> None:
+    """A technote that declares no DOI is not flagged."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_empty_doi_passes(tmp_path: Path) -> None:
+    """An empty ``doi`` placeholder is an unset DOI, not a finding.
+
+    technote documents ``doi = ""`` as a placeholder that existing
+    ``technote.toml`` files may keep, and normalizes it to `None` when the
+    file is parsed. The linter has to agree: a technote awaiting its first
+    DOI must lint clean.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+doi = ""
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+CITABLE_HEADER = """
+[technote]
+id = "SQR-000"
+title = "The technote"
+doi = "10.71929/rubin/2570308"
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+"""
+"""The non-author half of a technote.toml with a DOI and a title."""
+
+
+def _author_block(
+    given: str, family: str, internal_id: str, orcid: str | None = None
+) -> str:
+    """Write one ``[[technote.authors]]`` block."""
+    block = (
+        "\n[[technote.authors]]\n"
+        f'name.given = "{given}"\n'
+        f'name.family = "{family}"\n'
+        f'internal_id = "{internal_id}"\n'
+    )
+    if orcid is not None:
+        block += f'orcid = "{orcid}"\n'
+    return block
+
+
+CITABLE_TOML = CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj")
+"""A technote.toml with enough metadata to compose a CITATION.cff.
+
+Its one author declares an ``internal_id``, so the author checks (R1xx)
+resolve it against the mocked author database rather than reporting.
+"""
+
+
+def test_stale_citation_cff_reports_tn106(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A CITATION.cff that differs from technote.toml yields a TN106 error."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    (tmp_path / "CITATION.cff").write_text(
+        "cff-version: 1.2.0\ntitle: An older title\n"
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN106"]
+    assert findings[0].severity is Severity.error
+    assert "documenteer technote sync-cff" in findings[0].message
+
+
+def test_current_citation_cff_passes(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A CITATION.cff that sync-cff would regenerate identically is silent."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    generator = TechnoteCffService.from_technote_toml(
+        tmp_path / "technote.toml"
+    )
+    (tmp_path / "CITATION.cff").write_text(generator.render())
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_absent_citation_cff_passes(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A repository that has not adopted CITATION.cff is silent."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert not (tmp_path / "CITATION.cff").exists()
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+
+
+def test_citation_cff_is_compared_against_the_document_title(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """TN106 titles the generated file the way sync-cff does.
+
+    A technote that declares no ``[technote] title`` is titled by its H1, so
+    a CITATION.cff carrying that title is current — comparing against a file
+    titled by the technote's id instead would report every such repository as
+    permanently stale.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    untitled = CITABLE_TOML.replace('title = "The technote"\n', "")
+    context = _write_technote(tmp_path, untitled)
+    generator = TechnoteCffService.from_technote_toml(
+        tmp_path / "technote.toml", document_title="The technote"
+    )
+    (tmp_path / "CITATION.cff").write_text(generator.render())
+
+    assert TechnoteLintService(context).lint() == []
+    assert "The technote" in (tmp_path / "CITATION.cff").read_text()
+
+
+def test_unreadable_technote_reports_tn203(tmp_path: Path) -> None:
+    """A technote Sphinx cannot read is one error, naming what went wrong."""
+    (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "index.rst").write_text(RST_WITH_ABSTRACT)
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
+    # No conf.py, so there is no Sphinx build to read the document through.
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+
+    findings = TechnoteLintService(context).lint()
+
+    assert [f.code for f in findings] == ["TN203"]
+    assert findings[0].severity is Severity.error
+    assert "index.rst" in findings[0].message
+    assert "conf.py" in findings[0].message
+
+
+def test_unreadable_document_leaves_citation_cff_to_tn203(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote Sphinx cannot read reports the read failure, not staleness.
+
+    The CITATION.cff on disk was written by an earlier successful sync, so it
+    is titled by the document's H1. Titling the regenerated file by the
+    technote's id instead — which is what an unresolved title falls back to —
+    would report the file as stale, and TN106's remedy would then fail with
+    the very read error TN203 is already reporting.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    untitled = CITABLE_TOML.replace('title = "The technote"\n', "").replace(
+        'doi = "10.71929/rubin/2570308"\n', ""
+    )
+    (tmp_path / "technote.toml").write_text(untitled)
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
+    generator = TechnoteCffService.from_technote_toml(
+        tmp_path / "technote.toml", document_title="The technote"
+    )
+    (tmp_path / "CITATION.cff").write_text(generator.render())
+    # A notebook that is not valid JSON: conf.py is present, so the technote
+    # is one Sphinx builds, but the document itself will not read.
+    (tmp_path / "index.ipynb").write_text("{ not json")
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+
+    findings = TechnoteLintService(context).lint()
+
+    assert [f.code for f in findings] == ["TN203"]
+
+
+def test_the_technote_is_read_once_per_lint_run(
+    tmp_path: Path, responses: RequestsMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every rule that needs the document shares one Sphinx read.
+
+    This run has three askers — the abstract check, TN105's title
+    comparison, and TN106's CITATION.cff comparison — and a Sphinx build
+    each would be three times the cost for one answer.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    # CITABLE_TOML already declares the DOI TN105 cross-checks; dropping the
+    # title is what sends TN105 and TN106 to the document for one.
+    context = _write_technote(
+        tmp_path, CITABLE_TOML.replace('title = "The technote"\n', "")
+    )
+    (tmp_path / "CITATION.cff").write_text("cff-version: 1.2.0\n")
+
+    reads: list[Path] = []
+
+    def counting_read(root_dir: Path) -> TechnoteDocument:
+        reads.append(root_dir)
+        return read_technote(root_dir)
+
+    monkeypatch.setattr(
+        "documenteer.services.technotelint.read_technote", counting_read
+    )
+
+    findings = TechnoteLintService(context).lint()
+
+    assert reads == [tmp_path]
+    # TN106: the hand-written CITATION.cff is not what sync-cff generates.
+    assert [f.code for f in findings] == ["TN106"]
+
+
+def test_uncitable_technote_toml_skips_tn106(tmp_path: Path) -> None:
+    """A technote nothing can name reports no CITATION.cff staleness.
+
+    A technote that declares neither a title nor an id, and whose document
+    supplies no title either, stops the CITATION.cff generator, so there is
+    nothing to compare the stale-looking file against and TN106 is silent.
+    This one is a technote-series repository Sphinx does not build, which is
+    what leaves the title unresolved. (The DOI is no longer a way to reach
+    this path: technote 0.10.0 validates ``[technote] doi`` inside
+    ``parse_toml``, so a malformed one fails schema conformance long before
+    the CITATION.cff comparison — see #439.)
+    """
+    (tmp_path / "technote.toml").write_text("[technote]\n")
+    (tmp_path / "requirements.txt").write_text("")
+    (tmp_path / "CITATION.cff").write_text("cff-version: 1.2.0\n")
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == []
+
+
+DOI = "10.71929/rubin/2570308"
+"""The DOI the DataCite cross-check tests declare in technote.toml."""
+
+DATACITE_URL = f"https://api.datacite.org/dois/{DOI}"
+"""The API URL TN105 reads that DOI's registered metadata from."""
+
+
+def _creator(
+    *,
+    given: str | None = None,
+    family: str | None = None,
+    name: str | None = None,
+    name_type: str = "Personal",
+    orcid: str | None = None,
+) -> dict[str, object]:
+    """Build one ``creators`` entry, shaped as Rubin's minter registers it.
+
+    ``orcid`` is deposited verbatim as a ``nameIdentifier``, so a test can
+    register either a bare identifier or an ``orcid.org`` URL.
+    """
+    entry: dict[str, object] = {"nameType": name_type}
+    if given is not None:
+        entry["givenName"] = given
+    if family is not None:
+        entry["familyName"] = family
+    if name is not None:
+        entry["name"] = name
+    elif given is not None and family is not None:
+        entry["name"] = f"{family}, {given}"
+    entry["nameIdentifiers"] = (
+        []
+        if orcid is None
+        else [{"nameIdentifier": orcid, "nameIdentifierScheme": "ORCID"}]
+    )
+    return entry
+
+
+def _datacite_body(
+    *,
+    title: str = "The technote",
+    creators: tuple[dict[str, object], ...] = (
+        {
+            "nameType": "Personal",
+            "givenName": "Jonathan",
+            "familyName": "Sick",
+            "name": "Sick, Jonathan",
+        },
+    ),
+) -> str:
+    """Build a DataCite ``/dois/{id}`` response body for `DOI`."""
+    return json.dumps(
+        {
+            "data": {
+                "id": DOI,
+                "type": "dois",
+                "attributes": {
+                    "doi": DOI,
+                    "titles": [{"title": title}],
+                    "creators": list(creators),
+                    "publisher": "Vera C. Rubin Observatory",
+                    "publicationYear": 2026,
+                },
+            }
+        }
+    )
+
+
+def _mock_author(responses: RequestsMock) -> None:
+    """Mock the author-database lookup CITABLE_TOML's one author needs."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+
+
+def _mock_second_author(responses: RequestsMock) -> None:
+    """Mock the lookup TWO_AUTHOR_TOML's second author needs."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/alsayyady",
+        body=json.dumps(
+            _author_record(
+                "alsayyady",
+                "Yusra",
+                "AlSayyad",
+                "https://orcid.org/0000-0002-1793-3689",
+            )
+        ),
+        content_type="application/json",
+        status=200,
+    )
+
+
+TWO_AUTHOR_TOML = CITABLE_TOML + _author_block(
+    "Yusra", "AlSayyad", "alsayyady"
+)
+"""CITABLE_TOML with a second author, for the author-set comparison."""
+
+SICK = _creator(given="Jonathan", family="Sick")
+"""The creator CITABLE_TOML's author is registered as."""
+
+ALSAYYAD = _creator(given="Yusra", family="AlSayyad")
+"""The creator TWO_AUTHOR_TOML's second author is registered as."""
+
+
+def test_datacite_title_drift_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A registered title that differs from technote.toml is a TN105
+    warning.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="An older title"),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert findings[0].severity is Severity.warning
+    assert "title" in findings[0].message
+    assert "An older title" in findings[0].message
+    assert "The technote" in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+def test_datacite_author_drift_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A registered author list that differs from technote.toml is a TN105
+    warning.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(ALSAYYAD,)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "authors" in findings[0].message
+    assert "AlSayyad, Yusra" in findings[0].message
+    assert "Sick, Jonathan" in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+def test_datacite_drift_names_every_differing_field(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Title and author drift are reported together, in one finding."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="An older title", creators=(ALSAYYAD,)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "title" in findings[0].message
+    assert "authors" in findings[0].message
+
+
+def test_matching_datacite_metadata_passes(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Registered metadata that agrees with technote.toml is silent."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "The technote",
+        "the TECHNOTE",
+        "The  technote\n",
+    ],
+)
+def test_title_comparison_tolerates_case_and_whitespace(
+    tmp_path: Path, responses: RequestsMock, title: str
+) -> None:
+    """Case and whitespace differences in a title are not drift."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title=title),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "creators",
+    [
+        (SICK, ALSAYYAD),
+        # The order DataCite lists creators in is not metadata drift.
+        (ALSAYYAD, SICK),
+        # Neither is how either side spells a name's case.
+        (
+            _creator(given="JONATHAN", family="sick"),
+            _creator(given="Yusra", family="Alsayyad"),
+        ),
+    ],
+)
+def test_author_comparison_tolerates_order_and_case(
+    tmp_path: Path,
+    responses: RequestsMock,
+    creators: tuple[dict[str, object], ...],
+) -> None:
+    """Authors are paired regardless of order, ignoring case."""
+    _mock_author(responses)
+    _mock_second_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=creators),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, TWO_AUTHOR_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "registered_family",
+    ["Ibáñez", "Ibanez", "IBÁÑEZ"],
+)
+def test_family_name_comparison_folds_accents(
+    tmp_path: Path, responses: RequestsMock, registered_family: str
+) -> None:
+    """A family name registered without its accents is the same name."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/ibanezj",
+        body=json.dumps(_author_record("ibanezj", "José", "Ibáñez")),
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(_creator(given="José", family=registered_family),)
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("José", "Ibáñez", "ibanezj"),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    ("registered_given", "declared_given"),
+    [
+        # A middle initial the record carries and technote.toml does not.
+        ("James F.", "James"),
+        # A first initial technote.toml drops in favour of the name used.
+        ("R. Lynne", "Lynne"),
+        # An initial standing in for the whole given name.
+        ("J.", "Jonathan"),
+    ],
+)
+def test_given_name_comparison_tolerates_initials(
+    tmp_path: Path,
+    responses: RequestsMock,
+    registered_given: str,
+    declared_given: str,
+) -> None:
+    """A given name abbreviated on either side is the same author."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(_creator(given=registered_given, family="Sick"),)
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block(declared_given, "Sick", "sickj"),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_differing_given_name_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A given name that shares a family name but not an initial is drift."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(_creator(given="John", family="Sick"),)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path, CITABLE_HEADER + _author_block("James", "Sick", "sickj")
+    )
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "Sick, John" in findings[0].message
+    assert "Sick, James" in findings[0].message
+
+
+def test_transposed_name_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A given and family name registered the wrong way round is drift.
+
+    This is the drift the old token-set comparison silently accepted: sorting
+    a name's tokens makes a transposition compare equal to the original.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(_creator(given="Sick", family="Jonathan"),)
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "Jonathan, Sick" in findings[0].message
+    assert "Sick, Jonathan" in findings[0].message
+
+
+def test_added_author_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An author the record registers and technote.toml does not is named."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(SICK, ALSAYYAD)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "AlSayyad, Yusra" in findings[0].message
+    assert "Sick, Jonathan" not in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+def test_dropped_author_reports_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An author technote.toml declares and the record omits is named."""
+    _mock_author(responses)
+    _mock_second_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(SICK,)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, TWO_AUTHOR_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "AlSayyad, Yusra" in findings[0].message
+    assert DATACITE_URL in findings[0].message
+
+
+ORCID = "0000-0003-3001-676X"
+"""The ORCID CITABLE_TOML's author holds."""
+
+
+def test_orcid_match_settles_a_differing_name(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An author paired by ORCID is not reported for spelling their name
+    differently.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(
+                    given="Jonathan",
+                    family="Sick",
+                    orcid=f"https://orcid.org/{ORCID}",
+                ),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER
+        + _author_block("Jon", "Sicke", "sickj", f"https://orcid.org/{ORCID}"),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_orcid_match_normalizes_both_spellings(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A bare ORCID and an orcid.org URL identify the same author."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(given="J.", family="Sicke", orcid=ORCID.lower()),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj", ORCID),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_author_with_no_registered_orcid_falls_back_to_the_name(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An ORCID only one side declares leaves the names to decide."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=(SICK,)),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj", ORCID),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+OTHER_ORCID = "0000-0002-1793-3689"
+"""An ORCID belonging to somebody other than CITABLE_TOML's author."""
+
+
+def test_conflicting_orcids_are_reported(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A creator that names the declared author under a different ORCID is
+    reported, rather than paired over by the name pass.
+
+    The two sides agree on the name, so the name pass pairs them — but one of
+    the two ORCIDs identifies somebody else, and an ORCID is the claim this
+    rule trusts above any spelling of a name.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(given="Jonathan", family="Sick", orcid=OTHER_ORCID),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER + _author_block("Jonathan", "Sick", "sickj", ORCID),
+    )
+
+    findings = TechnoteLintService(context).lint()
+
+    assert [f.code for f in findings] == ["TN105"]
+    assert (
+        "the ORCID registered for 'Sick, Jonathan' is "
+        f"https://orcid.org/{OTHER_ORCID}, but technote.toml declares "
+        f"https://orcid.org/{ORCID}"
+    ) in findings[0].message
+
+
+def test_committee_creator_matches_its_declared_author(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A creator registered as a family name alone is compared on it.
+
+    This is a real record under the ``10.71929`` prefix: Rubin's minter
+    registers a committee as a ``Personal`` creator with only a
+    ``familyName``, which leaves a literal ``null`` in the formatted ``name``
+    it composes. Reading the formatted name would report drift over that
+    artifact; the decomposed family name has no such defect.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/scoc",
+        body=json.dumps(
+            _author_record(
+                "scoc", "", "Rubin's Survey Cadence Optimization Committee"
+            )
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(
+                    family="Rubin's Survey Cadence Optimization Committee",
+                    name="Rubin's Survey Cadence Optimization Committee, null",
+                ),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER
+        + _author_block(
+            "", "Rubin's Survey Cadence Optimization Committee", "scoc"
+        ),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_organizational_creator_matches_its_declared_author(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """An organizational creator is compared on its formatted name."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/rubinobs",
+        body=json.dumps(
+            _author_record("rubinobs", "", "Vera C. Rubin Observatory")
+        ),
+        content_type="application/json",
+        status=200,
+    )
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            creators=(
+                _creator(
+                    name="Vera C. Rubin Observatory",
+                    name_type="Organizational",
+                ),
+            )
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_HEADER
+        + _author_block("", "Vera C. Rubin Observatory", "rubinobs"),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_unregistered_doi_skips_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A DOI DataCite does not know is silent, not drift."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body='{"errors":[{"status":"404"}]}',
+        content_type="application/vnd.api+json",
+        status=404,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        requests.ConnectionError("no route to host"),
+        requests.ReadTimeout("too slow"),
+    ],
+)
+def test_unreachable_datacite_skips_tn105(
+    tmp_path: Path, responses: RequestsMock, failure: Exception
+) -> None:
+    """A technote author with no network gets a clean lint run."""
+    _mock_author(responses)
+    responses.get(DATACITE_URL, body=failure)
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_datacite_server_error_skips_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A DataCite outage is silent rather than reported as drift."""
+    _mock_author(responses)
+    responses.get(DATACITE_URL, body="Service unavailable", status=503)
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_unreadable_datacite_response_skips_tn105(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A response that is not a DOI record leaves the metadata unknown."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body='{"meta": {}}',
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_malformed_doi_skips_datacite(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A DOI that is not a DOI asks DataCite nothing.
+
+    technote 0.10.0 validates ``[technote] doi`` inside ``parse_toml``, so
+    the malformed value is a schema-conformance failure (TN001) and TN105
+    never gets a parsed model to cross-check.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+title = "The technote"
+doi = "10.71929"
+""",
+    )
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN001"]
+    assert len(responses.calls) == 0
+
+
+def test_absent_doi_skips_datacite(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote with no DOI has nothing to cross-check."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+title = "The technote"
+""",
+    )
+    assert TechnoteLintService(context).lint() == []
+    assert len(responses.calls) == 0
+
+
+def test_title_comparison_uses_the_document_title(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote titled by its own H1 is compared on that title.
+
+    ``technote migrate`` never writes a ``[technote] title``, so this is the
+    normal technote: the title DataCite registers is the document's heading,
+    and comparing only what technote.toml declares would skip the check for
+    almost every technote there is.
+    """
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="A registered title", creators=()),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+doi = "10.71929/rubin/2570308"
+""",
+    )
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "A registered title" in findings[0].message
+    # The H1 of the index.rst `_write_technote` writes.
+    assert "The technote" in findings[0].message
+
+
+def test_untitled_technote_skips_the_title_comparison(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote with no title anywhere cannot disagree about one.
+
+    This one is a technote-series repository Sphinx does not build, so there
+    is no document to take a title from either.
+    """
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="A registered title", creators=()),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    (tmp_path / "technote.toml").write_text(
+        """[technote]
+id = "SQR-000"
+doi = "10.71929/rubin/2570308"
+"""
+    )
+    (tmp_path / "requirements.txt").write_text("")
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_authorless_datacite_record_skips_the_author_comparison(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A record that lists no creators is not read as an empty author set."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(creators=()),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    assert TechnoteLintService(context).lint() == []
 
 
 def _write_non_sphinx_technote(tmp_path: Path, toml_content: str) -> None:
@@ -698,7 +1798,7 @@ internal_id = "nobody"
     context = LintContext.from_dir(tmp_path, AuthorDb())
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
 
 
 def _context_with_content(
@@ -706,11 +1806,13 @@ def _context_with_content(
 ) -> LintContext:
     """Write a minimal technote.toml plus a content file, build a context.
 
-    Also writes a sane ``requirements.txt`` so the structural requirements
-    check (TN002/TN003) stays silent for content-focused tests that route
-    through the full ``lint()`` aggregation.
+    Also writes the ``conf.py`` the lint's Sphinx read builds through and a
+    sane ``requirements.txt``, so the structural requirements check
+    (R002/R003) stays silent for content-focused tests that route through the
+    full ``lint()`` aggregation.
     """
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / filename).write_text(content)
     (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
     return LintContext.from_dir(tmp_path, AuthorDb())
@@ -869,7 +1971,9 @@ Body text.
     findings = check_abstract(context)
     assert [f.code for f in findings] == ["TN204"]
     assert findings[0].severity is Severity.error
-    assert findings[0].message.startswith("index.rst:5:")
+    # docutils records no line for the node an rST directive returns, so the
+    # finding locates the file it is written in and stops there.
+    assert findings[0].message.startswith("index.rst: ")
     assert ".. abstract::" in findings[0].message
 
 
@@ -935,7 +2039,9 @@ Body text.
     findings = check_abstract(context)
     assert [f.code for f in findings] == ["TN202"]
     assert findings[0].severity is Severity.error
-    assert findings[0].message.startswith("index.rst:5:")
+    # The line is docutils': for an rST section it is the title's adornment
+    # line, one below the title text.
+    assert findings[0].message.startswith("index.rst:6:")
     assert ".. abstract::" in findings[0].message
 
 
@@ -1017,8 +2123,13 @@ def test_include_of_missing_file_reports_tn201(tmp_path: Path) -> None:
     assert [f.code for f in check_abstract(context)] == ["TN201"]
 
 
-def test_include_outside_technote_root_is_ignored(tmp_path: Path) -> None:
-    """An include that escapes the technote root is not scanned."""
+def test_include_outside_technote_root_passes(tmp_path: Path) -> None:
+    """An include that reaches outside the technote root is still an abstract.
+
+    The check reports what the *document* publishes, and Sphinx pulls the
+    file in wherever it lives, so an abstract factored out one directory up
+    is an abstract.
+    """
     (tmp_path / "abstract.rst").write_text(
         ".. abstract::\n\n   A web-native single page document.\n"
     )
@@ -1030,7 +2141,7 @@ def test_include_outside_technote_root_is_ignored(tmp_path: Path) -> None:
         "Introduction\n============\n\nBody text.\n"
     )
     context = _context_with_content(root, "index.rst", content)
-    assert [f.code for f in check_abstract(context)] == ["TN201"]
+    assert check_abstract(context) == []
 
 
 def test_empty_notebook_abstract_reports_tn204_without_line(
@@ -1146,28 +2257,28 @@ def test_sane_requirements_with_floor_pin_pass(tmp_path: Path) -> None:
     assert check_requirements(context) == []
 
 
-def test_missing_documenteer_reports_tn002(tmp_path: Path) -> None:
-    """requirements.txt without documenteer yields a TN002 warning."""
+def test_missing_documenteer_reports_r002(tmp_path: Path) -> None:
+    """requirements.txt without documenteer yields an R002 warning."""
     context = _context_with_requirements(tmp_path, "sphinx-prompt\n")
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN002"]
+    assert [f.code for f in findings] == ["R002"]
     assert findings[0].severity is Severity.warning
 
 
-def test_documenteer_without_technote_extra_reports_tn002(
+def test_documenteer_without_technote_extra_reports_r002(
     tmp_path: Path,
 ) -> None:
-    """Documenteer declared without the [technote] extra yields TN002."""
+    """Documenteer declared without the [technote] extra yields R002."""
     context = _context_with_requirements(tmp_path, "documenteer\n")
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN002"]
+    assert [f.code for f in findings] == ["R002"]
     assert findings[0].severity is Severity.warning
 
 
-def test_documenteer_with_other_extra_reports_tn002(tmp_path: Path) -> None:
-    """Documenteer with only a non-technote extra still yields TN002."""
+def test_documenteer_with_other_extra_reports_r002(tmp_path: Path) -> None:
+    """Documenteer with only a non-technote extra still yields R002."""
     context = _context_with_requirements(tmp_path, "documenteer[guide]\n")
-    assert [f.code for f in check_requirements(context)] == ["TN002"]
+    assert [f.code for f in check_requirements(context)] == ["R002"]
 
 
 def test_documenteer_extra_aggregated_across_lines(tmp_path: Path) -> None:
@@ -1178,36 +2289,36 @@ def test_documenteer_extra_aggregated_across_lines(tmp_path: Path) -> None:
     assert check_requirements(context) == []
 
 
-def test_missing_requirements_file_reports_tn002(tmp_path: Path) -> None:
-    """A technote directory with no requirements.txt yields TN002."""
+def test_missing_requirements_file_reports_r002(tmp_path: Path) -> None:
+    """A technote directory with no requirements.txt yields R002."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
     context = LintContext.from_dir(tmp_path, AuthorDb())
-    assert [f.code for f in check_requirements(context)] == ["TN002"]
+    assert [f.code for f in check_requirements(context)] == ["R002"]
 
 
-def test_sphinx_pinned_separately_reports_tn003(tmp_path: Path) -> None:
-    """A separate sphinx requirement yields a TN003 warning."""
+def test_sphinx_pinned_separately_reports_r003(tmp_path: Path) -> None:
+    """A separate sphinx requirement yields an R003 warning."""
     context = _context_with_requirements(
         tmp_path, "documenteer[technote]\nsphinx==8.1.0\n"
     )
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN003"]
+    assert [f.code for f in findings] == ["R003"]
     assert findings[0].severity is Severity.warning
 
 
-def test_sphinx_declared_without_version_reports_tn003(tmp_path: Path) -> None:
-    """An unversioned separate sphinx requirement still yields TN003."""
+def test_sphinx_declared_without_version_reports_r003(tmp_path: Path) -> None:
+    """An unversioned separate sphinx requirement still yields R003."""
     context = _context_with_requirements(
         tmp_path, "documenteer[technote]\nSphinx\n"
     )
-    assert [f.code for f in check_requirements(context)] == ["TN003"]
+    assert [f.code for f in check_requirements(context)] == ["R003"]
 
 
 def test_requirements_drift_reports_both_warnings(tmp_path: Path) -> None:
     """Missing documenteer[technote] and a separate sphinx pin both fire."""
     context = _context_with_requirements(tmp_path, "sphinx==8.1.0\n")
     findings = check_requirements(context)
-    assert [f.code for f in findings] == ["TN002", "TN003"]
+    assert [f.code for f in findings] == ["R002", "R003"]
     assert all(f.severity is Severity.warning for f in findings)
 
 
@@ -1216,6 +2327,7 @@ def test_requirements_findings_surface_through_lint(
 ) -> None:
     """check_requirements' warnings are aggregated by the service."""
     (tmp_path / "technote.toml").write_text('[technote]\nid = "SQR-000"\n')
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(RST_WITH_ABSTRACT)
     (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
     context = LintContext.from_dir(tmp_path, AuthorDb())
@@ -1223,7 +2335,7 @@ def test_requirements_findings_surface_through_lint(
     findings = service.lint()
     # Warnings only (no author or abstract errors), so --strict would
     # promote exactly these to make the run fatal.
-    assert [f.code for f in findings] == ["TN002", "TN003"]
+    assert [f.code for f in findings] == ["R002", "R003"]
     assert all(f.severity is Severity.warning for f in findings)
 
 
@@ -1283,7 +2395,7 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == (
         "Author Lynne Jones is missing an internal_id. Did you mean "
         "'jonesrl' (R. Lynne Jones, matched by ORCID)? Run 'documenteer "
@@ -1320,7 +2432,7 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert findings[0].message == (
         "Author Lynne Jones is missing an internal_id. Did you mean "
         "'jonesrl' (R. Lynne Jones, matched by name)? Run 'documenteer "
@@ -1365,14 +2477,14 @@ orcid = "https://orcid.org/0000-0003-3001-676X-extra"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN101"]
+    assert [f.code for f in findings] == ["R101"]
     assert "matched by name" in findings[0].message
 
 
-def test_both_lookups_failing_keeps_plain_tn102_message(
+def test_both_lookups_failing_keeps_plain_r102_message(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A TN102 finding is untouched when every suggestion lookup fails."""
+    """An R102 finding is untouched when every suggestion lookup fails."""
     responses.get(
         "https://roundtable.lsst.cloud/ook/authors/lynnej",
         body="Not found",
@@ -1398,9 +2510,280 @@ orcid = "https://orcid.org/0000-0001-5916-0031"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN102"]
+    assert [f.code for f in findings] == ["R102"]
     assert findings[0].severity is Severity.error
     assert findings[0].message == (
         "Author Lynne Jones has internal_id 'lynnej', which is not in the "
         "author database."
     )
+
+
+def test_check_defaults_its_docs_url_to_the_documenteer_page() -> None:
+    """A check that names no page documents itself on documenteer.lsst.io."""
+    check = Check(
+        code="TN999",
+        name="a-rule",
+        description="A rule.",
+        severity=Severity.warning,
+    )
+    assert (
+        check.docs_url
+        == "https://documenteer.lsst.io/technotes/lint/tn999.html"
+    )
+
+
+def test_check_can_document_itself_elsewhere() -> None:
+    """A rule set documented outside Documenteer names its own page.
+
+    Rule codes are stable identifiers a repository configures against, so a
+    rule set that moves — into the ``technote`` package, say — keeps its
+    codes and changes only where it is documented.
+    """
+    check = Check(
+        code="TN999",
+        name="a-rule",
+        description="A rule.",
+        severity=Severity.warning,
+        docs_url="https://example.org/rules/tn999.html",
+    )
+    assert check.docs_url == "https://example.org/rules/tn999.html"
+
+
+IGNORE_TN105 = """
+[technote.lint]
+ignore = ["TN105"]
+"""
+"""The ``[technote.lint]`` table that switches the DataCite rule off."""
+
+
+def test_ignored_rule_reports_nothing_and_asks_datacite_nothing(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A rule named in [technote.lint] ignore does not run at all.
+
+    No DataCite request is the substance of the feature, not a detail: a
+    permanently-warning rule that still leaves the machine on every run
+    would only be half switched off. The registered record is deliberately
+    not mocked here, so a request would fail the run's ``responses`` fixture
+    rather than pass silently.
+    """
+    _mock_author(responses)
+    context = _write_technote(tmp_path, CITABLE_TOML + IGNORE_TN105)
+    assert TechnoteLintService(context).lint() == []
+    assert not [
+        call
+        for call in responses.calls
+        if "api.datacite.org" in str(call.request.url)
+    ]
+
+
+def test_ignored_rules_are_named_with_their_source(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """The run reports which rules it skipped and where that was configured."""
+    _mock_author(responses)
+    context = _write_technote(tmp_path, CITABLE_TOML + IGNORE_TN105)
+    service = TechnoteLintService(context)
+    service.lint()
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN105", source=IgnoreSource.toml)
+    ]
+
+
+def test_ignored_author_rules_never_reach_the_author_database(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """Ignoring R101-R103 keeps the author database out of the run."""
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["R101", "R102", "R103", "TN105"]
+""",
+    )
+    assert TechnoteLintService(context).lint() == []
+    assert len(responses.calls) == 0
+
+
+def test_unknown_ignore_code_reports_tn007(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A code no rule carries is reported, and the valid entries still hold."""
+    _mock_author(responses)
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["TN150", "TN105"]
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN007"]
+    assert "TN150" in findings[0].message
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN105", source=IgnoreSource.toml)
+    ]
+    assert not [
+        call
+        for call in responses.calls
+        if "api.datacite.org" in str(call.request.url)
+    ]
+
+
+def test_non_list_ignore_reports_tn001(tmp_path: Path) -> None:
+    """An ignore setting that is not an array ignores nothing."""
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = "TN105"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    # technote owns the table's schema: the wrong shape is a TN001 finding,
+    # and the linter does not report the same mistake a second time as TN007.
+    assert [f.code for f in findings] == ["TN001"]
+    assert "technote.lint.ignore" in findings[0].message
+    assert service.ignored_rules == []
+
+
+def test_non_string_ignore_entry_reports_tn001(tmp_path: Path) -> None:
+    """An entry that is not a string fails technote's schema (TN001)."""
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = [105, "TN105"]
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN001"]
+    assert "technote.lint.ignore" in findings[0].message
+    # Nothing is read from a table technote rejects, so TN105 is not off.
+    assert service.ignored_rules == []
+
+
+def test_non_table_lint_settings_reports_tn001(tmp_path: Path) -> None:
+    """A [technote.lint] that is not a table has no settings to read."""
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+title = "The technote"
+lint = "off"
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN001"]
+    assert "technote.lint" in findings[0].message
+    assert service.ignored_rules == []
+
+
+def test_file_ignore_codes_must_match_technote_s_shape(tmp_path: Path) -> None:
+    """``tn105`` in technote.toml is not a rule code to technote's schema."""
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["tn105"]
+""",
+    )
+    service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN001"]
+    assert "tn105" in findings[0].message
+    assert service.ignored_rules == []
+
+
+def test_cli_ignore_codes_are_matched_case_insensitively(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """``--ignore tn105`` names the same rule as ``TN105``."""
+    _mock_author(responses)
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    service = TechnoteLintService(context, ignore=["tn105"])
+    assert service.lint() == []
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN105", source=IgnoreSource.cli)
+    ]
+
+
+def test_ignore_survives_a_schema_invalid_technote_toml(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A file that fails schema validation still configures the linter.
+
+    The lint configuration is read from the file's own text rather than
+    through technote's parsed model, precisely so that a technote can ignore
+    a rule while another part of the file is what a rule is reporting on.
+    """
+    context = _write_technote(
+        tmp_path,
+        """
+[technote]
+id = "SQR-000"
+
+[[technote.authors]]
+name = "Jonathan Sick"
+
+[technote.lint]
+ignore = ["TN001"]
+""",
+    )
+    service = TechnoteLintService(context)
+    assert service.lint() == []
+    assert service.ignored_rules == [
+        IgnoredRule(code="TN001", source=IgnoreSource.toml)
+    ]
+
+
+def test_command_line_ignore_combines_with_the_file(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """``--ignore`` adds to the file's list rather than replacing it."""
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML
+        + """
+[technote.lint]
+ignore = ["TN105"]
+""",
+    )
+    service = TechnoteLintService(context, ignore=["R101", "R102", "R103"])
+    assert service.lint() == []
+    assert service.ignored_rules == [
+        IgnoredRule(code="R101", source=IgnoreSource.cli),
+        IgnoredRule(code="R102", source=IgnoreSource.cli),
+        IgnoredRule(code="R103", source=IgnoreSource.cli),
+        IgnoredRule(code="TN105", source=IgnoreSource.toml),
+    ]
+    assert len(responses.calls) == 0
+
+
+def test_unknown_command_line_ignore_code_reports_tn007(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A ``--ignore`` typo is validated the same way the file's list is."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    service = TechnoteLintService(context, ignore=["TN150"])
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN007"]
+    assert "--ignore" in findings[0].message
+    assert service.ignored_rules == []

@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
+import pytest
 import pytest_responses  # noqa: F401
 import requests
 from click.testing import CliRunner
 from responses import RequestsMock, matchers
 
 from documenteer.cli import main
+from documenteer.services.technotelint import CHECKS
 
 AUTHOR_JSON = """
 {
@@ -21,6 +24,9 @@ AUTHOR_JSON = """
     "orcid": "https://orcid.org/0000-0003-3001-676X"
 }
 """
+
+CONF_PY = "from documenteer.conf.technote import *  # noqa: F401,F403\n"
+"""The conf.py the lint's Sphinx read builds the technote through."""
 
 VALID_TOML = """
 [technote]
@@ -51,6 +57,7 @@ def test_lint_success(tmp_path: Path, responses: RequestsMock) -> None:
         status=200,
     )
     (tmp_path / "technote.toml").write_text(VALID_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
@@ -72,6 +79,7 @@ def test_lint_requirements_drift_strict(
         status=200,
     )
     (tmp_path / "technote.toml").write_text(VALID_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
     (tmp_path / "index.rst").write_text(
         "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
     )
@@ -81,30 +89,115 @@ def test_lint_requirements_drift_strict(
     runner = CliRunner()
     result = runner.invoke(main, ["technote", "lint", "-d", str(tmp_path)])
     assert result.exit_code == 0, result.output
-    assert "[TN002]" in result.output
-    assert "[TN003]" in result.output
+    assert "[R002]" in result.output
+    assert "[R003]" in result.output
 
     strict = runner.invoke(
         main, ["technote", "lint", "-d", str(tmp_path), "--strict"]
     )
     assert strict.exit_code == 1, strict.output
-    assert "[TN002]" in strict.output
-    assert "[TN003]" in strict.output
+    assert "[R002]" in strict.output
+    assert "[R003]" in strict.output
 
 
 def test_lint_missing_internal_id(tmp_path: Path) -> None:
-    """An author missing an internal_id exits 1 with a TN101 finding."""
+    """An author missing an internal_id exits 1 with an R101 finding."""
     (tmp_path / "technote.toml").write_text(MISSING_ID_TOML)
 
     runner = CliRunner()
     result = runner.invoke(main, ["technote", "lint", "-d", str(tmp_path)])
     assert result.exit_code == 1
-    assert "[TN101]" in result.output
+    assert "[R101]" in result.output
     # The footer links each fired rule to its documentation landing page.
     assert (
-        "TN101: https://documenteer.lsst.io/technotes/lint/tn101.html"
+        "R101: https://documenteer.lsst.io/technotes/lint/r101.html"
         in result.output
     )
+
+
+def test_lint_ignore_option_silences_a_rule(tmp_path: Path) -> None:
+    """--ignore turns a rule off and says so in the summary."""
+    (tmp_path / "technote.toml").write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["technote", "lint", "-d", str(tmp_path), "--ignore", "R101"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "[R101]" not in result.output
+    assert "Ignored 1 rule: R101 (--ignore)." in result.output
+
+
+def test_lint_file_ignore_names_its_source(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A rule ignored by technote.toml is reported as off, not as passing."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    (tmp_path / "technote.toml").write_text(
+        VALID_TOML + '\n[technote.lint]\nignore = ["R002", "R003"]\n'
+    )
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    (tmp_path / "index.rst").write_text(
+        "#####\nTitle\n#####\n\n.. abstract::\n\n   An abstract.\n"
+    )
+    # documenteer[technote] absent and sphinx pinned separately: R002/R003.
+    (tmp_path / "requirements.txt").write_text("sphinx==8.1.0\n")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "lint", "-d", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "[R002]" not in result.output
+    assert (
+        "Ignored 2 rules: R002 (technote.toml [technote.lint]), "
+        "R003 (technote.toml [technote.lint])." in result.output
+    )
+    # --strict has nothing left to promote, so the run stays green.
+    strict = runner.invoke(
+        main, ["technote", "lint", "-d", str(tmp_path), "--strict"]
+    )
+    assert strict.exit_code == 0, strict.output
+
+
+def test_lint_unknown_ignore_code_reports_tn007(tmp_path: Path) -> None:
+    """A --ignore typo is a TN007 finding, not a silently ignored option."""
+    (tmp_path / "technote.toml").write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["technote", "lint", "-d", str(tmp_path), "--ignore", "TN150"],
+    )
+    assert result.exit_code == 1, result.output
+    assert "[TN007]" in result.output
+    assert "[R101]" in result.output
+
+
+def test_lint_footer_links_come_from_the_check_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The "Learn more" footer links where the rule says it is documented.
+
+    Every rule in the registry documents itself on documenteer.lsst.io today,
+    so this is the only way to see that the footer reads `Check.docs_url`
+    rather than deriving a Documenteer URL from the code.
+    """
+    monkeypatch.setitem(
+        CHECKS,
+        "R101",
+        replace(CHECKS["R101"], docs_url="https://example.org/r101.html"),
+    )
+    (tmp_path / "technote.toml").write_text(MISSING_ID_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "lint", "-d", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "R101: https://example.org/r101.html" in result.output
 
 
 def test_lint_missing_toml_reports_tn004(tmp_path: Path) -> None:
@@ -240,3 +333,257 @@ def test_add_author_malformed_orcid_record(
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert "validation error" not in result.output
     assert toml_path.read_text() == MISSING_ID_TOML
+
+
+CFF_TOML = """
+[technote]
+id = "SQR-000"
+title = "The LSST DM Technical Note Publishing Platform"
+canonical_url = "https://sqr-000.lsst.io/"
+doi = "10.71929/rubin/2570308"
+date_updated = 2026-08-24
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+
+[[technote.authors]]
+name = {given = "Jonathan", family = "Sick"}
+internal_id = "sickj"
+orcid = "https://orcid.org/0000-0003-3001-676X"
+"""
+
+
+def test_sync_cff_writes_and_is_idempotent(tmp_path: Path) -> None:
+    """sync-cff writes CITATION.cff, and a second run changes nothing."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    cff_path = tmp_path / "CITATION.cff"
+    written = cff_path.read_bytes()
+    assert b"preferred-citation" in written
+
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert cff_path.read_bytes() == written
+
+
+def test_sync_cff_warns_once_about_a_missing_date(tmp_path: Path) -> None:
+    """A technote dated only by its creation still generates a file, and the
+    command says once why that file carries no release date.
+    """
+    (tmp_path / "technote.toml").write_text(
+        CFF_TOML.replace(
+            "date_updated = 2026-08-24", "date_created = 2016-05-02T20:47:13Z"
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert result.output.count("declares no date_updated") == 1
+    assert "date-released" not in (tmp_path / "CITATION.cff").read_text()
+
+
+def test_sync_cff_check_absent(tmp_path: Path) -> None:
+    """--check passes when no CITATION.cff exists: adoption is opt-in."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert not (tmp_path / "CITATION.cff").exists()
+
+
+def test_sync_cff_check_absent_does_not_read_the_technote(
+    tmp_path: Path,
+) -> None:
+    """--check answers an absent CITATION.cff before building anything.
+
+    Rubin's shared technote workflow runs this check on every technote,
+    including the ones that never adopted a CITATION.cff. Reading the
+    document first would fail those repositories on a broken document that
+    no file on disk depends on — and this one's document does not read.
+    """
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    # A conf.py with no content file: Sphinx has no master document to read.
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "does not exist; nothing to check" in result.output
+    assert not (tmp_path / "CITATION.cff").exists()
+
+
+def test_sync_cff_check_stale(tmp_path: Path) -> None:
+    """--check fails on a stale CITATION.cff, and does not rewrite it."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    cff_path = tmp_path / "CITATION.cff"
+    cff_path.write_text("cff-version: 1.2.0\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 1
+    assert cff_path.read_text() == "cff-version: 1.2.0\n"
+
+
+def test_sync_cff_check_current(tmp_path: Path) -> None:
+    """--check passes once CITATION.cff has been synced."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    runner = CliRunner()
+    runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+
+
+def test_sync_cff_without_technote_toml(tmp_path: Path) -> None:
+    """A directory that is not a technote is reported, not tracebacked."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "technote.toml" in result.output
+
+
+def test_sync_cff_malformed_doi(tmp_path: Path) -> None:
+    """A DOI that is not a DOI is reported as a user error."""
+    (tmp_path / "technote.toml").write_text(
+        CFF_TOML.replace('doi = "10.71929/rubin/2570308"', 'doi = "nope"')
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Not a DOI" in result.output
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param(
+            CFF_TOML.replace(
+                'name = {given = "Jonathan", family = "Sick"}',
+                'name = "Jonathan Sick"',
+            ),
+            "The name of [[technote.authors]] entry 1",
+            id="name",
+        ),
+        pytest.param(
+            CFF_TOML + 'affiliations = ["Rubin Observatory"]\n',
+            "Affiliation 1 of [[technote.authors]] entry 1",
+            id="affiliation",
+        ),
+    ],
+)
+def test_sync_cff_malformed_author_shape(
+    tmp_path: Path, source: str, expected: str
+) -> None:
+    """An author field written as the wrong TOML type is reported as a user
+    error, not raised as a traceback out of the pre-commit hook.
+    """
+    (tmp_path / "technote.toml").write_text(source)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert expected in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert not (tmp_path / "CITATION.cff").exists()
+
+
+def test_sync_cff_titles_the_citation_from_the_document(
+    tmp_path: Path,
+) -> None:
+    """A technote with no TOML title is cited by its document's heading.
+
+    This is the normal technote: `technote migrate` never writes a
+    ``[technote] title``, and the built page publishes the H1.
+    """
+    (tmp_path / "technote.toml").write_text(
+        CFF_TOML.replace(
+            'title = "The LSST DM Technical Note Publishing Platform"\n', ""
+        )
+    )
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    (tmp_path / "index.rst").write_text(
+        "############################\n"
+        "A Title in the Document Only\n"
+        "############################\n"
+        "\n.. abstract::\n\n   An abstract.\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "no title" not in result.output
+    cff = (tmp_path / "CITATION.cff").read_text()
+    assert "title: A Title in the Document Only" in cff
+    assert "SQR-000" in cff  # still the series handle, as `number`
+
+
+def test_sync_cff_output_is_unchanged_by_the_document(tmp_path: Path) -> None:
+    """A technote.toml that declares a title keeps its byte-for-byte output.
+
+    An existing `--check` in CI has to stay green across this change, so a
+    titled technote must generate exactly what it generated before the
+    document was read at all.
+    """
+    without = tmp_path / "without"
+    without.mkdir()
+    (without / "technote.toml").write_text(CFF_TOML)
+
+    with_document = tmp_path / "with"
+    with_document.mkdir()
+    (with_document / "technote.toml").write_text(CFF_TOML)
+    (with_document / "conf.py").write_text(CONF_PY)
+    (with_document / "index.rst").write_text(
+        "#############\nA Different Heading Entirely\n#############\n"
+        "\n.. abstract::\n\n   An abstract.\n"
+    )
+
+    runner = CliRunner()
+    for root in (without, with_document):
+        assert (
+            runner.invoke(
+                main, ["technote", "sync-cff", "-d", str(root)]
+            ).exit_code
+            == 0
+        )
+
+    assert (with_document / "CITATION.cff").read_bytes() == (
+        without / "CITATION.cff"
+    ).read_bytes()
+
+
+def test_sync_cff_reports_an_unreadable_document(tmp_path: Path) -> None:
+    """A technote Sphinx cannot read is an error naming what went wrong."""
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    # A conf.py with no content file: Sphinx has no master document to read.
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "index.rst, index.md, index.ipynb" in result.output
+    assert not (tmp_path / "CITATION.cff").exists()
+    assert result.exception is None or isinstance(result.exception, SystemExit)

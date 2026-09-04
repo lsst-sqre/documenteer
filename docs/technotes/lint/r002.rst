@@ -1,8 +1,8 @@
-:og:description: TN002 fires when a technote's requirements.txt does not declare documenteer with the [technote] extra, so the technote theme and Sphinx configuration are not installed.
+:og:description: R002 fires when a technote's requirements.txt does not declare documenteer with the [technote] extra, so the technote theme and Sphinx configuration are not installed.
 
-#################################################
-requirements-declare-documenteer-technote (TN002)
-#################################################
+################################################
+requirements-declare-documenteer-technote (R002)
+################################################
 
 .. list-table::
    :header-rows: 1
@@ -28,7 +28,7 @@ Example of a failing technote
 
 .. code-block:: text
 
-   [TN002] requirements.txt should declare 'documenteer[technote]' so the technote theme and Sphinx configuration are installed.
+   [R002] requirements.txt should declare 'documenteer[technote]' so the technote theme and Sphinx configuration are installed.
 
 A bare ``documenteer`` requirement without the extra also fails, since the extra's dependencies (the technote theme among them) would not be installed.
 
@@ -43,10 +43,10 @@ Declare ``documenteer`` with the ``[technote]`` extra in :file:`requirements.txt
    documenteer[technote]>=2.0,<3.0
 
 The version bounds are recommended so that a future Documenteer major release cannot break your build unexpectedly.
-If your file pins Sphinx as a separate line, remove that line as well — that is :doc:`TN003 <tn003>`.
+If your file pins Sphinx as a separate line, remove that line as well — that is :doc:`R003 <r003>`.
 
 See also
 ========
 
-- :doc:`TN003 <tn003>` — do not pin Sphinx separately from ``documenteer[technote]``.
+- :doc:`R003 <r003>` — do not pin Sphinx separately from ``documenteer[technote]``.
 - :doc:`../migrate` — the migration tool writes a modern :file:`requirements.txt`.

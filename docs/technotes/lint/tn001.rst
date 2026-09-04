@@ -15,7 +15,7 @@ schema-conformance (TN001)
 :file:`technote.toml` must conform to the technote metadata schema.
 The file parsed as TOML (otherwise :doc:`TN005 <tn005>` fires), but one or more of its tables or fields does not match what the `technote <https://technote.lsst.io>`__ package expects, so the technote cannot be built or its metadata published.
 
-When this rule fires, the author rules (``TN1xx``) are skipped — they need the parsed metadata — but the requirements and content rules still run, so fix the schema problem first and re-run to see the full report.
+When this rule fires, the metadata rules (``TN1xx`` and ``R1xx``) are skipped — they all need the parsed metadata — but the requirements and content rules still run, so fix the schema problem first and re-run to see the full report.
 
 Example of a failing technote
 =============================
@@ -57,9 +57,39 @@ For the example above, the modern form is:
    name = { given = "Jonathan", family = "Sick" }
    internal_id = "sickj"
 
+.. _technote-lint-tn001-doi:
+
+A ``doi`` that is not a DOI
+===========================
+
+The other schema failure worth calling out is a ``[technote] doi`` that is not syntactically a DOI, because the DOI is the identifier every citation of the document resolves through — the "Citing this document" section, the BibTeX entry, the :file:`CITATION.cff` file, and the metadata registered with DataCite all read it.
+The field is validated when :file:`technote.toml` is parsed, so the finding names ``technote.doi`` along with the value it rejected:
+
+.. code-block:: text
+
+   [TN001] technote.toml does not conform to the schema: 1 validation error for TechnoteToml
+   technote.doi
+     Value error, Not a DOI (10.71929). A DOI looks like 10.5281/zenodo.10385500, and may also be given as a https://doi.org/ URL.
+
+Write the DOI in one of the accepted spellings — all three of these declare the same DOI, and Documenteer normalizes whichever you use to the bare ``10.NNNN/suffix`` form:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   doi = "10.71929/rubin/2570308"
+   # or
+   doi = "https://doi.org/10.71929/rubin/2570308"
+   # or
+   doi = "doi:10.71929/rubin/2570308"
+
+The usual causes are a DOI that lost its suffix (``10.71929`` with no ``/…`` after it), a DOI pasted with surrounding text, and a Zenodo or DataCite *record* URL pasted in place of the DOI itself.
+A technote with no DOI yet is not a finding: omit the field, or leave it as the ``doi = ""`` placeholder, which is read as an unset DOI.
+
 See also
 ========
 
 - :doc:`TN005 <tn005>` — fires instead when the file is not valid TOML at all.
 - :doc:`../configuration` — the :file:`technote.toml` reference.
 - :doc:`../migrate` — migrating a legacy technote to the modern format.
+- :doc:`../citation-file` — how the ``doi`` reaches the :file:`CITATION.cff` that GitHub renders.

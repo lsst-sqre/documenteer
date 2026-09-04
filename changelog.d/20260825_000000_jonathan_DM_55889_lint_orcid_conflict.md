@@ -1,0 +1,3 @@
+### New features
+
+- The **TN105** DataCite cross-check in `documenteer technote lint` now reports an author that `technote.toml` and the registered record identify under *conflicting* ORCIDs. The ORCID pass searches every registered creator, so an author that reaches the name pass still carrying an ORCID has established that no creator registers it, and a creator its name then matches necessarily registers a different one — meaning one of the two identifiers belongs to somebody else. Two ORCIDs are the one pair of values TN105 compares exactly rather than tolerantly, because the tolerance that keeps a reworded name quiet would only hide a mis-registered identifier. The finding names both ORCIDs as `orcid.org` URLs so either side can be checked.

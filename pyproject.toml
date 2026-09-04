@@ -69,7 +69,7 @@ guide = [
 ]
 technote = [
     # Theme and extensions for technotes
-    "technote>=0.9.1,<0.11.0",
+    "technote>=0.11.0,<0.12.0",
     "sphinx-prompt",
     "sphinxcontrib-mermaid>=1",
     # The `diagrams` (mingrammer) package backs documenteer.ext.diagrams, our
@@ -97,6 +97,10 @@ test = [
     "pytest",
     "pytest-mock",
     "pytest-responses",
+    # Validates generated CITATION.cff against the vendored CFF 1.2.0 JSON
+    # Schema in tests/data/cff. Already resolved transitively via nbformat;
+    # declared here so the test suite does not rely on it by accident.
+    "jsonschema>=4",
     # Test depedendencies for analyzing HTML output
     "lxml",
     "cssselect",
@@ -187,7 +191,10 @@ exclude_lines = [
 ]
 
 [tool.pytest.ini_options]
-norecursedirs = "node_modules"
+# .stoker/ holds the agent runner's scratch, including partial snapshots of
+# this tree; python_files matches on path, so a snapshot's tests/ would
+# otherwise be collected alongside the real ones.
+norecursedirs = ["node_modules", ".stoker"]
 python_files = ["tests/*.py", "tests/*/*.py"]
 
 [tool.mypy]

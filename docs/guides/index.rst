@@ -39,6 +39,7 @@ Documenteer provides a configuration profile for creating branded user guides wi
    badges
    tabsets
    video-embeds
+   citations
 
 .. toctree::
    :maxdepth: 2

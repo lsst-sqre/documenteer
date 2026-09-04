@@ -1,4 +1,4 @@
-:og:description: Documenteer's "technote lint" command checks a technote's metadata and structure — author IDs, the abstract, and requirements — before it is built and published.
+:og:description: Documenteer's "technote lint" command checks a technote's metadata and structure — author IDs, citation metadata, the abstract, and requirements — before it is built and published.
 
 .. _technote-lint:
 
@@ -8,7 +8,7 @@ Lint a technote
 
 Documenteer provides a command-line linter, :command:`documenteer technote lint`, that checks a technote's metadata and structure before it is built and published.
 Its most important job is verifying that every author has an ``internal_id`` that resolves in the Rubin author database (`authordb.yaml`_), since these IDs are needed to mint a DOI for the technote.
-The command also checks that the content declares an abstract and that :file:`requirements.txt` installs Documenteer correctly.
+The command also checks that the content declares an abstract, that :file:`requirements.txt` installs Documenteer correctly, and that the technote's citation metadata — its DOI, the metadata registered for that DOI with DataCite, and, where the repository has adopted one, its :file:`CITATION.cff` — is in order.
 
 Rubin's technote CI (from the `rubin-sphinx-technote-workflows <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows>`__ repository) runs this command so that builds fail early when a technote's metadata is incomplete.
 
@@ -27,14 +27,14 @@ If your technote uses the standard :file:`Makefile` (see :doc:`../migrate`), the
 
    make lint
 
-The command prints each issue it finds, prefixed with its stable rule code (for example, ``[TN101]``), followed by a summary and a link to the documentation page for every rule that fired:
+The command prints each issue it finds, prefixed with its stable rule code (for example, ``[R101]``), followed by a summary and a link to the documentation page for every rule that fired:
 
 .. code-block:: text
 
-   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
+   [R101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
    Found 1 error(s) and 0 warning(s).
    Learn more:
-     TN101: https://documenteer.lsst.io/technotes/lint/tn101.html
+     R101: https://documenteer.lsst.io/technotes/lint/r101.html
 
 The command exits with a non-zero status when any *error*-level issue remains, which is what causes a CI build to fail.
 *Warning*-level issues are reported but do not fail the command unless you pass ``--strict``.
@@ -45,19 +45,27 @@ Options
 ``--dir <path>``, ``-d <path>``
     Path to the technote directory to lint.
     Defaults to the current directory (``.``).
-    The command locates :file:`technote.toml`, the content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`), and :file:`requirements.txt` within this directory.
+    The command locates :file:`technote.toml`, the content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`), :file:`requirements.txt`, and :file:`CITATION.cff` within this directory.
 
 ``--strict``, ``-s``
     Promote all warnings to errors.
     With this flag, any finding — including the warning-level rules below — causes the command to exit non-zero.
+
+``--ignore <code>``
+    Switch off the rule with this code for this run, in addition to whatever :file:`technote.toml` already ignores.
+    Repeat the option to ignore several rules (``--ignore TN105 --ignore TN106``).
+    See :ref:`technote-lint-ignore`.
 
 .. _technote-lint-rules:
 
 Rules
 =====
 
-Each rule has a stable code so that findings are easy to triage (and, in the future, to except individually), and a landing page describing the rule, showing a failing technote, and walking through the fix.
-Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for metadata, and ``TN2xx`` for content.
+Each rule has a stable code so that findings are easy to triage, and so that a technote can :ref:`switch one off <technote-lint-ignore>` by name, and a landing page describing the rule, showing a failing technote, and walking through the fix.
+A code's prefix names the rule set it belongs to, and the number that follows names the concern.
+``TN`` rules check what any technote needs — its :file:`technote.toml`, its content file, its abstract — while ``R`` rules check Rubin's conventions and services, such as the Rubin author database and Rubin's technote packaging.
+The linter runs both sets together, and a finding names its set so that a code never has to change when the rule that carries it moves: the ``TN`` rules are expected to move into the `technote <https://technote.lsst.io>`__ package, and the ``R`` rules to stay here.
+Within either prefix the hundreds mean the same thing: ``0xx`` for structure and configuration, ``1xx`` for metadata, and ``2xx`` for content.
 
 .. list-table:: Technote lint rules
    :header-rows: 1
@@ -71,11 +79,11 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Structural
      - :file:`technote.toml` conforms to the technote schema.
      - Error
-   * - :doc:`TN002 <tn002>`
+   * - :doc:`R002 <r002>`
      - Structural
      - :file:`requirements.txt` declares ``documenteer`` with the ``[technote]`` extra.
      - Warning
-   * - :doc:`TN003 <tn003>`
+   * - :doc:`R003 <r003>`
      - Structural
      - :file:`requirements.txt` does not pin Sphinx as a separate requirement.
      - Warning
@@ -91,18 +99,30 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Structural
      - The technote has a content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`).
      - Error
-   * - :doc:`TN101 <tn101>`
+   * - :doc:`TN007 <tn007>`
+     - Structural
+     - The ``[technote.lint]`` configuration names rules the linter has.
+     - Warning
+   * - :doc:`R101 <r101>`
      - Metadata
      - Every author declares an ``internal_id``.
      - Error
-   * - :doc:`TN102 <tn102>`
+   * - :doc:`R102 <r102>`
      - Metadata
      - Each author's ``internal_id`` resolves in the Rubin author database.
      - Error
-   * - :doc:`TN103 <tn103>`
+   * - :doc:`R103 <r103>`
      - Metadata
      - The author database is reachable so that IDs can be resolved.
      - Warning
+   * - :doc:`TN105 <tn105>`
+     - Metadata
+     - The metadata registered with DataCite for the DOI matches the technote.
+     - Warning
+   * - :doc:`TN106 <tn106>`
+     - Metadata
+     - :file:`CITATION.cff` matches what :file:`technote.toml` generates.
+     - Error
    * - :doc:`TN201 <tn201>`
      - Content
      - The content file declares an abstract directive.
@@ -113,7 +133,7 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
      - Error
    * - :doc:`TN203 <tn203>`
      - Content
-     - The content file can be parsed to scan for an abstract.
+     - Sphinx can read the technote's document.
      - Error
    * - :doc:`TN204 <tn204>`
      - Content
@@ -124,25 +144,97 @@ Codes are grouped by concern: ``TN0xx`` for structural rules, ``TN1xx`` for meta
    :hidden:
 
    tn001
-   tn002
-   tn003
+   r002
+   r003
    tn004
    tn005
    tn006
-   tn101
-   tn102
-   tn103
+   tn007
+   r101
+   r102
+   r103
+   tn105
+   tn106
    tn201
    tn202
    tn203
    tn204
+
+.. _technote-lint-ignore:
+
+Ignoring a rule
+===============
+
+Occasionally a rule fires on a technote that cannot fix it, and will never be able to.
+A technote whose DOI was minted by some other service is the standing example: :doc:`TN105 <tn105>` correctly reports that the registered title and creators do not match :file:`technote.toml`, and none of its fixes apply, because only the owner of that deposit can edit the record (see :ref:`technote-lint-tn105-unchangeable`).
+Left alone, the warning is permanent and ``--strict`` is out of reach forever.
+
+List such a rule's code in the ``[technote.lint]`` table of the technote's :file:`technote.toml`:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote.lint]
+   # Zenodo DOI minted in 2016; a Rubin release cannot update its metadata.
+   ignore = ["TN105"]
+
+An ignored rule does not run at all.
+TN105 makes no DataCite request when it is ignored, and R101–R103 do not query the author database, so switching a network rule off makes the run faster as well as quieter.
+
+The linter reports what it skipped, so that a rule that is *off* never looks like a rule that *passed*:
+
+.. code-block:: text
+
+   ✅ Technote lint passed with no issues.
+   Ignored 1 rule: TN105 (technote.toml [technote.lint]).
+
+Ignored rules are counted apart from errors and warnings and never affect the exit code.
+A technote whose only finding is ignored passes ``--strict``, which is the point: an unfixable warning should not keep a repository from making every other warning fatal.
+
+Write a comment above each entry saying *why* the rule is off.
+The next person to read the file cannot otherwise tell a finding that is unfixable from one that is merely unfixed, and an ignore that outlives its reason quietly stops checking something worth checking.
+
+You can also ignore a rule for a single run, without editing the file, which is useful for trying ``--strict`` out:
+
+.. prompt:: bash
+
+   documenteer technote lint --ignore TN105 --strict
+
+The option is repeatable and adds to the file's list rather than replacing it.
+In the file, a code is written exactly as the rule table lists it — an uppercase prefix and a number, such as ``TN105`` — because the `technote <https://technote.lsst.io>`__ package validates the ``[technote.lint]`` table's shape when it reads :file:`technote.toml`; on the command line the case does not matter.
+
+A code that no rule carries — a typo, or a rule that has been retired — is reported as :doc:`TN007 <tn007>` rather than silently doing nothing.
+The valid entries around it still apply.
+An ``ignore`` written in the wrong shape — a bare string rather than an array, an entry that is not a string, or a lowercase code — fails technote's schema and is reported as :doc:`TN001 <tn001>`; nothing is read from a table technote rejects, so the rule the technote meant to switch off stays on until the file is fixed.
+
+.. note::
+
+   The ``[technote.lint]`` table is named for the thing it configures rather than for the tool that reads it.
+   Today that tool is Documenteer's :command:`documenteer technote lint`; the technote package owns the table's schema (since technote 0.11.0), and the linter itself is expected to move there too.
+
+   What a rule set cannot change is its **codes**, which repositories and CI configurations refer to; a rule set that documents its rules somewhere other than documenteer.lsst.io links its findings there instead.
+
+.. _technote-lint-offline:
+
+Running the linter offline
+==========================
+
+Most rules read files and the technote's own Sphinx build alone; two kinds of check leave the machine.
+:doc:`TN105 <tn105>` asks DataCite what a technote's DOI is registered as, and the author checks (:doc:`R101 <r101>`–:doc:`R103 <r103>`) resolve author IDs against the Rubin author database.
+
+The two behave differently when the network is not there, and deliberately so:
+
+- An unreachable **author database** is reported as :doc:`R103 <r103>`, a warning, because an unresolved ``internal_id`` is the thing that blocks a technote's DOI from being minted — silence would hide it.
+- An unreachable **DataCite** is silent. TN105 reports nothing at all, and neither does an unregistered DOI, so this check reads the same offline as it does with the network up.
+
+The Sphinx read the content and title rules use (:ref:`technote-lint-sphinx-read`) is offline too: it switches off the bibliography cache and the intersphinx inventories that a real technote build fetches, since neither changes what the document says.
 
 .. _technote-lint-suggested-ids:
 
 Suggested author IDs
 ====================
 
-An author ``internal_id`` that is missing (:doc:`TN101 <tn101>`) or unknown (:doc:`TN102 <tn102>`) is a dead end on its own, so the linter tries to name the ID you probably want.
+An author ``internal_id`` that is missing (:doc:`R101 <r101>`) or unknown (:doc:`R102 <r102>`) is a dead end on its own, so the linter tries to name the ID you probably want.
 It queries the author database twice at most and appends a suggestion when one entry matches confidently:
 
 #. If the author entry declares an ``orcid``, the linter asks the author database which author holds exactly that ORCID.
@@ -150,8 +242,8 @@ It queries the author database twice at most and appends a suggestion when one e
 
 .. code-block:: text
 
-   [TN101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
-   [TN102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
+   [R101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
+   [R102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
 
 The message states what the match is based on:
 
@@ -159,7 +251,7 @@ The message states what the match is based on:
 - **matched by name** — a single near-exact name match, whose ORCID (if it has one) does not contradict yours.
 
 Declaring an ``orcid`` for an author is therefore the surest way to get a usable suggestion, and the only one that works when the author database spells the name differently than you do.
-It also changes what a TN101 finding asks of you: an ORCID match is one :command:`documenteer technote sync-authors` can act on by itself — it resolves the same ORCID and writes the ``internal_id`` in for you — so the message reads *Run 'documenteer technote sync-authors' to add it*.
+It also changes what an R101 finding asks of you: an ORCID match is one :command:`documenteer technote sync-authors` can act on by itself — it resolves the same ORCID and writes the ``internal_id`` in for you — so the message reads *Run 'documenteer technote sync-authors' to add it*.
 A name match is only a suggestion for you to verify and type in, so its message reads *… after adding it*.
 
 The suggestion is deliberately conservative and best-effort: an ambiguous search (several equally good matches, as a common family name gives) or a match contradicted by a differing ORCID adds nothing to the message, and a failed lookup leaves the finding exactly as it would otherwise read.
@@ -170,13 +262,29 @@ A suggestion never changes whether the command passes or fails — verify it bef
 How the abstract is found
 =========================
 
-The abstract rules (``TN2xx``) work by scanning the source, not by running a Sphinx build, so it is worth knowing what the scan does and does not see.
+The abstract rules (``TN2xx``) read the document Sphinx builds — see :ref:`technote-lint-sphinx-read` — rather than scanning the source themselves, so what they report is what the published page carries:
 
 - Both the reStructuredText directive (``.. abstract::``) and the MyST fenced directive (a triple-backtick or ``:::`` fence opening with ``{abstract}``) are recognized, in any letter case — docutils lowercases directive names, so a ``{Abstract}`` fence builds and passes.
 - In reStructuredText, text on the marker line itself (``.. abstract:: The abstract.``) is directive content and passes.
-- Directive *options* (for example ``:class: dropdown``) are configuration rather than content, so a directive holding only options is empty (:doc:`TN204 <tn204>`).
-- An abstract factored into another file and pulled in with ``.. include::`` or a MyST ``{include}`` fence is found: those includes are resolved one level deep, relative to the content file. Includes within an included file are not followed, and an include that is missing or points outside the technote directory is ignored (Sphinx reports those itself).
-- An :file:`index.ipynb` notebook's markdown cells are concatenated before scanning, so its findings name the file without a line number.
+- Directive *options* (for example ``:class: dropdown``) are not content the directive publishes. The abstract directive declares no options, so docutils parses an option line as a field list, and a directive holding only options publishes nothing and is empty (:doc:`TN204 <tn204>`).
+- An abstract factored into another file and pulled in with ``.. include::`` or a MyST ``{include}`` fence is found, wherever that file lives and however deeply the includes nest: Sphinx resolves the includes, and the abstract is in the document either way. An include Sphinx cannot resolve simply contributes nothing, and Sphinx reports it when the technote is built.
+- A finding's ``file:line:`` prefix comes from the parsed document, so it names the file the markup is written in — the included file, where the abstract was factored out. Where the document records no line, the finding names the file alone. An :file:`index.ipynb` notebook is always located by file alone: MyST-NB numbers a notebook's lines per cell, so a line number there corresponds to nothing you could find in the file.
+
+.. _technote-lint-sphinx-read:
+
+The linter builds the technote
+==============================
+
+The rules about what a technote *publishes* — its abstract (``TN2xx``), and the title that :doc:`TN105 <tn105>` and :doc:`TN106 <tn106>` compare — get their answer by building the technote with Sphinx, once per run, using the ``dummy`` builder that reads the document and writes nothing.
+That is the technote's own build: its :file:`conf.py`, its extensions, its markup.
+A technote is titled by its document's top-level heading unless :file:`technote.toml` declares a ``title``, and :command:`documenteer technote migrate` never writes one, so reading the document is the only way to know what the technote is called.
+
+Two things follow:
+
+- :command:`documenteer technote lint` needs the ``technote`` extra: install :samp:`documenteer[technote]`, which a technote's :file:`requirements.txt` declares anyway (:doc:`R002 <r002>`).
+- A technote Sphinx cannot read — a missing :file:`index` file, a notebook that is not valid JSON, a :file:`conf.py` that raises — is reported as :doc:`TN203 <tn203>` carrying Sphinx's own message, rather than as a missing abstract.
+
+The read is quiet, writes its output to a temporary directory that is removed afterwards, and forces the technote's network-using extensions off, so it neither leaves anything behind in the repository nor breaks the linter's offline behavior.
 
 .. _technote-lint-non-sphinx:
 
@@ -184,17 +292,18 @@ Non-Sphinx technotes
 ====================
 
 Some technote-series repositories are not Sphinx projects at all: they publish through the shared technote CI with a custom build command (an Org-mode deck, for example).
-When a directory has no content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`) *and* no :file:`conf.py`, the linter treats it as one of these and checks only that its :file:`technote.toml` is well formed — :doc:`TN004 <tn004>`, :doc:`TN005 <tn005>`, :doc:`TN001 <tn001>`, and the author rules (``TN1xx``).
-The :file:`requirements.txt` rules (:doc:`TN002 <tn002>`/:doc:`TN003 <tn003>`), the content rules (``TN2xx``), and :doc:`TN006 <tn006>` are skipped, since they describe a Documenteer/Sphinx build that these repositories do not have.
+When a directory has no content file (:file:`index.rst`, :file:`index.md`, or :file:`index.ipynb`) *and* no :file:`conf.py`, the linter treats it as one of these and checks only that its :file:`technote.toml` is well formed — :doc:`TN004 <tn004>`, :doc:`TN005 <tn005>`, :doc:`TN001 <tn001>`, and the metadata rules (``TN1xx`` and ``R1xx``), which read :file:`technote.toml` alone.
+The :file:`requirements.txt` rules (:doc:`R002 <r002>`/:doc:`R003 <r003>`), the content rules (``TN2xx``), and :doc:`TN006 <tn006>` are skipped, since they describe a Documenteer/Sphinx build that these repositories do not have.
 A repository that *does* have a :file:`conf.py` but no content file is a broken Sphinx technote, and is reported as :doc:`TN006 <tn006>`.
 
 .. note::
 
    Author ``internal_id`` values are the key to consistent author identification across Rubin documents, and a missing or unknown ID blocks DOI generation.
-   See :doc:`../author-metadata` to learn how to add and update the authors that ``TN101``–``TN103`` check.
+   See :doc:`../author-metadata` to learn how to add and update the authors that ``R101``–``R103`` check.
 
 Related documentation
 =====================
 
-- :doc:`../author-metadata` — add and update the authors that the ``TN1xx`` rules check.
+- :doc:`../author-metadata` — add and update the authors that :doc:`R101 <r101>`–:doc:`R103 <r103>` check.
+- :doc:`../citation-file` — generate the :file:`CITATION.cff` that :doc:`TN106 <tn106>` keeps in sync with :file:`technote.toml`.
 - :doc:`../migrate` — the migration tool sets up the :file:`Makefile`, :file:`requirements.txt`, and abstract directive that these rules rely on.
