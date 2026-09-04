@@ -2633,7 +2633,7 @@ ignore = ["TN150", "TN105"]
     ]
 
 
-def test_non_list_ignore_reports_tn007(tmp_path: Path) -> None:
+def test_non_list_ignore_reports_tn001(tmp_path: Path) -> None:
     """An ignore setting that is not an array ignores nothing."""
     context = _write_technote(
         tmp_path,
@@ -2650,10 +2650,9 @@ ignore = "TN105"
     assert [f.code for f in findings] == ["TN001"]
     assert "technote.lint.ignore" in findings[0].message
     assert service.ignored_rules == []
-    assert service.ignored_rules == []
 
 
-def test_non_string_ignore_entry_reports_tn007(tmp_path: Path) -> None:
+def test_non_string_ignore_entry_reports_tn001(tmp_path: Path) -> None:
     """An entry that is not a string fails technote's schema (TN001)."""
     context = _write_technote(
         tmp_path,
@@ -2671,7 +2670,7 @@ ignore = [105, "TN105"]
     assert service.ignored_rules == []
 
 
-def test_non_table_lint_settings_reports_tn007(tmp_path: Path) -> None:
+def test_non_table_lint_settings_reports_tn001(tmp_path: Path) -> None:
     """A [technote.lint] that is not a table has no settings to read."""
     context = _write_technote(
         tmp_path,
