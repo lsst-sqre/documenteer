@@ -1183,9 +1183,9 @@ def compose_highwire_tags(
     `documenteer.ext.citationpage`). A page several entries claim emits none
     of them, because there is no one work the tags could be about.
 
-    The date is written as ``citation_publication_date`` rather than the
-    ``citation_date`` spelling the ``technote`` package uses: Google Scholar
-    documents the former, and both name the same thing. Scholar documents
+    The date is written as ``citation_publication_date``, the spelling
+    Google Scholar documents and the one the ``technote`` package emits since
+    0.11.0 (it wrote ``citation_date`` before). Scholar documents
     only two forms for its value — a full ``YYYY/MM/DD`` date, or a year
     alone — so a work dated to the year alone emits ``2025`` rather than an
     invented ``2025/01/01``, and a work dated to the month emits its year

@@ -2442,17 +2442,8 @@ ignore = ["TN150", "TN105"]
     ]
 
 
-def test_non_list_ignore_reports_tn007(
-    tmp_path: Path, responses: RequestsMock
-) -> None:
+def test_non_list_ignore_reports_tn007(tmp_path: Path) -> None:
     """An ignore setting that is not an array ignores nothing."""
-    _mock_author(responses)
-    responses.get(
-        DATACITE_URL,
-        body=_datacite_body(),
-        content_type="application/vnd.api+json",
-        status=200,
-    )
     context = _write_technote(
         tmp_path,
         CITABLE_TOML
@@ -2463,17 +2454,16 @@ ignore = "TN105"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN007"]
-    assert "array of rule codes" in findings[0].message
-    assert "a string" in findings[0].message
+    # technote owns the table's schema: the wrong shape is a TN001 finding,
+    # and the linter does not report the same mistake a second time as TN007.
+    assert [f.code for f in findings] == ["TN001"]
+    assert "technote.lint.ignore" in findings[0].message
+    assert service.ignored_rules == []
     assert service.ignored_rules == []
 
 
-def test_non_string_ignore_entry_reports_tn007(
-    tmp_path: Path, responses: RequestsMock
-) -> None:
-    """An entry that is not a rule code is reported, entry by entry."""
-    _mock_author(responses)
+def test_non_string_ignore_entry_reports_tn007(tmp_path: Path) -> None:
+    """An entry that is not a string fails technote's schema (TN001)."""
     context = _write_technote(
         tmp_path,
         CITABLE_TOML
@@ -2484,11 +2474,10 @@ ignore = [105, "TN105"]
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN007"]
-    assert "105" in findings[0].message
-    assert service.ignored_rules == [
-        IgnoredRule(code="TN105", source=IgnoreSource.toml)
-    ]
+    assert [f.code for f in findings] == ["TN001"]
+    assert "technote.lint.ignore" in findings[0].message
+    # Nothing is read from a table technote rejects, so TN105 is not off.
+    assert service.ignored_rules == []
 
 
 def test_non_table_lint_settings_reports_tn007(tmp_path: Path) -> None:
@@ -2504,16 +2493,13 @@ lint = "off"
     )
     service = TechnoteLintService(context)
     findings = service.lint()
-    assert [f.code for f in findings] == ["TN007"]
-    assert "[technote.lint]" in findings[0].message
+    assert [f.code for f in findings] == ["TN001"]
+    assert "technote.lint" in findings[0].message
     assert service.ignored_rules == []
 
 
-def test_ignore_codes_are_matched_case_insensitively(
-    tmp_path: Path, responses: RequestsMock
-) -> None:
-    """``tn105`` names the same rule as ``TN105``."""
-    _mock_author(responses)
+def test_file_ignore_codes_must_match_technote_s_shape(tmp_path: Path) -> None:
+    """``tn105`` in technote.toml is not a rule code to technote's schema."""
     context = _write_technote(
         tmp_path,
         CITABLE_TOML
@@ -2523,9 +2509,22 @@ ignore = ["tn105"]
 """,
     )
     service = TechnoteLintService(context)
+    findings = service.lint()
+    assert [f.code for f in findings] == ["TN001"]
+    assert "tn105" in findings[0].message
+    assert service.ignored_rules == []
+
+
+def test_cli_ignore_codes_are_matched_case_insensitively(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """``--ignore tn105`` names the same rule as ``TN105``."""
+    _mock_author(responses)
+    context = _write_technote(tmp_path, CITABLE_TOML)
+    service = TechnoteLintService(context, ignore=["tn105"])
     assert service.lint() == []
     assert service.ignored_rules == [
-        IgnoredRule(code="TN105", source=IgnoreSource.toml)
+        IgnoredRule(code="TN105", source=IgnoreSource.cli)
     ]
 
 

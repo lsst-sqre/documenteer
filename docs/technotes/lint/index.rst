@@ -201,16 +201,16 @@ You can also ignore a rule for a single run, without editing the file, which is 
    documenteer technote lint --ignore TN105 --strict
 
 The option is repeatable and adds to the file's list rather than replacing it.
-Codes are matched without regard to case in both places.
+In the file, a code is written exactly as the rule table lists it — an uppercase prefix and a number, such as ``TN105`` — because the `technote <https://technote.lsst.io>`__ package validates the ``[technote.lint]`` table's shape when it reads :file:`technote.toml`; on the command line the case does not matter.
 
-A code that no rule carries — a typo, or a rule that has been retired — is reported as :doc:`TN007 <tn007>` rather than silently doing nothing, and so is an ``ignore`` written in a shape the linter cannot read.
+A code that no rule carries — a typo, or a rule that has been retired — is reported as :doc:`TN007 <tn007>` rather than silently doing nothing.
 The valid entries around it still apply.
+An ``ignore`` written in the wrong shape — a bare string rather than an array, an entry that is not a string, or a lowercase code — fails technote's schema and is reported as :doc:`TN001 <tn001>`; nothing is read from a table technote rejects, so the rule the technote meant to switch off stays on until the file is fixed.
 
 .. note::
 
    The ``[technote.lint]`` table is named for the thing it configures rather than for the tool that reads it.
-   Today that tool is Documenteer's :command:`documenteer technote lint`; the linter is expected to move into the `technote <https://technote.lsst.io>`__ package, which will then own this table's schema.
-   Writing the table now is safe either way: technote's own configuration model ignores keys it does not know.
+   Today that tool is Documenteer's :command:`documenteer technote lint`; the technote package owns the table's schema (since technote 0.11.0), and the linter itself is expected to move there too.
 
    What a rule set cannot change is its **codes**, which repositories and CI configurations refer to; a rule set that documents its rules somewhere other than documenteer.lsst.io links its findings there instead.
 

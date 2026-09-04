@@ -16,7 +16,11 @@ from typing import Any
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from pydantic import ValidationError
-from technote.sources.tomlsettings import Person, TechnoteToml
+from technote.sources.tomlsettings import (
+    LINT_RULE_CODE_PATTERN,
+    Person,
+    TechnoteToml,
+)
 
 from documenteer.citations import normalize_doi, orcid_url
 from documenteer.services.technotecff import (
@@ -726,9 +730,10 @@ def _resolve_ignores(
     set that adds, retires, or renames a code needs no second list of code
     names kept in step with it.
 
-    Anything the configuration got wrong is returned as a TN007 finding
-    rather than raised or dropped: a mistyped code must not stop a lint run,
-    and it must not silently leave a rule on that the writer believes is off.
+    A code that names no rule is returned as a TN007 finding rather than
+    raised or dropped: a mistyped code must not stop a lint run, and it must
+    not silently leave a rule on that the writer believes is off. A file
+    entry of the wrong *shape* is technote's schema violation (TN001).
     """
     findings: list[LintFinding] = []
     rules: dict[str, IgnoredRule] = {}
@@ -756,7 +761,11 @@ def _file_ignore_setting(
     through technote's parsed model, because the configuration has to be
     available even when the rest of the file fails schema validation
     (TN001) — a technote may well be ignoring a rule *about* the metadata
-    that fails.
+    that fails. The table's *shape* is technote's to validate, though: since
+    technote 0.11.0 owns the ``[technote.lint]`` schema, a setting that is
+    not a table, an ``ignore`` that is not an array, or an entry that is not
+    a rule code is a TN001 finding, and this reader skips it without a
+    finding of its own rather than reporting the same mistake twice.
 
     A file that is not valid TOML yields nothing and no finding of its own:
     TN005 already reports it, and there is no configuration to read out of a
@@ -770,17 +779,10 @@ def _file_ignore_setting(
         # tomlkit's ParseError is a ValueError; TN005 reports the file.
         return None, []
     settings = toml_file.lint_settings
-    if settings is None:
+    if settings is None or not isinstance(settings, dict):
+        # A [technote.lint] that is not a table fails technote's schema, so
+        # TN001 reports it; there is no configuration to read out of it.
         return None, []
-    if not isinstance(settings, dict):
-        return None, [
-            LintFinding.from_check(
-                "TN007",
-                f"[technote.lint] in technote.toml must be a table, not "
-                f"{_describe_toml_type(settings)}. No lint configuration was "
-                f"read from it.",
-            )
-        ]
     return settings.get("ignore"), []
 
 
@@ -789,11 +791,22 @@ def _validate_ignore_codes(
 ) -> tuple[list[str], list[LintFinding]]:
     """Validate one source's ignore entries against the `CHECKS` registry.
 
-    Codes are matched case-insensitively, so ``tn105`` names the same rule as
-    ``TN105``. Every entry is judged on its own: an entry that is not a rule
-    code is reported and skipped, and the valid entries around it still apply.
+    Every entry is judged on its own: an entry that names no rule is
+    reported and skipped, and the valid entries around it still apply.
+
+    The two sources are held to different standards on *shape*. technote
+    owns the ``[technote.lint]`` schema (since 0.11.0) and validates it when
+    the file is parsed: an ``ignore`` that is not an array, an entry that is
+    not a string, or a code that is not an uppercase prefix followed by a
+    number (``LINT_RULE_CODE_PATTERN``) fails schema validation and is
+    reported as TN001. Those entries are skipped here without a second
+    finding, and the file's codes are matched exactly as technote accepts
+    them. ``--ignore`` has no schema but this one, so a mistyped command-line
+    entry is reported as TN007, and its case is folded for convenience.
     """
     if isinstance(raw, str) or not isinstance(raw, list | tuple):
+        if source is IgnoreSource.toml:
+            return [], []
         return [], [
             LintFinding.from_check(
                 "TN007",
@@ -802,6 +815,15 @@ def _validate_ignore_codes(
                 f"ignored from it.",
             )
         ]
+
+    if source is IgnoreSource.toml and not all(
+        isinstance(entry, str) and LINT_RULE_CODE_PATTERN.match(entry)
+        for entry in raw
+    ):
+        # technote rejects the whole file for one bad entry, and TN001
+        # reports it; honouring the entries around it would switch rules off
+        # on the strength of a table technote has said is invalid.
+        return [], []
 
     codes: list[str] = []
     findings: list[LintFinding] = []
@@ -816,7 +838,7 @@ def _validate_ignore_codes(
                 )
             )
             continue
-        code = entry.strip().upper()
+        code = entry if source is IgnoreSource.toml else entry.strip().upper()
         if code not in CHECKS:
             findings.append(
                 LintFinding.from_check(

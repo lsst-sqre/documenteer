@@ -1,4 +1,4 @@
-:og:description: TN007 fires when a technote's [technote.lint] configuration names a rule the linter does not have, or is written in a shape the linter cannot read, so a rule the technote means to ignore is still running.
+:og:description: TN007 fires when a technote's [technote.lint] configuration, or a --ignore option, names a rule the linter does not have, so a rule the technote means to ignore is still running.
 
 ################################
 lint-configuration-valid (TN007)
@@ -13,7 +13,8 @@ lint-configuration-valid (TN007)
      - Warning
 
 A technote can switch a rule off for itself, in the ``[technote.lint] ignore`` list of its :file:`technote.toml` or with ``--ignore`` on the command line (see :ref:`technote-lint-ignore`).
-This rule reports an ignore list the linter cannot act on: a code no rule carries, an entry that is not a rule code at all, or a setting written in the wrong shape.
+This rule reports an ignore entry the linter cannot act on: a code that no rule carries.
+The *shape* of the file's table — that ``ignore`` is an array of strings, each an uppercase prefix and a number — is validated by the `technote <https://technote.lsst.io>`__ package when it reads :file:`technote.toml`, and a violation is reported as :doc:`TN001 <tn001>` instead; a mistyped ``--ignore`` on the command line, which technote never sees, is reported here.
 
 The point is that a mistake here is *silent* otherwise.
 A technote that lists ``TN150`` believes a rule is off; the rule it meant to name goes on firing, and nothing says why.
@@ -32,7 +33,7 @@ Example of a failing technote
 
    [TN007] 'TN150' in technote.toml [technote.lint] is not a lint rule code, so no rule is ignored for it.
 
-An ``ignore`` written as a bare string rather than an array ignores nothing at all:
+An ``ignore`` written as a bare string rather than an array is a schema violation, and technote reports it before the linter's rules run:
 
 .. code-block:: toml
    :caption: technote.toml
@@ -42,9 +43,9 @@ An ``ignore`` written as a bare string rather than an array ignores nothing at a
 
 .. code-block:: text
 
-   [TN007] The ignore setting in technote.toml [technote.lint] must be an array of rule codes, not a string. No rules are ignored from it.
+   [TN001] technote.toml does not conform to the schema: ... technote.lint.ignore ...
 
-The same messages report a mistyped ``--ignore`` on the command line, naming ``--ignore`` as the source instead of the file.
+The same TN007 message reports a mistyped ``--ignore`` on the command line, naming ``--ignore`` as the source instead of the file.
 
 How to fix it
 =============
@@ -58,7 +59,7 @@ Check the code against the :ref:`rule table <technote-lint-rules>`, which lists 
    # Zenodo DOI minted in 2016; a Rubin release cannot update its metadata.
    ignore = ["TN105"]
 
-Codes are matched without regard to case, so ``tn105`` and ``TN105`` name the same rule.
+In the file a code is written in uppercase, as the rule table lists it; ``--ignore tn105`` on the command line names the same rule as ``TN105``.
 Each entry should be commented with *why* the rule is off, since the next person to read the file cannot tell an unfixable finding from an unfixed one.
 
 This rule is a **warning**: a configuration mistake does not fail a lint run on its own, though ``--strict`` promotes it like any other warning.

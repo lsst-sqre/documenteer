@@ -409,7 +409,7 @@ Every value is HTML-escaped, so a title containing quotes or angle brackets reac
 .. note::
 
    Documenteer writes the date tag as ``citation_publication_date``, the spelling Google Scholar documents.
-   A Rubin technote writes the same field as ``citation_date``, an older spelling of it; both name the publication date, and a consumer reads either.
+   A Rubin technote built with technote 0.11.0 or later writes the same tag; earlier releases spelled it ``citation_date``, and a consumer reads either.
 
    Google Scholar's inclusion guidelines describe only two forms for the value — a full date, or a year alone — so an entry dated to the month states its year in this tag rather than a ``2025/06`` no guideline covers, which Scholar may not parse at all.
    The month is not lost: the schema.org ``datePublished`` in the page's JSON-LD block carries the entry's date at the precision it states, ``2025-06`` included.

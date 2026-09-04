@@ -1550,11 +1550,12 @@ def test_highwire_tags_match_technotes_formatter() -> None:
         name for name in guide_names if name in shared
     ]
 
-    # The deliberate difference: the same field under two spellings.
-    assert "citation_date" in technote_names
-    assert "citation_date" not in guide_names
+    # technote 0.11.0 adopted the citation_publication_date spelling too, so
+    # the date tag is shared as well; the old citation_date name is gone.
+    assert "citation_publication_date" in technote_names
     assert "citation_publication_date" in guide_names
-    assert "citation_publication_date" not in technote_names
+    assert "citation_date" not in technote_names
+    assert "citation_date" not in guide_names
 
 
 @pytest.mark.parametrize(
