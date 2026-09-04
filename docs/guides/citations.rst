@@ -278,6 +278,25 @@ Every one of those warnings carries the subtype ``documenteer.citation_card``, s
    # conf.py
    suppress_warnings = ["documenteer.citation_card"]
 
+.. _guide-undated-citations:
+
+Undated citations
+=================
+
+An entry that states no :ref:`date <guide-project-citations-date>` — and whose :ref:`cff <guide-project-citations-cff>` file supplies none either — is cited undated wherever the site shows it: the plain text loses its ``(YYYY)``, the BibTeX entry carries no ``year`` field, and the BibTeX key is built from the author and title alone.
+Nothing on the rendered page says so, which is why the build does.
+
+Each such entry emits one ``documenteer.citation_date`` warning, naming the entry — by its :ref:`label <guide-project-citations-label>`, or by its title when it has none — and where the date belongs.
+That is the entry's own ``date`` field, and, for an entry reading a :file:`CITATION.cff` file, ``date-released`` (or ``year``) in the record it reads there: the file's ``preferred-citation``, or its top-level record when :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` selects that one.
+Naming the record matters, because a file whose top-level software record carries no date at all can sit above a dated ``preferred-citation``.
+
+Rendering is unchanged either way, so a site with no date to give silences it by name:
+
+.. code-block:: python
+
+   # conf.py
+   suppress_warnings = ["documenteer.citation_date"]
+
 .. _guide-footer-citations:
 
 Footer citations

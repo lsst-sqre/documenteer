@@ -1519,6 +1519,11 @@ class DocumenteerConfig:
             note=entry.note,
             page=entry.page_docname,
             page_fragment=entry.page_fragment,
+            # Carried so that a build reporting a field neither source
+            # states can name the file the value belongs in, and the record
+            # inside it, rather than only the documenteer.toml entry.
+            cff=entry.cff,
+            cff_preferred=entry.cff_preferred,
         )
 
     def _read_citation_cff(self, entry: CitationModel, index: int) -> Citation:

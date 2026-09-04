@@ -194,6 +194,7 @@ extensions = [
     "documenteer.ext.intersphinxcache",
     "documenteer.ext.autotypes",
     "documenteer.ext.citationcard",
+    "documenteer.ext.citationdate",
     "documenteer.ext.citationpage",
 ]
 _conf.append_extensions(extensions)

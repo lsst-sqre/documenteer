@@ -408,6 +408,15 @@ Writing ``2025-01-01`` for a work whose sources say only "2025" would assert a p
 
 Anything else — ``"June 2025"``, a month outside 1–12, a year that is not four digits — fails the build with a message naming the accepted forms.
 
+An entry that states no date, and whose :ref:`cff <guide-project-citations-cff>` file supplies none either, is cited undated: the rendered citation shows no year, and its BibTeX entry carries no ``year`` field.
+That is a warning, not an error — the citation still displays — and it carries the subtype ``documenteer.citation_date``, naming the entry and the record the date belongs in.
+A site with no date to give suppresses it the way any other Sphinx warning is suppressed (see :ref:`guide-undated-citations`):
+
+.. code-block:: python
+
+   # conf.py
+   suppress_warnings = ["documenteer.citation_date"]
+
 .. _guide-project-citations-url:
 
 url

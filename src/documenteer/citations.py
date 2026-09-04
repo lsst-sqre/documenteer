@@ -1045,6 +1045,26 @@ class GuideCitation:
     is why the fragment is carried separately from the docname.
     """
 
+    cff: str | None = None
+    """The path of the :file:`CITATION.cff` file the bibliographic fields came
+    from, as :file:`documenteer.toml` wrote it, or `None` when the entry
+    states them itself.
+
+    This is provenance rather than presentation, and it is carried for one
+    reason: a build that reports a field the citation does not state has to
+    name the file the value would be set in, and the path a reader can act on
+    is the relative one they wrote -- not the absolute one it resolves to.
+    """
+
+    cff_preferred: bool = True
+    """Which record of `cff` supplied the fields: its ``preferred-citation``
+    when true, as GitHub's "Cite this repository" button reads it, and its
+    top-level record when false.
+
+    Meaningless when `cff` is `None`; the configuration rejects setting it
+    without one.
+    """
+
     def to_html_context(self) -> dict[str, Any]:
         """Express the citation as the mapping published into Sphinx's
         ``html_context``.
@@ -1084,6 +1104,8 @@ class GuideCitation:
             "note": self.note,
             "page": self.page,
             "page_fragment": self.page_fragment,
+            "cff": self.cff,
+            "cff_preferred": self.cff_preferred,
             "title": citation.title,
             "authors": [
                 _author_context(author) for author in citation.authors

@@ -602,6 +602,49 @@ def test_citations_cff_software_located_by_its_repository(
     assert entry.citation.url == "https://github.com/lsst/daf_butler"
 
 
+def test_citations_cff_provenance_reaches_the_html_context(
+    tmp_path: Path,
+) -> None:
+    """A cff-sourced entry carries which file and which record supplied its
+    fields, so a build reporting a field neither source states can name where
+    the value belongs.
+
+    The software record of this file dates nothing — no date-released, no
+    date-published, no year — where its preferred citation is dated, which is
+    why the record has to be carried alongside the path.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        SOFTWARE_RECORD_CFF_PATH.read_text(encoding="utf-8")
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SOFTWARE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.date is None
+    # The path as documenteer.toml wrote it, which is what an author edits.
+    assert entry.cff == "../CITATION.cff"
+    assert entry.cff_preferred is False
+    context = entry.to_html_context()
+    assert context["date"] is None
+    assert context["cff"] == "../CITATION.cff"
+    assert context["cff_preferred"] is False
+
+
+def test_citations_inline_entry_has_no_cff_provenance() -> None:
+    """An entry that states its own fields names no file, so a build reporting
+    a missing field offers only the entry's own field as the fix.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+
+    (entry,) = config.citations
+    assert entry.cff is None
+    assert entry.to_html_context()["cff"] is None
+
+
 EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE = """
 
 [project]
