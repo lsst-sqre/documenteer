@@ -80,8 +80,8 @@ The same metadata also feeds the :file:`CITATION.cff` file behind GitHub's "Cite
 
    documenteer technote sync-cff
 
-Documenteer ships a ``technote-sync-cff`` pre-commit hook that runs this whenever :file:`technote.toml` is staged, so the two never drift.
-See :doc:`citation-file` for what the file contains, the ``--check`` mode for CI, and :ref:`the hook's configuration <technote-cff-pre-commit>`.
+The file is fully generated, so keeping the two in step is a matter of running :command:`documenteer technote sync-cff --check` in CI, where the technote is built anyway; it fails the build with the command to run, and Rubin's shared technote workflow runs it for you.
+See :doc:`citation-file` for what the file contains and how that check behaves.
 
 .. seealso::
 
