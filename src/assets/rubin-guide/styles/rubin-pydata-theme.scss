@@ -308,6 +308,40 @@ html[data-theme='dark'] body {
   margin-inline: auto;
 }
 
+/* Footer citations: the [[project.citations]] entries with in_footer set,
+ * rendered by rubin-footer.html. They carry the same label/citation/note
+ * vocabulary as the citation-card directive (styled together at the end of
+ * this file), so only the frame around each entry is defined here: an accent
+ * edge rather than the card's full border, because the footer is already a
+ * bounded region and a stack of boxes inside it reads as clutter. */
+.rubin-footer__citations {
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.rubin-footer__citations-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.rubin-footer__citation {
+  margin-top: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--pst-color-primary);
+}
+
+/* The <hr> the template draws under the citations, closing the site's own
+ * half of the footer before the common Rubin one. A browser's default <hr> is
+ * an inset groove, so the whole box is redrawn as the same themed line the
+ * print footer draws. Its 1.5rem below matches the citations' 1.5rem
+ * above -- the two margins collapse against the rule's zero top margin -- so
+ * the rule sits centred in the gap it opens. */
+.rubin-footer__rule {
+  margin: 0 0 1.5rem;
+  border: 0;
+  border-top: 1px solid var(--pst-color-border);
+}
+
 .rubin-footer__nav {
   display: flex;
   flex-wrap: wrap;
@@ -329,28 +363,6 @@ html[data-theme='dark'] body {
 
 .rubin-footer__nav-list li {
   margin: 0.125rem 0;
-}
-
-/* Footer citations: the [[project.citations]] entries with in_footer set,
- * rendered by rubin-footer.html. They carry the same label/citation/note
- * vocabulary as the citation-card directive (styled together at the end of
- * this file), so only the frame around each entry is defined here: an accent
- * edge rather than the card's full border, because the footer is already a
- * bounded region and a stack of boxes inside it reads as clutter. */
-.rubin-footer__citations {
-  margin-bottom: 1.5rem;
-  font-size: 0.875rem;
-}
-
-.rubin-footer__citations-title {
-  margin: 0;
-  font-weight: 700;
-}
-
-.rubin-footer__citation {
-  margin-top: 0.75rem;
-  padding-left: 0.75rem;
-  border-left: 4px solid var(--pst-color-primary);
 }
 
 .rubin-footer__copyright {

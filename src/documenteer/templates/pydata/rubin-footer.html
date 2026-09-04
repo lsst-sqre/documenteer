@@ -1,36 +1,9 @@
 {# Rubin Observatory page footer, rendered through the theme's footer_start
    slot in place of the default copyright/sphinx-version/theme-version
-   components. Contains the project link inventory, the site's citations, the
-   copyright statement, the agency funding statement, and the funding-partner
-   logo lineup. #}
+   components. Contains the site's citations, then the footer every Rubin
+   guide shares: the project link inventory, the copyright statement, the
+   agency funding statement, and the funding-partner logo lineup. #}
 <div class="rubin-footer">
-  <nav class="rubin-footer__nav" aria-label="Rubin Observatory">
-    <div class="rubin-footer__nav-column">
-      <p class="rubin-footer__nav-title">
-        <a href="https://rubinobservatory.org/">Rubin Observatory</a>
-      </p>
-      <ul class="rubin-footer__nav-list">
-        <li><a href="https://rubinobservatory.org/for-scientists">For scientists</a></li>
-        <li><a href="https://rubinobservatory.org/news">News</a></li>
-      </ul>
-    </div>
-    <div class="rubin-footer__nav-column">
-      <p class="rubin-footer__nav-title">
-        <a href="https://www.lsst.io">Documentation</a>
-      </p>
-    </div>
-    <div class="rubin-footer__nav-column">
-      <p class="rubin-footer__nav-title">
-        <a href="https://data.lsst.cloud">data.lsst.cloud</a>
-      </p>
-    </div>
-    <div class="rubin-footer__nav-column">
-      <p class="rubin-footer__nav-title">
-        <a href="https://community.lsst.org">Community forum</a>
-      </p>
-    </div>
-  </nav>
-
   {# The works this site asks to be cited as: every [[project.citations]]
      entry in documenteer.toml whose in_footer is set, in the order the file
      declares them. in_footer defaults to true for the entry filling either
@@ -95,7 +68,42 @@
     </div>
     {%- endfor %}
   </section>
+  {# The rule closes the site's own half of the footer. Everything below it --
+     the Rubin Observatory links, the copyright, the funding statement, and
+     the partner logos -- is the same on every guide, so the reader can see
+     where this site stops speaking for itself. It is a real separator rather
+     than a border on a neighbour because that is what it means, and it lives
+     inside this if-block so a guide that declares no citations has nothing to
+     separate and renders no rule. #}
+  <hr class="rubin-footer__rule" />
   {%- endif %}
+
+  <nav class="rubin-footer__nav" aria-label="Rubin Observatory">
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://rubinobservatory.org/">Rubin Observatory</a>
+      </p>
+      <ul class="rubin-footer__nav-list">
+        <li><a href="https://rubinobservatory.org/for-scientists">For scientists</a></li>
+        <li><a href="https://rubinobservatory.org/news">News</a></li>
+      </ul>
+    </div>
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://www.lsst.io">Documentation</a>
+      </p>
+    </div>
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://data.lsst.cloud">data.lsst.cloud</a>
+      </p>
+    </div>
+    <div class="rubin-footer__nav-column">
+      <p class="rubin-footer__nav-title">
+        <a href="https://community.lsst.org">Community forum</a>
+      </p>
+    </div>
+  </nav>
 
   {% if show_copyright and copyright %}
   <p class="rubin-footer__copyright">

@@ -34,6 +34,9 @@ DATASET_DOI_URL = "https://doi.org/10.5281/zenodo.10385500"
 # The third entry sets in_footer = false, so the footer must not show it.
 PAPER_DOI_URL = "https://doi.org/10.5281/zenodo.10385501"
 
+FOOTER = ".rubin-footer"
+NAV = ".rubin-footer__nav"
+RULE = ".rubin-footer__rule"
 CITATIONS = ".rubin-footer .rubin-footer__citations"
 CITATION = ".rubin-footer__citation"
 LABEL = ".rubin-footer__citation-label"
@@ -119,6 +122,25 @@ def test_footer_shows_the_opted_in_citations(app: SphinxTestApp) -> None:
 
 
 @pytest.mark.sphinx("html", testroot="guide", srcdir="guide-footer-citations")
+def test_footer_citations_lead_the_common_footer(app: SphinxTestApp) -> None:
+    """The citations open the footer, separated by a rule from the Rubin
+    Observatory links, copyright, and funding statement below.
+
+    Those are the same on every Rubin guide; the citations are this site's
+    own, so the reader meets them before the shared boilerplate.
+    """
+    doc = _build(app)
+
+    (footer,) = doc.cssselect(FOOTER)
+    (block,) = doc.cssselect(CITATIONS)
+    (rule,) = doc.cssselect(RULE)
+    (nav,) = doc.cssselect(NAV)
+
+    assert list(footer)[:3] == [block, rule, nav]
+    assert rule.tag == "hr"
+
+
+@pytest.mark.sphinx("html", testroot="guide", srcdir="guide-footer-citations")
 def test_footer_citation_carries_the_full_record(app: SphinxTestApp) -> None:
     """Each footer citation shows the label, the plain-text citation ending
     in the linked DOI, and the entry's note.
@@ -170,16 +192,21 @@ def test_guide_without_citations_renders_no_block(
     app: SphinxTestApp,
 ) -> None:
     """A guide that declares no [[project.citations]] renders the footer
-    exactly as before: the nav, copyright, and funding statement, and no
-    citations block at all.
+    exactly as before: the nav, copyright, and funding statement, and neither
+    a citations block nor the rule that would set one off.
     """
     doc = _build(app)
 
-    (footer,) = doc.cssselect(".rubin-footer")
+    (footer,) = doc.cssselect(FOOTER)
     assert not footer.cssselect(".rubin-footer__citations")
     assert not footer.cssselect(CITATION)
-    # The rest of the footer is untouched.
-    assert footer.cssselect(".rubin-footer__nav")
+    # The rule exists only to separate the citations from the common footer,
+    # so it goes with them: no separator of any kind is left behind.
+    assert not footer.cssselect(RULE)
+    assert not footer.cssselect("hr")
+    # The rest of the footer is untouched, with the nav leading it again.
+    (nav,) = footer.cssselect(NAV)
+    assert next(iter(footer)) is nav
     assert footer.cssselect(".rubin-footer__funding")
     assert footer.cssselect(".rubin-footer__partner-logos")
 

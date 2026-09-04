@@ -303,6 +303,7 @@ Footer citations
 ================
 
 The site footer shows the citations on every page, which is what makes each page of the guide a landing page for the site's DOI rather than only the page that carries a card.
+They open the footer, above the horizontal rule that separates them from the Rubin Observatory links, copyright, and funding statement every guide shares: those are the same everywhere, and the citations are this site's own.
 
 The footer shows the site's :ref:`preferred <guide-project-citations-preferred>` citation, its :ref:`self <guide-project-citations-self>` entry, and every entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`, in the order :file:`documenteer.toml` declares them.
 The first two are one entry on a site that publishes its own DOI, so such a site shows one citation.
