@@ -826,6 +826,43 @@ class Citation:
             Vera C. Rubin Observatory (2025). Data Preview 2.
             Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308
 
+        A surface that hyperlinks the identifier reads the same reference
+        pre-split from `to_plain_text_parts` instead, rather than slicing
+        this text.
+        """
+        lead, location = self.to_plain_text_parts()
+        return lead if location is None else f"{lead}{location}"
+
+    def to_plain_text_parts(self) -> tuple[str, str | None]:
+        """Compose the citation as the two halves a linked rendering needs:
+        the reference up to where the work is located, and that location
+        itself.
+
+        Returns
+        -------
+        lead : str
+            The citation up to its trailing location, ending in the single
+            space that separates the two. It is the whole reference when the
+            work has no location, and empty when the citation is nothing but
+            one.
+        location : str or None
+            Where the work is found — see `location` — or `None` when the
+            citation has neither a DOI nor a landing page to name.
+
+        Notes
+        -----
+        Joining the halves reproduces `to_plain_text` exactly: that method is
+        written in terms of this one, so the invariant holds structurally
+        rather than by two implementations agreeing.
+
+        The split exists because a displayed citation ends in a hyperlink to
+        the work, and a surface that writes the lead as text and the location
+        as a link must not compose either half itself. Every such surface
+        reads the split from here — the guide's footer and citation card
+        through `GuideCitation.to_html_context`, and the technote's article
+        footer through its ``TechnoteCitation.plain_text_lead`` — which is
+        what keeps them from disagreeing about where the text ends and the
+        link begins.
         """
         byline = "; ".join(
             author.citation_name for author in self._credited_authors
@@ -845,8 +882,8 @@ class Citation:
         text = " ".join(_end_sentence(segment) for segment in segments)
         location = self.location
         if location is None:
-            return text
-        return f"{text} {location}" if text else location
+            return text, None
+        return (f"{text} " if text else ""), location
 
     @property
     def bibtex_key(self) -> str:
@@ -1087,14 +1124,13 @@ class GuideCitation:
         carries the plain-text rendering pre-split at that location:
         ``plain_text_lead`` is the citation up to it and ``plain_text_url``
         is the location itself, and concatenating the two always reproduces
-        ``plain_text``. Splitting it here is what lets a Jinja template render
-        a linked citation without doing string surgery of its own, and keeps
-        the card and the footer from ever disagreeing about where the text
-        ends and the link begins.
+        ``plain_text``. The split comes from `Citation.to_plain_text_parts`,
+        which is where that invariant lives; publishing it here is what lets
+        a Jinja template render a linked citation without doing string
+        surgery of its own.
         """
         citation = self.citation
-        plain_text = citation.to_plain_text()
-        location = citation.location
+        lead, location = citation.to_plain_text_parts()
         return {
             "label": self.label,
             "type": citation.type.value if citation.type else None,
@@ -1116,10 +1152,8 @@ class GuideCitation:
             "doi": citation.doi,
             "doi_url": citation.doi_url,
             "url": _clean(citation.url) or citation.doi_url,
-            "plain_text": plain_text,
-            "plain_text_lead": (
-                plain_text[: -len(location)] if location else plain_text
-            ),
+            "plain_text": citation.to_plain_text(),
+            "plain_text_lead": lead,
             "plain_text_url": location,
             "bibtex": citation.to_bibtex(),
         }

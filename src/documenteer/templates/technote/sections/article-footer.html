@@ -1,0 +1,34 @@
+{# How to cite the technote, at the end of the article: the full
+   bibliographic citation, with the DOI written as a resolvable link.
+
+   A technote registered with a DOI is that DOI's landing page, and DataCite
+   asks a landing page to show a complete citation a reader can copy, not just
+   the identifier. The sidebar's Cite section
+   (components/sidebar-citation.html) offers the DOI and the BibTeX entry for
+   a reference manager; this is the human-readable sentence, placed where a
+   reader arrives once they have finished reading.
+
+   The theme's own sections/article-footer.html is intentionally empty and is
+   overridden here, which is the seam the theme provides for end matter.
+
+   The text and the link both come from the html_context that
+   documenteer.conf.technote publishes (documenteer.citations composes them),
+   pre-split at the DOI so that this template hyperlinks it without doing
+   string surgery of its own: writing the lead and then the link reproduces
+   the citation exactly. A technote without a DOI leaves
+   documenteer_technote_citation unset, so nothing at all is rendered -- the
+   article footer stays as empty as the theme leaves it.
+
+   Every interpolated value is escaped explicitly, because Sphinx's Jinja
+   environment does not autoescape and a citation is composed from free text
+   in technote.toml -- a title with an ampersand in it is ordinary. #}
+{%- if documenteer_technote_citation and documenteer_technote_citation.doi_url %}
+<section class="technote-article-citation" aria-labelledby="technote-article-citation-heading">
+  <h2 class="technote-article-citation__heading" id="technote-article-citation-heading">Citing this document</h2>
+  {#- Nothing may separate the lead from the link: the lead ends in the single
+      space the citation puts before its identifier, and a newline here would
+      be a second one. #}
+  <p class="technote-article-citation__text">{{ documenteer_technote_citation.plain_text_lead|e
+    }}<a href="{{ documenteer_technote_citation.doi_url|e }}">{{ documenteer_technote_citation.doi_url|e }}</a></p>
+</section>
+{%- endif %}
