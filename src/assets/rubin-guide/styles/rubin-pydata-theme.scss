@@ -418,8 +418,18 @@ html[data-theme='dark'] .rubin-footer__partner-logos img {
  * without a second set of rules. */
 
 /* The card's frame reuses the bordered-surface idiom of the "Help improve
- * this page" box so the two read as one system. */
-.documenteer-citation-card {
+ * this page" box so the two read as one system.
+ *
+ * The directive builds the card as a docutils container, so the HTML writer
+ * stamps `docutils container` on it alongside the card's own class, and
+ * pydata-sphinx-theme resets `.docutils.container` horizontal padding and
+ * margin to `unset`. That reset outweighs a lone `.documenteer-citation-card`
+ * whatever the stylesheet order, which left the card's contents flush against
+ * the accent edge; chaining all three of the rendered card's classes (0,3,0)
+ * is what keeps the padding this rule asks for. tests/guide_stylesheet_test.py
+ * pins this rule's specificity, and tests/ext/citationcard_test.py pins that
+ * the card still carries the classes it chains. */
+.documenteer-citation-card.docutils.container {
   margin: 1.5rem 0;
   border: 1px solid var(--pst-color-border);
   /* The accent edge marks the card as the page's citation rather than a

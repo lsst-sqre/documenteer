@@ -130,6 +130,27 @@ def test_default_card_renders_the_self_citation(app: SphinxTestApp) -> None:
 
 
 @pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
+def test_card_carries_the_classes_the_stylesheet_targets(
+    app: SphinxTestApp,
+) -> None:
+    """The card is a docutils container, so the HTML writer stamps ``docutils
+    container`` on it alongside the card's own class.
+
+    rubin-pydata-theme.scss chains all three to outweigh pydata-sphinx-theme's
+    ``.docutils.container`` padding reset, so dropping either of the writer's
+    classes here would silently flatten the card against its accent edge in a
+    built site. :file:`tests/guide_stylesheet_test.py` pins the other half of
+    that pair, the stylesheet's specificity.
+    """
+    doc = _page(app, "index")
+    card = doc.cssselect(CARD)[0]
+
+    assert {"documenteer-citation-card", "docutils", "container"} <= set(
+        card.get("class").split()
+    )
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
 def test_card_selects_an_entry_by_label(app: SphinxTestApp) -> None:
     """``.. citation-card:: Dataset`` renders the entry labelled "Dataset",
     and omits the note element entirely when the entry sets no note.
