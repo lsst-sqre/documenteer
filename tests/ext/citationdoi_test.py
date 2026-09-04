@@ -16,6 +16,7 @@ build would not emit it again.
 from __future__ import annotations
 
 import pytest
+from docutils import nodes
 from lxml import html
 from sphinx.testing.util import SphinxTestApp
 
@@ -240,3 +241,54 @@ def test_site_without_citations_warns_once_per_use(
     )
     assert "[[project.citations]]" in from_roles[0]
     assert f"[{WARNING_NAME}]" in from_roles[0]
+
+
+@pytest.mark.sphinx(
+    "html", testroot="citationcard", srcdir="citationdoi-shortlink"
+)
+def test_role_link_resists_a_link_shortener(
+    app: SphinxTestApp, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The role builds its link in the shape pydata-sphinx-theme's
+    ``ShortenLinkTransform`` leaves alone, so the DOI reaches the reader whole.
+
+    The transform rewrites a link whose sole child is a bare ``Text`` equal to
+    its ``refuri`` into ``org/repo``, which would turn a displayed DOI into
+    something a reader cannot copy into a bibliography. doi.org is not one of
+    the hosts it shortens today, so this test registers it as one: what is
+    pinned is the shape of the role's link, not the theme's current host list.
+    """
+    short_link = pytest.importorskip(
+        "pydata_sphinx_theme.short_link",
+        reason="pydata_sphinx_theme is not installed",
+    )
+    transform = short_link.ShortenLinkTransform
+
+    monkeypatch.setitem(transform.supported_platform, "doi.org", "github")
+    app.build()
+    doctree = app.env.get_doctree("roles")
+
+    # The shape the role used to build, kept as a control: it proves the
+    # transform really does rewrite a doi.org link under this monkeypatch, so
+    # that the assertions below cannot pass vacuously.
+    control = nodes.reference(
+        "", DATASET_DOI_URL, refuri=DATASET_DOI_URL, internal=False
+    )
+    doctree += nodes.paragraph("", "", control)
+
+    transform(doctree).run()
+
+    assert control.astext() != DATASET_DOI_URL
+    assert "github" in control["classes"]
+
+    links = [
+        node
+        for node in doctree.findall(nodes.reference)
+        if node.get("refuri") == DATASET_DOI_URL and node is not control
+    ]
+    assert links, "roles.rst links the Dataset DOI"
+    for link in links:
+        assert "github" not in link["classes"]
+    # Only the role's default spelling displays the DOI itself; the custom-text
+    # spellings display the author's words, which the transform never touched.
+    assert any(link.astext() == DATASET_DOI_URL for link in links)

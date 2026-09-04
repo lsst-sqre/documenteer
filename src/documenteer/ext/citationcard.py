@@ -211,7 +211,7 @@ class CitationCard(SphinxDirective):
         if lead:
             paragraph += nodes.Text(lead)
         if url:
-            paragraph += nodes.reference("", url, refuri=url, internal=False)
+            paragraph += _location_reference(url)
         return paragraph
 
     def _warn(self, message: str) -> None:
@@ -266,7 +266,7 @@ class CitationDoiRole(SphinxRole):
             # missing or half-built link would not.
             return [nodes.Text(title if has_title else label)], []
         text = title if has_title else doi_url
-        return [nodes.reference("", text, refuri=doi_url, internal=False)], []
+        return [_location_reference(doi_url, text)], []
 
     def _select(self, label: str) -> dict[str, Any] | None:
         """Choose the citation to link, warning and returning `None` when no
@@ -290,6 +290,29 @@ class CitationDoiRole(SphinxRole):
     def _warn(self, message: str) -> None:
         """Log a warning about this role, located at its own source."""
         _warn("doi role", message, self.get_location())
+
+
+def _location_reference(url: str, text: str | None = None) -> nodes.reference:
+    """Build the external link a citation's location is displayed as, with its
+    text wrapped in an inline node.
+
+    The wrapper is what keeps the whole URL on the page. pydata-sphinx-theme
+    runs a post-transform, ``ShortenLinkTransform``, that rewrites a link to
+    github.com or gitlab.com into ``org/repo`` with a platform class that draws
+    an octicon -- but only when the link's sole child is a bare ``Text`` equal
+    to its ``refuri``, which is how it tells a URL the author left to speak for
+    itself from one they gave their own words. A `docutils.nodes.inline`
+    around the text takes the link out of that shape.
+
+    A citation's location is the string a reader copies into a bibliography,
+    which the Crossref and DataCite display guidelines ask to be the full
+    resolvable URL, so it is displayed in full whichever host it lives on. The
+    ``doi`` role builds its link here too: doi.org is not a shortened host
+    today, but nothing about the role's contract depends on that staying true.
+    """
+    reference = nodes.reference("", "", refuri=url, internal=False)
+    reference += nodes.inline("", url if text is None else text)
+    return reference
 
 
 def _build_bibtex(bibtex: str) -> citation_bibtex:

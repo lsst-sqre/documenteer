@@ -11,6 +11,7 @@ project whose ``conf.py`` populates that context directly (see
 
 from __future__ import annotations
 
+import importlib.util
 from typing import Any
 
 import pytest
@@ -34,6 +35,14 @@ SELF_CITATION = (
 DATASET_CITATION = (
     "Vera C. Rubin Observatory (2025). Test Images & Catalogs. "
     f"Vera C. Rubin Observatory. {DATASET_DOI_URL}"
+)
+# The entry located by a ``url`` rather than a DOI, whose location happens to
+# be a GitHub repository -- the shape a package that has never been deposited
+# has.
+SOFTWARE_URL = "https://github.com/lsst-sqre/documenteer"
+SOFTWARE_CITATION = (
+    "Vera C. Rubin Observatory (2025). Citation Card Test Package. "
+    f"Vera C. Rubin Observatory. {SOFTWARE_URL}"
 )
 
 CARD = ".documenteer-citation-card"
@@ -68,6 +77,8 @@ DATASET_BIBTEX = r"""@misc{veracrubinobservatory2025test,
 # The warning's type.subtype, as ``suppress_warnings`` spells it and as Sphinx
 # appends it to the rendered message.
 WARNING_NAME = "documenteer.citation_card"
+
+_HAS_PYDATA = importlib.util.find_spec("pydata_sphinx_theme") is not None
 
 
 def _dataset_context() -> dict[str, Any]:
@@ -170,6 +181,67 @@ def test_card_selects_an_entry_by_label(app: SphinxTestApp) -> None:
     assert not card.cssselect(NOTE), (
         "an entry with no note renders no note element"
     )
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
+def test_card_links_an_entry_located_by_url(app: SphinxTestApp) -> None:
+    """An entry located by a ``url`` rather than a DOI is shown the same way:
+    the citation ends in its location, hyperlinked to itself.
+
+    A reader copies that location into a bibliography, so it is displayed in
+    full whichever host it happens to live on.
+    """
+    doc = _page(app, "url-citation")
+
+    (card,) = doc.cssselect(CARD)
+    (label,) = card.cssselect(LABEL)
+    assert _text(label) == "Software"
+
+    (citation,) = card.cssselect(CITATION)
+    assert _text(citation) == SOFTWARE_CITATION
+
+    (link,) = citation.cssselect("a")
+    assert link.get("href") == SOFTWARE_URL
+    assert _text(link) == SOFTWARE_URL
+
+
+@pytest.mark.skipif(
+    not _HAS_PYDATA, reason="pydata_sphinx_theme is not installed"
+)
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationcard",
+    srcdir="citationcard-shortlink",
+    confoverrides={"html_theme": "pydata_sphinx_theme"},
+)
+def test_card_url_survives_the_themes_link_shortener(
+    app: SphinxTestApp,
+) -> None:
+    """A card whose location is a github.com URL still shows the whole URL
+    under the theme a guide actually builds with.
+
+    pydata-sphinx-theme runs ``ShortenLinkTransform``, which rewrites any link
+    to github.com or gitlab.com whose text is its own URL into ``org/repo``
+    with a platform class that draws an octicon. That is right for a link an
+    author writes in prose and wrong for a citation, whose location is the
+    string a reader copies into a bibliography.
+    """
+    doc = _page(app, "url-citation")
+
+    (card,) = doc.cssselect(CARD)
+    (link,) = card.cssselect(f"{CITATION} a")
+    assert link.get("href") == SOFTWARE_URL
+    assert _text(link) == SOFTWARE_URL
+    assert "github" not in (link.get("class") or "").split(), (
+        "the platform class is what draws the octicon"
+    )
+
+    # The control: a bare URL to the same repository, in the same page, which
+    # the transform does rewrite. Without it this test would pass just as well
+    # in a build where the transform never ran at all.
+    (bare,) = doc.cssselect("#bare-repository-link a.reference.external")
+    assert _text(bare) == "lsst-sqre/documenteer"
+    assert "github" in bare.get("class").split()
 
 
 def _preferred_paper_context() -> dict[str, Any]:
