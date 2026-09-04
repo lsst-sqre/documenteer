@@ -471,13 +471,31 @@ CitationAuthor = PersonAuthor | OrganizationAuthor
 
 
 class BibtexEntryType(StrEnum):
-    """The BibTeX entry type to compose a citation as."""
+    """The BibTeX entry type to compose a citation as.
+
+    The vocabulary is biblatex's, which is the one Zenodo and GitHub's "Cite
+    this repository" export in. Classic BibTeX defined no entry type for a
+    dataset or for software, and a classic style that meets one it does not
+    know typesets it as ``@misc`` — which is what Documenteer emitted for
+    every work before. So naming the specific type costs a reader of a classic
+    style nothing and tells biblatex what the work actually is.
+    """
 
     misc = "misc"
-    """For works without a more specific type, such as datasets and websites.
+    """For a work without a more specific type, such as a website.
 
-    This is the entry type DataCite's own BibTeX export uses.
+    This is the entry type DataCite's own BibTeX export uses, and the one a
+    work whose type is unstated composes as.
     """
+
+    article = "article"
+    """For a paper published in a journal or conference proceedings."""
+
+    dataset = "dataset"
+    """For a published dataset."""
+
+    software = "software"
+    """For a software package or codebase."""
 
     techreport = "techreport"
     """For technical reports, including Rubin technotes."""
@@ -517,6 +535,21 @@ class CitationType(StrEnum):
     says nothing at all; both publish the same generic schema.org type.
     """
 
+
+BIBTEX_ENTRY_TYPES: dict[CitationType | None, BibtexEntryType] = {
+    CitationType.dataset: BibtexEntryType.dataset,
+    CitationType.article: BibtexEntryType.article,
+    CitationType.software: BibtexEntryType.software,
+    CitationType.report: BibtexEntryType.techreport,
+    CitationType.other: BibtexEntryType.misc,
+    None: BibtexEntryType.misc,
+}
+"""The `BibtexEntryType` each `CitationType` composes as.
+
+The untyped case is keyed by `None` so that the mapping is total: a work that
+says nothing about what it is composes as the same generic ``@misc`` a work
+typed `CitationType.other` does.
+"""
 
 SCHEMA_ORG_TYPES: dict[str, str] = {
     CitationType.dataset: "Dataset",
@@ -731,8 +764,8 @@ class Citation:
     """The work's number within its series, such as a technote's ``SQR-000``
     handle.
 
-    This is a `BibtexEntryType.techreport` field; a `BibtexEntryType.misc`
-    entry has nowhere to put it and omits it.
+    This is a `BibtexEntryType.techreport` field; every other entry type has
+    nowhere to put it and omits it.
     """
 
     def __post_init__(self) -> None:
@@ -840,7 +873,7 @@ class Citation:
     def to_bibtex(
         self,
         *,
-        entry_type: BibtexEntryType = BibtexEntryType.misc,
+        entry_type: BibtexEntryType | None = None,
         key: str | None = None,
     ) -> str:
         r"""Compose the citation as a BibTeX entry.
@@ -848,9 +881,11 @@ class Citation:
         Parameters
         ----------
         entry_type
-            The BibTeX entry type. Use `BibtexEntryType.techreport` for a
-            technote and `BibtexEntryType.misc`, the default, for a dataset
-            or a website.
+            The BibTeX entry type, overriding the one the work's own `type`
+            implies. Defaults to `None`, which composes the entry as the type
+            ``BIBTEX_ENTRY_TYPES`` maps `Citation.type` onto — ``@dataset``
+            for a dataset, ``@techreport`` for a report, and ``@misc`` for a
+            work whose type is unstated.
         key
             The entry's citation key. Defaults to `bibtex_key`.
 
@@ -863,10 +898,12 @@ class Citation:
 
         Notes
         -----
-        The publisher is the ``publisher`` field of a
-        `BibtexEntryType.misc` entry and the ``institution`` field of a
-        `BibtexEntryType.techreport` one; `Citation.number` is a
-        ``techreport`` field and a ``misc`` entry omits it. The ``url``
+        The publisher is the ``institution`` field of a
+        `BibtexEntryType.techreport` entry and the ``publisher`` field of
+        every other entry type; `Citation.number` is a ``techreport`` field
+        alone, and any other entry omits it. No other field varies with the
+        entry type, because the model carries no field — no journal, volume,
+        or version — that only one type has a home for. The ``url``
         field is the work's own landing page when it has one, falling back to
         the DOI URL; ``doi`` and ``url`` are written verbatim rather than
         LaTeX-escaped, matching what DataCite, Crossref, and Zenodo export,
@@ -877,6 +914,8 @@ class Citation:
         The required ``title`` field is always written, so that a blank title
         shows up as an entry to fix rather than as a silently missing field.
         """
+        if entry_type is None:
+            entry_type = BIBTEX_ENTRY_TYPES[self.type]
         fields: list[tuple[str, str]] = []
         credited = self._credited_authors
         if credited:

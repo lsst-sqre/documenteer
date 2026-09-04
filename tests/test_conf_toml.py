@@ -1110,7 +1110,9 @@ def test_set_citations_html_context() -> None:
         "Vera C. Rubin Observatory (2025). Data Preview 2. "
         "Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308"
     )
-    assert context["bibtex"].startswith("@misc{")
+    # The entry declares type = "dataset", so it copies out as the biblatex
+    # @dataset entry rather than as the generic @misc.
+    assert context["bibtex"].startswith("@dataset{")
     assert "doi = {10.71929/rubin/2570308}" in context["bibtex"]
     assert html_context["documenteer_self_citation"] is context
     # The self entry is the preferred one by default, which is what keeps a

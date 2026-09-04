@@ -322,6 +322,77 @@ def test_bibtex_techreport_for_multiple_person_authors() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("citation_type", "entry_type"),
+    [
+        (CitationType.dataset, "dataset"),
+        (CitationType.article, "article"),
+        (CitationType.software, "software"),
+        (CitationType.report, "techreport"),
+        (CitationType.other, "misc"),
+        (None, "misc"),
+    ],
+)
+def test_bibtex_entry_type_follows_the_citation_type(
+    citation_type: CitationType | None, entry_type: str
+) -> None:
+    """The entry type a citation composes as is decided by what the work is,
+    so a dataset copies out of a guide as a ``@dataset`` rather than as the
+    ``@misc`` every work once shared.
+    """
+    citation = Citation(title="Real Title", type=citation_type)
+    assert citation.to_bibtex().startswith(f"@{entry_type}{{")
+
+
+def test_bibtex_entry_type_argument_overrides_the_citation_type() -> None:
+    """An explicit entry type wins over the one the citation's own type
+    implies, which is what lets a caller that knows better than the metadata
+    — the technote preset, composing its report — name the entry itself.
+    """
+    citation = Citation(title="Real Title", type=CitationType.dataset)
+    assert citation.to_bibtex(
+        entry_type=BibtexEntryType.techreport
+    ).startswith("@techreport{")
+
+
+def test_bibtex_writes_a_report_publisher_as_its_institution() -> None:
+    """A report reaches ``@techreport`` by its own type, so its publisher is
+    written as the entry's ``institution``. A report that has no series
+    number writes no ``number`` field rather than an empty one.
+    """
+    citation = Citation(
+        title="Rubin Observatory Data Management",
+        type=CitationType.report,
+        publisher="Vera C. Rubin Observatory",
+    )
+    assert citation.to_bibtex() == (
+        "@techreport{rubin,\n"
+        "    title = {{Rubin Observatory Data Management}},\n"
+        "    institution = {Vera C. Rubin Observatory}\n"
+        "}"
+    )
+
+
+def test_bibtex_keeps_the_series_number_a_techreport_field() -> None:
+    """``institution`` and ``number`` stay ``@techreport``'s alone: a dataset
+    that carries a series number writes its publisher as ``publisher`` and
+    drops the number, rather than emitting a field the entry type has no home
+    for.
+    """
+    citation = Citation(
+        title="Data Preview 2",
+        type=CitationType.dataset,
+        publisher="Vera C. Rubin Observatory",
+        number="SQR-000",
+    )
+    assert citation.to_bibtex() == (
+        "@dataset{data,\n"
+        "    title = {{Data Preview 2}},\n"
+        "    publisher = {Vera C. Rubin Observatory}\n"
+        "}"
+    )
+
+
 def test_composers_credit_a_family_only_author() -> None:
     """A citation credited to a person who has only a family name composes
     through both composers without the separator a ``Family, Given``
@@ -398,7 +469,7 @@ def test_bibtex_of_a_doi_less_work_carries_only_a_url() -> None:
     landing page rather than a doi.org redirect that would not resolve.
     """
     assert software_citation().to_bibtex() == (
-        "@misc{veracrubinobservatory2022dafbutler,\n"
+        "@software{veracrubinobservatory2022dafbutler,\n"
         "    author = {{Vera C. Rubin Observatory}},\n"
         "    title = {{daf\\_butler}},\n"
         "    year = {2022},\n"

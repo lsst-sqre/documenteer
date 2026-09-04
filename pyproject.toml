@@ -191,7 +191,10 @@ exclude_lines = [
 ]
 
 [tool.pytest.ini_options]
-norecursedirs = "node_modules"
+# .stoker/ holds the agent runner's scratch, including partial snapshots of
+# this tree; python_files matches on path, so a snapshot's tests/ would
+# otherwise be collected alongside the real ones.
+norecursedirs = ["node_modules", ".stoker"]
 python_files = ["tests/*.py", "tests/*/*.py"]
 
 [tool.mypy]

@@ -167,6 +167,9 @@ It is the page-level counterpart to the footer citations, and is the right tool 
    Copying is what GitHub's "Cite this repository", Zenodo, and ADS all offer, and it is what a reader wants: the entry goes into a :file:`.bib` file they already keep.
    A guide therefore never generates :file:`.bib` files of its own, and there is nothing to download.
 
+   The entry type follows the citation's :ref:`type <guide-project-citations-type>`, so a copied entry says what the work is instead of filing everything under ``@misc``: ``type = "dataset"`` composes ``@dataset``, ``"article"`` composes ``@article``, ``"software"`` composes ``@software``, and ``"report"`` composes ``@techreport``.
+   A citation typed ``"other"``, and one that declares no type at all, composes as ``@misc``.
+
    The entry is in the page rather than in a script, so it can always be selected and copied by hand.
    A browser that gives the page no clipboard access — an insecure origin, say — has the button removed and keeps the entry; a page whose scripts never load keeps both.
    A non-HTML builder renders the entry as a plain literal block, since a disclosure and a button mean nothing there.

@@ -155,29 +155,38 @@ type
 
 |optional|
 
-The kind of work being cited, which decides the schema.org type the site publishes it under in its JSON-LD metadata:
+The kind of work being cited, which decides both the schema.org type the site publishes it under in its JSON-LD metadata and the entry type of the BibTeX a reader copies:
 
 .. list-table::
    :header-rows: 1
 
    * - ``type``
      - schema.org type
+     - BibTeX entry type
    * - ``"dataset"``
      - `Dataset <https://schema.org/Dataset>`__
+     - ``@dataset``
    * - ``"article"``
      - `ScholarlyArticle <https://schema.org/ScholarlyArticle>`__
+     - ``@article``
    * - ``"software"``
      - `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__
+     - ``@software``
    * - ``"report"``
      - `Report <https://schema.org/Report>`__
+     - ``@techreport``
    * - ``"other"``
      - `CreativeWork <https://schema.org/CreativeWork>`__
+     - ``@misc``
 
 Any other value fails the build.
 
+The BibTeX entry types are `biblatex <https://ctan.org/pkg/biblatex>`__'s, which is the vocabulary Zenodo and GitHub's "Cite this repository" export in.
+Classic BibTeX never defined ``@dataset`` or ``@software``, and a classic style that meets an entry type it does not know typesets it as ``@misc`` — so declaring the specific type costs a reader of such a style nothing.
+
 Set ``type = "dataset"`` on every data product the site publishes: `Dataset <https://schema.org/Dataset>`__ is the type Google Dataset Search indexes, and it is the one that makes a data release discoverable as data rather than as a page about data.
 
-A citation that declares no type says nothing about what the work is, and is published as a `WebSite <https://schema.org/WebSite>`__ if it is the :ref:`self <guide-project-citations-self>` citation and a `CreativeWork <https://schema.org/CreativeWork>`__ otherwise.
+A citation that declares no type says nothing about what the work is: it composes as ``@misc``, and is published as a `WebSite <https://schema.org/WebSite>`__ if it is the :ref:`self <guide-project-citations-self>` citation and a `CreativeWork <https://schema.org/CreativeWork>`__ otherwise.
 The ``self`` entry is typed like any other, so a site that is a data release's landing page declares ``type = "dataset"`` there too.
 
 If :ref:`cff <guide-project-citations-cff>` is set, the file's own ``type`` supplies this field, and setting it here overrides the file's value.
