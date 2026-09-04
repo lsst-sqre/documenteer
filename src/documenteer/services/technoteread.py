@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 import tempfile
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
@@ -72,6 +72,14 @@ process would otherwise be handed the *first* technote's settings, and, worse,
 would leave them behind for anything else in the process that builds a
 technote. `_isolated_technote_config` gives each read its own import of them
 and puts back whatever was there before.
+"""
+
+_UNBOUND = object()
+"""Stands for an attribute a parent package did not carry.
+
+`None` cannot: a module attribute may legitimately be `None`, and telling
+"bound to `None`" from "not bound at all" is the difference between putting a
+value back and taking the name away.
 """
 
 
@@ -210,27 +218,77 @@ def _isolated_technote_config() -> Iterator[None]:
     way in, so the ``conf.py`` this build executes computes its settings from
     *this* technote, and restored on the way out, so the read leaves the
     process's import state exactly as it found it.
+
+    Importing a submodule also binds it as an attribute of its parent
+    package, so each parent attribute is saved and restored alongside the
+    import cache — put back where the read found one, and removed where it
+    did not, so a first read in a process does not leave its own
+    ``documenteer.conf.technote`` bound on ``documenteer.conf``.
     """
-    saved: dict[str, ModuleType] = {}
+    saved_modules: dict[str, ModuleType] = {}
+    # What each module's parent package had bound under the module's own name
+    # before the read, or `_UNBOUND` where it had nothing bound there.
+    saved_attributes: dict[str, Any] = {}
     for name in _CONFIG_MODULES:
         module = sys.modules.pop(name, None)
         if module is not None:
-            saved[name] = module
+            saved_modules[name] = module
+        parent_name, _, attribute = name.rpartition(".")
+        parent = sys.modules.get(parent_name)
+        if parent is None:
+            # A parent package the read imports for the first time had
+            # nothing bound there before the read either.
+            saved_attributes[name] = _UNBOUND
+        else:
+            saved_attributes[name] = getattr(parent, attribute, _UNBOUND)
     try:
         yield
     finally:
         for name in _CONFIG_MODULES:
             sys.modules.pop(name, None)
-        for name, module in saved.items():
-            sys.modules[name] = module
-            # Re-importing the module also rebound it as an attribute of its
-            # parent package, so the parent has to be put back too or a later
-            # `documenteer.conf.technote` attribute access answers with this
-            # read's module rather than the restored one.
+        sys.modules.update(saved_modules)
+        for name, value in saved_attributes.items():
             parent_name, _, attribute = name.rpartition(".")
             parent = sys.modules.get(parent_name)
-            if parent is not None:
-                setattr(parent, attribute, module)
+            if parent is None:
+                continue
+            if value is _UNBOUND:
+                # The read's own import bound the module here. Nothing was
+                # bound here before it, so nothing is bound here after it;
+                # a later import of the name binds it again.
+                with suppress(AttributeError):
+                    delattr(parent, attribute)
+            else:
+                setattr(parent, attribute, value)
+
+
+@contextmanager
+def _docutils_namespace() -> Iterator[None]:
+    """Keep the enclosed Sphinx build out of docutils' global registries.
+
+    A build registers its extensions' directives, roles, and node classes in
+    registries docutils keeps per *process*, where they would outlive the
+    read. ``sphinx-build`` wraps its own build in
+    `sphinx.util.docutils.docutils_namespace` for exactly this reason, and
+    this is that plus one repair: Sphinx's version unregisters every node in
+    ``additional_nodes`` on the way out rather than only the ones the
+    enclosed build added, so the node classes that were registered before the
+    read — by another Sphinx build in the same process, say — are registered
+    again afterwards.
+    """
+    from sphinx.util.docutils import (  # noqa: PLC0415
+        additional_nodes,
+        docutils_namespace,
+        register_node,
+    )
+
+    saved_nodes = set(additional_nodes)
+    try:
+        with docutils_namespace():
+            yield
+    finally:
+        for node in saved_nodes:
+            register_node(node)
 
 
 def _read_doctree(root_dir: Path) -> nodes.document:
@@ -239,11 +297,19 @@ def _read_doctree(root_dir: Path) -> nodes.document:
     The build's output and doctree caches go to a temporary directory that is
     removed on the way out, so reading a technote never writes into the
     repository it reads — a lint run in a clean checkout leaves it clean.
+
+    ``patch_docutils`` and `_docutils_namespace` wrap the build the way
+    ``sphinx-build`` wraps its own: the first so the technote is read under
+    the ``docutils.conf`` it is built under, the second so the registries the
+    build adds to are put back the way it found them.
     """
     from sphinx.application import Sphinx  # noqa: PLC0415
+    from sphinx.util.docutils import patch_docutils  # noqa: PLC0415
 
     with (
         tempfile.TemporaryDirectory(prefix="documenteer-read-") as build_dir,
+        patch_docutils(str(root_dir)),
+        _docutils_namespace(),
         _isolated_technote_config(),
     ):
         build = Path(build_dir)
