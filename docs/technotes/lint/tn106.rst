@@ -21,6 +21,9 @@ The comparison is the one :command:`documenteer technote sync-cff --check` runs,
 A repository with **no** :file:`CITATION.cff` is not flagged.
 Adopting the file is opt-in per repository: an absent file means the repository has not asked for one, not that it is missing something.
 
+A technote Sphinx cannot read is not flagged either.
+The citation is titled by the technote's own top-level heading (see :doc:`../citation-file`), so a document that does not read leaves this rule with nothing to compare titles by; the read failure is reported once, as :doc:`TN203 <tn203>`.
+
 Example of a failing technote
 =============================
 
@@ -63,3 +66,4 @@ See also
 
 - :doc:`../citation-file` — what is generated, and how each field is read from :file:`technote.toml`.
 - :doc:`TN001 <tn001>` — :file:`technote.toml` does not conform to the schema, which is how a ``doi`` that is not a DOI is reported. Such a file cannot be parsed into metadata at all, so this rule stays silent until it is fixed.
+- :doc:`TN203 <tn203>` — Sphinx cannot read the technote's document, which is reported instead of this rule.

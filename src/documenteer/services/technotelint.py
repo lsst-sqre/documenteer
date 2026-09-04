@@ -942,13 +942,28 @@ def _check_citation_cff(context: LintContext) -> list[LintFinding]:
     declaring an author with no name, say — is silent too. Staleness is not
     the finding to report about it, and TN001 has already reported the schema
     failure underneath.
+
+    A technote Sphinx cannot read is silent as well, and this is where
+    mirroring the command matters most. An unresolved title falls back to the
+    technote's id, so comparing against it would report a file an earlier
+    successful sync titled by the document's H1 as stale — and the remedy
+    TN106 names would then fail with the very read error TN203 is already
+    reporting. Only a technote-series repository with no ``conf.py``, which
+    Sphinx does not build at all, is legitimately compared with no document
+    title, exactly as ``sync-cff`` generates it.
     """
     cff_path = context.root_dir / CFF_FILENAME
     if not cff_path.is_file():
         return []
+    document_title: str | None = None
+    if context.conf_path is not None:
+        try:
+            document_title = context.read_document().title
+        except TechnoteReadError:
+            return []
     try:
         service = TechnoteCffService.from_technote_toml(
-            context.toml_path, document_title=context.document_title
+            context.toml_path, document_title=document_title
         )
     except ValueError:
         return []

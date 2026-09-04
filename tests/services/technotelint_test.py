@@ -876,6 +876,43 @@ def test_unreadable_technote_reports_tn203(tmp_path: Path) -> None:
     assert "conf.py" in findings[0].message
 
 
+def test_unreadable_document_leaves_citation_cff_to_tn203(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote Sphinx cannot read reports the read failure, not staleness.
+
+    The CITATION.cff on disk was written by an earlier successful sync, so it
+    is titled by the document's H1. Titling the regenerated file by the
+    technote's id instead — which is what an unresolved title falls back to —
+    would report the file as stale, and TN106's remedy would then fail with
+    the very read error TN203 is already reporting.
+    """
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    untitled = CITABLE_TOML.replace('title = "The technote"\n', "").replace(
+        'doi = "10.71929/rubin/2570308"\n', ""
+    )
+    (tmp_path / "technote.toml").write_text(untitled)
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    (tmp_path / "requirements.txt").write_text("documenteer[technote]\n")
+    generator = TechnoteCffService.from_technote_toml(
+        tmp_path / "technote.toml", document_title="The technote"
+    )
+    (tmp_path / "CITATION.cff").write_text(generator.render())
+    # A notebook that is not valid JSON: conf.py is present, so the technote
+    # is one Sphinx builds, but the document itself will not read.
+    (tmp_path / "index.ipynb").write_text("{ not json")
+    context = LintContext.from_dir(tmp_path, AuthorDb())
+
+    findings = TechnoteLintService(context).lint()
+
+    assert [f.code for f in findings] == ["TN203"]
+
+
 def test_the_technote_is_read_once_per_lint_run(
     tmp_path: Path, responses: RequestsMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -109,7 +109,7 @@ The ``--check`` option compares the file on disk against what the technote gener
    documenteer technote sync-cff --check
 
 It exits non-zero only when :file:`CITATION.cff` exists and is *stale*.
-A repository with no :file:`CITATION.cff` has simply not adopted the file, and passes.
+A repository with no :file:`CITATION.cff` has simply not adopted the file, and passes — before the technote is built at all, so a repository that never opted in is not failed by a document Sphinx cannot read.
 
 This is the mechanism to keep the file current: run it in CI, where the technote is built anyway, and a metadata or title change that was not synced fails the build with the command to run.
 Rubin's shared technote workflow runs it for you.

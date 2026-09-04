@@ -400,6 +400,30 @@ def test_sync_cff_check_absent(tmp_path: Path) -> None:
     assert not (tmp_path / "CITATION.cff").exists()
 
 
+def test_sync_cff_check_absent_does_not_read_the_technote(
+    tmp_path: Path,
+) -> None:
+    """--check answers an absent CITATION.cff before building anything.
+
+    Rubin's shared technote workflow runs this check on every technote,
+    including the ones that never adopted a CITATION.cff. Reading the
+    document first would fail those repositories on a broken document that
+    no file on disk depends on — and this one's document does not read.
+    """
+    (tmp_path / "technote.toml").write_text(CFF_TOML)
+    (tmp_path / "conf.py").write_text(CONF_PY)
+    # A conf.py with no content file: Sphinx has no master document to read.
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "does not exist; nothing to check" in result.output
+    assert not (tmp_path / "CITATION.cff").exists()
+
+
 def test_sync_cff_check_stale(tmp_path: Path) -> None:
     """--check fails on a stale CITATION.cff, and does not rewrite it."""
     (tmp_path / "technote.toml").write_text(CFF_TOML)

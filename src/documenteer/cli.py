@@ -474,11 +474,27 @@ def technote_sync_cff(root_dir: str, *, check: bool) -> None:
     cannot read rather than citing the technote by its handle. A
     technote-series repository with no :file:`conf.py` is not built by
     Sphinx, and is generated from technote.toml alone.
+
+    Nothing is read for a ``--check`` that has already been answered: an
+    absent CITATION.cff passes before the technote is built at all, so a
+    repository that never opted in is not failed by a document Sphinx cannot
+    read.
     """
     root = Path(root_dir)
     toml_path = root / "technote.toml"
     if not toml_path.is_file():
         raise click.ClickException(f"No technote.toml found in {root}.")
+
+    cff_path = root / CFF_FILENAME
+    if check and not cff_path.is_file():
+        # Answered before anything is read, the way the linter's TN106
+        # early-returns on the same condition. A repository that never
+        # adopted CITATION.cff has nothing whose staleness a title could
+        # decide, and Rubin's shared workflow runs this check on every
+        # technote — so failing one here on a document Sphinx cannot read
+        # would fail repositories this check has no opinion about.
+        click.echo(f"{cff_path} does not exist; nothing to check.")
+        return
 
     document_title: str | None = None
     if (root / "conf.py").is_file():
@@ -502,20 +518,16 @@ def technote_sync_cff(root_dir: str, *, check: bool) -> None:
     for warning in service.warnings:
         click.echo(f"Warning: {warning}", err=True)
 
-    cff_path = root / CFF_FILENAME
     if check:
-        status = service.status(cff_path)
-        if status is CffStatus.stale:
+        # The absent case returned above, so the file is here to compare.
+        if service.status(cff_path) is CffStatus.stale:
             click.echo(
                 f"{cff_path} is out of date with {toml_path}. Run "
                 f"'documenteer technote sync-cff' to regenerate it.",
                 err=True,
             )
             raise SystemExit(1)
-        if status is CffStatus.absent:
-            click.echo(f"{cff_path} does not exist; nothing to check.")
-        else:
-            click.echo(f"{cff_path} is up to date.")
+        click.echo(f"{cff_path} is up to date.")
         return
 
     if service.sync(cff_path) is CffStatus.current:
