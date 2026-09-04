@@ -9,12 +9,20 @@ title alone. The page still renders, so nothing tells the author that the work
 they publish is being cited undated.
 
 This extension is what tells them. It reports each undated citation once per
-build, while the environment is checked, and names the place the date belongs:
+build, as the builder is initialized, and names the place the date belongs:
 the ``date`` field of the ``[[project.citations]]`` entry, and — when the
 entry sources its fields from a :file:`CITATION.cff` file — the record inside
 that file it reads. Which record matters, because a file whose top-level
 software record is undated can carry a dated ``preferred-citation`` beside it,
 and dating the wrong one would leave the citation exactly as it was.
+
+``builder-inited`` is the event that makes "once per build" true of every
+build. An undated citation is a property of the configuration alone, and a
+configuration change that drops a date leaves every document up to date — so a
+check run while the *environment* is checked would report nothing on the
+incremental rebuild that follows the edit, which is the build the author is
+watching. This event fires before any of that is decided, with the
+configuration already read.
 
 It is a warning rather than an error because a work whose date its author does
 not know is still a work worth citing, and rendering is unchanged either way:
@@ -36,7 +44,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from sphinx.application import Sphinx
-    from sphinx.environment import BuildEnvironment
     from sphinx.util.typing import ExtensionMetadata
 
 __all__ = ["setup"]
@@ -108,7 +115,7 @@ def _fix(citation: dict[str, Any]) -> str:
     return f"{ENTRY_FIX}, or date-released (or year) in {record}."
 
 
-def check_citation_dates(app: Sphinx, env: BuildEnvironment) -> None:
+def check_citation_dates(app: Sphinx) -> None:
     """Warn about each citation that states no publication date.
 
     Parameters
@@ -116,10 +123,6 @@ def check_citation_dates(app: Sphinx, env: BuildEnvironment) -> None:
     app
         The Sphinx application, whose ``html_context`` carries the resolved
         citations.
-    env
-        The build environment, unused: an undated citation is a property of
-        the configuration, not of the documents. The parameter is part of the
-        ``env-check-consistency`` signature.
     """
     for citation in _citations(app):
         if citation.get("date"):
@@ -137,7 +140,7 @@ def check_citation_dates(app: Sphinx, env: BuildEnvironment) -> None:
 
 def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the ``documenteer.ext.citationdate`` Sphinx extension."""
-    app.connect("env-check-consistency", check_citation_dates)
+    app.connect("builder-inited", check_citation_dates)
 
     return {
         "version": __version__,

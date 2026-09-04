@@ -7,18 +7,31 @@ field, and the BibTeX key is built from the author and title alone. Nothing
 about the rendered page says so, and the date can be missing from either of two
 places -- the ``[[project.citations]]`` entry, or the record of the
 CITATION.cff file the entry reads -- so ``documenteer.ext.citationdate``
-reports it while the environment is checked and names the one that applies.
+reports it as the builder is initialized and names the one that applies.
 
-The warning is emitted once per build, at ``env-check-consistency``, which
-Sphinx runs only when a build actually read a document. Every test here
-therefore gets an srcdir of its own: a build sharing another test's srcdir
-would find nothing out of date and check no consistency.
+``builder-inited`` runs once on every build, whether or not that build reads a
+document, which is what the last test here is about. The rest give each build
+an srcdir of its own so that none of them inherits another's build state; the
+rebuild test wants its own for the opposite reason, since its second build
+reads the state its first left behind.
 """
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import pytest
 from sphinx.testing.util import SphinxTestApp
+
+from documenteer.citations import (
+    Citation,
+    GuideCitation,
+    OrganizationAuthor,
+    PartialDate,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # The warning's type.subtype, as ``suppress_warnings`` spells it and as Sphinx
 # appends it to the rendered message.
@@ -30,6 +43,10 @@ INLINE_LABEL = "Dataset"
 CFF_TOP_LEVEL_LABEL = "Software"
 CFF_PREFERRED_TITLE = "The Rubin Observatory Data Butler"
 CFF_PATH = "../CITATION.cff"
+
+# The label of the lone citation the rebuild test configures for itself, which
+# it shares with none of the root's own citations.
+REBUILD_LABEL = "Rebuilt"
 
 
 def _warnings(app: SphinxTestApp) -> list[str]:
@@ -134,3 +151,77 @@ def test_warning_is_suppressible(app: SphinxTestApp) -> None:
     assert not [
         line for line in _warnings(app) if "no publication date" in line
     ]
+
+
+def _one_citation_context(date: PartialDate | None) -> dict[str, Any]:
+    """Compose the ``html_context`` of a site citing itself once, dated or
+    not, in the shape the guide preset publishes.
+
+    The rebuild test's two builds differ in this date and in nothing else, so
+    the date is the whole of the configuration change the check has to notice.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            title="Citation Date Rebuild Site",
+            doi="10.71929/rubin/2570308",
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+            publisher="Vera C. Rubin Observatory",
+            date=date,
+        ),
+        label=REBUILD_LABEL,
+        is_self=True,
+        is_preferred=True,
+    ).to_html_context()
+    return {
+        "documenteer_citations": [context],
+        "documenteer_self_citation": context,
+        "documenteer_preferred_citation": context,
+    }
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-rebuild",
+    confoverrides={
+        "html_context": _one_citation_context(PartialDate(2025, 6))
+    },
+)
+def test_rebuild_reading_no_document_still_warns(
+    app: SphinxTestApp, make_app: Callable[..., SphinxTestApp]
+) -> None:
+    """Dropping a citation's date and rebuilding an already-built site is
+    reported, even though the edit leaves every document up to date and so
+    re-reads none of them.
+
+    This is the ordinary local loop: an author edits documenteer.toml and
+    rebuilds. Citations reach Sphinx through ``html_context``, whose
+    ``rebuild`` is ``"html"``, which is why changing one costs the documents
+    nothing. The assertion on ``env-check-consistency`` is what pins that
+    down -- Sphinx skips that event on a build that read nothing, so a check
+    connected to it would say nothing at all here.
+    """
+    app.build()
+
+    assert not [line for line in _warnings(app) if WARNING_NAME in line], (
+        "the first build states a date, so it must have nothing to report"
+    )
+
+    rebuilt = make_app(
+        "html",
+        srcdir=app.srcdir,
+        confoverrides={"html_context": _one_citation_context(None)},
+    )
+    consistency_checks: list[object] = []
+    rebuilt.connect(
+        "env-check-consistency",
+        lambda _app, env: consistency_checks.append(env),
+    )
+    warning = _warning_naming(rebuilt, f"{REBUILD_LABEL!r}")
+
+    assert not consistency_checks, (
+        "the rebuild must be one that re-reads no document, or it does not "
+        "exercise the incremental case at all"
+    )
+    assert "no publication date" in warning
+    assert f"[{WARNING_NAME}]" in warning
