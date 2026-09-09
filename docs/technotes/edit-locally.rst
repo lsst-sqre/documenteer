@@ -73,6 +73,19 @@ To run the linters on-demand, run:
 That command runs the Pre-commit_ hooks, the :doc:`technote linter <lint/index>` (:command:`documenteer technote lint`), and the link checker.
 If you ran :command:`make init`, the Pre-commit hooks will also run automatically before every Git commit.
 
+Regenerating metadata files
+---------------------------
+
+Some of a technote's metadata is generated rather than written by hand, and each generated file has a target that refreshes it:
+
+.. prompt:: bash
+
+   make sync-authors
+   make sync-cff
+
+:command:`make sync-authors` rewrites each ``[[technote.authors]]`` entry in :file:`technote.toml` from Rubin's author database (see :doc:`author-metadata`), and :command:`make sync-cff` regenerates the :file:`CITATION.cff` file that GitHub cites the technote from (see :doc:`citation-file`).
+Like :command:`make html`, both run inside tox_, so neither needs Documenteer installed on your own computer.
+
 Resetting your environment
 --------------------------
 

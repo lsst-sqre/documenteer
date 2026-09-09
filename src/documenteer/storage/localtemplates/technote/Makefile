@@ -20,6 +20,10 @@ sync-authors:
 	tox run -e sync-authors
 
 .PHONY:
+sync-cff:
+	tox run -e sync-cff
+
+.PHONY:
 clean:
 	rm -rf _build
 	rm -rf .technote

@@ -14,6 +14,15 @@ Documenteer generates that file from :file:`technote.toml` and the technote's ow
 Run the command from the technote's repository root, or point it elsewhere with the ``-d/--dir`` option.
 The command builds the technote to read its title, so it needs the ``technote`` extra — :samp:`pip install documenteer[technote]`, which a technote's :file:`requirements.txt` declares anyway.
 
+A technote's own tooling runs it for you, alongside :command:`make sync-authors`:
+
+.. prompt:: bash
+
+   make sync-cff
+
+That target runs the command inside the same tox_ environment :command:`make html` builds the technote in, so a technote you can build is one you can sync.
+Technotes created or migrated with an older Documenteer may not have the target yet; :doc:`migrate` writes the :file:`Makefile` and :file:`tox.ini` that provide it.
+
 :file:`technote.toml` is the canonical source
 =============================================
 
