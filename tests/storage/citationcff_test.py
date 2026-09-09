@@ -91,6 +91,11 @@ def test_preferred_citation_wins() -> None:
 def test_top_level_record_ignores_preferred_citation() -> None:
     """Asked for the file's own record, the reader returns the top-level
     software the repository is and never looks at preferred-citation.
+
+    The title and the absent DOI are what say which record was read: the
+    fixture declares no top-level type, as ``lsst/daf_butler``'s own file
+    does, so the software type here is CFF's default for that record rather
+    than something the file states.
     """
     citation = read_citation_cff(
         DATA_DIR / "software-record.cff", use_preferred_citation=False
@@ -151,25 +156,84 @@ def test_landing_page_beats_repository_code(tmp_path: Path) -> None:
         # CFF's vocabulary is far larger than Documenteer's, and a type with
         # no counterpart leaves the work untyped rather than guessing.
         ("thesis", None),
-        (None, None),
     ],
 )
 def test_type_is_mapped(
-    tmp_path: Path, cff_type: str | None, expected: CitationType | None
+    tmp_path: Path, cff_type: str, expected: CitationType | None
 ) -> None:
     """A CFF record's own type is carried onto the citation, so an entry that
     points at the file is typed without restating the type.
     """
     path = tmp_path / "CITATION.cff"
-    declaration = f"type: {cff_type}\n" if cff_type else ""
     path.write_text(
         "cff-version: 1.2.0\n"
         "title: A work\n"
-        f"{declaration}"
+        f"type: {cff_type}\n"
         "doi: 10.71929/rubin/2570308\n"
     )
 
     assert read_citation_cff(path).type is expected
+
+
+def test_top_level_type_defaults_to_software(tmp_path: Path) -> None:
+    """A top-level record that declares no type is read as software, which is
+    the default CFF itself defines for the field.
+
+    CFF restricts the top-level ``type`` to ``software`` or ``dataset`` and
+    makes the key optional, so nearly every real file — a Zenodo- or
+    GitHub-generated one, and ``lsst/daf_butler``'s — leaves it out and relies
+    on the default. Reading such a record as untyped would compose it as a
+    generic work rather than as the software the repository is.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A package\n"
+        "repository-code: https://github.com/lsst/package\n"
+        "preferred-citation:\n"
+        "  type: article\n"
+        "  title: An article\n"
+        "  doi: 10.1117/12.2629569\n"
+    )
+
+    citation = read_citation_cff(path, use_preferred_citation=False)
+
+    assert citation.type is CitationType.software
+
+
+def test_untyped_file_with_no_preference_is_software(tmp_path: Path) -> None:
+    """A file that declares neither a preferred-citation nor a type is read as
+    software as well, since the record the default read falls back to is that
+    same top-level record.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A package\n"
+        "repository-code: https://github.com/lsst/package\n"
+    )
+
+    assert read_citation_cff(path).type is CitationType.software
+
+
+def test_untyped_preferred_citation_stays_untyped(tmp_path: Path) -> None:
+    """A preferred-citation that declares no type leaves the work untyped.
+
+    CFF gives a reference no default type and admits dozens of them, so the
+    software default the top level carries would misreport whatever the file
+    means to prefer.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A package\n"
+        "type: software\n"
+        "preferred-citation:\n"
+        "  title: An article\n"
+        "  doi: 10.1117/12.2629569\n"
+    )
+
+    assert read_citation_cff(path).type is None
 
 
 def test_doi_url_is_normalized(tmp_path: Path) -> None:

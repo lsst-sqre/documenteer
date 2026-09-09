@@ -566,6 +566,10 @@ SOFTWARE_RECORD_CFF_PATH = (
 """A CITATION.cff shaped like ``lsst/daf_butler``'s: a top-level software
 record with a repository and no DOI, above a preferred citation for the paper
 that describes it.
+
+Like that file, it declares no top-level ``type`` — CFF makes the key
+optional and defaults it to ``software`` — so an entry reading its top-level
+record is typed by that default rather than by anything the file states.
 """
 
 EXAMPLE_CITATIONS_CFF_SOFTWARE = """
@@ -600,6 +604,54 @@ def test_citations_cff_software_located_by_its_repository(
     assert entry.citation.title == "daf_butler"
     assert entry.citation.doi is None
     assert entry.citation.url == "https://github.com/lsst/daf_butler"
+
+
+EXAMPLE_CITATIONS_CFF_SOFTWARE_DOCUMENTED = """
+
+[project]
+title = "Butler Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+in_footer = true
+note = "Cite the package itself when reporting the version you ran."
+"""
+"""The ``cff_preferred = false`` entry the citations guide documents, written
+exactly as that page writes it — no inline ``type``.
+"""
+
+
+def test_citations_cff_untyped_software_composes_as_software(
+    tmp_path: Path,
+) -> None:
+    """The documented ``cff_preferred = false`` entry, against a file that
+    declares no top-level type, publishes the software the repository is.
+
+    This is the composed end of CFF's top-level default: without it the entry
+    would compose as a BibTeX ``@misc`` and a schema.org ``CreativeWork``,
+    which is neither what the repository is nor what the guide's example
+    promises.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        SOFTWARE_RECORD_CFF_PATH.read_text(encoding="utf-8")
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SOFTWARE_DOCUMENTED, root_dir=docs_dir
+    )
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    (entry,) = config.citations
+    assert entry.citation.type is CitationType.software
+    assert entry.citation.to_bibtex().startswith("@software{")
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    (node,) = payload["citation"]
+    assert node["@type"] == "SoftwareSourceCode"
 
 
 def test_citations_cff_provenance_reaches_the_html_context(
@@ -666,6 +718,39 @@ def test_citations_type_overrides_cff(tmp_path: Path) -> None:
 
     config = DocumenteerConfig.load(
         EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.type is CitationType.dataset
+
+
+EXAMPLE_CITATIONS_CFF_TOP_LEVEL_TYPE_OVERRIDE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+type = "dataset"
+"""
+
+
+def test_citations_type_overrides_cff_top_level_default(
+    tmp_path: Path,
+) -> None:
+    """A type set alongside cff overrides the software type a top-level
+    record with no type of its own is read as, the same way it overrides a
+    type the file states.
+    """
+    (tmp_path / "CITATION.cff").write_text(
+        SOFTWARE_RECORD_CFF_PATH.read_text(encoding="utf-8")
+    )
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_TOP_LEVEL_TYPE_OVERRIDE, root_dir=docs_dir
     )
 
     (entry,) = config.citations

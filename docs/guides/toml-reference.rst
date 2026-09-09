@@ -190,6 +190,7 @@ A citation that declares no type says nothing about what the work is: it compose
 The ``self`` entry is typed like any other, so a site that is a data release's landing page declares ``type = "dataset"`` there too.
 
 If :ref:`cff <guide-project-citations-cff>` is set, the file's own ``type`` supplies this field, and setting it here overrides the file's value.
+A file's *top-level* record that declares no ``type`` is read as ``software``, which is the default CFF itself defines for that key and which most files rely on; a ``preferred-citation`` that declares none leaves the entry untyped.
 
 .. _guide-project-citations-label:
 
@@ -524,6 +525,7 @@ Set it to ``false`` to cite the file's *top-level* record — the software or th
 
 That is the only way to cite a repository whose :file:`CITATION.cff` prefers a paper, and a site can do both at once by declaring two entries against the same file: one for the paper and one, with ``cff_preferred = false``, for the software.
 The top-level record's own ``type`` — which CFF restricts to ``software`` or ``dataset`` — supplies the entry's :ref:`type <guide-project-citations-type>`, and a top-level record with no DOI is located by its ``url`` or ``repository-code`` (see :ref:`url <guide-project-citations-url>`).
+CFF makes that key optional and defines its default as ``software``, so a top-level record that states no ``type`` — as most files, including generated ones, do not — is read as software rather than as a work of unstated kind.
 
 ``cff_preferred`` chooses which record of a *file* is read; :ref:`preferred <guide-project-citations-preferred>` chooses which of the site's citations is the one it asks readers to use.
 The two are unrelated, and an entry that sets ``cff_preferred`` without ``cff`` fails the build, since there is then no file whose records it could be choosing between.

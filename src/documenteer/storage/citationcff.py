@@ -62,9 +62,13 @@ CITATION_TYPES: dict[str, CitationType] = {
 CFF's own vocabulary is far larger than this — its top level accepts
 ``software`` and ``dataset``, and a reference accepts several dozen types —
 so only the ones with a counterpart are listed. A type outside this mapping
-leaves the citation untyped, which publishes the same generic schema.org type
-a file that declares no type at all does; guessing would be worse than saying
-nothing.
+leaves the citation untyped, which publishes a generic schema.org type;
+guessing would be worse than saying nothing.
+
+A record that declares *no* type is a different case, and `_citation_type`
+resolves it by record: the top level, whose type CFF defaults to
+``software``, is read as software, where a ``preferred-citation`` that
+declares none stays untyped.
 """
 
 
@@ -151,6 +155,13 @@ def read_citation_cff(
     ``preferred-citation`` is not even looked at, since the caller has said
     which record it wants.
 
+    A record that declares no ``type`` is resolved by which record it is.
+    CFF restricts the top level's ``type`` to ``software`` or ``dataset``,
+    makes the key optional, and defaults it to ``software`` — which is what
+    nearly every real file relies on — so a top-level record that declares
+    none is read as software. A ``preferred-citation`` has no such default,
+    so one that declares no type stays untyped.
+
     The fields read are common to CFF 1.1.0 and 1.2.0, and ``cff-version`` is
     not checked: rejecting a file whose fields are all understood buys
     nothing.
@@ -181,6 +192,7 @@ def read_citation_cff(
     source = (
         document.get("preferred-citation") if use_preferred_citation else None
     )
+    is_top_level = source is None
     if source is None:
         # Either the caller asked for the top-level record, or the file
         # declares no preferred citation — and in both cases the
@@ -216,7 +228,7 @@ def read_citation_cff(
     try:
         return Citation(
             title=title,
-            type=_citation_type(source),
+            type=_citation_type(source, is_top_level=is_top_level),
             doi=_doi(source),
             authors=authors,
             publisher=_entity_name(source.get("publisher"))
@@ -286,17 +298,28 @@ def _author(entry: Any, *, path: Path) -> CitationAuthor:
     )
 
 
-def _citation_type(source: Mapping[str, Any]) -> CitationType | None:
+def _citation_type(
+    source: Mapping[str, Any], *, is_top_level: bool
+) -> CitationType | None:
     """Map the record's ``type`` onto Documenteer's citation vocabulary.
 
     The type read is the one on whichever record is being cited: a
     ``preferred-citation``'s own type when the file declares one, and the top
     level's otherwise. The top level describes the *repository*, so its type
     would misreport the paper or report a preferred citation names.
+
+    A record that declares no type at all is resolved differently by record,
+    which is what ``is_top_level`` selects. CFF restricts the top-level
+    ``type`` to ``software`` or ``dataset``, makes the key optional, and
+    defines its default as ``software`` — so a top-level record that declares
+    none is software, which is what nearly every real file relies on. A
+    ``preferred-citation`` has no such default and admits dozens of reference
+    types, so one that declares no type stays untyped rather than being
+    guessed at.
     """
     declared = _text(source.get("type"))
     if declared is None:
-        return None
+        return CitationType.software if is_top_level else None
     return CITATION_TYPES.get(declared.casefold())
 
 

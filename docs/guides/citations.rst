@@ -87,6 +87,7 @@ A second entry against the same file, with :ref:`cff_preferred = false <guide-pr
    note = "Cite the package itself when reporting the version you ran."
 
 A package that has never been deposited for a DOI is cited by where it lives: the file's ``url``, or its ``repository-code`` when it names no landing page.
+The entry states no :ref:`type <guide-project-citations-type>` either, and does not need to: a top-level record that declares none is read as ``software``, the default CFF defines for that key, so the citation composes as ``@software`` and publishes as a `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__.
 Only the :ref:`self <guide-project-citations-self>` entry needs a DOI, because that entry is the claim that this site is a DOI's landing page.
 
 A site can also set ``self`` and ``preferred`` on *different* entries, which is the site published with a DOI of its own that nonetheless asks readers to cite something else.
