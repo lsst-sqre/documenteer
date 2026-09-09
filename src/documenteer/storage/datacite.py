@@ -8,7 +8,7 @@ from typing import Self
 import requests
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from documenteer.citations import normalize_doi, normalize_orcid
+from documenteer.citations import PartialDate, normalize_doi, normalize_orcid
 
 __all__ = [
     "DATACITE_API_ROOT",
@@ -42,6 +42,15 @@ _ORCID_SCHEME = "orcid"
 
 _ORGANIZATIONAL_NAME_TYPE = "organizational"
 """The ``nameType`` DataCite gives a creator that is not a person, folded."""
+
+_ISSUED_DATE_TYPE = "issued"
+"""The ``dateType`` DataCite dates a publication with, folded.
+
+DataCite defines ``Issued`` as "the date that the resource is published or
+distributed" — a date of the *resource*, which is what dates a citation. The
+other types in the vocabulary (``Submitted``, ``Available``, ``Accepted``,
+``Updated``, …) describe other moments in the resource's life.
+"""
 
 
 def datacite_api_url(doi: str) -> str:
@@ -204,8 +213,32 @@ class _Creator(BaseModel):
         return None
 
 
+class _Date(BaseModel):
+    """One entry of a DOI record's ``dates`` list."""
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    date: str | None = None
+    """The date, as text.
+
+    DataCite's ``dates`` is looser than a publication date: an entry may
+    state a range (``2004-03-02/2005-06-02``) or a timestamp, so the value
+    is carried as written and read for a date by whoever needs one.
+    """
+
+    date_type: str | None = Field(default=None, alias="dateType")
+    """Which moment in the resource's life this entry dates."""
+
+
 class _Attributes(BaseModel):
-    """The subset of a DOI record's attributes this client reads."""
+    """The subset of a DOI record's attributes this client reads.
+
+    The record-level ``created``, ``registered``, and ``updated``
+    attributes are deliberately absent. They are the timestamps of the DOI
+    *record* — when the DOI was minted and last touched — and say nothing
+    about when the work was published, so reading them would date a
+    citation by an event in Rubin's minting pipeline.
+    """
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -214,6 +247,45 @@ class _Attributes(BaseModel):
     titles: list[_Title] = Field(default_factory=list)
 
     creators: list[_Creator] = Field(default_factory=list)
+
+    publication_year: int | None = Field(default=None, alias="publicationYear")
+    """DataCite's mandatory ``publicationYear``.
+
+    DataCite defines it as the year the resource "was or will be made
+    publicly available", and directs a registrant with no standard
+    publication year to "use the date that would be preferred from a
+    citation perspective". It is, by definition, the citation year.
+    """
+
+    dates: list[_Date] = Field(default_factory=list)
+    """The optional ``dates`` list, which may add precision to the year."""
+
+    def issued(self) -> PartialDate | None:
+        """Read the date the work was published, at its stated precision.
+
+        An ``Issued`` entry in ``dates`` is preferred, since it can state a
+        month or a day where ``publicationYear`` only states a year. A
+        record that has no usable one falls back to the publication year,
+        and a record that states neither is undated.
+        """
+        for entry in self.dates:
+            date_type = entry.date_type
+            if date_type is None or date_type.casefold() != _ISSUED_DATE_TYPE:
+                continue
+            if not entry.date:
+                continue
+            try:
+                return PartialDate.parse(entry.date)
+            except ValueError:
+                # A range or a timestamp is not a publication date at any of
+                # the three precisions; the year still is.
+                break
+        if self.publication_year is None:
+            return None
+        try:
+            return PartialDate(self.publication_year)
+        except ValueError:
+            return None
 
 
 class _Data(BaseModel):
@@ -249,6 +321,25 @@ class DataCiteRecord:
     creators: tuple[DataCiteCreator, ...]
     """The registered creators, in the order DataCite lists them."""
 
+    publication_year: int | None
+    """The registered ``publicationYear``, if the record declares one.
+
+    This is the primary date a DOI record carries: DataCite makes it
+    mandatory and defines it as the citation year. It is carried as
+    registered rather than as a date, so a caller can quote the year
+    DataCite states even when it is not a year `issued` could be composed
+    from.
+    """
+
+    issued: PartialDate | None
+    """When the work was published, at the precision the record states.
+
+    An ``Issued``-typed entry of the record's ``dates`` where one is
+    registered, which is how a day or a month reaches a record; otherwise
+    the `publication_year`, to the year. `None` when the record states
+    neither.
+    """
+
     url: str
     """The API URL this metadata was read from."""
 
@@ -277,6 +368,8 @@ class DataCiteRecord:
             creators=tuple(
                 creator.to_creator() for creator in attributes.creators
             ),
+            publication_year=attributes.publication_year,
+            issued=attributes.issued(),
             url=url,
         )
 

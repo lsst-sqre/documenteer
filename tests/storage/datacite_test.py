@@ -10,6 +10,7 @@ import pytest_responses  # noqa: F401
 import requests
 from responses import RequestsMock
 
+from documenteer.citations import PartialDate
 from documenteer.storage.datacite import (
     DataCiteClient,
     DataCiteCreator,
@@ -28,13 +29,21 @@ def _payload(
     *,
     titles: list[dict[str, Any]] | None = None,
     creators: list[dict[str, Any]] | None = None,
+    publication_year: int | None = 2026,
+    dates: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build a DataCite ``/dois/{id}`` response body.
 
     Only the fields the client reads are varied; the rest are present so the
     body is shaped like a real one, which is what makes the extra-field
-    tolerance meaningful.
+    tolerance meaningful. ``publication_year`` defaults to the 2026 a
+    Rubin-minted record carries; passing `None` leaves the field out.
     """
+    year = (
+        {}
+        if publication_year is None
+        else {"publicationYear": publication_year}
+    )
     return json.dumps(
         {
             "data": {
@@ -42,6 +51,13 @@ def _payload(
                 "type": "dois",
                 "attributes": {
                     "doi": DOI,
+                    "dates": dates if dates is not None else [],
+                    # The record's own timestamps. They date the *DOI*, not
+                    # the work, so a test that reads a date must never come
+                    # out of them.
+                    "created": "2019-01-01T00:00:00.000Z",
+                    "registered": "2019-01-01T00:00:00.000Z",
+                    "updated": "2019-01-01T00:00:00.000Z",
                     "titles": (
                         titles
                         if titles is not None
@@ -71,7 +87,7 @@ def _payload(
                         ]
                     ),
                     "publisher": "Vera C. Rubin Observatory",
-                    "publicationYear": 2026,
+                    **year,
                     "url": "https://sqr-000.lsst.io/",
                     "state": "findable",
                 },
@@ -319,3 +335,175 @@ def test_get_record_rejects_a_non_doi() -> None:
     """A value that is not a DOI is refused before any request is made."""
     with pytest.raises(ValueError, match="Not a DOI"):
         DataCiteClient().get_record("10.71929")
+
+
+def test_get_record_reads_the_publication_year(
+    responses: RequestsMock,
+) -> None:
+    """A Rubin-minted record is dated by its mandatory ``publicationYear``.
+
+    This is the live shape of ``10.71929/rubin/3382539``: a
+    ``publicationYear`` and an empty ``dates`` list. DataCite defines
+    ``publicationYear`` as the year the resource was made publicly
+    available — the citation year — so a record that states nothing finer
+    is still dated, to the year.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.publication_year == 2026
+    assert record.issued == PartialDate(2026)
+
+
+def test_get_record_prefers_an_issued_date(responses: RequestsMock) -> None:
+    """An ``Issued``-typed date states the same publication to the day.
+
+    This is the live shape of the Zenodo legacy record
+    ``10.5281/zenodo.51968``: ``publicationYear`` 2016 alongside an
+    ``Issued`` date of 2016-05-24.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(
+            publication_year=2016,
+            dates=[{"date": "2016-05-24", "dateType": "Issued"}],
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.publication_year == 2016
+    assert record.issued == PartialDate(2016, 5, 24)
+
+
+def test_get_record_reads_an_issued_date_at_its_own_precision(
+    responses: RequestsMock,
+) -> None:
+    """A reduced-precision ``Issued`` date is not padded out to a day."""
+    responses.get(
+        RECORD_URL,
+        body=_payload(
+            publication_year=2016,
+            dates=[{"date": "2016-05", "dateType": "issued"}],
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.issued == PartialDate(2016, 5)
+
+
+def test_get_record_ignores_a_date_that_is_not_an_issue_date(
+    responses: RequestsMock,
+) -> None:
+    """Only an ``Issued`` entry dates the work.
+
+    ``Submitted``, ``Available``, ``Updated`` and the rest describe other
+    moments in a resource's life, so the record falls back to the year
+    DataCite calls the publication year.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(
+            publication_year=2016,
+            dates=[
+                {"date": "2015-11-02", "dateType": "Submitted"},
+                {"date": "2020-07-19", "dateType": "Updated"},
+            ],
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.issued == PartialDate(2016)
+
+
+def test_get_record_ignores_an_unreadable_issued_date(
+    responses: RequestsMock,
+) -> None:
+    """A date DataCite allows but ISO 8601 precision cannot express.
+
+    DataCite's ``dates`` accepts a range (``2004-03-02/2005-06-02``), which
+    is not a publication date at any of the three precisions, so the record
+    falls back to the publication year rather than failing the read.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(
+            publication_year=2016,
+            dates=[{"date": "2004-03-02/2005-06-02", "dateType": "Issued"}],
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.issued == PartialDate(2016)
+
+
+def test_get_record_reads_an_undated_record(responses: RequestsMock) -> None:
+    """A record with neither field states no date at all.
+
+    ``publicationYear`` is mandatory in DataCite's schema, so this shape
+    should not occur — but a read that invents a date for it would be worse
+    than one that reports the record as undated.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(publication_year=None),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.publication_year is None
+    assert record.issued is None
+
+
+def test_get_record_ignores_a_publication_year_that_is_not_a_year(
+    responses: RequestsMock,
+) -> None:
+    """A year outside ISO 8601's four digits dates nothing."""
+    responses.get(
+        RECORD_URL,
+        body=_payload(publication_year=0),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.publication_year == 0
+    assert record.issued is None
+
+
+def test_get_record_never_dates_a_work_by_its_doi_record(
+    responses: RequestsMock,
+) -> None:
+    """The record-level timestamps are not read.
+
+    ``created``/``registered``/``updated`` date the DOI record itself — when
+    the DOI was minted and last touched — not when the technote was
+    published. `_payload` stamps them 2019 so a read that consulted them
+    would show up here.
+    """
+    responses.get(
+        RECORD_URL,
+        body=_payload(
+            publication_year=2016,
+            dates=[{"date": "2016-05-24", "dateType": "Issued"}],
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    record = DataCiteClient().get_record(DOI)
+    assert record is not None
+    assert record.issued == PartialDate(2016, 5, 24)
+    assert record.publication_year == 2016

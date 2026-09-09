@@ -697,12 +697,15 @@ def test_well_formed_doi_passes(
         content_type="application/vnd.api+json",
         status=200,
     )
+    # The date_updated is what keeps TN105's undated-citation instruction
+    # out of this test, which is about the spelling of the DOI alone.
     context = _write_technote(
         tmp_path,
         f"""
 [technote]
 id = "SQR-000"
 doi = "{doi}"
+date_updated = 2026-08-24
 """,
     )
     service = TechnoteLintService(context)
@@ -747,11 +750,20 @@ CITABLE_HEADER = """
 id = "SQR-000"
 title = "The technote"
 doi = "10.71929/rubin/2570308"
+date_updated = 2026-08-24
 
 [technote.organization]
 name = "Vera C. Rubin Observatory"
 """
-"""The non-author half of a technote.toml with a DOI and a title."""
+"""The non-author half of a technote.toml with a DOI, title, and date.
+
+The ``date_updated`` is what dates the citation, so a fully-citable technote
+declares one; `UNDATED_TOML` takes it away for the rules that report its
+absence.
+"""
+
+DATE_UPDATED_LINE = "date_updated = 2026-08-24\n"
+"""The line `UNDATED_TOML` removes from `CITABLE_TOML`."""
 
 
 def _author_block(
@@ -1027,8 +1039,19 @@ def _datacite_body(
             "name": "Sick, Jonathan",
         },
     ),
+    publication_year: int | None = 2026,
+    dates: tuple[dict[str, object], ...] = (),
 ) -> str:
-    """Build a DataCite ``/dois/{id}`` response body for `DOI`."""
+    """Build a DataCite ``/dois/{id}`` response body for `DOI`.
+
+    The default is the shape a Rubin-minted record has: a
+    ``publicationYear`` and no ``dates`` at all.
+    """
+    year = (
+        {}
+        if publication_year is None
+        else {"publicationYear": publication_year}
+    )
     return json.dumps(
         {
             "data": {
@@ -1039,7 +1062,8 @@ def _datacite_body(
                     "titles": [{"title": title}],
                     "creators": list(creators),
                     "publisher": "Vera C. Rubin Observatory",
-                    "publicationYear": 2026,
+                    "dates": list(dates),
+                    **year,
                 },
             }
         }
@@ -1083,6 +1107,123 @@ SICK = _creator(given="Jonathan", family="Sick")
 
 ALSAYYAD = _creator(given="Yusra", family="AlSayyad")
 """The creator TWO_AUTHOR_TOML's second author is registered as."""
+
+UNDATED_TOML = CITABLE_TOML.replace(DATE_UPDATED_LINE, "")
+"""CITABLE_TOML with no ``date_updated``, so its citation carries no date."""
+
+
+def test_undated_technote_is_told_the_registered_issue_date(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A record's ``Issued`` date is quoted as the value to declare.
+
+    This is the shape of a Zenodo legacy record: a ``publicationYear``
+    alongside an ``Issued`` date that states the same publication to the
+    day. The day is what the author should write down, so the message
+    quotes the whole date.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            publication_year=2016,
+            dates=({"date": "2016-05-24", "dateType": "Issued"},),
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, UNDATED_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "issue date of 2016-05-24" in findings[0].message
+    assert "date_updated = 2016-05-24" in findings[0].message
+    assert "cited undated" in findings[0].message
+
+
+def test_undated_technote_is_told_the_registered_publication_year(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A record that states only a year names the year to look within.
+
+    This is the shape of a Rubin-minted record — ``publicationYear`` and an
+    empty ``dates`` list — so the message cannot quote a value to paste and
+    names the year the technote was published in instead.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, UNDATED_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "publication year of 2026" in findings[0].message
+    assert "published in 2026" in findings[0].message
+    assert "cited undated" in findings[0].message
+
+
+def test_the_undated_citation_joins_the_other_differences(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """The date instruction is a clause of the one TN105 finding."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(title="An older title"),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, UNDATED_TOML)
+    findings = TechnoteLintService(context).lint()
+    assert [f.code for f in findings] == ["TN105"]
+    assert "An older title" in findings[0].message
+    assert "date_updated" in findings[0].message
+
+
+@pytest.mark.parametrize("declared", ["2019-03-01", "2030-11-14"])
+def test_a_declared_date_is_never_compared_with_the_record(
+    tmp_path: Path, responses: RequestsMock, declared: str
+) -> None:
+    """A technote that declares a date is silent about it, either way.
+
+    An edit after registration legitimately postdates the DOI, and minting
+    legitimately postdates the last edit, so neither a declared date before
+    the registered one nor one after it is drift.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            publication_year=2026,
+            dates=({"date": "2026-08-24", "dateType": "Issued"},),
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(
+        tmp_path,
+        CITABLE_TOML.replace(
+            DATE_UPDATED_LINE, f"date_updated = {declared}\n"
+        ),
+    )
+    assert TechnoteLintService(context).lint() == []
+
+
+def test_an_undated_record_asks_an_undated_technote_for_nothing(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A record with no date of its own has nothing to instruct with."""
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(publication_year=None),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, UNDATED_TOML)
+    assert TechnoteLintService(context).lint() == []
 
 
 def test_datacite_title_drift_reports_tn105(
@@ -1693,10 +1834,13 @@ def test_untitled_technote_skips_the_title_comparison(
         content_type="application/vnd.api+json",
         status=200,
     )
+    # It declares a date_updated, so the only thing left for TN105 to say
+    # would be about the title it has not got.
     (tmp_path / "technote.toml").write_text(
         """[technote]
 id = "SQR-000"
 doi = "10.71929/rubin/2570308"
+date_updated = 2026-08-24
 """
     )
     (tmp_path / "requirements.txt").write_text("")

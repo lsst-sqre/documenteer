@@ -22,7 +22,7 @@ from technote.sources.tomlsettings import (
     TechnoteToml,
 )
 
-from documenteer.citations import normalize_doi, orcid_url
+from documenteer.citations import PartialDate, normalize_doi, orcid_url
 from documenteer.services.technotecff import (
     CFF_FILENAME,
     CffStatus,
@@ -1021,6 +1021,13 @@ def _check_datacite(
     registered with the DOI. A technote whose title cannot be resolved at all
     — the document does not read, or it has no heading — is not compared on
     the title, only on its authors.
+
+    The rule also carries one thing that is not a comparison. A DOI-bearing
+    technote that declares no ``date_updated`` is cited undated, and the
+    registered record is where the publication date already is, so the rule
+    hands it over as the value to declare. See
+    `_datacite_differences` for why a *declared* date is never compared
+    against the record.
     """
     doi = parsed.technote.doi
     if doi is None:
@@ -1064,6 +1071,15 @@ def _datacite_differences(
     A side that declares nothing at all — a technote with no resolvable
     title, a record that registers no creators — is not compared on that
     field, since an absent value is not a claim that disagrees with anything.
+
+    The date is the exception to that shape, and it is not a comparison at
+    all. A technote that declares no ``date_updated`` is cited undated, and
+    DataCite already knows when the work was published, so the record's date
+    is handed over as the value to declare. A ``date_updated`` the technote
+    *does* declare is never compared against the record: an edit after
+    registration legitimately postdates the DOI, and minting legitimately
+    postdates the last edit, so a comparison would be noise in both
+    directions.
     """
     differences: list[str] = []
 
@@ -1082,7 +1098,36 @@ def _datacite_differences(
             _author_differences(parsed.technote.authors, record.creators)
         )
 
+    if parsed.technote.date_updated is None and record.issued is not None:
+        differences.append(_undated_citation_difference(record.issued))
+
     return differences
+
+
+def _undated_citation_difference(issued: PartialDate) -> str:
+    """Phrase the instruction to date an undated citation.
+
+    The wording follows the precision the record states. A date stated to
+    the day is a value the author can write straight into
+    ``technote.toml``, so it is quoted as the assignment to make. A year —
+    which is all a Rubin-minted record carries, since DataCite's mandatory
+    ``publicationYear`` is its only date — is not, so the message names the
+    year to look within instead of inviting a January 1st nobody published
+    on.
+    """
+    if issued.day is not None:
+        return (
+            f"the registered record gives an issue date of {issued}, but "
+            "technote.toml declares no date_updated, so the technote is "
+            f"cited undated; set 'date_updated = {issued}' to date the "
+            "citation"
+        )
+    return (
+        f"the registered record gives a publication year of {issued.year}, "
+        "but technote.toml declares no date_updated, so the technote is "
+        "cited undated; set date_updated to the date the technote was "
+        f"published in {issued.year} to date the citation"
+    )
 
 
 def _author_differences(
