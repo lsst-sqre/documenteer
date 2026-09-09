@@ -19,7 +19,10 @@ Everything follows from the DOI in :file:`technote.toml`:
    [technote.organization]
    name = "Vera C. Rubin Observatory"
 
-A technote that sets no ``doi`` shows no citation at all — not an empty section — so most technotes are unaffected.
+A technote that sets no ``doi`` shows no citation surfaces — not an empty section — so its pages look as they did.
+Its ``<head>`` metadata is another matter.
+technote 0.11, which Documenteer now requires, adds a Dublin Core block and a schema.org ``Report`` node to every technote, DOI or not, and renames the Highwire tag ``citation_date`` to ``citation_publication_date``; anything that scrapes the old name needs updating.
+See the :doc:`changelog </changelog>` entry for that requirement and the `technote 0.11 release notes <https://technote.lsst.io/changelog.html>`__.
 
 Citing this document
 ====================
@@ -49,6 +52,7 @@ The entry is composed during the build from the technote's own metadata, so it n
        author = {Sick, Jonathan},
        title = {{The LSST DM Technical Note Publishing Platform}},
        year = {2026},
+       month = {March},
        institution = {Vera C. Rubin Observatory},
        number = {SQR-000},
        doi = {10.71929/rubin/2570308},
@@ -56,7 +60,7 @@ The entry is composed during the build from the technote's own metadata, so it n
    }
 
 A technote is a technical report, so the entry is a BibTeX ``techreport``: the publishing organization is its ``institution`` and the technote's handle is its ``number``.
-The ``year`` is the year of the declared ``date_updated``, the same year the citation at the end of the article shows.
+The ``year`` and ``month`` are those of the declared ``date_updated``; the year is the same one the citation at the end of the article shows.
 
 The citation key is the handle as well, written exactly as ``id`` in :file:`technote.toml` spells it.
 That is how Rubin authors already cite technotes: lsst-texmf's :file:`lsst.bib` keys every technote and document entry by handle, so ``\citeds{SQR-000}`` in an lsstdoc document and ``\cite{SQR-000}`` against this entry resolve the same key.
