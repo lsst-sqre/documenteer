@@ -110,17 +110,30 @@ class TechnoteCitation:
 
     @property
     def bibtex(self) -> str | None:
-        """The technote's BibTeX entry, or `None` when it has no DOI.
+        r"""The technote's BibTeX entry, or `None` when it has no DOI.
 
         A technote is a technical report, so the entry is a ``techreport``:
         its publisher is written as the ``institution`` and its handle
         (``SQR-000``) as the ``number``, neither of which a ``misc`` entry
         has a field for.
+
+        The handle is the entry's citation key as well, written verbatim, so
+        the entry is keyed the way Rubin authors already cite technotes:
+        lsst-texmf's :file:`lsst.bib` keys every one of its technote and
+        document entries by handle, which is what ``\citeds{SQR-000}`` in an
+        lsstdoc document resolves. A key composed from author, year, and
+        title would agree with none of that, and it would move whenever the
+        technote was retitled, re-authored, or re-dated — under a reader who
+        had already stored the entry. A technote whose metadata states no
+        ``id`` — one outside a series, with no handle to be keyed by — falls
+        back to `documenteer.citations.Citation.bibtex_key`.
         """
         citation = self._compose()
         if citation is None:
             return None
-        return citation.to_bibtex(entry_type=BibtexEntryType.techreport)
+        return citation.to_bibtex(
+            entry_type=BibtexEntryType.techreport, key=self._metadata.id
+        )
 
     @property
     def is_dated(self) -> bool:

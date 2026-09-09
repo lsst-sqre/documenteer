@@ -39,7 +39,7 @@ COPY_SCRIPT = "rubin-citation-copy.js"
 # What documenteer.citations composes from
 # tests/roots/test-technote-citation/technote.toml, with the title taken from
 # the document's H1.
-BIBTEX_ENTRY_TEXT = """@techreport{sick2025technote,
+BIBTEX_ENTRY_TEXT = """@techreport{SQR-000,
     author = {Sick, Jonathan and Lovelace, Ada},
     title = {{Technote Citation Surfaces Test}},
     year = {2025},
