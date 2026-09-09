@@ -1514,6 +1514,328 @@ def test_citations_latest_is_not_a_version() -> None:
     assert "version" not in entry.citation.to_plain_text()
 
 
+CITATION_KEY_TEMPLATE = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382528"
+type = "article"
+title = "The Vera C. Rubin Observatory Data Butler"
+bibtex_key = {value}
+"""
+"""A single non-self citation whose key is pinned, so the pinned key is the
+only thing under test."""
+
+
+def test_citations_bibtex_key_is_pinned() -> None:
+    """A ``bibtex_key`` set on an entry is the key its BibTeX entry is
+    written under, which is what lets a manuscript that copied the entry keep
+    citing it after the metadata changes.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_KEY_TEMPLATE.format(value='"RTN-115"')
+    )
+
+    (entry,) = config.citations
+    assert entry.bibtex_key == "RTN-115"
+    assert entry.to_html_context()["bibtex"].startswith("@article{RTN-115,\n")
+
+
+@pytest.mark.parametrize(
+    "written",
+    [
+        '"RTN 115"',
+        '"RTN,115"',
+        '"RTN{115}"',
+        '"RTN(115)"',
+        '"RTN#115"',
+        '"RTN%115"',
+        '"RTN~115"',
+        "'RTN\\115'",
+        '"RTN\\"115"',
+        '""',
+        '"   "',
+        '"RTN天115"',
+    ],
+)
+def test_citations_malformed_bibtex_key_rejected(written: str) -> None:
+    r"""A key BibTeX cannot read is rejected where it is written, rather than
+    composing an entry that breaks the .bib file a reader pastes it into.
+
+    Every value here either ends the key early (a comma, a brace, a
+    parenthesis, whitespace), means something else to BibTeX or LaTeX (``#``,
+    ``%``, ``~``, ``\``, ``"``), is no key at all, or is not ASCII.
+    """
+    with pytest.raises(ConfigError, match="bibtex_key"):
+        DocumenteerConfig.load(CITATION_KEY_TEMPLATE.format(value=written))
+
+
+@pytest.mark.parametrize(
+    "written", ["SQR-000", "10.71929/rubin/3382528", "a.b:c_d"]
+)
+def test_citations_bibtex_key_accepts_punctuation_bibtex_reads(
+    written: str,
+) -> None:
+    """``/``, ``.``, ``-``, ``:``, and ``_`` are ordinary key characters —
+    lsst.bib keys its DataCite records by DOI — so a key carrying them is
+    accepted as written.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_KEY_TEMPLATE.format(value=f'"{written}"')
+    )
+
+    (entry,) = config.citations
+    assert entry.bibtex_key == written
+
+
+EXAMPLE_CITATIONS_KEY_POLICY = """
+
+[project]
+title = "Data Preview 2 Documentation"
+base_url = "https://dp2.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+type = "dataset"
+self = true
+title = "Data Preview 2"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+label = "Object (TAP)"
+type = "dataset"
+title = "Object catalog (TAP)"
+
+[[project.citations]]
+url = "https://github.com/lsst/daf_butler"
+label = "Software"
+type = "software"
+title = "The Vera C. Rubin Observatory Data Butler"
+authors = [{ family_name = "Jenness", given_name = "Tim" }]
+date = 2022
+"""
+"""A site's own work, a work it publishes a DOI for, and a work it merely
+cites -- one entry per branch of the key policy."""
+
+
+def test_citations_own_work_is_keyed_by_the_lsst_io_subdomain() -> None:
+    """The site's own work is keyed by the subdomain it is published at,
+    which is what a reader at Rubin already calls it, even though the entry
+    has a DOI of its own.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_KEY_POLICY)
+
+    own, *_ = config.citations
+    assert own.bibtex_key == "dp2"
+    assert own.to_html_context()["bibtex"].startswith("@dataset{dp2,\n")
+
+
+def test_citations_a_doi_bearing_entry_is_keyed_by_its_doi() -> None:
+    """Every entry but the site's own is keyed by its DOI, verbatim, which
+    is how lsst.bib keys the DataCite records a reader's .bib file already
+    holds.
+    """
+    _, dataset, _ = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_KEY_POLICY
+    ).citations
+
+    assert dataset.bibtex_key == "10.71929/rubin/3382540"
+
+
+def test_citations_a_doi_less_entry_falls_back_to_author_year_title() -> None:
+    """A work with no DOI has nothing to key it by but its own metadata, so
+    it takes the composed author-year-title key -- with the article the
+    title opens with skipped.
+    """
+    *_, software = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_KEY_POLICY
+    ).citations
+
+    assert software.bibtex_key == "jenness2022vera"
+
+
+CITATION_KEY_BASE_URL_TEMPLATE = """
+
+[project]
+title = "Example Guide"
+{base_url}
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+self = true
+title = "Example Work"
+"""
+
+DOI_KEY = "10.71929/rubin/2570308"
+"""The key the site's own work falls back to when no subdomain names it."""
+
+
+@pytest.mark.parametrize(
+    ("base_url", "expected"),
+    [
+        ('base_url = "https://dp2.lsst.io"', "dp2"),
+        ('base_url = "https://safir.lsst.io/"', "safir"),
+        ('base_url = "https://pipelines.lsst.io"', "pipelines"),
+        ('base_url = "https://dp0-2.lsst.io"', "dp0-2"),
+        ('base_url = "https://DP2.LSST.IO"', "dp2"),
+        # A versioned build is one of many sharing the subdomain, so the
+        # subdomain does not name this work.
+        ('base_url = "https://pipelines.lsst.io/v/daily/"', DOI_KEY),
+        ('base_url = "https://sub.dp2.lsst.io"', DOI_KEY),
+        ('base_url = "https://lsst.io"', DOI_KEY),
+        ('base_url = "https://github.com/lsst/daf_butler"', DOI_KEY),
+        ("", DOI_KEY),
+    ],
+)
+def test_citations_subdomain_key_needs_an_lsst_io_root(
+    base_url: str, expected: str
+) -> None:
+    """Only a site published at the root of a single-label lsst.io host is
+    named by its subdomain; every other site keys its own work by its DOI.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_KEY_BASE_URL_TEMPLATE.format(base_url=base_url)
+    )
+
+    (own,) = config.citations
+    assert own.bibtex_key == expected
+
+
+EXAMPLE_CITATIONS_KEY_PREFERRED = """
+
+[project]
+title = "Preferred Citation Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.1117/12.2629569"
+label = "Paper"
+type = "article"
+preferred = true
+title = "The Vera C. Rubin Observatory Data Butler"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Dataset"
+type = "dataset"
+title = "Butler test dataset"
+"""
+
+
+def test_citations_subdomain_key_falls_to_the_preferred_entry() -> None:
+    """A site that publishes no DOI of its own still asks readers to cite
+    one work, so the subdomain names that work rather than going unused.
+    """
+    preferred, dataset = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_KEY_PREFERRED
+    ).citations
+
+    assert preferred.bibtex_key == "example"
+    assert dataset.bibtex_key == "10.71929/rubin/3382539"
+
+
+EXAMPLE_CITATIONS_KEY_NO_OWN_WORK = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Dataset"
+type = "dataset"
+in_footer = true
+title = "Butler test dataset"
+"""
+
+
+def test_citations_subdomain_key_needs_an_entry_to_name() -> None:
+    """A site that neither publishes a DOI nor names a preferred citation
+    describes no work of its own, so no entry is keyed by the subdomain and
+    the subdomain is not spent on a work the site merely cites.
+    """
+    (entry,) = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_KEY_NO_OWN_WORK
+    ).citations
+
+    assert entry.bibtex_key == "10.71929/rubin/3382539"
+
+
+EXAMPLE_CITATIONS_COLLIDING_KEYS = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+url = "https://github.com/lsst/daf_butler"
+label = "Butler"
+type = "software"
+title = "The Butler"
+authors = [{ family_name = "Jenness", given_name = "Tim" }]
+date = 2022
+
+[[project.citations]]
+url = "https://github.com/lsst/daf_butler/tree/v2"
+label = "Butler v2"
+type = "software"
+title = "A Butler, Revisited"
+authors = [{ family_name = "Jenness", given_name = "Tim" }]
+date = 2022
+"""
+
+
+def test_citations_colliding_bibtex_keys_rejected() -> None:
+    """Two entries that resolve to one key would overwrite each other in the
+    .bib file a reader pastes them into, so the build names both entries and
+    says which field tells them apart.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_COLLIDING_KEYS)
+
+    with pytest.raises(ConfigError) as excinfo:
+        _ = config.citations
+
+    message = str(excinfo.value)
+    assert "'Butler'" in message
+    assert "'Butler v2'" in message
+    assert "jenness2022butler" in message
+    assert "bibtex_key" in message
+
+
+EXAMPLE_CITATIONS_KEY_PINNED_ONTO_ANOTHER = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+self = true
+title = "Example Release"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Dataset"
+bibtex_key = "example"
+title = "Butler test dataset"
+"""
+
+
+def test_citations_pinned_key_colliding_with_a_default_rejected() -> None:
+    """A pinned key is checked against the keys the other entries resolve
+    to, not only against other pinned ones, so taking the subdomain key of
+    the site's own work is reported rather than silently duplicated.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_KEY_PINNED_ONTO_ANOTHER)
+
+    with pytest.raises(ConfigError, match="'example'"):
+        _ = config.citations
+
+
 EXAMPLE_CITATIONS_FOOTER = """
 
 [project]
@@ -1709,7 +2031,8 @@ def test_set_citations_html_context() -> None:
     )
     # The entry declares type = "dataset", so it copies out as the biblatex
     # @dataset entry rather than as the generic @misc.
-    assert context["bibtex"].startswith("@dataset{")
+    assert context["bibtex"].startswith("@dataset{dp0-2,\n")
+    assert context["bibtex_key"] == "dp0-2"
     assert "doi = {10.71929/rubin/2570308}" in context["bibtex"]
     assert html_context["documenteer_self_citation"] is context
     # The self entry is the preferred one by default, which is what keeps a

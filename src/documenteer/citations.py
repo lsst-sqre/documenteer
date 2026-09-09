@@ -28,6 +28,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 __all__ = [
+    "BIBTEX_MONTHS",
     "BibtexEntryType",
     "Citation",
     "CitationAuthor",
@@ -40,6 +41,7 @@ __all__ = [
     "compose_landing_page_jsonld",
     "compose_page_jsonld",
     "doi_url",
+    "normalize_bibtex_key",
     "normalize_citation_url",
     "normalize_doi",
     "normalize_orcid",
@@ -63,6 +65,16 @@ DOI_PREFIXES = (
 DOI_RESOLVER = "https://doi.org/"
 """The base URL of the DOI resolver."""
 
+BIBTEX_KEY_RESERVED = ',{}()"#%~\\'
+"""The characters a BibTeX citation key cannot carry.
+
+A comma, a brace, and a parenthesis end the key — they are the entry's own
+punctuation — and ``"``, ``#``, ``%``, ``~``, and ``\\`` are read by BibTeX
+or by LaTeX as something other than themselves. What is left includes the
+``-``, ``_``, ``.``, ``:``, and ``/`` that ``lsst.bib`` keys its DataCite
+records by (``@misc{10.71929/rubin/2570308,``).
+"""
+
 CITATION_URL_SCHEMES = ("http", "https")
 """The URL schemes a citation's landing page may be written in.
 
@@ -80,6 +92,30 @@ ROR_RESOLVER = "https://ror.org/"
 
 SCHEMA_ORG_CONTEXT = "https://schema.org"
 """The JSON-LD ``@context`` that schema.org vocabulary is read under."""
+
+BIBTEX_MONTHS = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
+"""The month names a BibTeX ``month`` field is written with, indexed from
+January.
+
+The names are spelled out here rather than taken from `calendar.month_name`,
+which is localized: a build under a French locale would otherwise write
+``month = {juillet}`` into an entry that is supposed to be byte-identical
+everywhere. BibTeX and biblatex both read a month name, and ``lsst.bib``
+writes them.
+"""
 
 _WHITESPACE_PATTERN = re.compile(r"\s+")
 
@@ -152,6 +188,29 @@ def _slugify(text: str) -> str:
     ).lower()
 
 
+_KEY_ARTICLES = frozenset({"a", "an", "the"})
+"""The English articles a BibTeX key skips when it takes a title word.
+
+Keying every such title by its article would make ``the`` the word that
+distinguishes nothing: a work-year-title key exists to name the work, and an
+article names no work.
+"""
+
+
+def _first_title_word(title: str) -> str:
+    """Reduce a title to the key component it contributes: its first word
+    that is not a leading English article (see ``_KEY_ARTICLES``).
+
+    A title made only of articles contributes nothing, rather than falling
+    back to the article the skip exists to drop.
+    """
+    for word in title.split():
+        slug = _slugify(word)
+        if slug not in _KEY_ARTICLES:
+            return slug
+    return ""
+
+
 def _end_sentence(text: str) -> str:
     """Terminate a citation segment with a period, unless it already ends in
     sentence-final punctuation.
@@ -202,6 +261,60 @@ def normalize_doi(value: str) -> str:
             "and may also be given as a https://doi.org/ URL."
         )
     return doi
+
+
+def normalize_bibtex_key(value: str) -> str:
+    r"""Validate a BibTeX citation key, returning it stripped of surrounding
+    whitespace.
+
+    Parameters
+    ----------
+    value
+        The key the entry is to be written under.
+
+    Returns
+    -------
+    str
+        The key, with surrounding whitespace removed.
+
+    Raises
+    ------
+    ValueError
+        Raised if the key is empty, or carries whitespace, a character
+        ``BIBTEX_KEY_RESERVED`` names, or a character outside printable
+        ASCII.
+
+    Notes
+    -----
+    The key is the one part of a BibTeX entry a reader retypes — it is what
+    their ``\cite`` commands name — so a key BibTeX cannot read is rejected
+    where it is written rather than composed into an entry that breaks the
+    ``.bib`` file it is pasted into. Non-ASCII is rejected for the same
+    reason: BibTeX's own key syntax is ASCII, and a key a reader cannot type
+    is a key they cannot cite.
+    """
+    key = value.strip()
+    if not key:
+        raise ValueError(
+            "A BibTeX citation key is empty. Write the key the entry is "
+            "cited by, such as RTN-115, or state no key at all and let the "
+            "citation compose one."
+        )
+    if any(
+        character in BIBTEX_KEY_RESERVED
+        or character.isspace()
+        or not (character.isascii() and character.isprintable())
+        for character in key
+    ):
+        raise ValueError(
+            f"Not a BibTeX citation key ({value!r}). A citation key is "
+            "printable ASCII with no whitespace and none of the characters "
+            f"{' '.join(BIBTEX_KEY_RESERVED)}, each of which ends the key or "
+            "means something else to BibTeX. The punctuation a key does "
+            "carry is - _ . : and /, which is how lsst.bib keys its "
+            "DataCite records by DOI (RTN-115, 10.71929/rubin/2570308)."
+        )
+    return key
 
 
 def doi_url(doi: str) -> str:
@@ -912,11 +1025,17 @@ class Citation:
     def bibtex_key(self) -> str:
         r"""The citation key that `to_bibtex` uses by default.
 
-        The key is the first author, the publication year, and the first word
-        of the title, each reduced to lowercase ASCII alphanumerics — for
-        example ``sick2026citations``. It is derived only from the citation's
-        own fields, so the same metadata always yields the same key and a
-        bibliography that is regenerated on every build stays stable.
+        The key is the first author, the publication year, and the first
+        word of the title, each reduced to lowercase ASCII alphanumerics —
+        for example ``sick2026citations``. It is derived only from the
+        citation's own fields, so the same metadata always yields the same
+        key and a bibliography that is regenerated on every build stays
+        stable.
+
+        A leading English article is skipped when the title word is chosen,
+        so *The Vera C. Rubin Observatory Data Butler* is keyed
+        ``jenness2022vera`` rather than by the ``the`` it would otherwise
+        share with every other title that opens with one.
 
         `Citation.version` is deliberately left out of it. The key is what a
         reader's ``\cite`` commands name, and folding the version in would
@@ -928,9 +1047,7 @@ class Citation:
             components.append(authors[0].key_component)
         if self.date is not None:
             components.append(str(self.date.year))
-        components.extend(
-            _slugify(word) for word in self.title.split(maxsplit=1)[:1]
-        )
+        components.append(_first_title_word(self.title))
         key = "".join(component for component in components if component)
         return key or "citation"
 
@@ -962,6 +1079,11 @@ class Citation:
 
         Notes
         -----
+        A date stated to the month or finer writes a ``month`` field after
+        the ``year``, as the English month name — the form BibTeX,
+        biblatex, and ``lsst.bib`` all read. A day never becomes a field of
+        its own, because BibTeX has none to put it in.
+
         The publisher is the ``institution`` field of a
         `BibtexEntryType.techreport` entry and the ``publisher`` field of
         every other entry type; `Citation.number` is a ``techreport`` field
@@ -997,6 +1119,10 @@ class Citation:
             fields.append(("version", version))
         if self.date is not None:
             fields.append(("year", str(self.date.year)))
+            # A date stated to the day still writes no `day`: BibTeX has no
+            # such field, and biblatex spells a full date in `date` instead.
+            if self.date.month is not None:
+                fields.append(("month", BIBTEX_MONTHS[self.date.month - 1]))
         publisher = _clean_latex(self.publisher)
         if publisher is not None:
             publisher_field = (
@@ -1126,6 +1252,17 @@ class GuideCitation:
     is the relative one they wrote -- not the absolute one it resolves to.
     """
 
+    bibtex_key: str | None = None
+    """The key this citation's BibTeX entry is written under, or `None` to
+    let the citation compose its own (see `Citation.bibtex_key`).
+
+    A guide resolves the key against its whole ``[[project.citations]]``
+    array — a site's own work is keyed by its :file:`lsst.io` subdomain, a
+    work with a DOI by the DOI, and anything left over by author, year, and
+    title — because only there are the site's base URL and its other entries
+    in hand. What reaches here is that answer, already decided.
+    """
+
     cff_preferred: bool = True
     """Which record of `cff` supplied the fields: its ``preferred-citation``
     when true, as GitHub's "Cite this repository" button reads it, and its
@@ -1136,7 +1273,7 @@ class GuideCitation:
     """
 
     def to_html_context(self) -> dict[str, Any]:
-        """Express the citation as the mapping published into Sphinx's
+        r"""Express the citation as the mapping published into Sphinx's
         ``html_context``.
 
         Returns
@@ -1161,6 +1298,10 @@ class GuideCitation:
         a linked citation without doing string surgery of its own, and keeps
         the card and the footer from ever disagreeing about where the text
         ends and the link begins.
+
+        ``bibtex_key`` is the key the composed ``bibtex`` entry is written
+        under, carried on its own so that a surface can name the key a
+        reader will ``\cite`` without parsing the entry back apart.
         """
         citation = self.citation
         plain_text = citation.to_plain_text()
@@ -1192,7 +1333,8 @@ class GuideCitation:
                 plain_text[: -len(location)] if location else plain_text
             ),
             "plain_text_url": location,
-            "bibtex": citation.to_bibtex(),
+            "bibtex_key": self.bibtex_key or citation.bibtex_key,
+            "bibtex": citation.to_bibtex(key=self.bibtex_key),
         }
 
 

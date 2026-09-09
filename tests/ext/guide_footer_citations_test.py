@@ -53,10 +53,13 @@ COPY_SCRIPT = "rubin-citation-copy.js"
 
 # The BibTeX entry documenteer.citations composes for the first
 # [[project.citations]] entry of tests/roots/test-guide/documenteer.toml.
-SELF_BIBTEX = """@misc{veracrubinobservatory2025guide,
+# It is the site's own work, so its key is the site's lsst.io subdomain
+# rather than the author-year-title key the entry would otherwise compose.
+SELF_BIBTEX = """@misc{example,
     author = {{Vera C. Rubin Observatory}},
     title = {{Guide Build Smoke Test}},
     year = {2025},
+    month = {June},
     publisher = {Vera C. Rubin Observatory},
     doi = {10.71929/rubin/2570308},
     url = {https://doi.org/10.71929/rubin/2570308}

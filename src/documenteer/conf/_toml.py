@@ -5,10 +5,11 @@ configuration preset modules.
 from __future__ import annotations
 
 import datetime
+import re
 import sys
 import tomllib
 from collections.abc import Mapping, MutableMapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from email.message import Message
 from functools import cached_property
 from importlib.metadata import PackageNotFoundError, metadata
@@ -41,6 +42,7 @@ from ..citations import (
     PersonAuthor,
     compose_highwire_tags,
     compose_landing_page_jsonld,
+    normalize_bibtex_key,
     normalize_citation_url,
     normalize_doi,
 )
@@ -370,6 +372,17 @@ class CitationModel(BaseModel):
         ),
     )
 
+    bibtex_key: str | None = Field(
+        None,
+        description=(
+            "The key this citation's BibTeX entry is written under, such as "
+            "``RTN-115``. Defaults to the site's lsst.io subdomain for the "
+            "entry describing this site's own work, to the DOI for any "
+            "other entry that has one, and to author-year-title otherwise. "
+            "Set it to pin a key a manuscript already cites."
+        ),
+    )
+
     title: str | None = Field(None, description="The title of the cited work.")
 
     authors: list[CitationAuthorModel] = Field(
@@ -449,6 +462,20 @@ class CitationModel(BaseModel):
         if v is None:
             return None
         return normalize_citation_url(v)
+
+    @field_validator("bibtex_key")
+    @classmethod
+    def validate_bibtex_key(cls, v: str | None) -> str | None:
+        """Strip the citation key, rejecting one BibTeX cannot read.
+
+        The key is what a reader's own bibliography cites the work by, so a
+        key that would end early or mean something else to BibTeX is caught
+        where it is written rather than composed into an entry that breaks
+        the ``.bib`` file it is pasted into.
+        """
+        if v is None:
+            return None
+        return normalize_bibtex_key(v)
 
     @field_validator("version")
     @classmethod
@@ -1401,8 +1428,9 @@ class DocumenteerConfig:
         ------
         sphinx.errors.ConfigError
             Raised if an entry names a CITATION.cff file that cannot be read,
-            or if neither the entry nor its CITATION.cff file yields the DOI
-            and title a citation needs.
+            if neither the entry nor its CITATION.cff file yields the DOI
+            and title a citation needs, or if two entries resolve to the
+            same BibTeX key.
 
         Notes
         -----
@@ -1410,13 +1438,15 @@ class DocumenteerConfig:
         to first access and then cached: a configuration that is loaded but
         never displays a citation does no I/O.
         """
+        entries = self.conf.project.citations
         preferred = self.conf.project.preferred_citation
-        return [
+        citations = [
             self._resolve_citation(
                 entry, index, is_preferred=entry is preferred
             )
-            for index, entry in enumerate(self.conf.project.citations)
+            for index, entry in enumerate(entries)
         ]
+        return self._key_citations(citations, entries)
 
     @property
     def self_citation(self) -> GuideCitation | None:
@@ -1507,6 +1537,86 @@ class DocumenteerConfig:
         )
         if jsonld is not None:
             html_context["documenteer_citations_jsonld"] = jsonld
+
+    def _key_citations(
+        self,
+        citations: list[GuideCitation],
+        entries: list[CitationModel],
+    ) -> list[GuideCitation]:
+        """Decide the BibTeX key of every citation, and reject a collision.
+
+        Keying happens here, over the whole array, because two of the four
+        rules need more than one entry to apply: the site's own work is
+        keyed by the site's lsst.io subdomain, which only the configuration
+        knows, and every key has to be unique across the array a reader
+        pastes into one ``.bib`` file.
+
+        The rules, in order:
+
+        1. the entry's own ``bibtex_key``, which a site sets to pin the key
+           a manuscript already cites;
+        2. the site's lsst.io subdomain, for the one entry describing the
+           site's own work (see `_own_work_index`) — a memorable key for the
+           work a reader came here to cite;
+        3. the DOI, verbatim, for any other entry that has one, which is how
+           lsst.bib keys every DataCite record;
+        4. the author-year-title key the citation composes for itself.
+        """
+        subdomain = _lsst_io_subdomain(self.base_url)
+        own = self._own_work_index(citations)
+        keys: dict[str, int] = {}
+        keyed: list[GuideCitation] = []
+        for index, (citation, entry) in enumerate(
+            zip(citations, entries, strict=True)
+        ):
+            key = entry.bibtex_key
+            if key is None:
+                if subdomain is not None and index == own:
+                    key = subdomain
+                elif citation.citation.doi is not None:
+                    key = citation.citation.doi
+                else:
+                    key = citation.citation.bibtex_key
+            first = keys.get(key)
+            if first is not None:
+                raise ConfigError(
+                    f"The {_describe_citation(entries[first], first)} and "
+                    f"the {_describe_citation(entry, index)} are both cited "
+                    f"by the BibTeX key {key!r}. A reader pastes these "
+                    "entries into one .bib file, which cannot hold two under "
+                    "one key, so set bibtex_key on one of them to tell the "
+                    "two apart."
+                )
+            keys[key] = index
+            keyed.append(replace(citation, bibtex_key=key))
+        return keyed
+
+    @staticmethod
+    def _own_work_index(citations: list[GuideCitation]) -> int | None:
+        """Find the entry that describes the site's own work, returning its
+        position, or `None` when no entry does.
+
+        That is the ``self`` entry — the work this site is the landing page
+        of — and, for a site that publishes no DOI of its own, the entry it
+        marks ``preferred``, which is the work it asks readers to cite. The
+        two are one entry on the usual site; at most one entry is keyed by
+        the subdomain either way.
+        """
+        return next(
+            (
+                index
+                for index, citation in enumerate(citations)
+                if citation.is_self
+            ),
+            next(
+                (
+                    index
+                    for index, citation in enumerate(citations)
+                    if citation.is_preferred
+                ),
+                None,
+            ),
+        )
 
     def _resolve_citation(
         self, entry: CitationModel, index: int, *, is_preferred: bool
@@ -1686,6 +1796,33 @@ class DocumenteerConfig:
                 f"cff = {entry.cff!r}, which could not be read as a "
                 f"citation. {e}"
             ) from e
+
+
+_LSST_IO_HOST = re.compile(r"^([a-z0-9][a-z0-9-]*)\.lsst\.io$")
+"""A Rubin documentation host: exactly one label in front of ``lsst.io``.
+
+``dp2.lsst.io`` matches and ``sub.dp2.lsst.io`` does not, because a deeper
+host is not the site the subdomain names.
+"""
+
+
+def _lsst_io_subdomain(base_url: str) -> str | None:
+    """Read the lsst.io subdomain a site is published at, or `None` for a
+    site that is not published at one.
+
+    A site published at the root of ``<name>.lsst.io`` *is* ``<name>`` to
+    everyone at Rubin, which makes it the key a reader recognizes for the
+    site's own work. A base URL with a path below the root — the
+    ``https://pipelines.lsst.io/v/daily/`` of a versioned build — names one
+    build among many that share the subdomain, so it is not that work and
+    takes no such key.
+    """
+    parts = urlparse(base_url)
+    if parts.path not in ("", "/"):
+        return None
+    host = (parts.hostname or "").lower()
+    match = _LSST_IO_HOST.match(host)
+    return match.group(1) if match else None
 
 
 def _describe_citation(entry: CitationModel, index: int) -> str:

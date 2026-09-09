@@ -328,6 +328,7 @@ def test_bibtex_misc_for_an_organization_author() -> None:
         "    author = {{Vera C. Rubin Observatory}},\n"
         "    title = {{Data Preview 2}},\n"
         "    year = {2025},\n"
+        "    month = {June},\n"
         "    publisher = {Vera C. Rubin Observatory},\n"
         "    doi = {10.71929/rubin/2570308},\n"
         "    url = {https://dp2.lsst.io/}\n"
@@ -343,12 +344,41 @@ def test_bibtex_techreport_for_multiple_person_authors() -> None:
         "    author = {Sick, Jonathan and Jones, R. Lynne},\n"
         "    title = {{Citations in Documenteer}},\n"
         "    year = {2026},\n"
+        "    month = {August},\n"
         "    institution = {Vera C. Rubin Observatory},\n"
         "    number = {SQR-000},\n"
         "    doi = {10.5281/zenodo.10385500},\n"
         "    url = {https://sqr-000.lsst.io/}\n"
         "}"
     )
+
+
+@pytest.mark.parametrize(
+    ("date", "expected"),
+    [
+        (PartialDate(2026), None),
+        (PartialDate(2026, 7), "July"),
+        (PartialDate(2026, 7, 15), "July"),
+        (PartialDate(2026, 12), "December"),
+    ],
+)
+def test_bibtex_writes_the_month_a_date_states(
+    date: PartialDate, expected: str | None
+) -> None:
+    """A date stated to the month or finer reaches BibTeX as a ``month``
+    field, written as the English month name, and a date stated only to the
+    year writes none.
+
+    A day never becomes a field of its own: BibTeX has no ``day``.
+    """
+    entry = Citation(title="Real Title", date=date).to_bibtex()
+
+    assert "    year = {2026}" in entry
+    assert "day" not in entry
+    if expected is None:
+        assert "month" not in entry
+    else:
+        assert f"    year = {{2026}},\n    month = {{{expected}}}" in entry
 
 
 @pytest.mark.parametrize(
@@ -475,6 +505,41 @@ def test_bibtex_key_ignores_the_version() -> None:
     assert versioned.bibtex_key == unversioned.bibtex_key
 
 
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("The Vera C. Rubin Observatory Data Butler", "jenness2022vera"),
+        ("A Butler for Rubin", "jenness2022butler"),
+        ("An Atlas of the Sky", "jenness2022atlas"),
+        ("THE Butler", "jenness2022butler"),
+        ("Butler", "jenness2022butler"),
+    ],
+)
+def test_bibtex_key_skips_a_leading_article(title: str, expected: str) -> None:
+    """The title word the key is built from is the first one that says
+    something about the work, so a title opening with ``a``, ``an``, or
+    ``the`` is not keyed by the article every other such title shares.
+    """
+    citation = Citation(
+        title=title,
+        authors=(PersonAuthor(family_name="Jenness", given_name="Tim"),),
+        date=PartialDate(2022, 8, 27),
+    )
+    assert citation.bibtex_key == expected
+
+
+def test_bibtex_key_of_a_title_that_is_only_an_article() -> None:
+    """A title with no word but an article contributes none, rather than
+    falling back to the article the skip exists to drop.
+    """
+    citation = Citation(
+        title="The",
+        authors=(PersonAuthor(family_name="Jenness", given_name="Tim"),),
+        date=PartialDate(2022),
+    )
+    assert citation.bibtex_key == "jenness2022"
+
+
 def test_bibtex_keeps_the_series_number_a_techreport_field() -> None:
     """``institution`` and ``number`` stay ``@techreport``'s alone: a dataset
     that carries a series number writes its publisher as ``publisher`` and
@@ -522,6 +587,7 @@ def test_composers_credit_a_family_only_author() -> None:
         "    author = {{Survey Cadence Optimization Committee}},\n"
         "    title = {{Survey Cadence Optimization}},\n"
         "    year = {2025},\n"
+        "    month = {June},\n"
         "    doi = {10.71929/rubin/2570308},\n"
         "    url = {https://doi.org/10.71929/rubin/2570308}\n"
         "}"
@@ -689,6 +755,30 @@ def test_html_context_for_a_family_only_person_author() -> None:
             "affiliation": None,
         }
     ]
+
+
+def test_html_context_carries_a_resolved_bibtex_key() -> None:
+    """A guide resolves the key its entries are cited by, so the context
+    carries both the key and the entry composed with it — the surfaces read
+    the mapping and never key an entry themselves.
+    """
+    context = GuideCitation(
+        citation=dataset_citation(), bibtex_key="RTN-115"
+    ).to_html_context()
+
+    assert context["bibtex_key"] == "RTN-115"
+    assert context["bibtex"].startswith("@misc{RTN-115,\n")
+
+
+def test_html_context_falls_back_to_the_composed_bibtex_key() -> None:
+    """An entry whose key was not resolved is cited by the one the citation
+    composes, which is what keeps a `GuideCitation` built outside the guide
+    configuration — in a test, or by another caller — usable on its own.
+    """
+    context = GuideCitation(citation=dataset_citation()).to_html_context()
+
+    assert context["bibtex_key"] == "veracrubinobservatory2025data"
+    assert context["bibtex"].startswith("@misc{veracrubinobservatory2025data,")
 
 
 def test_html_context_carries_the_version() -> None:

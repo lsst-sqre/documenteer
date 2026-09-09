@@ -194,6 +194,23 @@ It is the page-level counterpart to the footer citations, and is the right tool 
    A ``@software`` or ``@dataset`` entry also carries a ``version`` field when the citation states a :ref:`version <guide-project-citations-version>` — those are the two entry types biblatex defines the field on, and the others omit it.
    The entry's *key* never carries the version, so a reader's :file:`.bib` file keeps working when the cited software is released again.
 
+   **Citation keys**
+
+   Every entry is keyed by something a reader already recognizes.
+   The site's own work is keyed by the :file:`lsst.io` subdomain it is published at — a site at ``https://dp2.lsst.io`` composes ``@dataset{dp2,`` — and every other work that has a DOI is keyed by the DOI, ``@misc{10.71929/rubin/3382528,``, which is how :file:`lsst.bib` keys its DataCite records.
+   A work with neither falls back to author, year, and title (``jenness2022vera``).
+
+   Those keys are stable: neither a subdomain nor a DOI changes when the site is rebuilt or released again, so a manuscript that copied an entry keeps citing the same key.
+   A site that needs a particular key — the ``RTN-115`` an existing bibliography already uses, say — pins it:
+
+   .. code-block:: toml
+
+      [[project.citations]]
+      doi = "10.71929/rubin/2570308"
+      bibtex_key = "RTN-115"
+
+   See :ref:`bibtex_key <guide-project-citations-bibtex-key>` for the full rules, including what happens when two entries would take the same key.
+
    The entry is in the page rather than in a script, so it can always be selected and copied by hand.
    A browser that gives the page no clipboard access — an insecure origin, say — has the button removed and keeps the entry; a page whose scripts never load keeps both.
    A non-HTML builder renders the entry as a plain literal block, since a disclosure and a button mean nothing there.

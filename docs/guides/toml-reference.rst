@@ -133,7 +133,7 @@ A site can cite more than one work — the documentation itself and the dataset 
 
 Each entry carries two kinds of field.
 The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, :ref:`date <guide-project-citations-date>`, and :ref:`version <guide-project-citations-version>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>` and :ref:`cff_preferred <guide-project-citations-cff-preferred>`).
-The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`page <guide-project-citations-page>`, :ref:`in_footer <guide-project-citations-in-footer>`, and :ref:`note <guide-project-citations-note>`) say how the site displays the citation, and are only ever set here.
+The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`page <guide-project-citations-page>`, :ref:`in_footer <guide-project-citations-in-footer>`, :ref:`note <guide-project-citations-note>`, and :ref:`bibtex_key <guide-project-citations-bibtex-key>`) say how the site displays the citation, and are only ever set here.
 
 .. _guide-project-citations-doi:
 
@@ -354,6 +354,43 @@ Free text about when to use this citation, displayed alongside it.
    [[project.citations]]
    note = "To be used when citing the DP2 dataset and this documentation."
 
+.. _guide-project-citations-bibtex-key:
+
+bibtex_key
+----------
+
+|optional|
+
+The key this citation's BibTeX entry is written under — what a reader's own ``\cite`` commands name once they have copied the entry.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/2570308"
+   bibtex_key = "RTN-115"
+
+The key is what a manuscript pins, so this field exists to let a site keep one stable no matter what else changes.
+Set it and the entry is written ``@article{RTN-115,`` — or whatever entry type the citation's :ref:`type <guide-project-citations-type>` implies.
+
+Unset, the key is defaulted, in this order:
+
+1. **The site's lsst.io subdomain**, for the entry describing this site's own work.
+   A site published at the root of a ``<name>.lsst.io`` host is ``<name>`` to every reader at Rubin, so ``https://dp2.lsst.io`` keys its own work ``dp2`` and ``https://safir.lsst.io/`` keys its own ``safir``.
+   The entry that gets it is the :ref:`self <guide-project-citations-self>` entry, or the :ref:`preferred <guide-project-citations-preferred>` one for a site that publishes no DOI of its own; exactly one entry ever receives it, and a site that marks neither leaves the subdomain unused.
+   A :ref:`base_url <guide-project-base-url>` that is not such a host — ``https://github.com/lsst/daf_butler``, ``https://sub.dp2.lsst.io`` — or that points below the host's root — ``https://pipelines.lsst.io/v/daily/``, one versioned build among the many that share the subdomain — names no work, and the entry falls through to the next rule.
+2. **The DOI**, verbatim, for any other entry that has one: ``10.71929/rubin/3382528``.
+   This is how :file:`lsst.bib` keys every DataCite record, so an entry copied from a Documenteer site collides with nothing a reader already has.
+3. **Author, year, and title**, for an entry with no DOI, reduced to lowercase ASCII: ``jenness2022vera``.
+   A leading ``a``, ``an``, or ``the`` is skipped when the title word is chosen, so a title opening with an article is not keyed by the article every such title shares.
+   The :ref:`version <guide-project-citations-version>` is never part of the key, so a reader's :file:`.bib` file keeps working across releases.
+
+Every key on the site has to be distinct: a reader pastes the entries into one :file:`.bib` file, which cannot hold two under one key.
+Two entries resolving to the same key — two author-year-title keys that agree, or a ``bibtex_key`` equal to another entry's default — fail the build with a message naming both entries.
+
+A key is written in printable ASCII with no whitespace and none of the characters ``,``, ``{``, ``}``, ``(``, ``)``, ``"``, ``#``, ``%``, ``~``, or ``\``, each of which ends the key or means something else to BibTeX.
+The punctuation a key does carry is ``-``, ``_``, ``.``, ``:``, and ``/`` — which is what lets a DOI be a key.
+Anything else fails the build.
+
 .. _guide-project-citations-title:
 
 title
@@ -423,6 +460,8 @@ A source that knows the day is written as a TOML date; one that knows only the y
 
 Only the year appears in a rendered citation, so all four forms display alike.
 The precision matters to the machine-readable metadata: the date is published as the schema.org ``datePublished`` of the entry's JSON-LD block, exactly as written here.
+It reaches BibTeX too, where a date stated to the month or finer writes a ``month`` field after the ``year`` — ``date = "2026-07"`` composes ``year = {2026},`` then ``month = {July},`` — as the month name BibTeX, biblatex, and :file:`lsst.bib` all read.
+A day never becomes a field of its own, because BibTeX has none to put it in.
 Writing ``2025-01-01`` for a work whose sources say only "2025" would assert a publication day on every page of the site that nothing stands behind, which is why the reduced forms exist.
 
 Anything else — ``"June 2025"``, a month outside 1–12, a year that is not four digits — fails the build with a message naming the accepted forms.

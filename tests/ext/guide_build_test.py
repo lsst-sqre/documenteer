@@ -167,6 +167,10 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
         f"Vera C. Rubin Observatory. https://doi.org/{CITATION_DOI}"
     )
     assert f"doi = {{{CITATION_DOI}}}" in citation["bibtex"]
+    # The site's own work is keyed by the lsst.io subdomain it is published
+    # at, and the works it cites by their DOIs.
+    assert citation["bibtex_key"] == "example"
+    assert citation["bibtex"].startswith("@misc{example,\n")
     assert app.config.html_context["documenteer_self_citation"] is citation
     # The site claims the DOI's landing page and marks no other entry
     # preferred, so the self entry is also the one the site asks readers to
@@ -176,6 +180,7 @@ def test_guide_build_smoke(app: SphinxTestApp) -> None:
     )
     # The second entry is the dataset the guide documents, opted into the
     # footer after the self citation; the third opted out of it.
+    assert citations[1]["bibtex_key"] == "10.5281/zenodo.10385500"
     assert citations[1]["label"] == "Dataset"
     assert citations[1]["is_self"] is False
     assert citations[1]["in_footer"] is True
