@@ -458,9 +458,17 @@ if documenteer_last_modified_enabled:
 # rubin-citation-copy.js is what makes those buttons work, and removes them
 # where the clipboard API is unavailable. A site that declares no citations
 # renders neither surface, so it has no button to wire and ships no script.
+#
+# Copying the file into _static/ is the whole of what happens here: which
+# *pages* reference it is documenteer.ext.citationcard's answer, given per
+# page, because declaring a citation is not displaying one. A guide that shows
+# its citation on one card and keeps it out of the footer would otherwise load
+# a script with no button to wire on every page of its API reference. The
+# extension only references what this copies, so the two conditions have to
+# stay compatible: every page it can reference the script from is a page of a
+# site that declares citations.
 if html_context.get("documenteer_citations"):
     html_static_path.append(get_asset_path("rubin-citation-copy.js"))
-    html_js_files.append("rubin-citation-copy.js")
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

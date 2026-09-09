@@ -396,7 +396,36 @@ With the configuration above, the footer reads:
 Each entry also carries the same collapsed ``BibTeX`` disclosure and ``Copy BibTeX`` button a :ref:`card <guide-citation-card>` does, so a reader can take the entry from whichever surface they are looking at.
 
 A guide that declares no citations, and one whose entries all set ``in_footer = false``, renders no citations block at all.
-The script behind the copy buttons is shipped only by a site that declares citations, so a guide without them is unchanged.
+The script behind the copy buttons is referenced by the pages that have one — every page of a site whose footer shows a citation, and otherwise the pages that carry a :ref:`card <guide-citation-card>` — so a guide that displays no citation loads nothing.
+
+.. _guide-citation-api-heavy:
+
+Sites with a large API reference
+================================
+
+A package guide is mostly generated API pages, and a footer citation appears under every one of them.
+That is the right default for a data release, whose pages a reader arrives at from a DOI; it is noise on a site where a hundred pages document one function each.
+
+Such a site writes :ref:`in_footer = false <guide-project-citations-in-footer>` on its :ref:`preferred <guide-project-citations-preferred>` entry and shows the citation once, on the page a reader looking for it would visit:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   url = "https://github.com/lsst-sqre/safir"
+   type = "software"
+   label = "Safir"
+   preferred = true
+   in_footer = false
+   title = "Safir"
+   authors = [{ name = "Vera C. Rubin Observatory" }]
+
+.. code-block:: rst
+
+   .. citation-card::
+
+Nothing is lost by silencing the footer.
+``in_footer`` governs the visible surfaces alone: the preferred citation is still described in full in the :ref:`site-wide JSON-LD block <guide-citation-metadata>` that every page of the site carries, so a crawler finds it wherever it lands, and a reader who arrives at the home page meets the card.
+The copy script follows the button, so only the page with the card loads it.
 
 .. _guide-citation-pages:
 
@@ -539,9 +568,14 @@ That JSON-LD block is *about* the ``self`` entry, and states every other entry a
 - An entry that names a :ref:`page <guide-project-citations-page>` is a **part** of the site's own work — a data product of a release, say, not something the site cites.
   The site-wide block names it under ``hasPart`` by reference alone: its schema.org type, its DOI, and its title, and nothing more.
   The full record lives on the page the entry claims, whose own block points back at the site with an ``isPartOf`` reference of the same shape.
-- An entry with **no** page is a work the site **cites**, and reaches the site-wide block in full — but only when the site displays it, which is to say when :ref:`in_footer <guide-project-citations-in-footer>` is true.
-- An entry that is neither a part nor shown in the footer appears in no site-wide block at all, because no page of the site mentions it.
+- An entry with **no** page is a work the site **cites**, and reaches the site-wide block in full.
+  The :ref:`preferred <guide-project-citations-preferred>` entry always does: it is the citation the site asks readers to use, which is exactly what schema.org ``citation`` states, whether or not the footer repeats it.
+  Any *other* entry reaches the block only when the site displays it, which is to say when :ref:`in_footer <guide-project-citations-in-footer>` is true.
+- An entry that is neither a part, nor preferred, nor shown in the footer appears in no site-wide block at all, because no page of the site presents it.
   It still renders wherever a :ref:`citation-card <guide-citation-card>` names it.
+
+So :ref:`in_footer <guide-project-citations-in-footer>` decides a visual surface, and — for the additional entries alone — whether the metadata carries them.
+A site that writes ``in_footer = false`` on its preferred citation keeps the whole of this block; see :ref:`guide-citation-api-heavy`.
 
 A site that marks no entry ``self`` is no DOI's landing page, so it emits **none** of the meta tags above on any page — not the title and authors either, since stating them would tell a harvester that this site is the full text of a work published somewhere else.
 Marking an entry :ref:`preferred <guide-project-citations-preferred>` does not change that: ``preferred`` says which citation the site asks readers to use, which is a question for the visible surfaces, and only ``self`` claims that this site is where a DOI resolves.

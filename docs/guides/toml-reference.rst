@@ -345,7 +345,9 @@ Default is ``true`` for the entry filling either role — the :ref:`preferred <g
 Those are one entry on a site that marks no separate ``preferred``, which is the usual case; a site that separates them shows two footer citations unless it writes ``in_footer = false`` on one.
 Footer citations appear in the order the entries are written.
 
-It also governs the site-wide JSON-LD block: an entry with no :ref:`page <guide-project-citations-page>` of its own is described there only when the footer shows it, so a work no page of the site mentions is not carried in the metadata of every page of it.
+It also governs the site-wide JSON-LD block, but only for the *additional* entries: one that is neither the :ref:`preferred <guide-project-citations-preferred>` citation nor the owner of a :ref:`page <guide-project-citations-page>` is described there only when the footer shows it, so a work no page of the site mentions is not carried in the metadata of every page of it.
+The preferred citation is described there either way, because it is by definition the citation the site asks readers to use, which is what the block states.
+Writing ``in_footer = false`` on it therefore silences a visual surface and leaves the metadata alone — which is what lets a site with hundreds of API pages show its citation on a :ref:`card <guide-citation-card>` and nowhere else (see :ref:`guide-citation-api-heavy`).
 An entry that sets ``page`` is a part of the site's work rather than a work it cites, and is named in the site-wide block either way.
 
 .. _guide-project-citations-note:

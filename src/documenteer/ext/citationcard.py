@@ -32,6 +32,11 @@ The card asks which citation the site wants *used*, which is
 narrower claim that this site is a DOI's landing page, which the ``<head>``
 metadata reads. A repository whose preferred citation is a paper published
 elsewhere answers the first and not the second.
+
+This module also decides which pages reference the script behind the ``Copy
+BibTeX`` buttons, for the site footer's as well as the card's (see
+`CitationCopyScript`): a card is a per-page surface, so the question of which
+pages carry a button is one only a per-page handler can answer.
 """
 
 from __future__ import annotations
@@ -55,7 +60,13 @@ if TYPE_CHECKING:
     from sphinx.util.typing import ExtensionMetadata
     from sphinx.writers.html5 import HTML5Translator
 
-__all__ = ["CitationCard", "CitationDoiRole", "citation_bibtex", "setup"]
+__all__ = [
+    "CitationCard",
+    "CitationCopyScript",
+    "CitationDoiRole",
+    "citation_bibtex",
+    "setup",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +105,14 @@ COPY_LABEL = "Copy BibTeX"
 ``rubin-citation-copy.js`` swaps it for a confirmation and swaps it back, and
 the site footer's own button carries the same label, so the two surfaces read
 identically.
+"""
+
+COPY_SCRIPT = "rubin-citation-copy.js"
+"""The script that makes every copy button work.
+
+The guide preset copies the file into ``_static/`` for a site that declares
+citations; `CitationCopyScript` is what *references* it, and only from the
+pages that carry a button.
 """
 
 SELECTOR_ADVICE = (
@@ -422,6 +441,111 @@ def depart_citation_bibtex_fallback(
     """Leave the node on a builder that rendered the literal block."""
 
 
+class CitationCopyScript:
+    """Reference `COPY_SCRIPT` from the pages that carry a copy button.
+
+    A citation reaches a reader through two surfaces, and each offers the
+    entry's BibTeX behind a button that copies it: the site footer, which is
+    on every page, and the ``citation-card`` directive, which is on the pages
+    that write one. `COPY_SCRIPT` is what wires those buttons up, so the pages
+    that need it are exactly the pages that have one.
+
+    Declaring a citation is not displaying one, which is why the question is
+    asked per page rather than once for the site. An API-heavy guide names a
+    citation, writes ``in_footer = false`` so a "How to cite" block does not
+    repeat under several hundred generated pages, and shows the citation on a
+    card on its home page: one page with a button, and the rest with none.
+
+    Notes
+    -----
+    Sphinx supports adding a file to one page by calling
+    `~sphinx.application.Sphinx.add_js_file` from an ``html-page-context``
+    handler, which is what this does. The page's own answer is read from the
+    resolved doctree Sphinx hands the handler -- the `citation_bibtex` node is
+    the button -- so nothing has to be remembered in the build environment,
+    and an incremental or parallel build reaches the same answer a full one
+    does. ``doctree`` is `None` for a page with no source document, such as
+    ``genindex`` and ``search``: those carry no card, but they do carry the
+    footer, which is why the footer's answer cannot come from a doctree.
+
+    The footer's answer is the same on every page of a build, so it is
+    computed once and kept: a site with a registered landing page per data
+    product declares dozens of citations, and the question would otherwise be
+    re-asked of all of them for each of several hundred pages.
+
+    Only the *reference* is added here. The file itself reaches ``_static/``
+    through the guide configuration preset, which copies it for every site
+    that declares a citation -- and a site that displays one has declared it,
+    so a page that references the script always finds it there.
+    """
+
+    def __init__(self) -> None:
+        self._footer_has_a_button: bool | None = None
+
+    def add_copy_script(
+        self,
+        app: Sphinx,
+        pagename: str,
+        templatename: str,
+        context: dict[str, Any],
+        doctree: nodes.document | None,
+    ) -> None:
+        """Add `COPY_SCRIPT` to this page when it carries a copy button.
+
+        Parameters
+        ----------
+        app
+            The Sphinx application.
+        pagename
+            The docname of the page being rendered.
+        templatename
+            The template used to render the page.
+        context
+            The template context. Unused: the script is added through
+            `~sphinx.application.Sphinx.add_js_file` rather than by editing
+            the context's script list, so that Sphinx's own priority ordering
+            and cache-busting apply to it.
+        doctree
+            The page's resolved doctree, or `None` for a page with no source
+            document.
+        """
+        if self._footer_button(app) or _has_copy_button(doctree):
+            app.add_js_file(COPY_SCRIPT)
+
+    def _footer_button(self, app: Sphinx) -> bool:
+        """Report whether the site footer offers a BibTeX entry to copy,
+        computing the answer once per build.
+
+        The footer shows every entry whose ``in_footer`` is set, and offers a
+        copy button under each one that has a BibTeX entry to give -- the same
+        two conditions :file:`templates/pydata/rubin-footer.html` renders the
+        button under.
+        """
+        if self._footer_has_a_button is None:
+            citations = (
+                app.config.html_context.get("documenteer_citations") or []
+            )
+            self._footer_has_a_button = any(
+                citation.get("in_footer") and citation.get("bibtex")
+                for citation in citations
+            )
+        return self._footer_has_a_button
+
+
+def _has_copy_button(doctree: nodes.document | None) -> bool:
+    """Report whether a page's doctree renders a BibTeX entry to copy.
+
+    The `citation_bibtex` node *is* the button -- `visit_citation_bibtex_html`
+    writes the disclosure, the entry, and the button together -- so finding
+    one is finding a button. A card whose entry has no BibTeX to give renders
+    no such node, and its page gets no script, which is right: there would be
+    nothing on it to wire.
+    """
+    if doctree is None:
+        return False
+    return next(doctree.findall(citation_bibtex), None) is not None
+
+
 def _as_doi(selector: str) -> str | None:
     """Reduce a selector to the bare DOI it spells, or `None` when it spells
     none.
@@ -648,6 +772,9 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     )
     app.add_directive("citation-card", CitationCard)
     app.add_role("doi", CitationDoiRole())
+    # One instance per application, so the footer answer it keeps belongs to
+    # this build's configuration and to no other.
+    app.connect("html-page-context", CitationCopyScript().add_copy_script)
 
     return {
         "version": __version__,
