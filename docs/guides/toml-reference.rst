@@ -116,6 +116,9 @@ The other entries reach that block as *relations* of the site rather than as rec
 A site that declares no citations emits none of it.
 See :ref:`guide-citation-metadata` for the whole picture.
 
+A site that declares citations should set :ref:`base_url <guide-project-base-url>` explicitly, because every URL in that metadata is composed from it — ``citation_fulltext_html_url``, the ``url`` of the site's JSON-LD node, and the landing URL of each entry that claims a :ref:`page <guide-project-citations-page>`.
+A site that states none falls back to whatever its :file:`pyproject.toml` names as its ``Homepage`` (see :ref:`[project.python] <guide-project-python>`), which is a field kept for a package index rather than for a DOI registration; a site with neither emits no ``citation_fulltext_html_url`` on any page and states no ``url`` on its site node.
+
 Because it is an *array* of tables, the table header is written with double brackets and repeated once per citation.
 A site can cite more than one work — the documentation itself and the dataset it describes, for example — and the order the entries are written in is the order they appear in the site footer.
 
@@ -128,9 +131,9 @@ A site can cite more than one work — the documentation itself and the dataset 
    self = true
    note = "Cite the DP2 dataset and this documentation."
    title = "Data Preview 2"
-   publisher = "Vera C. Rubin Observatory"
+   publisher = "NSF-DOE Vera C. Rubin Observatory"
    date = 2025-06-30
-   authors = [{ name = "Vera C. Rubin Observatory" }]
+   authors = [{ name = "NSF-DOE Vera C. Rubin Observatory" }]
 
 Each entry carries two kinds of field.
 The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, :ref:`date <guide-project-citations-date>`, and :ref:`version <guide-project-citations-version>`) describe the work being cited.
@@ -188,7 +191,11 @@ Classic BibTeX never defined ``@dataset`` or ``@software``, and a classic style 
 
 Set ``type = "dataset"`` on every data product the site publishes: `Dataset <https://schema.org/Dataset>`__ is the type Google Dataset Search indexes, and it is the one that makes a data release discoverable as data rather than as a page about data.
 
+A work that is none of the kinds above — an instrument or a facility, such as LSSTCam — is ``"other"``.
+It is published as a generic `CreativeWork <https://schema.org/CreativeWork>`__ and composes as ``@misc``: this field has no narrower kind to give such a work, and a broad type that is true beats a narrow one that is not.
+
 A citation that declares no type says nothing about what the work is: it composes as ``@misc``, and is published as a `WebSite <https://schema.org/WebSite>`__ if it is the :ref:`self <guide-project-citations-self>` citation and a `CreativeWork <https://schema.org/CreativeWork>`__ otherwise.
+So an untyped entry renders much as ``"other"`` does; what it loses is the statement, since ``"other"`` says the work was typed and is none of the listed kinds where an absent field says nothing at all.
 The ``self`` entry is typed like any other, so a site that is a data release's landing page declares ``type = "dataset"`` there too.
 
 If :ref:`cff <guide-project-citations-cff>` is set, the file's own ``type`` supplies this field, and setting it here overrides the file's value.
@@ -427,7 +434,7 @@ An organization is named with ``name``, and optionally its ROR identifier:
 
    [[project.citations]]
    authors = [
-       { name = "Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+       { name = "NSF-DOE Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
    ]
 
 A person is named with ``family_name``, and optionally ``given_name``, ``orcid``, and ``affiliation``:
@@ -556,8 +563,13 @@ It is what locates a work that has *no* DOI, such as a package or a dataset that
    type = "software"
    title = "daf_butler"
    label = "Software"
+   preferred = true
 
 Such a citation renders exactly as one with a DOI does, ending in a link to this URL instead of to doi.org, and its BibTeX entry carries a ``url`` field and no ``doi``.
+
+The :ref:`preferred <guide-project-citations-preferred>` line is what puts it on a surface at all.
+:ref:`self <guide-project-citations-self>` is the field a site's own work usually sets, and it needs a DOI, so an entry located by a URL claims the site's citation this way instead; an entry that sets neither renders in no footer and answers no card that does not name it.
+See :ref:`guide-citation-url-only` for the whole configuration a package with no DOI needs.
 
 The value has to be an absolute ``http`` or ``https`` URL; a blank one, or one written without a scheme (``github.com/lsst/daf_butler``), fails the build.
 Both are values a reader cannot be sent to: a blank one renders as a citation with no link at all, and a scheme-less one is read as a path relative to whichever page carries the citation.

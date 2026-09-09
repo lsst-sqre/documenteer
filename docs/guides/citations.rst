@@ -32,9 +32,9 @@ A site that documents a data release typically declares two citations — the re
    self = true
    note = "To be used when citing the DP2 dataset and this documentation."
    title = "Data Preview 2"
-   publisher = "Vera C. Rubin Observatory"
+   publisher = "NSF-DOE Vera C. Rubin Observatory"
    date = 2025-06-30
-   authors = [{ name = "Vera C. Rubin Observatory" }]
+   authors = [{ name = "NSF-DOE Vera C. Rubin Observatory" }]
 
    [[project.citations]]
    doi = "10.5281/zenodo.1234567"
@@ -43,7 +43,7 @@ A site that documents a data release typically declares two citations — the re
    title = "The Data Preview 2 release"
    publisher = "Zenodo"
    date = 2025-06-30
-   authors = [{ name = "Vera C. Rubin Observatory" }]
+   authors = [{ name = "NSF-DOE Vera C. Rubin Observatory" }]
 
 Two of the fields there answer two different questions, and it is worth keeping them apart:
 
@@ -99,7 +99,7 @@ Against a :file:`CITATION.cff` for ``safir``, released in 2020 and documented at
 
    SOFTWARE
 
-   Vera C. Rubin Observatory (2020). Safir (version 12.3.0).
+   NSF-DOE Vera C. Rubin Observatory (2020). Safir (version 12.3.0).
    https://github.com/lsst-sqre/safir
 
    Cite the version you ran; this page names the version it documents.
@@ -113,6 +113,41 @@ That is also why an entry like this one — software located by its repository, 
 A site can also set ``self`` and ``preferred`` on *different* entries, which is the site published with a DOI of its own that nonetheless asks readers to cite something else.
 The :ref:`footer <guide-footer-citations>` then shows both by default, because a landing page owes its reader the citation of the DOI it is the landing page of whether or not that is the citation it asks for.
 Such a site shows one of them instead by writing :ref:`in_footer = false <guide-project-citations-in-footer>` on the other.
+
+.. _guide-citation-url-only:
+
+Software that has never been deposited
+======================================
+
+Most packages carry no DOI at all.
+Releasing to PyPI and tagging on GitHub mints none, and a library that has never been deposited with Zenodo or DataCite has nothing a ``https://doi.org/`` link could resolve to.
+Such a work is cited by *where it lives* instead — a :ref:`url <guide-project-citations-url>` in place of a :ref:`doi <guide-project-citations-doi>` — which is the shape a repository's :file:`CITATION.cff` file already takes, and which a site that keeps no such file states in :file:`documenteer.toml` directly:
+
+.. code-block:: toml
+
+   # documenteer.toml
+
+   [[project.citations]]
+   url = "https://github.com/lsst-sqre/safir"
+   label = "Software"
+   type = "software"
+   preferred = true
+   title = "Safir"
+   publisher = "NSF-DOE Vera C. Rubin Observatory"
+   date = 2020
+   authors = [
+       { name = "NSF-DOE Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+   ]
+
+The entry is marked :ref:`preferred <guide-project-citations-preferred>`, and a citation with no DOI always is: :ref:`self <guide-project-citations-self>` is the claim that this site is a DOI's registered *landing page*, so it needs a DOI to be the landing page of, while ``preferred`` only says which citation the site asks readers to use.
+Marking neither is what leaves a site with nothing on its surfaces — the footer shows no citation, and a :ref:`card <guide-citation-card>` with no argument has none to render and warns (see :ref:`guide-unresolvable-citations`) — so a package site's single entry sets ``preferred``.
+
+Nothing else about the entry is special.
+The :ref:`footer <guide-footer-citations>` and a :ref:`card <guide-citation-card>` render it the way they render a cited DOI, ending in a link to the repository rather than to doi.org, and it reaches the site-wide JSON-LD block in full as the work the site asks to be cited.
+The one surface it cannot reach is the inline :ref:`doi role <guide-citation-doi-role>`, whose link *text* is the DOI: an entry that has none is linked with ordinary hyperlink syntax instead.
+Nor does such a site carry the per-page citation meta tags, which describe a DOI's landing page and are emitted only for a :ref:`self <guide-project-citations-self>` entry; see :ref:`guide-citation-metadata`.
+
+A site whose repository keeps a :file:`CITATION.cff` file does not restate any of this: :ref:`cff <guide-project-citations-cff>` takes the URL from the file's ``url``, or from its ``repository-code`` when the file names no landing page, along with the rest of the record.
 
 .. _guide-citation-card:
 
@@ -156,8 +191,8 @@ It is the page-level counterpart to the footer citations, and is the right tool 
 
       DATASET
 
-      Vera C. Rubin Observatory (2025). Data Preview 2. Vera C. Rubin
-      Observatory. https://doi.org/10.71929/rubin/2570308
+      NSF-DOE Vera C. Rubin Observatory (2025). Data Preview 2. NSF-DOE
+      Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308
 
       To be used when citing the DP2 dataset and this documentation.
 
@@ -388,8 +423,8 @@ With the configuration above, the footer reads:
 
    DATASET
 
-   Vera C. Rubin Observatory (2025). Data Preview 2. Vera C. Rubin
-   Observatory. https://doi.org/10.71929/rubin/2570308
+   NSF-DOE Vera C. Rubin Observatory (2025). Data Preview 2. NSF-DOE
+   Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308
 
    To be used when citing the DP2 dataset and this documentation.
 
@@ -417,7 +452,7 @@ Such a site writes :ref:`in_footer = false <guide-project-citations-in-footer>` 
    preferred = true
    in_footer = false
    title = "Safir"
-   authors = [{ name = "Vera C. Rubin Observatory" }]
+   authors = [{ name = "NSF-DOE Vera C. Rubin Observatory" }]
 
 .. code-block:: rst
 
@@ -460,9 +495,9 @@ and claim those targets:
 
    [project.citation_defaults]
    type = "dataset"
-   publisher = "Vera C. Rubin Observatory"
+   publisher = "NSF-DOE Vera C. Rubin Observatory"
    date = 2025-06-30
-   authors = [{ name = "Vera C. Rubin Observatory" }]
+   authors = [{ name = "NSF-DOE Vera C. Rubin Observatory" }]
 
    [[project.citations]]
    doi = "10.71929/rubin/2570308"
@@ -548,7 +583,8 @@ These are the tags emitted, in this order:
    * - ``citation_publisher``
      - :ref:`publisher <guide-project-citations-publisher>`
    * - ``citation_fulltext_html_url``
-     - the page's own URL, which needs :ref:`base_url <guide-project-base-url>`
+     - the site's root URL for the :ref:`self <guide-project-citations-self>` entry, which is the URL that DOI is registered against; the claimed page's own URL — with the claim's fragment, when it names one — for an entry that sets :ref:`page <guide-project-citations-page>`.
+       Either needs :ref:`base_url <guide-project-base-url>`, and neither is emitted without one
    * - ``DC.identifier``
      - the DOI as a resolvable ``https://doi.org/`` URL, the Dublin Core complement DataCite's landing-page guidance asks for
 
