@@ -23,6 +23,9 @@ from sphinx.testing.util import SphinxTestApp
 # Must match tests/roots/test-citationcard/conf.py.
 DATASET_DOI_URL = "https://doi.org/10.5281/zenodo.10385500"
 SOFTWARE_URL = "https://github.com/lsst-sqre/documenteer"
+# The entry whose BibTeX key is pinned, so that selecting by key selects
+# something no spelling of a DOI does.
+REPORT_DOI_URL = "https://doi.org/10.71929/rubin/2570309"
 
 # The warning's type.subtype, as ``suppress_warnings`` spells it and as Sphinx
 # appends it to the rendered message. It is the ``citation-card`` directive's
@@ -96,16 +99,58 @@ def test_role_takes_custom_link_text(app: SphinxTestApp) -> None:
     assert _text(link) == "the dataset release"
 
 
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationdoi")
+def test_role_selects_an_entry_by_bibtex_key(app: SphinxTestApp) -> None:
+    """``:doi:`RTN-115``` links the entry whose BibTeX key is ``RTN-115``.
+
+    The role resolves a selector through the same lookup the directive does,
+    so a page that selects a card by key selects the same entry inline.
+    """
+    section = _section(_page(app, "selectors"), "role-by-key")
+
+    (link,) = _links(section)
+    assert link.get("href") == REPORT_DOI_URL
+    assert _text(link) == REPORT_DOI_URL
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationdoi")
+def test_role_selects_an_entry_by_doi(app: SphinxTestApp) -> None:
+    """A DOI selects its entry as a role target too, in any spelling."""
+    section = _section(_page(app, "selectors"), "role-by-doi")
+
+    (link,) = _links(section)
+    assert link.get("href") == DATASET_DOI_URL
+    assert _text(link) == DATASET_DOI_URL
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationdoi")
+def test_role_takes_a_doi_target_with_custom_text(
+    app: SphinxTestApp,
+) -> None:
+    """The explicit-title spelling takes a DOI as its target, which is what
+    lets a page display a short word over an entry it selects unambiguously.
+
+    Forty products each with a TAP entry cannot each be labelled "TAP" *and*
+    be selected by label; selecting by DOI is what frees the label to say what
+    the reader needs at that spot.
+    """
+    section = _section(_page(app, "selectors"), "role-by-doi-with-custom-text")
+
+    (link,) = _links(section)
+    assert link.get("href") == DATASET_DOI_URL
+    assert _text(link) == "the dataset release"
+
+
 # Its own srcdir: a role's warning is emitted while a page is *read*, so a
 # test that asserts on one needs a build that has not already cached the
 # page's doctree from an earlier test.
 @pytest.mark.sphinx(
     "html", testroot="citationcard", srcdir="citationdoi-unknown"
 )
-def test_unknown_label_warns_and_leaves_readable_text(
+def test_unknown_selector_warns_and_leaves_readable_text(
     app: SphinxTestApp,
 ) -> None:
-    """A label no entry carries warns, naming the labels the site declares,
+    """A target no entry answers to warns, in the words the directive uses,
     and renders the target as unlinked text.
 
     The build still succeeds: a citation a page names should never be the
@@ -122,14 +167,45 @@ def test_unknown_label_warns_and_leaves_readable_text(
         "the role must not leave a system message in the page"
     )
 
-    warnings = app.warning.getvalue()
-    assert 'no citation is labelled "Nonesuch"' in warnings
-    assert '"Site"' in warnings
-    assert '"Dataset"' in warnings
-    assert f"[{WARNING_NAME}]" in warnings, (
+    (warning,) = [
+        line
+        for line in app.warning.getvalue().splitlines()
+        if "Nonesuch" in line and "doi role:" in line
+    ]
+    assert 'no citation matches "Nonesuch"' in warning
+    assert "label, its BibTeX key, or its DOI" in warning
+    assert "veracrubinobservatory2025citation (Site)" in warning
+    assert f"[{WARNING_NAME}]" in warning, (
         "the warning must carry a type.subtype so that a -W build can "
         "suppress it by name"
     )
+
+
+@pytest.mark.sphinx(
+    "html", testroot="citationcard", srcdir="citationdoi-ambiguous"
+)
+def test_shared_label_warns_and_leaves_readable_text(
+    app: SphinxTestApp,
+) -> None:
+    """A target two entries answer to warns and renders unlinked text, the
+    same way an unresolvable one does.
+
+    The role mirrors the card: ambiguity is reported rather than guessed at,
+    since either answer would be the wrong DOI in some sentence with nothing
+    on the page to say so.
+    """
+    section = _section(_page(app, "repeated-labels"), "role-by-shared-label")
+
+    assert not _links(section)
+    assert _text(section.cssselect("p")[0]) == (
+        "The catalog is published as TAP."
+    )
+
+    warnings = app.warning.getvalue()
+    assert '"TAP" matches 2' in warnings
+    assert "10.71929/rubin/3382539" in warnings
+    assert "10.71929/rubin/3382540" in warnings
+    assert f"[{WARNING_NAME}]" in warnings
 
 
 @pytest.mark.sphinx(
@@ -144,7 +220,9 @@ def test_entry_without_a_doi_warns_rather_than_linking_its_url(
     The role's name is its contract. In the default spelling the link's text
     *is* the DOI, so linking a repository URL here would display that URL as
     though it were one, and a reader following a ``:doi:`` link expects to
-    arrive at a DOI either way. The warning names the entry's url, which is
+    arrive at a DOI either way. The warning names the entry the way every
+    other citation warning names one -- rather than by the text the role
+    wrote, which may have been a key -- and it names the entry's url, which is
     what an author writes an ordinary hyperlink to instead.
     """
     section = _section(_page(app, "role-warnings"), "located-by-url")
@@ -156,7 +234,7 @@ def test_entry_without_a_doi_warns_rather_than_linking_its_url(
     assert SOFTWARE_URL not in html.tostring(section, encoding="unicode")
 
     warnings = app.warning.getvalue()
-    assert 'the citation labelled "Software" declares no DOI' in warnings
+    assert "the citation 'Software' declares no DOI" in warnings
     assert SOFTWARE_URL in warnings, (
         "the warning names the url the author can link by hand instead"
     )

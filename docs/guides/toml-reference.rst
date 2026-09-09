@@ -199,9 +199,15 @@ label
 
 |optional|
 
-A short label that distinguishes this citation from the site's others, such as ``"Dataset"`` or ``"Paper"``.
-It is the label shown on the citation's card, the argument the :ref:`citation-card <guide-citation-card>` directive selects an entry with, the target the :ref:`doi role <guide-citation-doi-role>` links, and the name a warning about a citation uses.
-It is a display string only: what a work *is* is declared with :ref:`type <guide-project-citations-type>`.
+A short label for this citation, such as ``"Dataset"``, ``"Paper"``, or ``"TAP"``.
+It is the heading shown on the citation's card and in the site footer, one of the three ways the :ref:`citation-card <guide-citation-card>` directive and the :ref:`doi role <guide-citation-doi-role>` select an entry, and the name a warning about a citation uses.
+
+It is a display string, and it need not be unique.
+A label says what the reader needs to see at the spot the citation appears, so a site with a registered landing page per data product writes ``label = "TAP"`` on every one of those entries and selects each of them by :ref:`bibtex_key <guide-project-citations-bibtex-key>` or by DOI.
+Identity belongs to the key, which the build already keeps distinct across the site.
+A selector that two entries answer to emits a ``documenteer.citation_card`` warning naming both by key, and renders nothing, rather than picking one of them.
+
+It is a display string in the other sense too: what a work *is* is declared with :ref:`type <guide-project-citations-type>`.
 
 .. _guide-project-citations-self:
 

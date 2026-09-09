@@ -21,6 +21,7 @@ from documenteer.citations import (
     compose_highwire_tags,
     compose_landing_page_jsonld,
     compose_page_jsonld,
+    describe_citation,
     doi_url,
     normalize_doi,
     orcid_url,
@@ -2036,3 +2037,59 @@ def test_partial_date_is_its_iso_form_as_text() -> None:
     template or an f-string never has to reach for ``isoformat``.
     """
     assert f"{PartialDate(2025, 6)}" == "2025-06"
+
+
+def _named(label: str | None, key: str, title: str = "A work") -> dict:
+    """Compose the html_context mapping of an entry whose naming is under
+    test, since nothing here turns on the rest of the record.
+    """
+    return GuideCitation(
+        citation=Citation(
+            title=title,
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+            url="https://example.org/work",
+        ),
+        label=label,
+        bibtex_key=key,
+    ).to_html_context()
+
+
+def test_describe_citation_names_a_unique_label() -> None:
+    """An entry whose label no other entry carries is named by that label
+    alone, since the label is what its author wrote and will recognize.
+    """
+    dataset = _named("Dataset", "dp2")
+    paper = _named("Paper", "jenness2022vera")
+
+    assert describe_citation(dataset, [dataset, paper]) == "'Dataset'"
+
+
+def test_describe_citation_appends_the_key_to_a_shared_label() -> None:
+    """An entry sharing its label with another is named by its key as well,
+    so a warning says which of them it is about.
+
+    A label is a display string and may repeat -- forty data products each
+    need the word "TAP" at the same spot -- while the key is unique site-wide.
+    """
+    first = _named("TAP", "10.71929/rubin/3382539")
+    second = _named("TAP", "10.71929/rubin/3382540")
+
+    assert describe_citation(first, [first, second]) == (
+        "'TAP' (10.71929/rubin/3382539)"
+    )
+    assert describe_citation(second, [first, second]) == (
+        "'TAP' (10.71929/rubin/3382540)"
+    )
+
+
+def test_describe_citation_falls_back_for_an_unlabelled_entry() -> None:
+    """An entry that declares no label is named by the field the caller
+    nominates, which is the key unless a warning has a better one.
+    """
+    unlabelled = _named(None, "jenness2022vera", title="The Rubin Butler")
+
+    assert describe_citation(unlabelled, [unlabelled]) == "'jenness2022vera'"
+    assert (
+        describe_citation(unlabelled, [unlabelled], unlabelled_field="title")
+        == "'The Rubin Butler'"
+    )

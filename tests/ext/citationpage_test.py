@@ -24,6 +24,14 @@ from __future__ import annotations
 import pytest
 from sphinx.testing.util import SphinxTestApp
 
+from documenteer.citations import (
+    Citation,
+    CitationType,
+    GuideCitation,
+    OrganizationAuthor,
+    PartialDate,
+)
+
 # The checks' type.subtype, as ``suppress_warnings`` spells it and as Sphinx
 # appends it to the rendered message.
 WARNING_NAME = "documenteer.citation_page"
@@ -208,3 +216,50 @@ def test_fragment_warning_is_suppressible(app: SphinxTestApp) -> None:
     yet keeps its warnings-as-errors build green.
     """
     assert not [line for line in _warnings(app) if "is not an anchor" in line]
+
+
+def _tap_claim(doi: str) -> GuideCitation:
+    """Compose an entry labelled "TAP" whose claim names an anchor no page
+    carries, since only the naming in the warning is under test here.
+    """
+    return GuideCitation(
+        citation=Citation(
+            title=f"Catalog {doi}",
+            type=CitationType.dataset,
+            doi=doi,
+            authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+            publisher="Vera C. Rubin Observatory",
+            date=PartialDate(2025, 6, 30),
+        ),
+        label="TAP",
+        bibtex_key=doi,
+        page="products",
+        page_fragment="no-such-anchor",
+    )
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationpage",
+    srcdir="citationpage-shared-label",
+    confoverrides={
+        "html_context": {
+            "documenteer_citations": [
+                _tap_claim("10.71929/rubin/3382539").to_html_context(),
+                _tap_claim("10.71929/rubin/3382540").to_html_context(),
+            ]
+        }
+    },
+)
+def test_entries_sharing_a_label_are_named_by_key(
+    app: SphinxTestApp,
+) -> None:
+    """Two entries under one label are each named by their key as well, so a
+    site whose products all display the word "TAP" still gets two warnings it
+    can tell apart.
+    """
+    for key in ("10.71929/rubin/3382539", "10.71929/rubin/3382540"):
+        (warning,) = [
+            line for line in _warnings(app) if f"'TAP' ({key})" in line
+        ]
+        assert "is not an anchor on products" in warning

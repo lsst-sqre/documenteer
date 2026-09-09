@@ -310,8 +310,11 @@ class CitationModel(BaseModel):
     label: str | None = Field(
         None,
         description=(
-            "A short label distinguishing this citation from the site's "
-            'others, such as "Dataset" or "Paper".'
+            "A short label for this citation, shown as the heading of its "
+            'card and in the site footer, such as "Dataset" or "TAP". It is '
+            "a display string and need not be unique: a citation's identity "
+            "is its bibtex_key, which the build keeps distinct across the "
+            "site."
         ),
     )
 

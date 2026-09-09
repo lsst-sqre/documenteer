@@ -49,6 +49,48 @@ CITATIONS = [
         ),
         label="Dataset",
     ),
+    # Keyed explicitly, so that a selector matching its key selects
+    # something no spelling of its DOI does, and vice versa.
+    GuideCitation(
+        citation=Citation(
+            title="Citation Card Test Report",
+            doi="10.71929/rubin/2570309",
+            authors=(RUBIN,),
+            publisher="Vera C. Rubin Observatory",
+            date=PartialDate(2025, 5, 1),
+        ),
+        label="Report",
+        bibtex_key="RTN-115",
+    ),
+    # Two entries under one label, which is the shape a site with one page
+    # per data product has: the word the reader needs at that spot is the
+    # same on every one of them, so the label repeats and the DOI or the key
+    # is what tells the entries apart. Their keys are stated here because a
+    # guide resolves a DOI-bearing entry's key to its DOI, and that
+    # resolution runs over documenteer.toml rather than over the contexts
+    # this root composes by hand.
+    GuideCitation(
+        citation=Citation(
+            title="Test Object catalog (TAP)",
+            doi="10.71929/rubin/3382539",
+            authors=(RUBIN,),
+            publisher="Vera C. Rubin Observatory",
+            date=PartialDate(2025, 2, 3),
+        ),
+        label="TAP",
+        bibtex_key="10.71929/rubin/3382539",
+    ),
+    GuideCitation(
+        citation=Citation(
+            title="Test Source catalog (TAP)",
+            doi="10.71929/rubin/3382540",
+            authors=(RUBIN,),
+            publisher="Vera C. Rubin Observatory",
+            date=PartialDate(2025, 2, 3),
+        ),
+        label="TAP",
+        bibtex_key="10.71929/rubin/3382540",
+    ),
     # Located by url rather than by a DOI, which is what a package that has
     # never been deposited looks like. The ``doi`` role has nothing to link
     # for it.

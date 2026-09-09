@@ -52,6 +52,7 @@ from sphinx.util import logging
 from ..citations import (
     compose_highwire_tags,
     compose_page_jsonld,
+    describe_citation,
     page_landing_url,
 )
 from ..version import __version__
@@ -86,14 +87,6 @@ def _citations(app: Sphinx) -> Sequence[dict[str, Any]]:
     declares none publishes nothing, and this extension is then a no-op.
     """
     return app.config.html_context.get("documenteer_citations") or []
-
-
-def _describe(citation: dict[str, Any]) -> str:
-    """Identify one citation in a warning message, by its label when it has
-    one and by its DOI otherwise.
-    """
-    label = citation.get("label")
-    return f"{label!r}" if label else str(citation.get("doi"))
 
 
 def _page_anchors(env: BuildEnvironment, docname: str) -> set[str]:
@@ -206,7 +199,8 @@ def check_citation_pages(app: Sphinx, env: BuildEnvironment) -> None:
     # Several entries can claim one page, and each doctree is unpickled from
     # disk, so a page is read at most once however many entries name it.
     anchors: dict[str, set[str]] = {}
-    for citation in _citations(app):
+    citations = _citations(app)
+    for citation in citations:
         page = citation.get("page")
         if page is None:
             continue
@@ -216,7 +210,7 @@ def check_citation_pages(app: Sphinx, env: BuildEnvironment) -> None:
                 "project, so no page carries that DOI's landing-page "
                 "metadata. Write the value as a Sphinx docname (no file "
                 "extension), optionally followed by #fragment.",
-                _describe(citation),
+                describe_citation(citation, citations),
                 page,
                 type=WARNING_TYPE,
                 subtype=WARNING_SUBTYPE,
@@ -236,7 +230,7 @@ def check_citation_pages(app: Sphinx, env: BuildEnvironment) -> None:
             "entry can name — .. _%s: on its own line above the heading — "
             "since a heading's own anchor is generated from its text and "
             "changes whenever the text does.%s",
-            _describe(citation),
+            describe_citation(citation, citations),
             f"{page}#{fragment}",
             fragment,
             page,

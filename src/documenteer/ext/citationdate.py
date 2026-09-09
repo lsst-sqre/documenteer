@@ -54,7 +54,7 @@ from typing import TYPE_CHECKING, Any
 
 from sphinx.util import logging
 
-from ..citations import CitationType
+from ..citations import CitationType, describe_citation
 from ..version import __version__
 
 if TYPE_CHECKING:
@@ -94,18 +94,6 @@ def _citations(app: Sphinx) -> Sequence[dict[str, Any]]:
     declares none publishes nothing, and this extension is then a no-op.
     """
     return app.config.html_context.get("documenteer_citations") or []
-
-
-def _describe(citation: dict[str, Any]) -> str:
-    """Identify one citation in a warning message, by its label when it has
-    one and by its title otherwise.
-
-    The title is the fallback rather than the DOI because an undated entry
-    need not have a DOI — a package located by its repository is the common
-    case — while every entry has a title.
-    """
-    label = citation.get("label")
-    return repr(label or citation.get("title"))
 
 
 def _fix(citation: dict[str, Any]) -> str:
@@ -166,14 +154,19 @@ def check_citation_dates(app: Sphinx) -> None:
         The Sphinx application, whose ``html_context`` carries the resolved
         citations.
     """
-    for citation in _citations(app):
+    citations = _citations(app)
+    for citation in citations:
         if citation.get("date") or _has_no_publication_event(citation):
             continue
         logger.warning(
             "citation %s states no publication date, so it is displayed "
             "without its year, its BibTeX entry carries no year field, and "
             "its BibTeX key is built without one. %s",
-            _describe(citation),
+            # The title is the fallback for an unlabelled entry rather than
+            # the key, because an undated key is one of the things this
+            # warning is about: it collapses to the author and title alone,
+            # so naming the entry by it would name the symptom.
+            describe_citation(citation, citations, unlabelled_field="title"),
             _fix(citation),
             type=WARNING_TYPE,
             subtype=WARNING_SUBTYPE,

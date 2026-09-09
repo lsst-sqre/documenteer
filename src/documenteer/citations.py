@@ -40,6 +40,7 @@ __all__ = [
     "compose_highwire_tags",
     "compose_landing_page_jsonld",
     "compose_page_jsonld",
+    "describe_citation",
     "doi_url",
     "normalize_bibtex_key",
     "normalize_citation_url",
@@ -1336,6 +1337,54 @@ class GuideCitation:
             "bibtex_key": self.bibtex_key or citation.bibtex_key,
             "bibtex": citation.to_bibtex(key=self.bibtex_key),
         }
+
+
+def describe_citation(
+    citation: Mapping[str, Any],
+    citations: Sequence[Mapping[str, Any]],
+    *,
+    unlabelled_field: str = "bibtex_key",
+) -> str:
+    """Name one citation in a build warning, so that a reader can tell which
+    of a site's entries it is about.
+
+    Parameters
+    ----------
+    citation
+        The citation to name, as the mapping `GuideCitation.to_html_context`
+        composes and Sphinx's ``html_context`` publishes.
+    citations
+        Every citation the site declares, consulted only to learn whether
+        this one's label is shared.
+    unlabelled_field
+        The field naming an entry that declares no label. The BibTeX key is
+        the default because every entry resolves one; a warning whose subject
+        is a field the key is composed from names that field instead.
+
+    Returns
+    -------
+    str
+        The entry's label, quoted -- with its BibTeX key appended in
+        parentheses when another entry carries the same label.
+
+    Notes
+    -----
+    A label is a *display* string: it says what the reader needs to see at the
+    spot the citation appears, so a site with a registered landing page per
+    data product writes ``label = "TAP"`` on every one of them. Identity
+    belongs to the BibTeX key, which the configuration keeps unique across the
+    site. Naming a shared label alone would leave a warning pointing at forty
+    entries at once, and naming every entry by its key would spell out a DOI
+    where a site with distinct labels reads perfectly well, so the key is
+    added exactly when the label stops being enough.
+    """
+    label = citation.get("label")
+    if not label:
+        return repr(citation.get(unlabelled_field))
+    shared = sum(other.get("label") == label for other in citations) > 1
+    if shared and citation.get("bibtex_key"):
+        return f"{label!r} ({citation['bibtex_key']})"
+    return repr(label)
 
 
 def _meta_tag(name: str, content: str | None) -> str | None:

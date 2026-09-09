@@ -44,6 +44,26 @@ SOFTWARE_CITATION = (
     "Vera C. Rubin Observatory (2025). Citation Card Test Package. "
     f"Vera C. Rubin Observatory. {SOFTWARE_URL}"
 )
+# The entry whose BibTeX key is pinned, so that selecting by key selects
+# something no spelling of a DOI does.
+REPORT_KEY = "RTN-115"
+REPORT_DOI_URL = "https://doi.org/10.71929/rubin/2570309"
+REPORT_CITATION = (
+    "Vera C. Rubin Observatory (2025). Citation Card Test Report. "
+    f"Vera C. Rubin Observatory. {REPORT_DOI_URL}"
+)
+# The two entries that share one label, which is what a site with a page per
+# data product looks like: the word the reader needs is the same on each.
+OBJECT_TAP_DOI = "10.71929/rubin/3382539"
+SOURCE_TAP_DOI = "10.71929/rubin/3382540"
+OBJECT_TAP_CITATION = (
+    "Vera C. Rubin Observatory (2025). Test Object catalog (TAP). "
+    f"Vera C. Rubin Observatory. https://doi.org/{OBJECT_TAP_DOI}"
+)
+SOURCE_TAP_CITATION = (
+    "Vera C. Rubin Observatory (2025). Test Source catalog (TAP). "
+    f"Vera C. Rubin Observatory. https://doi.org/{SOURCE_TAP_DOI}"
+)
 
 CARD = ".documenteer-citation-card"
 LABEL = ".documenteer-citation-card__label"
@@ -115,6 +135,14 @@ def _text(element: html.HtmlElement) -> str:
     return " ".join(element.text_content().split())
 
 
+def _section(doc: html.HtmlElement, section_id: str) -> html.HtmlElement:
+    """Return the page section with this id, so an assertion is scoped to the
+    one example it is about rather than to the whole rendered page.
+    """
+    (section,) = doc.cssselect(f"section#{section_id}")
+    return section
+
+
 @pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
 def test_default_card_renders_the_self_citation(app: SphinxTestApp) -> None:
     """``.. citation-card::`` with no argument renders the ``self`` entry: its
@@ -183,6 +211,89 @@ def test_card_selects_an_entry_by_label(app: SphinxTestApp) -> None:
     assert not card.cssselect(NOTE), (
         "an entry with no note renders no note element"
     )
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
+def test_card_selects_an_entry_by_bibtex_key(app: SphinxTestApp) -> None:
+    """``.. citation-card:: RTN-115`` renders the entry whose BibTeX key is
+    ``RTN-115``.
+
+    A label says what the reader should see at that spot, which is a different
+    job from telling one of forty entries apart, so the key -- which the site
+    already keeps unique -- selects too.
+    """
+    section = _section(_page(app, "selectors"), "card-by-key")
+
+    (card,) = section.cssselect(CARD)
+    assert _text(card.cssselect(CITATION)[0]) == REPORT_CITATION
+
+
+@pytest.mark.parametrize(
+    "section_id",
+    ["card-by-bare-doi", "card-by-prefixed-doi", "card-by-doi-url"],
+)
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
+def test_card_selects_an_entry_by_doi(
+    app: SphinxTestApp, section_id: str
+) -> None:
+    """A DOI selects its entry however it is spelled: bare, ``doi:``-prefixed,
+    or as a ``https://doi.org/`` URL.
+
+    A page that has the DOI in hand -- from the entry it is the landing page
+    of, or from a table it is transcribing -- should not have to look up which
+    of the site's labels carries it.
+    """
+    section = _section(_page(app, "selectors"), section_id)
+
+    (card,) = section.cssselect(CARD)
+    assert _text(card.cssselect(CITATION)[0]) == DATASET_CITATION
+
+
+@pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
+def test_entries_sharing_a_label_are_selected_by_doi(
+    app: SphinxTestApp,
+) -> None:
+    """Two entries labelled "TAP" build, and each renders the card its own DOI
+    selects.
+
+    A label says what the reader needs at that spot; forty products each with
+    a TAP entry all need the word "TAP" there. Identity belongs to the BibTeX
+    key, which the site already keeps unique.
+    """
+    doc = _page(app, "repeated-labels")
+
+    (first,) = _section(doc, "object-catalog").cssselect(CARD)
+    assert _text(first.cssselect(LABEL)[0]) == "TAP"
+    assert _text(first.cssselect(CITATION)[0]) == OBJECT_TAP_CITATION
+
+    (second,) = _section(doc, "source-catalog").cssselect(CARD)
+    assert _text(second.cssselect(LABEL)[0]) == "TAP"
+    assert _text(second.cssselect(CITATION)[0]) == SOURCE_TAP_CITATION
+
+
+# Its own srcdir: a directive's warning is emitted while a page is *read*, so
+# a test that asserts on one needs a build that has not already cached the
+# page's doctree from an earlier test.
+@pytest.mark.sphinx(
+    "html", testroot="citationcard", srcdir="citationcard-ambiguous"
+)
+def test_shared_label_warns_and_renders_nothing(app: SphinxTestApp) -> None:
+    """A selector two entries answer to renders no card and warns, naming both
+    candidates by key.
+
+    Ambiguity is reported rather than guessed at: there is no precedence that
+    would let a label beat a key, because either answer would be the wrong
+    DOI on some page with nothing to say so.
+    """
+    doc = _page(app, "repeated-labels")
+
+    assert not _section(doc, "shared-label").cssselect(CARD)
+
+    warnings = app.warning.getvalue()
+    assert '"TAP" matches 2' in warnings
+    assert OBJECT_TAP_DOI in warnings
+    assert SOURCE_TAP_DOI in warnings
+    assert f"[{WARNING_NAME}]" in warnings
 
 
 @pytest.mark.sphinx("html", testroot="citationcard", srcdir="citationcard")
@@ -299,9 +410,16 @@ def test_default_card_renders_the_preferred_citation(
 @pytest.mark.sphinx(
     "html", testroot="citationcard", srcdir="citationcard-unknown"
 )
-def test_unknown_label_warns_and_renders_nothing(app: SphinxTestApp) -> None:
-    """An argument that matches no entry warns, naming the labels that are
-    available, and renders no card and no docutils system message.
+def test_unknown_selector_warns_and_renders_nothing(
+    app: SphinxTestApp,
+) -> None:
+    """An argument that matches no entry warns, naming a handful of the site's
+    entries and counting the rest, and renders no card and no docutils system
+    message.
+
+    A handful rather than all of them: naming every label was already a
+    300-character line on a site with eleven entries, and a site with one page
+    per data product has forty.
     """
     doc = _page(app, "unknown")
 
@@ -310,14 +428,44 @@ def test_unknown_label_warns_and_renders_nothing(app: SphinxTestApp) -> None:
         "the directive must not leave a system message in the page"
     )
 
-    warnings = app.warning.getvalue()
-    assert "Nonesuch" in warnings
-    assert '"Site"' in warnings
-    assert '"Dataset"' in warnings
-    assert f"[{WARNING_NAME}]" in warnings, (
+    (warning,) = [
+        line
+        for line in app.warning.getvalue().splitlines()
+        if "Nonesuch" in line and "citation-card:" in line
+    ]
+    assert 'no citation matches "Nonesuch"' in warning
+    assert "label, its BibTeX key, or its DOI" in warning
+    assert "6 citations" in warning, "the count of the rest is given"
+    # Each candidate is named by the key that selects it unambiguously, with
+    # its label alongside so the author can recognize it.
+    assert "veracrubinobservatory2025citation (Site)" in warning
+    assert f"{REPORT_KEY} (Report)" in warning
+    assert "(Software)" not in warning, (
+        "only a handful of candidates are named, not every entry"
+    )
+    assert f"[{WARNING_NAME}]" in warning, (
         "the warning must carry a type.subtype so that a -W build can "
         "suppress it by name"
     )
+
+
+@pytest.mark.sphinx(
+    "html", testroot="citationcard", srcdir="citationcard-nearmiss"
+)
+def test_near_miss_selector_is_offered_the_entry_it_resembles(
+    app: SphinxTestApp,
+) -> None:
+    """A selector one character off an entry's label is answered with that
+    entry rather than with a listing of the site.
+    """
+    _page(app, "unknown")
+
+    (warning,) = [
+        line
+        for line in app.warning.getvalue().splitlines()
+        if "Datasett" in line
+    ]
+    assert "Did you mean veracrubinobservatory2025test (Dataset)?" in warning
 
 
 @pytest.mark.sphinx(

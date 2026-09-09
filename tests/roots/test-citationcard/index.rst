@@ -13,6 +13,8 @@ The dataset the site documents, selected by label:
    :hidden:
 
    url-citation
+   selectors
+   repeated-labels
    roles
    roles-myst
    role-warnings

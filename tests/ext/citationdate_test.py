@@ -83,6 +83,7 @@ def _undated(
     url: str | None = None,
     cff: str | None = None,
     cff_preferred: bool = True,
+    bibtex_key: str | None = None,
 ) -> GuideCitation:
     """Compose an undated citation stating only the fields that decide whether
     it is reported: what kind of work it is, whether it is located by a DOI or
@@ -99,6 +100,7 @@ def _undated(
         label=label,
         cff=cff,
         cff_preferred=cff_preferred,
+        bibtex_key=bibtex_key,
     )
 
 
@@ -230,6 +232,39 @@ def test_doi_bearing_software_is_reported(app: SphinxTestApp) -> None:
     to be written down.
     """
     assert "no publication date" in _warning_naming(app, "'Software'")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-shared-label",
+    confoverrides={
+        "html_context": _context(
+            _undated(
+                "TAP",
+                doi="10.71929/rubin/3382539",
+                bibtex_key="10.71929/rubin/3382539",
+            ),
+            _undated(
+                "TAP",
+                doi="10.71929/rubin/3382540",
+                bibtex_key="10.71929/rubin/3382540",
+            ),
+        )
+    },
+)
+def test_entries_sharing_a_label_are_named_by_key(
+    app: SphinxTestApp,
+) -> None:
+    """Two entries under one label are each named by their key as well, so
+    the two reports are told apart.
+
+    A label may repeat -- it says what the reader needs to see at the spot
+    the citation appears -- while the key is unique site-wide.
+    """
+    for key in ("10.71929/rubin/3382539", "10.71929/rubin/3382540"):
+        warning = _warning_naming(app, f"'TAP' ({key})")
+        assert "no publication date" in warning
 
 
 @pytest.mark.sphinx(

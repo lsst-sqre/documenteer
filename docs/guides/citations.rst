@@ -161,9 +161,9 @@ It is the page-level counterpart to the footer citations, and is the right tool 
 
       To be used when citing the DP2 dataset and this documentation.
 
-   **Selecting a citation by label**
+   **Selecting a citation**
 
-   The optional argument is the :ref:`label <guide-project-citations-label>` of the entry to render, so a page can also show a citation that isn't the site's own:
+   The optional argument names the entry to render, so a page can also show a citation that isn't the site's own:
 
    .. tab-set::
 
@@ -181,6 +181,19 @@ It is the page-level counterpart to the footer citations, and is the right tool 
 
             :::{citation-card} Paper
             :::
+
+   An entry answers to three names, matched exactly and case-sensitively:
+
+   .. code-block:: rst
+
+      .. citation-card:: Paper
+      .. citation-card:: RTN-115
+      .. citation-card:: 10.71929/rubin/3382540
+
+   ``Paper`` is the entry's :ref:`label <guide-project-citations-label>`, ``RTN-115`` its :ref:`bibtex_key <guide-project-citations-bibtex-key>`, and the last its DOI — which is also accepted as ``doi:10.71929/rubin/3382540`` and as ``https://doi.org/10.71929/rubin/3382540``, so a DOI copied from anywhere selects.
+
+   A label is a display string and :ref:`may repeat <guide-project-citations-label>`; the key and the DOI are unique site-wide, and are what a page selects with when several entries share a heading.
+   An argument two entries answer to renders nothing and warns, naming both by key (see :ref:`guide-unresolvable-citations`).
 
    **Copying the BibTeX entry**
 
@@ -236,7 +249,7 @@ A page that would otherwise write ``https://doi.org/10.71929/rubin/3382539`` int
 
    Link one of the site's :ref:`[[project.citations]] <guide-project-citations>` entries by its DOI.
 
-   The role's content is the entry's :ref:`label <guide-project-citations-label>`, matched exactly and case-sensitively — the same way the :ref:`citation-card <guide-citation-card>` directive's argument is.
+   The role's content names the entry, resolved the same way the :ref:`citation-card <guide-citation-card>` directive's argument is: by :ref:`label <guide-project-citations-label>`, by :ref:`bibtex_key <guide-project-citations-bibtex-key>`, or by DOI in any spelling, matched exactly and case-sensitively.
    The link's text is the resolvable ``https://doi.org/`` URL, the form the Crossref and DataCite display guidelines ask for:
 
    .. tab-set::
@@ -275,6 +288,12 @@ A page that would otherwise write ``https://doi.org/10.71929/rubin/3382539`` int
 
             For processing details see {doi}`the DP2 paper <Paper>`.
 
+   It is also what lets a sentence display one word over an entry it selects unambiguously, which is how a site whose products all need the word "TAP" writes them:
+
+   .. code-block:: rst
+
+      * TAP: :doi:`TAP <10.71929/rubin/3382540>`
+
    **Where it works**
 
    The role renders one external hyperlink and nothing else, so it composes wherever inline markup does: a sentence, a list item, a table cell, and the body of a ``replace`` substitution definition.
@@ -292,7 +311,7 @@ A page that would otherwise write ``https://doi.org/10.71929/rubin/3382539`` int
 
       .. |dp2_paper| replace:: :doi:`the DP2 paper <Paper>`
 
-   There is no default entry: the role always names a label.
+   There is no default entry: the role always names one.
    A role appears mid-sentence, where an implicit subject would be a guess at which of the site's works the sentence is about.
 
 The role is a link, and only a link — no note, no BibTeX entry, no author-year text.
@@ -300,13 +319,20 @@ A page that *is* a work's landing page should therefore carry a :ref:`card <guid
 
 Citing works that are *not* among the site's own declared citations — a bibliography of the literature a guide discusses — is not what this role is for, and is not yet supported.
 
+.. _guide-unresolvable-citations:
+
 Unresolvable citations
 ======================
 
-A card that names a label no entry carries — and a card with no argument on a site that names no preferred citation — renders nothing and emits a build warning naming the labels the site does declare.
+A card whose argument no entry answers to — and a card with no argument on a site that names no preferred citation — renders nothing and emits a build warning.
+The warning restates the three ways an entry is selected and names a few of the site's entries as ``key (label)``, counting the rest rather than listing every one of them; an argument that is close to an entry's label, key, or DOI is answered with that entry instead.
 The warning about a missing default asks for ``preferred = true``, since that is the field a site sets when the citation to use is published elsewhere; ``self = true`` answers it too, for a site that really is its DOI's landing page.
 
-A ``doi`` role that names a label no entry carries warns the same way, and renders its target as unlinked text so the sentence around it still reads in the page that ships.
+A ``doi`` role whose target no entry answers to warns the same way, and renders its target as unlinked text so the sentence around it still reads in the page that ships.
+
+An argument *several* entries answer to — a shared :ref:`label <guide-project-citations-label>`, or a label that happens to equal another entry's key — warns too, naming the candidates by key and asking the page to select by key or by DOI.
+The card renders nothing and the role renders plain text, as they do for a target that resolves to no entry at all.
+No precedence is defined, so a label never quietly beats a key: either answer would be the wrong DOI on some page, with nothing on it to say so.
 
 A role whose entry declares no DOI warns too, rather than linking that entry's :ref:`url <guide-project-citations-url>`.
 The role's name is its contract: in the default spelling the link's *text* is the DOI, so linking a repository's landing page here would display that URL as though it were one.
@@ -415,7 +441,7 @@ and claim those targets:
 
    [[project.citations]]
    doi = "10.71929/rubin/3382539"
-   label = "Object catalog (Butler)"
+   label = "Butler"
    type = "dataset"
    page = "products/catalogs/object#object-butler"
    title = "DP2 Object catalog"
@@ -425,13 +451,16 @@ and claim those targets:
 
    [[project.citations]]
    doi = "10.71929/rubin/3382540"
-   label = "Object catalog (TAP)"
+   label = "TAP"
    type = "dataset"
    page = "products/catalogs/object#object-tap"
    title = "DP2 Object catalog"
    publisher = "Vera C. Rubin Observatory"
    date = 2025-06-30
    authors = [{ name = "Vera C. Rubin Observatory" }]
+
+The labels are the words the page needs under its ``Butler`` and ``TAP`` headings, not names that tell the site's forty entries apart — every product has a TAP entry, so ``label = "TAP"`` repeats across the site.
+That is what labels are for; the DOI is what selects.
 
 With that configuration, :file:`products/catalogs/object.html` describes the two catalog DOIs — each located at its own fragment, ``#object-butler`` and ``#object-tap`` — instead of the release DOI.
 Because the page is the landing page of two DOIs, it emits a JSON-LD ``@graph`` of both and no citation meta tags at all: every one of those tags is single-valued, and the page has no single title, DOI, or date to give.
@@ -447,11 +476,11 @@ The claim also relates the two works: each catalog's node names the release as t
 
 Claiming a page changes only the machine-readable metadata; the visible surfaces are unaffected.
 The footer still shows the same citations everywhere, and ``.. citation-card::`` with no argument still renders the site's preferred citation.
-A landing page that wants to show the citation a reader arriving from doi.org came for names it by label:
+A landing page that wants to show the citation a reader arriving from doi.org came for names it by DOI, since its label is shared with every other product's TAP entry:
 
 .. code-block:: rst
 
-   .. citation-card:: Object catalog (TAP)
+   .. citation-card:: 10.71929/rubin/3382540
 
 A ``page`` value the build cannot resolve emits a ``documenteer.citation_page`` warning and leaves the entry working everywhere else.
 That covers both halves of the claim: a docname the project does not contain — a renamed page, or a value written as a file path rather than a docname — and a fragment that names no anchor on the page it claims, whose warning also names the explicit targets that page does record, so a claim broken by a renamed target says what to claim instead.
@@ -511,7 +540,7 @@ That JSON-LD block is *about* the ``self`` entry, and states every other entry a
   The full record lives on the page the entry claims, whose own block points back at the site with an ``isPartOf`` reference of the same shape.
 - An entry with **no** page is a work the site **cites**, and reaches the site-wide block in full — but only when the site displays it, which is to say when :ref:`in_footer <guide-project-citations-in-footer>` is true.
 - An entry that is neither a part nor shown in the footer appears in no site-wide block at all, because no page of the site mentions it.
-  It still renders wherever a :ref:`citation-card <guide-citation-card>` names it by label.
+  It still renders wherever a :ref:`citation-card <guide-citation-card>` names it.
 
 A site that marks no entry ``self`` is no DOI's landing page, so it emits **none** of the meta tags above on any page — not the title and authors either, since stating them would tell a harvester that this site is the full text of a work published somewhere else.
 Marking an entry :ref:`preferred <guide-project-citations-preferred>` does not change that: ``preferred`` says which citation the site asks readers to use, which is a question for the visible surfaces, and only ``self`` claims that this site is where a DOI resolves.

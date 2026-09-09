@@ -14,6 +14,13 @@ paper -- cannot use one. That is the ``doi`` role: it links a declared entry's
 DOI inline, from the same context the card reads, so such a mention stops being
 a hand-written URL that drifts from the entry it names.
 
+Both surfaces name an entry the same three ways: by its ``label``, by its
+BibTeX key, or by its DOI in any spelling. A label is a *display* string -- it
+says what the reader needs to see at the spot the citation appears -- so a site
+with a registered landing page per data product writes ``label = "TAP"`` on
+every one of them, and the key or the DOI is what tells those entries apart. A
+selector several entries answer to is reported rather than guessed at.
+
 The citations themselves are composed once, by the guide configuration preset,
 and published into Sphinx's ``html_context`` as ``documenteer_citations`` and
 ``documenteer_preferred_citation``. This module only reads that context; it
@@ -29,6 +36,7 @@ elsewhere answers the first and not the second.
 
 from __future__ import annotations
 
+import difflib
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from docutils import nodes
@@ -37,6 +45,7 @@ from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective, SphinxRole
 from sphinx.util.nodes import split_explicit_title
 
+from ..citations import describe_citation, normalize_doi
 from ..version import __version__
 
 if TYPE_CHECKING:
@@ -87,6 +96,24 @@ the site footer's own button carries the same label, so the two surfaces read
 identically.
 """
 
+SELECTOR_ADVICE = (
+    "An entry is selected by its label, its BibTeX key, or its DOI."
+)
+"""What every warning about an unresolved selector says the three ways are.
+
+Naming all three in the warning is how an author who wrote a label that no
+longer selects on its own learns that the key and the DOI do.
+"""
+
+CANDIDATE_LIMIT = 3
+"""How many entries a warning names before it falls back to counting them.
+
+A site with one registered landing page per data product declares dozens of
+citations, and naming every one of them makes a warning something an author
+scrolls past rather than reads. Three is enough to show what a selector looks
+like without becoming the message.
+"""
+
 
 class citation_bibtex(nodes.General, nodes.Element):  # noqa: N801
     """A citation's BibTeX entry, shown as a copyable disclosure.
@@ -104,15 +131,17 @@ class citation_bibtex(nodes.General, nodes.Element):  # noqa: N801
 class CitationCard(SphinxDirective):
     """Render one of the site's citations as a card.
 
-    The optional argument is the ``label`` of the ``[[project.citations]]``
-    entry to render. With no argument the directive renders the site's
-    preferred citation — the work the site asks readers to cite — which is
-    what a "Citing this site" page wants.
+    The optional argument selects the ``[[project.citations]]`` entry to
+    render, by its ``label``, its BibTeX key, or its DOI (see
+    `_selects`). With no argument the directive renders the site's preferred
+    citation — the work the site asks readers to cite — which is what a
+    "Citing this site" page wants.
 
-    An argument that matches no entry, and a site with no preferred entry, are
-    warnings rather than errors: the citation metadata a site displays should
-    never be the reason a page fails to build, and the warning carries a
-    subtype so a site can suppress it deliberately.
+    An argument that matches no entry, an argument that matches several, and a
+    site with no preferred entry, are warnings rather than errors: the
+    citation metadata a site displays should never be the reason a page fails
+    to build, and the warning carries a subtype so a site can suppress it
+    deliberately.
     """
 
     has_content = False
@@ -126,8 +155,8 @@ class CitationCard(SphinxDirective):
 
     def run(self) -> list[nodes.Node]:
         """Run the ``citation-card`` directive."""
-        label = self.arguments[0].strip() if self.arguments else None
-        citation = self._select(label)
+        selector = self.arguments[0].strip() if self.arguments else None
+        citation = self._select(selector)
         if citation is None:
             # Rendering nothing keeps the surrounding document valid: the
             # warning has already been logged, and leaving a system message
@@ -140,7 +169,7 @@ class CitationCard(SphinxDirective):
         """Return the site's citations, in the order they are declared."""
         return self.config.html_context.get("documenteer_citations") or []
 
-    def _select(self, label: str | None) -> dict[str, Any] | None:
+    def _select(self, selector: str | None) -> dict[str, Any] | None:
         """Choose the citation to render, warning and returning `None` when
         no entry answers.
         """
@@ -149,7 +178,7 @@ class CitationCard(SphinxDirective):
             self._warn(NO_CITATIONS_MESSAGE)
             return None
 
-        if label is None:
+        if selector is None:
             preferred = self.config.html_context.get(
                 "documenteer_preferred_citation"
             )
@@ -159,16 +188,28 @@ class CitationCard(SphinxDirective):
                     "no default entry to render. Mark the citation this site "
                     "asks readers to use with `preferred = true` in "
                     "documenteer.toml -- or with `self = true` when the site "
-                    "really is that DOI's registered landing page -- or give "
-                    "the directive a label to render: "
-                    f"{_describe_labels(citations)}."
+                    "really is that DOI's registered landing page -- or name "
+                    f"an entry to render. {SELECTOR_ADVICE} "
+                    f"{_describe_site(citations)}"
                 )
             return preferred
 
-        citation = _find_citation(citations, label)
-        if citation is None:
-            self._warn(_unknown_label_message(label, citations))
-        return citation
+        return self._resolve(selector, citations)
+
+    def _resolve(
+        self, selector: str, citations: Sequence[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        """Resolve a selector to the one entry it names, warning and returning
+        `None` when it names none or several.
+        """
+        matches = _find_citations(citations, selector)
+        if not matches:
+            self._warn(_unknown_selector_message(selector, citations))
+            return None
+        if len(matches) > 1:
+            self._warn(_ambiguous_selector_message(selector, matches))
+            return None
+        return matches[0]
 
     def _build_card(self, citation: dict[str, Any]) -> nodes.Element:
         """Compose the card's node tree from one citation's context."""
@@ -227,13 +268,15 @@ class CitationDoiRole(SphinxRole):
     the Crossref and DataCite display guidelines ask a DOI to be shown. The
     standard ``text <target>`` spelling, ``:doi:`the DP2 paper <Paper>```,
     puts custom text on the same link, for the sentence that needs to read as
-    prose rather than as an identifier.
+    prose rather than as an identifier — and is what lets a page display one
+    word over an entry it selects by key or by DOI, as in
+    ``:doi:`TAP <10.71929/rubin/3382540>```.
 
-    The role always names a label -- there is no default entry -- because a
+    The role always names an entry -- there is no default one -- because a
     role appears mid-sentence, where an implicit subject would be a guess at
-    which of the site's works the sentence is about. Labels are matched
-    exactly and case-sensitively against ``documenteer_citations``, the same
-    lookup `CitationCard` does.
+    which of the site's works the sentence is about. The target is resolved
+    against ``documenteer_citations`` through the same lookup `CitationCard`
+    does, so it selects by label, by BibTeX key, or by DOI alike.
 
     The output is a single `docutils.nodes.reference`, so the role composes
     wherever inline markup does: prose, a list item, a table cell, a MyST
@@ -256,19 +299,19 @@ class CitationDoiRole(SphinxRole):
 
     def run(self) -> tuple[list[nodes.Node], list[nodes.system_message]]:
         """Run the ``doi`` role."""
-        has_title, title, label = split_explicit_title(self.text)
-        label = label.strip()
-        citation = self._select(label)
+        has_title, title, selector = split_explicit_title(self.text)
+        selector = selector.strip()
+        citation = self._select(selector)
         doi_url = citation.get("doi_url") if citation else None
         if doi_url is None:
             # The warning has already been logged; leaving the text in place
             # keeps the sentence that holds the role readable, which a
             # missing or half-built link would not.
-            return [nodes.Text(title if has_title else label)], []
+            return [nodes.Text(title if has_title else selector)], []
         text = title if has_title else doi_url
         return [_location_reference(doi_url, text)], []
 
-    def _select(self, label: str) -> dict[str, Any] | None:
+    def _select(self, selector: str) -> dict[str, Any] | None:
         """Choose the citation to link, warning and returning `None` when no
         entry answers with a DOI.
         """
@@ -277,13 +320,17 @@ class CitationDoiRole(SphinxRole):
             self._warn(NO_CITATIONS_MESSAGE)
             return None
 
-        citation = _find_citation(citations, label)
-        if citation is None:
-            self._warn(_unknown_label_message(label, citations))
+        matches = _find_citations(citations, selector)
+        if not matches:
+            self._warn(_unknown_selector_message(selector, citations))
             return None
+        if len(matches) > 1:
+            self._warn(_ambiguous_selector_message(selector, matches))
+            return None
+        citation = matches[0]
 
         if not citation.get("doi_url"):
-            self._warn(_no_doi_message(label, citation))
+            self._warn(_no_doi_message(citation, citations))
             return None
         return citation
 
@@ -375,38 +422,119 @@ def depart_citation_bibtex_fallback(
     """Leave the node on a builder that rendered the literal block."""
 
 
-def _find_citation(
-    citations: Sequence[dict[str, Any]], label: str
-) -> dict[str, Any] | None:
-    """Return the declared citation carrying this label, or `None`.
+def _as_doi(selector: str) -> str | None:
+    """Reduce a selector to the bare DOI it spells, or `None` when it spells
+    none.
 
-    Matching is exact and case-sensitive. A label is a short display string an
-    author writes in :file:`documenteer.toml` and copies into a page, so a
-    near-miss is a typo in one of the two places, and matching it loosely
-    would render a citation the page did not ask for.
-
-    Both surfaces resolve a label through here, so a label that selects a card
-    always selects the same entry for a role.
+    A DOI reaches a page in whichever form its source wrote it -- bare from a
+    DataCite record, ``doi:``-prefixed from a bibliography, as a
+    ``https://doi.org/`` URL from a browser -- and all three name one work, so
+    all three select one entry. A selector that is not a DOI at all is not an
+    error here: it is a label or a key, which the caller tries in turn.
     """
-    for citation in citations:
-        if citation.get("label") == label:
-            return citation
-    return None
+    try:
+        return normalize_doi(selector)
+    except ValueError:
+        return None
 
 
-def _unknown_label_message(
-    label: str, citations: Sequence[dict[str, Any]]
+def _selects(citation: dict[str, Any], selector: str, doi: str | None) -> bool:
+    """Report whether this selector names this citation.
+
+    A selector names an entry by its ``label``, by its BibTeX key, or by its
+    DOI. The first two match exactly and case-sensitively: both are short
+    strings an author writes in :file:`documenteer.toml` and copies into a
+    page, so a near-miss is a typo in one of the two places, and matching it
+    loosely would render a citation the page did not ask for. The DOI is
+    matched in its normalized form, so every spelling of one DOI selects the
+    same entry.
+
+    Parameters
+    ----------
+    citation
+        One declared citation, as ``html_context`` publishes it.
+    selector
+        The text the page wrote.
+    doi
+        The bare DOI `selector` spells, or `None` when it spells none, passed
+        in so that a selector is normalized once per lookup rather than once
+        per entry.
+    """
+    if selector in (citation.get("label"), citation.get("bibtex_key")):
+        return True
+    return doi is not None and citation.get("doi") == doi
+
+
+def _find_citations(
+    citations: Sequence[dict[str, Any]], selector: str
+) -> list[dict[str, Any]]:
+    """Return every declared citation this selector names, in the order they
+    are declared.
+
+    The *set* of answers is returned rather than the first, because a label
+    may repeat and a selector that names two entries names neither. Both
+    surfaces resolve a selector through here, so a selector that selects a
+    card always selects the same entry for a role -- and one that is ambiguous
+    is ambiguous on both.
+    """
+    doi = _as_doi(selector)
+    return [
+        citation for citation in citations if _selects(citation, selector, doi)
+    ]
+
+
+def _unknown_selector_message(
+    selector: str, citations: Sequence[dict[str, Any]]
 ) -> str:
-    """Compose the warning for a label no declared citation carries."""
+    """Compose the warning for a selector no declared citation answers to.
+
+    The warning names a handful of entries rather than all of them. Listing
+    every label was already a 300-character line on a site with eleven
+    citations, and a site with a registered landing page per data product
+    declares dozens -- at which point the list is what an author skips rather
+    than what tells them what to write. A near miss is answered with the entry
+    it resembles; anything else falls back to a sample and a count.
+    """
+    close = _close_citations(selector, citations)
+    if close:
+        suggestion = (
+            f"Did you mean {_describe_candidates(close)}? "
+            f"{_count_citations(citations)}"
+        )
+    else:
+        suggestion = _describe_site(citations)
+    return f'no citation matches "{selector}". {SELECTOR_ADVICE} {suggestion}'
+
+
+def _ambiguous_selector_message(
+    selector: str, matches: Sequence[dict[str, Any]]
+) -> str:
+    """Compose the warning for a selector several declared citations answer
+    to.
+
+    No precedence is offered -- a label does not beat a key -- because either
+    answer would silently be the wrong DOI on some page, which is exactly the
+    failure this warning exists to prevent. The candidates are named by their
+    BibTeX keys, since a key is unique site-wide and a label, being a display
+    string, is what got the page here.
+    """
+    keys = ", ".join(str(match.get("bibtex_key")) for match in matches)
     return (
-        f'no citation is labelled "{label}". This site\'s citations are '
-        f"labelled {_describe_labels(citations)}."
+        f'"{selector}" matches {len(matches)} of this site\'s citations, so '
+        f"it selects none of them: {keys}. A label is a display string that "
+        "may repeat; name the entry you mean by its BibTeX key or its DOI."
     )
 
 
-def _no_doi_message(label: str, citation: dict[str, Any]) -> str:
+def _no_doi_message(
+    citation: dict[str, Any], citations: Sequence[dict[str, Any]]
+) -> str:
     """Compose the warning for an entry the ``doi`` role cannot link because
     the entry declares no DOI.
+
+    The entry is named the way every other warning about a citation names one,
+    rather than by the text the role wrote, since that text may just as well
+    have been a key as a label.
 
     The message names the entry's ``url`` when it has one, because that is the
     link the author expected and the one they can write by hand instead.
@@ -416,10 +544,11 @@ def _no_doi_message(label: str, citation: dict[str, Any]) -> str:
         f" It is located by url ({url}) rather than by a DOI." if url else ""
     )
     return (
-        f'the citation labelled "{label}" declares no DOI, so there is no '
-        f"DOI to link.{located} Give the entry a `doi`, or write the link "
-        "with ordinary hyperlink syntax, or render the whole entry with a "
-        "citation-card, which displays whichever location the entry has."
+        f"the citation {describe_citation(citation, citations)} declares no "
+        f"DOI, so there is no DOI to link.{located} Give the entry a `doi`, "
+        "or write the link with ordinary hyperlink syntax, or render the "
+        "whole entry with a citation-card, which displays whichever location "
+        "the entry has."
     )
 
 
@@ -439,14 +568,66 @@ def _warn(surface: str, message: str, location: Any) -> None:
     )
 
 
-def _describe_labels(citations: Sequence[dict[str, Any]]) -> str:
-    """Name the labels a directive argument can select, for a warning."""
-    labels = [
-        citation["label"] for citation in citations if citation.get("label")
-    ]
-    if not labels:
-        return "no citation declares a label"
-    return ", ".join(f'"{label}"' for label in labels)
+def _close_citations(
+    selector: str, citations: Sequence[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Return the declared citations whose label, key, or DOI most nearly
+    spells this selector.
+
+    Every string that *would* have selected an entry is a candidate for the
+    near-miss search, so a mistyped key is answered as readily as a mistyped
+    label. An entry matched on two of its strings at once is named once.
+    """
+    spellings = {
+        spelling: index
+        for index, citation in enumerate(citations)
+        for spelling in (
+            citation.get("label"),
+            citation.get("bibtex_key"),
+            citation.get("doi"),
+        )
+        if spelling
+    }
+    indices = sorted(
+        {
+            spellings[match]
+            for match in difflib.get_close_matches(
+                selector, list(spellings), n=CANDIDATE_LIMIT
+            )
+        }
+    )
+    return [citations[index] for index in indices]
+
+
+def _describe_candidates(citations: Sequence[dict[str, Any]]) -> str:
+    """Name entries in a warning, each by the key that selects it and the
+    label a reader recognizes it by.
+
+    The key leads because it is what the author has to write to select the
+    entry unambiguously; the label follows because it is what they will
+    recognize from :file:`documenteer.toml`.
+    """
+    return ", ".join(
+        f"{citation.get('bibtex_key')} ({citation['label']})"
+        if citation.get("label")
+        else str(citation.get("bibtex_key"))
+        for citation in citations
+    )
+
+
+def _count_citations(citations: Sequence[dict[str, Any]]) -> str:
+    """State how many citations the site declares, as a whole sentence."""
+    count = len(citations)
+    plural = "" if count == 1 else "s"
+    return f"This site declares {count} citation{plural} in all."
+
+
+def _describe_site(citations: Sequence[dict[str, Any]]) -> str:
+    """Name a sample of the site's entries and count the rest, for a warning
+    that has no better suggestion to make.
+    """
+    shown = _describe_candidates(citations[:CANDIDATE_LIMIT])
+    return f"{_count_citations(citations)[:-1]}, among them {shown}."
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:
