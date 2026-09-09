@@ -260,6 +260,18 @@ rejection into an instruction.
 """
 
 
+_UNRELEASED_VERSION = "Latest"
+"""What `DocumenteerConfig.version` reports for a site that declares neither
+``[project] version`` nor ``[project.python]``.
+
+It fills Sphinx's ``version`` and ``release`` so that a site with no release
+to name still has something to display. It is that label and nothing more —
+it identifies no release of anything — so a consumer that needs a real
+*version*, a software citation being the one that does, has to read it as the
+absence of one.
+"""
+
+
 class CitationModel(BaseModel):
     """Model for an entry in the ``[[project.citations]]`` array of
     documenteer.toml.
@@ -373,6 +385,18 @@ class CitationModel(BaseModel):
         None, description="The organization that published the work."
     )
 
+    version: str | None = Field(
+        None,
+        description=(
+            "The release of the work being cited, such as a package's "
+            "12.3.0. A ``cff`` file supplies one from its ``version``. A "
+            "software entry that describes this site's own package — one "
+            "that sets ``self``, ``preferred``, or ``cff_preferred = "
+            "false`` — defaults to the project's own version when neither "
+            "states one."
+        ),
+    )
+
     date: PartialDate | None = Field(
         None,
         description=(
@@ -425,6 +449,29 @@ class CitationModel(BaseModel):
         if v is None:
             return None
         return normalize_citation_url(v)
+
+    @field_validator("version")
+    @classmethod
+    def validate_version(cls, v: str | None) -> str | None:
+        """Collapse the version's whitespace, rejecting a blank one.
+
+        A blank version is rejected rather than read as an absent one for
+        the same reason a blank ``url`` is: it is truthy, so it reads
+        everywhere as a version that *was* stated, while composing to
+        nothing. Here it would do that twice over — the rendered citation
+        would name no release, and the entry would also be denied the
+        default a software entry inherits from the project's own version,
+        with nothing on the page to say why.
+        """
+        if v is None:
+            return None
+        version = " ".join(v.split())
+        if not version:
+            raise ValueError(
+                "The citation version is empty. Set it to the release being "
+                "cited, such as 12.3.0, or drop it."
+            )
+        return version
 
     @field_validator("date", mode="before")
     @classmethod
@@ -1046,7 +1093,8 @@ class DocumenteerConfig:
 
         1. project.version field in ``documenteer.toml``
         2. From importlib if the project.python table is set
-        3. Default is "Latest".
+        3. Default is ``_UNRELEASED_VERSION`` ("Latest"), which names no
+           release and so is not a version a citation can state.
         """
         if self.conf.project.version is not None:
             return self.conf.project.version
@@ -1054,7 +1102,7 @@ class DocumenteerConfig:
             # Via pydantic validation we know this works
             return get_version(self.conf.project.python.package)
         else:
-            return "Latest"
+            return _UNRELEASED_VERSION
 
     @property
     def rst_epilog_path(self) -> Path | None:
@@ -1539,16 +1587,20 @@ class DocumenteerConfig:
             )
         else:
             authors = source.authors if source else ()
+        citation_type = entry.type or (source.type if source else None)
         return GuideCitation(
             citation=Citation(
                 title=title,
-                type=entry.type or (source.type if source else None),
+                type=citation_type,
                 doi=doi,
                 authors=authors,
                 publisher=entry.publisher
                 or (source.publisher if source else None),
                 date=entry.date or (source.date if source else None),
                 url=url,
+                version=self._resolve_citation_version(
+                    entry, source, citation_type, is_preferred=is_preferred
+                ),
             ),
             label=entry.label,
             is_self=entry.is_self,
@@ -1563,6 +1615,55 @@ class DocumenteerConfig:
             cff=entry.cff,
             cff_preferred=entry.cff_preferred,
         )
+
+    def _resolve_citation_version(
+        self,
+        entry: CitationModel,
+        source: Citation | None,
+        citation_type: CitationType | None,
+        *,
+        is_preferred: bool,
+    ) -> str | None:
+        """Determine the release one citation names.
+
+        The entry's own ``version`` wins, then its CITATION.cff file's, as
+        every other bibliographic field resolves. What is left is the entry
+        that states neither, and the rule is deliberately narrow: a software
+        entry that describes *this site's own package* takes the project's
+        version, and every other entry stays version-less.
+
+        "This site's own package" is the entry that sets ``self``, the one
+        the site marks ``preferred``, and the one reading a CITATION.cff
+        file's top-level record with ``cff_preferred = false`` — the three
+        ways a site says an entry is the thing it documents. A guide's own
+        version *is* that package's version, and the page a reader is on is
+        the documentation of that release, so filling it in states what the
+        page already means. Every other software entry is somebody else's
+        package, whose releases this site knows nothing about, and no other
+        type defaults at all: a dataset's or a paper's version has nothing
+        to do with the version of the software that builds the site.
+
+        `DocumenteerConfig.version` falls back to the literal ``"Latest"``
+        for a site that declares neither ``[project] version`` nor
+        ``[project.python]``. That is a label for a docs build, not a
+        release of anything, so it is treated here as no version at all —
+        it must never reach a citation, a BibTeX ``version`` field, or a
+        ``softwareVersion``.
+        """
+        stated = entry.version or (source.version if source else None)
+        if stated is not None:
+            return stated
+        if citation_type is not CitationType.software:
+            return None
+        describes_this_package = (
+            entry.is_self
+            or is_preferred
+            or (entry.cff is not None and not entry.cff_preferred)
+        )
+        if not describes_this_package:
+            return None
+        version = self.version
+        return None if version == _UNRELEASED_VERSION else version
 
     def _read_citation_cff(
         self, entry: CitationModel, index: int

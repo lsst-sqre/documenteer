@@ -257,6 +257,25 @@ def test_plain_text_locates_a_doi_less_work_by_its_url() -> None:
     )
 
 
+def test_plain_text_states_the_version_after_the_title() -> None:
+    """A software citation names the version it documents, which is the one
+    fact a reader reporting what they ran needs and a bare project citation
+    cannot carry.
+    """
+    citation = Citation(
+        title="Safir",
+        type=CitationType.software,
+        version="12.3.0",
+        authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+        date=PartialDate(2020),
+        url="https://github.com/lsst-sqre/safir",
+    )
+    assert citation.to_plain_text() == (
+        "Vera C. Rubin Observatory (2020). Safir (version 12.3.0). "
+        "https://github.com/lsst-sqre/safir"
+    )
+
+
 def test_plain_text_omits_missing_segments() -> None:
     citation = Citation(title="Data Preview 2", url="https://dp2.lsst.io/")
     assert citation.to_plain_text() == "Data Preview 2. https://dp2.lsst.io/"
@@ -275,6 +294,16 @@ def test_plain_text_omits_a_blank_publisher() -> None:
         title="Real Title", publisher="   ", url="https://example.org/x"
     )
     assert citation.to_plain_text() == "Real Title. https://example.org/x"
+
+
+def test_plain_text_omits_a_blank_version() -> None:
+    """A whitespace-only version is absent rather than an empty parenthesis
+    after the title.
+    """
+    citation = Citation(
+        title="Safir", version="  ", url="https://example.org/x"
+    )
+    assert citation.to_plain_text() == "Safir. https://example.org/x"
 
 
 def test_plain_text_omits_a_blank_author() -> None:
@@ -371,6 +400,79 @@ def test_bibtex_writes_a_report_publisher_as_its_institution() -> None:
         "    institution = {Vera C. Rubin Observatory}\n"
         "}"
     )
+
+
+def test_bibtex_software_carries_the_version() -> None:
+    """``version`` is a biblatex field of ``@software``, so a copied entry
+    identifies the release the reader ran rather than only the project.
+    """
+    citation = Citation(
+        title="Safir",
+        type=CitationType.software,
+        version="12.3.0",
+        authors=(OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+        date=PartialDate(2020),
+        url="https://github.com/lsst-sqre/safir",
+    )
+    assert citation.to_bibtex() == (
+        "@software{veracrubinobservatory2020safir,\n"
+        "    author = {{Vera C. Rubin Observatory}},\n"
+        "    title = {{Safir}},\n"
+        "    version = {12.3.0},\n"
+        "    year = {2020},\n"
+        "    url = {https://github.com/lsst-sqre/safir}\n"
+        "}"
+    )
+
+
+def test_bibtex_dataset_carries_the_version() -> None:
+    """``version`` is a biblatex field of ``@dataset`` too, so a re-released
+    dataset says which release is cited.
+    """
+    citation = Citation(
+        title="Data Preview 2",
+        type=CitationType.dataset,
+        version="2.1",
+        doi="10.71929/rubin/2570308",
+    )
+    assert "    version = {2.1},\n" in citation.to_bibtex()
+
+
+@pytest.mark.parametrize(
+    "citation_type",
+    [CitationType.article, CitationType.report, CitationType.other, None],
+)
+def test_bibtex_omits_the_version_an_entry_type_cannot_hold(
+    citation_type: CitationType | None,
+) -> None:
+    """Only biblatex's ``@software`` and ``@dataset`` define a ``version``
+    field, so every other entry type omits one rather than writing a field
+    no style would typeset.
+    """
+    citation = Citation(
+        title="Citations in Documenteer",
+        type=citation_type,
+        version="12.3.0",
+        doi="10.5281/zenodo.10385500",
+    )
+    assert "version" not in citation.to_bibtex()
+
+
+def test_bibtex_key_ignores_the_version() -> None:
+    r"""A reader's .bib file keys the entry by author, year, and title, so a
+    new release of the cited software does not silently rename every
+    ``\cite`` that refers to it.
+    """
+    fields = {
+        "title": "Safir",
+        "type": CitationType.software,
+        "authors": (OrganizationAuthor(name="Vera C. Rubin Observatory"),),
+        "date": PartialDate(2020),
+        "url": "https://github.com/lsst-sqre/safir",
+    }
+    unversioned = Citation(**fields)  # type: ignore[arg-type]
+    versioned = Citation(**fields, version="12.3.0")  # type: ignore[arg-type]
+    assert versioned.bibtex_key == unversioned.bibtex_key
 
 
 def test_bibtex_keeps_the_series_number_a_techreport_field() -> None:
@@ -587,6 +689,41 @@ def test_html_context_for_a_family_only_person_author() -> None:
             "affiliation": None,
         }
     ]
+
+
+def test_html_context_carries_the_version() -> None:
+    """Every guide surface reads the context rather than the citation, so the
+    version has to reach it — both on its own, for a template, and inside the
+    composed plain text and BibTeX.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            title="Safir",
+            type=CitationType.software,
+            version="12.3.0",
+            url="https://github.com/lsst-sqre/safir",
+        )
+    ).to_html_context()
+
+    assert context["version"] == "12.3.0"
+    assert context["plain_text"].startswith("Safir (version 12.3.0).")
+    assert "    version = {12.3.0},\n" in context["bibtex"]
+
+
+def test_html_context_of_a_citation_with_no_version() -> None:
+    """A work that states no version reports none, rather than an empty
+    string a template would render as a stray parenthesis.
+    """
+    context = GuideCitation(
+        citation=Citation(
+            title="Safir",
+            type=CitationType.software,
+            version="   ",
+            url="https://github.com/lsst-sqre/safir",
+        )
+    ).to_html_context()
+
+    assert context["version"] is None
 
 
 def test_html_context_without_a_date() -> None:
@@ -846,6 +983,75 @@ def test_landing_page_jsonld_types_a_dataset() -> None:
     # A cited work that is not the site keeps its own landing page, not the
     # site's URL.
     assert dataset["url"] == "https://doi.org/10.5281/zenodo.10385500"
+
+
+@pytest.mark.parametrize(
+    ("citation_type", "version_key"),
+    [
+        (CitationType.software, "softwareVersion"),
+        (CitationType.dataset, "version"),
+    ],
+)
+def test_landing_page_jsonld_states_the_version(
+    citation_type: CitationType, version_key: str
+) -> None:
+    """schema.org spells the release differently on the two types that have
+    one — ``SoftwareSourceCode.softwareVersion`` and ``Dataset.version`` — so
+    each node uses its own property name.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Safir",
+                        type=citation_type,
+                        version="12.3.0",
+                    ),
+                    label="Software",
+                    in_footer=True,
+                ).to_html_context()
+            ]
+        )
+        or ""
+    )
+
+    (node,) = payload["citation"]
+    assert node[version_key] == "12.3.0"
+
+
+@pytest.mark.parametrize(
+    "citation_type",
+    [CitationType.article, CitationType.report, CitationType.other, None],
+)
+def test_landing_page_jsonld_states_no_version_a_type_has_no_property_for(
+    citation_type: CitationType | None,
+) -> None:
+    """Only ``SoftwareSourceCode`` and ``Dataset`` define a version property,
+    so every other node states none rather than inventing one.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Safir",
+                        type=citation_type,
+                        version="12.3.0",
+                    ),
+                    label="Software",
+                    in_footer=True,
+                ).to_html_context()
+            ]
+        )
+        or ""
+    )
+
+    (node,) = payload["citation"]
+    assert "version" not in node
+    assert "softwareVersion" not in node
 
 
 def test_landing_page_jsonld_relates_parts_and_cited_works() -> None:

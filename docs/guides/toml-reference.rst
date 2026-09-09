@@ -132,7 +132,7 @@ A site can cite more than one work — the documentation itself and the dataset 
    authors = [{ name = "Vera C. Rubin Observatory" }]
 
 Each entry carries two kinds of field.
-The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, and :ref:`date <guide-project-citations-date>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>` and :ref:`cff_preferred <guide-project-citations-cff-preferred>`).
+The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, :ref:`date <guide-project-citations-date>`, and :ref:`version <guide-project-citations-version>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>` and :ref:`cff_preferred <guide-project-citations-cff-preferred>`).
 The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`page <guide-project-citations-page>`, :ref:`in_footer <guide-project-citations-in-footer>`, and :ref:`note <guide-project-citations-note>`) say how the site displays the citation, and are only ever set here.
 
 .. _guide-project-citations-doi:
@@ -436,6 +436,57 @@ A site with no date to give suppresses it the way any other Sphinx warning is su
    # conf.py
    suppress_warnings = ["documenteer.citation_date"]
 
+.. _guide-project-citations-version:
+
+version
+-------
+
+|optional|
+
+The release of the work being cited.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   url = "https://github.com/lsst-sqre/safir"
+   type = "software"
+   title = "Safir"
+   version = "12.3.0"
+
+`FORCE11's software citation principles <https://doi.org/10.7717/peerj-cs.86>`__ list the version among the elements a software citation has to carry, because software is the kind of work whose behavior changes between releases: a citation naming only the project says which code was run no more precisely than naming the language would.
+
+The version qualifies the title wherever the citation is displayed — ``Safir (version 12.3.0).`` — and reaches the machine-readable metadata on the types that have somewhere to put it:
+
+- BibTeX writes ``version = {12.3.0}`` on a ``@software`` or ``@dataset`` entry, the two biblatex entry types that define the field, and omits it on every other.
+- JSON-LD writes ``softwareVersion`` on a `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__ node and ``version`` on a `Dataset <https://schema.org/Dataset>`__ node, the two schema.org types that define one.
+- The BibTeX *key* never carries it, so a reader's :file:`.bib` file keeps working across releases of the site that composed it.
+
+If :ref:`cff <guide-project-citations-cff>` is set, the file supplies this field from the ``version`` of whichever record the entry cites — the top-level record's for a repository, or a ``preferred-citation``'s own.
+Setting it here overrides the file's value.
+A blank ``version`` fails the build, the way a blank :ref:`url <guide-project-citations-url>` does: it reads everywhere as a version that was stated while composing to nothing, and it would also suppress the default described next.
+
+**The default for this site's own software**
+
+A :ref:`software <guide-project-citations-type>` entry that states no version, and whose :ref:`cff <guide-project-citations-cff>` file supplies none either, takes the site's own :ref:`project.version <guide-project-version>` when the entry describes *this site's package*.
+An entry describes this site's package when it is any of:
+
+- the :ref:`self <guide-project-citations-self>` entry — this site is that work's landing page;
+- the :ref:`preferred <guide-project-citations-preferred>` citation — this is the work the site asks readers to cite;
+- an entry reading a :file:`CITATION.cff` file's top-level record with :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` — the repository the site documents.
+
+The page a reader is on *is* the documentation of that release, so filling the version in states what the page already means.
+Every other software entry is somebody else's package, whose releases this site knows nothing about, and is left version-less: a guide that cites the Science Pipelines alongside its own package labels only its own.
+No other :ref:`type <guide-project-citations-type>` ever defaults — a dataset's or a paper's release has nothing to do with the version of the software that builds the site — even when the entry sets ``self``.
+
+The default needs a version to take.
+A site that declares neither :ref:`project.version <guide-project-version>` nor :ref:`project.python <guide-project-python>` resolves its version to the literal ``Latest``, which names a documentation build rather than a release; such a site's citations state no version at all rather than claiming one.
+
+A site whose version comes from installed package metadata is cited at whatever that metadata reports, a development build (``12.4.0.dev3+g1a2b3c4``) included.
+That is deliberate: the pages were built from that code, and naming it is more honest than rounding it to the last tag.
+A site that would rather cite the release than the build sets ``version`` on the entry, which always wins.
+
+There is no way to switch the default off other than stating a version: an explicit ``version`` is the whole of the API.
+
 .. _guide-project-citations-url:
 
 url
@@ -511,8 +562,10 @@ Any bibliographic field set alongside ``cff`` overrides the file's value, so a s
 
 A ``cff`` path that names no file, or a file that cannot be read as a citation, fails the build with an error naming the path.
 
-Documenteer reads only the fields a citation is composed from: ``title``, ``type``, ``authors`` (both people and entities such as an observatory), ``publisher`` or ``institution``, the dates, ``number``, and the work's location — its ``doi``, or an ``identifiers`` entry of ``type: doi``, and its ``url`` or ``repository-code``.
-Everything else a :file:`CITATION.cff` may carry — ``abstract``, ``version``, ``license``, ``keywords``, ``commit``, and ``identifiers`` of any other type, such as a Software Heritage ``swh`` identifier — is not read, and a site that wants any of it states it on the page itself.
+Documenteer reads only the fields a citation is composed from: ``title``, ``type``, ``authors`` (both people and entities such as an observatory), ``publisher`` or ``institution``, the dates, ``version``, ``number``, and the work's location — its ``doi``, or an ``identifiers`` entry of ``type: doi``, and its ``url`` or ``repository-code``.
+Everything else a :file:`CITATION.cff` may carry — ``abstract``, ``license``, ``keywords``, ``commit``, and ``identifiers`` of any other type, such as a Software Heritage ``swh`` identifier — is not read, and a site that wants any of it states it on the page itself.
+
+The ``version`` read is the one on whichever record the entry cites, so a ``preferred-citation`` that states its own release is cited at that release rather than at the repository's (see :ref:`version <guide-project-citations-version>`).
 
 .. _guide-project-citations-cff-preferred:
 
@@ -626,6 +679,8 @@ Keyword arguments to pass to the function, if required.
    [project.openapi.generator]
    function = "example.main:create_openapi"
    keyword_args = {kwarg1 = "value1", kwarg2 = "value2"}
+
+.. _guide-project-python:
 
 [project.python]
 ================

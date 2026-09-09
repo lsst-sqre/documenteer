@@ -271,6 +271,12 @@ def read_citation_cff(
             # for a package that has never been given a DOI — is located by
             # it, which is how CFF and GitHub cite such a package.
             url=_url(source),
+            # CFF's `version` is the release the record describes, and the
+            # record read is the one it is taken from: a preferred-citation's
+            # own version when that is the record cited, never the
+            # repository's. `_text` also normalizes the value, since YAML
+            # reads an unquoted `version: 1.2` as a float.
+            version=_text(source.get("version")),
             number=_text(source.get("number")),
         )
     except ValueError as e:

@@ -320,6 +320,65 @@ def test_year_and_month_stay_a_month(tmp_path: Path) -> None:
     assert read_citation_cff(path).citation.date == PartialDate(2024, 6)
 
 
+def test_version_of_the_top_level_record_is_read(tmp_path: Path) -> None:
+    """CFF's top-level ``version`` is the release the repository describes,
+    and a software citation is expected to name one, so it is read rather
+    than discarded.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: Safir\n"
+        "type: software\n"
+        "version: 12.3.0\n"
+        "repository-code: https://github.com/lsst-sqre/safir\n"
+    )
+
+    assert read_citation_cff(path).citation.version == "12.3.0"
+
+
+def test_version_of_the_preferred_citation_is_read(tmp_path: Path) -> None:
+    """A ``preferred-citation`` is a Reference, which may carry a ``version``
+    of its own, and the version read is the one on whichever record is cited
+    — never the other record's.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: A repository\n"
+        "type: software\n"
+        "version: 1.0.0\n"
+        "preferred-citation:\n"
+        "  type: software\n"
+        "  title: The released package\n"
+        "  version: 2.0.0\n"
+        "  doi: 10.5281/zenodo.10385500\n"
+    )
+
+    assert read_citation_cff(path).citation.version == "2.0.0"
+    assert (
+        read_citation_cff(path, use_preferred_citation=False).citation.version
+        == "1.0.0"
+    )
+
+
+def test_a_numeric_version_is_read_as_text(tmp_path: Path) -> None:
+    """YAML reads an unquoted ``version: 1.2`` as a float, so the value is
+    normalized to the text a citation renders rather than reaching a page as
+    a number.
+    """
+    path = tmp_path / "CITATION.cff"
+    path.write_text(
+        "cff-version: 1.2.0\n"
+        "title: Safir\n"
+        "type: software\n"
+        "version: 12\n"
+        "repository-code: https://github.com/lsst-sqre/safir\n"
+    )
+
+    assert read_citation_cff(path).citation.version == "12"
+
+
 def test_name_particle_joins_the_family_name(tmp_path: Path) -> None:
     """A person's name-particle is carried with their family name, so the
     name cites as "van Dokkum, Pieter" rather than "Dokkum, Pieter".

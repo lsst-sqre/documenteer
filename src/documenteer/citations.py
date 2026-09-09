@@ -551,6 +551,17 @@ says nothing about what it is composes as the same generic ``@misc`` a work
 typed `CitationType.other` does.
 """
 
+BIBTEX_VERSIONED_TYPES = frozenset(
+    {BibtexEntryType.software, BibtexEntryType.dataset}
+)
+"""The `BibtexEntryType` values that define a ``version`` field.
+
+biblatex gives ``version`` to ``@software`` and ``@dataset`` and to no other
+entry type Documenteer composes, so a `Citation.version` on any other type has
+nowhere to go and is omitted rather than written as a field a style would
+never typeset.
+"""
+
 SCHEMA_ORG_TYPES: dict[str, str] = {
     CitationType.dataset: "Dataset",
     CitationType.article: "ScholarlyArticle",
@@ -560,6 +571,20 @@ SCHEMA_ORG_TYPES: dict[str, str] = {
 }
 """The schema.org type each `CitationType` publishes as, following DataCite's
 crosswalk from ``resourceTypeGeneral`` to schema.org.
+"""
+
+SCHEMA_ORG_VERSION_PROPERTIES: dict[str, str] = {
+    "SoftwareSourceCode": "softwareVersion",
+    "Dataset": "version",
+}
+"""The property each schema.org type states a release under.
+
+schema.org gives the two types that have a release two different property
+names — ``SoftwareSourceCode`` has ``softwareVersion`` and ``Dataset`` has
+``version`` — and defines neither on ``ScholarlyArticle``, ``Report``,
+``CreativeWork``, or ``WebSite``. A node whose type is not in this mapping
+therefore states no version, rather than an invented property a consumer
+would ignore.
 """
 
 _MIN_YEAR = 1000
@@ -760,6 +785,21 @@ class Citation:
     url: str | None = None
     """The work's landing page, when it is not simply the DOI's target."""
 
+    version: str | None = None
+    """The release of the work being cited, such as a package's ``12.3.0``.
+
+    FORCE11's software citation principles list the version among the
+    elements a software citation has to carry, because software is the kind
+    of work whose behavior changes between releases: a citation that names
+    only the project says which code was run no more precisely than naming
+    the language would. A dataset has the same need whenever it is released
+    more than once, so the field is not restricted to software — only the
+    entry types that have somewhere to put it are (see `to_bibtex`).
+
+    It is deliberately absent from `bibtex_key`, so that a reader's ``.bib``
+    file keeps working across releases of the site that composed it.
+    """
+
     number: str | None = None
     """The work's number within its series, such as a technote's ``SQR-000``
     handle.
@@ -792,6 +832,25 @@ class Citation:
         return self.doi_url or _clean(self.url)
 
     @property
+    def _title_segment(self) -> str | None:
+        """The title as a rendered citation sets it: the work's title,
+        qualified by its `version` when it names one.
+
+        The version is attached to the title rather than composed as a
+        segment of its own because it is what the title names a release
+        *of*, and because that is where a reader expects to find it: APA
+        sets software as ``Title (Version 1.2)``, and the parenthetical
+        reads the same way after a title of any other kind. A citation whose
+        title reduces to nothing states no version either — a bare
+        ``(version 12.3.0).`` qualifies nothing.
+        """
+        title = _clean(self.title)
+        version = _clean(self.version)
+        if title is None or version is None:
+            return title
+        return f"{title} (version {version})"
+
+    @property
     def _credited_authors(self) -> tuple[CitationAuthor, ...]:
         """The authors that compose to a name.
 
@@ -812,12 +871,13 @@ class Citation:
         -------
         str
             The citation in DataCite's recommended display format:
-            ``Creators (PublicationYear). Title. Publisher. Identifier``.
-            Creators are separated by semicolons because a person's name
-            itself contains a comma, and the identifier is the DOI URL when
-            the work has a DOI and its landing page otherwise. A segment
-            with no value — including one that is only whitespace — is
-            dropped rather than left as empty punctuation.
+            ``Creators (PublicationYear). Title. Publisher. Identifier``,
+            with a `version` — when the work states one — qualifying the
+            title. Creators are separated by semicolons because a person's
+            name itself contains a comma, and the identifier is the DOI URL
+            when the work has a DOI and its landing page otherwise. A
+            segment with no value — including one that is only whitespace —
+            is dropped rather than left as empty punctuation.
 
         Notes
         -----
@@ -837,7 +897,7 @@ class Citation:
             segment
             for segment in (
                 _clean(byline),
-                _clean(self.title),
+                self._title_segment,
                 _clean(self.publisher),
             )
             if segment is not None
@@ -850,13 +910,17 @@ class Citation:
 
     @property
     def bibtex_key(self) -> str:
-        """The citation key that `to_bibtex` uses by default.
+        r"""The citation key that `to_bibtex` uses by default.
 
         The key is the first author, the publication year, and the first word
         of the title, each reduced to lowercase ASCII alphanumerics — for
         example ``sick2026citations``. It is derived only from the citation's
         own fields, so the same metadata always yields the same key and a
         bibliography that is regenerated on every build stays stable.
+
+        `Citation.version` is deliberately left out of it. The key is what a
+        reader's ``\cite`` commands name, and folding the version in would
+        rename every one of them each time the cited software was released.
         """
         components: list[str] = []
         authors = self._credited_authors
@@ -901,13 +965,16 @@ class Citation:
         The publisher is the ``institution`` field of a
         `BibtexEntryType.techreport` entry and the ``publisher`` field of
         every other entry type; `Citation.number` is a ``techreport`` field
-        alone, and any other entry omits it. No other field varies with the
-        entry type, because the model carries no field — no journal, volume,
-        or version — that only one type has a home for. The ``url``
-        field is the work's own landing page when it has one, falling back to
-        the DOI URL; ``doi`` and ``url`` are written verbatim rather than
-        LaTeX-escaped, matching what DataCite, Crossref, and Zenodo export,
-        since a style's ``\url`` macro takes its argument literally.
+        alone, and any other entry omits it. `Citation.version` is written
+        only for the entry types biblatex defines a ``version`` field on —
+        ``@software`` and ``@dataset``, see ``BIBTEX_VERSIONED_TYPES`` — and
+        is omitted for every other, which has nowhere to put it. No other
+        field varies with the entry type, because the model carries no field
+        — no journal or volume — that only one type has a home for. The
+        ``url`` field is the work's own landing page when it has one, falling
+        back to the DOI URL; ``doi`` and ``url`` are written verbatim rather
+        than LaTeX-escaped, matching what DataCite, Crossref, and Zenodo
+        export, since a style's ``\url`` macro takes its argument literally.
 
         An optional field whose value reduces to nothing once collapsed and
         escaped is omitted, rather than written as an empty pair of braces.
@@ -925,6 +992,9 @@ class Citation:
         # capitalization instead of imposing a style's sentence case. It is
         # the one required field, and is written even when it is blank.
         fields.append(("title", f"{{{_escape_latex(self.title)}}}"))
+        version = _clean_latex(self.version)
+        if version is not None and entry_type in BIBTEX_VERSIONED_TYPES:
+            fields.append(("version", version))
         if self.date is not None:
             fields.append(("year", str(self.date.year)))
         publisher = _clean_latex(self.publisher)
@@ -1111,6 +1181,7 @@ class GuideCitation:
                 _author_context(author) for author in citation.authors
             ],
             "publisher": citation.publisher,
+            "version": _clean(citation.version),
             "date": citation.date.isoformat() if citation.date else None,
             "year": citation.date.year if citation.date else None,
             "doi": citation.doi,
@@ -1336,7 +1407,8 @@ def _citation_node(
     which falls back to the doi.org redirect and so is of less use to a
     consumer that has already arrived at the landing page.
     """
-    node: dict[str, Any] = {"@type": _schema_type(citation)}
+    schema_type = _schema_type(citation)
+    node: dict[str, Any] = {"@type": schema_type}
     url = url_override or citation.get("url")
     if citation.get("doi_url"):
         node["@id"] = citation["doi_url"]
@@ -1349,6 +1421,9 @@ def _citation_node(
     elif url:
         node["@id"] = url
     node["name"] = citation["title"]
+    version_property = SCHEMA_ORG_VERSION_PROPERTIES.get(schema_type)
+    if version_property is not None and citation.get("version"):
+        node[version_property] = citation["version"]
     if url:
         node["url"] = url
     authors = [_author_node(author) for author in citation.get("authors", ())]

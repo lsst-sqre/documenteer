@@ -85,11 +85,29 @@ A second entry against the same file, with :ref:`cff_preferred = false <guide-pr
    cff_preferred = false
    label = "Software"
    in_footer = true
-   note = "Cite the package itself when reporting the version you ran."
+   note = "Cite the version you ran; this page names the version it documents."
 
 A package that has never been deposited for a DOI is cited by where it lives: the file's ``url``, or its ``repository-code`` when it names no landing page.
 The entry states no :ref:`type <guide-project-citations-type>` either, and does not need to: a top-level record that declares none is read as ``software``, the default CFF defines for that key, so the citation composes as ``@software`` and publishes as a `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__.
 Only the :ref:`self <guide-project-citations-self>` entry needs a DOI, because that entry is the claim that this site is a DOI's landing page.
+
+It states no :ref:`version <guide-project-citations-version>` either, and gets one anyway.
+An entry reading a repository's own record describes this site's own package, so it takes the file's ``version`` when the file states one and the site's own :ref:`project.version <guide-project-version>` otherwise.
+Against a :file:`CITATION.cff` for ``safir``, released in 2020 and documented at 12.3.0, the entry renders:
+
+.. code-block:: text
+
+   SOFTWARE
+
+   Vera C. Rubin Observatory (2020). Safir (version 12.3.0).
+   https://github.com/lsst-sqre/safir
+
+   Cite the version you ran; this page names the version it documents.
+
+That release is what a software citation exists to carry, which is why the note is written around it rather than around the year.
+Software released continuously has no publication date to speak of.
+Its :ref:`date <guide-project-citations-date>` is conventionally the year of its first release, which is defensible precisely because it never moves — every later release cites the same way, so a reader's bibliography does not churn — but it is not what identifies the code that ran.
+The version is.
 
 A site can also set ``self`` and ``preferred`` on *different* entries, which is the site published with a DOI of its own that nonetheless asks readers to cite something else.
 The :ref:`footer <guide-footer-citations>` then shows both by default, because a landing page owes its reader the citation of the DOI it is the landing page of whether or not that is the citation it asks for.
@@ -171,6 +189,9 @@ It is the page-level counterpart to the footer citations, and is the right tool 
 
    The entry type follows the citation's :ref:`type <guide-project-citations-type>`, so a copied entry says what the work is instead of filing everything under ``@misc``: ``type = "dataset"`` composes ``@dataset``, ``"article"`` composes ``@article``, ``"software"`` composes ``@software``, and ``"report"`` composes ``@techreport``.
    A citation typed ``"other"``, and one that declares no type at all, composes as ``@misc``.
+
+   A ``@software`` or ``@dataset`` entry also carries a ``version`` field when the citation states a :ref:`version <guide-project-citations-version>` — those are the two entry types biblatex defines the field on, and the others omit it.
+   The entry's *key* never carries the version, so a reader's :file:`.bib` file keeps working when the cited software is released again.
 
    The entry is in the page rather than in a script, so it can always be selected and copied by hand.
    A browser that gives the page no clipboard access — an insecure origin, say — has the button removed and keeps the entry; a page whose scripts never load keeps both.
@@ -420,6 +441,7 @@ Related metadata
 
 Declaring ``[[project.citations]]`` also makes the site's citation machine-readable: every page's ``<head>`` carries the ``self`` citation as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site.
 Each citation's :ref:`type <guide-project-citations-type>` decides the schema.org type it is described under there, so ``type = "dataset"`` is what makes a data release indexable by Google Dataset Search.
+A citation's :ref:`version <guide-project-citations-version>` reaches the two types that define a property for one — ``softwareVersion`` on a `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__ and ``version`` on a `Dataset <https://schema.org/Dataset>`__ — and no other node states it.
 
 Highwire meta tags are what `Google Scholar's inclusion guidelines <https://scholar.google.com/intl/en/scholar/inclusion.html>`__ specify and what Zotero's embedded-metadata translator reads, so a reader on a page that carries them gets a one-click "Save to Zotero" with the right title, creators, date, and DOI.
 These are the tags emitted, in this order:

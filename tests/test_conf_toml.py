@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -781,7 +782,7 @@ cff = "../CITATION.cff"
 cff_preferred = false
 label = "Software"
 in_footer = true
-note = "Cite the package itself when reporting the version you ran."
+note = "Cite the version you ran; this page names the version it documents."
 """
 """The ``cff_preferred = false`` entry the citations guide documents, written
 exactly as that page writes it — no inline ``type``.
@@ -1208,6 +1209,309 @@ def test_citations_url_is_stripped() -> None:
 
     (entry,) = config.citations
     assert entry.citation.url == "https://github.com/lsst/daf_butler"
+
+
+CITATION_VERSION_TEMPLATE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+title = "Safir"
+type = "software"
+url = "https://github.com/lsst-sqre/safir"
+version = "{value}"
+"""
+
+
+def test_citations_version_is_read() -> None:
+    """An entry's version reaches the composed citation, which is what makes
+    a software citation name the release a reader ran.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_VERSION_TEMPLATE.format(value="12.3.0")
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.version == "12.3.0"
+
+
+def test_citations_version_is_collapsed() -> None:
+    """Whitespace around a version is removed, so the value a citation
+    renders is the version and not the spacing around it.
+    """
+    config = DocumenteerConfig.load(
+        CITATION_VERSION_TEMPLATE.format(value="  12.3.0  ")
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.version == "12.3.0"
+
+
+@pytest.mark.parametrize("written", ["", "   "])
+def test_citations_blank_version_rejected(written: str) -> None:
+    """A blank version is rejected where it is written rather than reduced to
+    nothing where the citation is composed.
+
+    It is the value that would otherwise pass silently: it is truthy, so it
+    reads as a version that was stated, and it also suppresses the default a
+    software entry would otherwise inherit from the project's own version —
+    leaving the citation with no version at all and nothing to say why.
+    """
+    with pytest.raises(ConfigError, match="version is empty"):
+        DocumenteerConfig.load(CITATION_VERSION_TEMPLATE.format(value=written))
+
+
+CITATION_CFF_VERSIONED = """cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Example Software"
+type: software
+version: 9.9.9
+authors:
+  - name: "Vera C. Rubin Observatory"
+repository-code: https://github.com/lsst-sqre/safir
+"""
+"""A CITATION.cff whose top-level software record states its release, which
+is the shape a package's own file has."""
+
+
+EXAMPLE_CITATIONS_CFF_VERSION = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+"""
+
+
+def test_citations_version_comes_from_cff(tmp_path: Path) -> None:
+    """A CITATION.cff file's version supplies the entry's, so a package that
+    already records its release in that file does not restate it.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_VERSIONED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_VERSION, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.version == "9.9.9"
+
+
+EXAMPLE_CITATIONS_CFF_VERSION_OVERRIDE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+version = "12.3.0"
+"""
+
+
+def test_citations_version_overrides_cff(tmp_path: Path) -> None:
+    """A version set alongside cff overrides the file's own, the way every
+    other bibliographic field does.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_VERSIONED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_VERSION_OVERRIDE, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.version == "12.3.0"
+
+
+VERSIONED_PROJECT = """
+
+[project]
+title = "Example Guide"
+version = "4.5.6"
+"""
+"""A project whose own version resolves from ``[project] version``, which is
+what a software citation of this site's package defaults to."""
+
+
+DEFAULTED_VERSION_ENTRIES = {
+    "self": """
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+type = "software"
+self = true
+title = "Example Software"
+""",
+    "preferred": """
+[[project.citations]]
+url = "https://github.com/lsst-sqre/safir"
+type = "software"
+preferred = true
+title = "Example Software"
+""",
+}
+"""The two inline shapes that describe this site's own package. The
+``cff_preferred = false`` shape is the third, and is exercised against a
+file below."""
+
+
+@pytest.mark.parametrize("role", sorted(DEFAULTED_VERSION_ENTRIES))
+def test_citations_software_defaults_to_the_project_version(
+    role: str,
+) -> None:
+    """A software entry that describes this site's own package — the one it
+    is the landing page of, or the one it asks readers to cite — names the
+    release the site documents when nothing else states one.
+    """
+    config = DocumenteerConfig.load(
+        VERSIONED_PROJECT + DEFAULTED_VERSION_ENTRIES[role]
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.version == "4.5.6"
+    assert "(version 4.5.6)" in entry.citation.to_plain_text()
+
+
+EXAMPLE_CITATIONS_CFF_VERSIONED_PROJECT = """
+
+[project]
+title = "Example Guide"
+version = "4.5.6"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+cff_preferred = false
+label = "Software"
+"""
+
+
+def test_citations_cff_top_level_software_defaults_to_the_project_version(
+    tmp_path: Path,
+) -> None:
+    """``cff_preferred = false`` reads the repository's own record, so that
+    entry is this site's package too and defaults the same way.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_VERSIONED_PROJECT, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.version == "4.5.6"
+
+
+EXAMPLE_CITATIONS_PYTHON_PACKAGE = """
+
+[project]
+title = "Example Guide"
+
+[project.python]
+package = "documenteer"
+
+[[project.citations]]
+url = "https://github.com/lsst-sqre/documenteer"
+type = "software"
+preferred = true
+title = "Documenteer"
+"""
+
+
+def test_citations_version_defaults_from_package_metadata() -> None:
+    """A site that names its Python package rather than a literal version
+    defaults from the installed distribution, so the citation names the
+    release the docs were built from — a development build included, since
+    that is what the page documents.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_PYTHON_PACKAGE)
+
+    (entry,) = config.citations
+    assert entry.citation.version == version("documenteer")
+
+
+EXAMPLE_CITATIONS_OTHER_SOFTWARE = """
+
+[project]
+title = "Example Guide"
+version = "4.5.6"
+
+[[project.citations]]
+url = "https://github.com/lsst/pipelines"
+type = "software"
+label = "Pipelines"
+in_footer = true
+title = "LSST Science Pipelines"
+"""
+
+
+def test_citations_other_software_never_defaults_a_version() -> None:
+    """Software this site merely cites is somebody else's, whose releases the
+    site knows nothing about, so it is left version-less rather than labelled
+    with the version of the software that builds the site.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_OTHER_SOFTWARE)
+
+    (entry,) = config.citations
+    assert entry.citation.version is None
+
+
+@pytest.mark.parametrize("citation_type", ["dataset", "article", "report"])
+def test_citations_non_software_never_defaults_a_version(
+    citation_type: str,
+) -> None:
+    """Only software defaults. A dataset's or a paper's release has nothing
+    to do with the version of the software that builds the site, even when
+    this site is its landing page.
+    """
+    config = DocumenteerConfig.load(
+        VERSIONED_PROJECT
+        + f"""
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+type = "{citation_type}"
+self = true
+title = "A Work"
+"""
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.version is None
+
+
+EXAMPLE_CITATIONS_UNVERSIONED_PROJECT = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+url = "https://github.com/lsst-sqre/safir"
+type = "software"
+preferred = true
+title = "Example Software"
+"""
+
+
+def test_citations_latest_is_not_a_version() -> None:
+    """A site that declares neither a version nor a Python package resolves
+    its version to the literal "Latest", which names a docs build rather than
+    a release and must never reach a citation.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_UNVERSIONED_PROJECT)
+
+    assert config.version == "Latest"
+    (entry,) = config.citations
+    assert entry.citation.version is None
+    assert "version" not in entry.citation.to_plain_text()
 
 
 EXAMPLE_CITATIONS_FOOTER = """
