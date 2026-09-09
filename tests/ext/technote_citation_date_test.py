@@ -5,10 +5,9 @@ Only a ``date_updated`` written in technote.toml dates a technote's citation.
 The metadata cannot answer the question on its own: the ``technote`` package
 stamps its ``date_updated`` with the build clock whenever the file omits the
 field, and reading that would date most of the fleet's citations to the day
-they were last built -- the displayed year, the BibTeX ``year``, and the
-BibTeX key all churning on every rebuild, and all of them disagreeing with the
-deliberately undated CITATION.cff that ``documenteer technote sync-cff``
-writes from the same file.
+they were last built -- the displayed year and the BibTeX ``year`` churning on
+every rebuild, and both disagreeing with the deliberately undated CITATION.cff
+that ``documenteer technote sync-cff`` writes from the same file.
 
 So a technote nothing dates is cited undated, everywhere it is cited, and
 ``documenteer.ext.citationdate`` reports it once per build. These tests build
@@ -38,13 +37,13 @@ WARNING_NAME = "documenteer.citation_date"
 
 # What documenteer.citations composes from
 # tests/roots/test-technote-undated/technote.toml, with the title taken from
-# the document's H1. Neither form carries a year, and the BibTeX key is built
-# from the author and the title alone.
+# the document's H1. Neither form carries a year; the BibTeX key is the
+# technote's handle, which no date enters into.
 CITATION_TEXT = (
     "Sick, Jonathan; Lovelace, Ada. Undated Technote Citation Test. "
     f"Vera C. Rubin Observatory. {DOI_URL}"
 )
-BIBTEX_ENTRY_TEXT = """@techreport{sickundated,
+BIBTEX_ENTRY_TEXT = """@techreport{SQR-000,
     author = {Sick, Jonathan and Lovelace, Ada},
     title = {{Undated Technote Citation Test}},
     institution = {Vera C. Rubin Observatory},
@@ -91,8 +90,9 @@ def test_an_undated_technote_is_cited_without_a_year(
     app: SphinxTestApp,
 ) -> None:
     """A technote that declares no ``date_updated`` is cited with no year at
-    all: the displayed citation loses its ``(YYYY)``, the BibTeX entry carries
-    no ``year`` field, and its key is built from the author and title alone.
+    all: the displayed citation loses its ``(YYYY)`` and the BibTeX entry
+    carries no ``year`` field. The entry's key is the technote's handle, so it
+    is unaffected either way.
 
     Losing the segment is the point. The alternative -- dating the citation
     from the metadata, or from ``date_created`` -- would state a year that is

@@ -45,7 +45,7 @@ The entry is composed during the build from the technote's own metadata, so it n
 
 .. code-block:: bibtex
 
-   @techreport{sick2026the,
+   @techreport{SQR-000,
        author = {Sick, Jonathan},
        title = {{The LSST DM Technical Note Publishing Platform}},
        year = {2026},
@@ -57,6 +57,11 @@ The entry is composed during the build from the technote's own metadata, so it n
 
 A technote is a technical report, so the entry is a BibTeX ``techreport``: the publishing organization is its ``institution`` and the technote's handle is its ``number``.
 The ``year`` is the year of the declared ``date_updated``, the same year the citation at the end of the article shows.
+
+The citation key is the handle as well, written exactly as ``id`` in :file:`technote.toml` spells it.
+That is how Rubin authors already cite technotes: lsst-texmf's :file:`lsst.bib` keys every technote and document entry by handle, so ``\citeds{SQR-000}`` in an lsstdoc document and ``\cite{SQR-000}`` against this entry resolve the same key.
+It also means the key never moves — a technote can be retitled, re-authored, or re-dated, and a bibliography that already stores the entry keeps working.
+A technote outside a series, with no ``id`` to key by, falls back to a key composed from the first author, the year, and the first word of the title.
 
 The entry is written into the page rather than fetched, so a reader can select and copy it by hand on a page whose JavaScript never runs.
 Where the browser offers no clipboard API, the copy button removes itself instead of failing silently when pressed.
@@ -77,7 +82,8 @@ Only a ``date_updated`` written in :file:`technote.toml` dates a technote's cita
 ``date_created`` is not read as a fallback, because it is the day the technote was started — neither the day it was published nor the day it was last revised.
 Nor is the date the technote's own metadata carries: the ``technote`` package fills that in with the time of the build whenever :file:`technote.toml` omits the field, so reading it would date the citation to the day the technote was last built, re-dating it on every rebuild and disagreeing with the deliberately undated :file:`CITATION.cff` written from the same file.
 
-A technote that declares no ``date_updated`` is therefore cited undated wherever it is cited: the displayed citation loses its ``(YYYY)``, the BibTeX entry carries no ``year`` field, and its key is built from the author and title alone.
+A technote that declares no ``date_updated`` is therefore cited undated wherever it is cited: the displayed citation loses its ``(YYYY)`` and the BibTeX entry carries no ``year`` field.
+Its key is the handle either way, so no stored citation of it changes.
 Nothing on the rendered page says so, so the build does, once, naming the field to set:
 
 .. code-block:: text

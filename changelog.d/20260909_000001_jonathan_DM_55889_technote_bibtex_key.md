@@ -1,0 +1,3 @@
+### New features
+
+- A technote's BibTeX entry is now keyed by the technote's handle — `@techreport{SMTN-005,` — rather than by a key composed from its first author, year, and title. That is the key Rubin authors already cite technotes with: lsst-texmf's `lsst.bib` keys every one of its technote and document entries by handle, so `\citeds{SMTN-005}` in an lsstdoc document and a `\cite` against the entry the technote's **Cite** section offers now resolve the same key. It also holds still — a technote can be retitled, re-authored, or re-dated without moving the key a reader already stored. A technote whose `technote.toml` states no `id` keeps the composed key.

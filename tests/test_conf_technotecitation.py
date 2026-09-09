@@ -32,6 +32,7 @@ def make_metadata(
     *,
     doi: str | None = "10.71929/rubin/2570545",
     title: str = "The Technote Title",
+    technote_id: str | None = "SQR-000",
 ) -> TechnoteMetadata:
     """Build technote metadata shaped like a Rubin technote's.
 
@@ -44,7 +45,7 @@ def make_metadata(
         title=title,
         status=Status(state=TechnoteState.stable, note=None),
         canonical_url="https://sqr-000.lsst.io/",
-        id="SQR-000",
+        id=technote_id,
         series_id="SQR",
         date_created=datetime(2024, 1, 2, tzinfo=UTC),
         date_updated=BUILD_CLOCK,
@@ -66,14 +67,23 @@ def make_citation(
     *,
     doi: str | None = "10.71929/rubin/2570545",
     title: str = "The Technote Title",
+    technote_id: str | None = "SQR-000",
     date_updated: datetime | None = DECLARED_DATE_UPDATED,
 ) -> TechnoteCitation:
     """Compose the citation of a technote that declares ``date_updated``,
     unless the test says the technote declares none.
     """
     return TechnoteCitation(
-        make_metadata(doi=doi, title=title), date_updated=date_updated
+        make_metadata(doi=doi, title=title, technote_id=technote_id),
+        date_updated=date_updated,
     )
+
+
+def _bibtex_key(citation: TechnoteCitation) -> str:
+    """Return the citation key of a technote's BibTeX entry."""
+    entry = citation.bibtex
+    assert entry is not None
+    return entry.split("{", 1)[1].split(",", 1)[0]
 
 
 def test_doi_url_is_the_resolvable_form() -> None:
@@ -87,12 +97,13 @@ def test_doi_url_is_the_resolvable_form() -> None:
 
 def test_bibtex_is_a_techreport_entry() -> None:
     """A technote composes as a BibTeX ``techreport``: its publisher is the
-    institution, and its handle is the report number.
+    institution, and its handle is both the report number and the entry's
+    citation key.
     """
     citation = make_citation()
 
     assert citation.bibtex == (
-        "@techreport{sick2025the,\n"
+        "@techreport{SQR-000,\n"
         "    author = {Sick, Jonathan and Lovelace, Ada},\n"
         "    title = {{The Technote Title}},\n"
         "    year = {2025},\n"
@@ -153,9 +164,8 @@ def test_an_undeclared_date_updated_leaves_the_citation_undated() -> None:
     ``technote`` stamps the metadata's ``date_updated`` with the current time
     whenever technote.toml omits the field, so a citation that read the
     metadata would date every such technote to the day it was last built: the
-    displayed year, the BibTeX ``year``, and the BibTeX key would all change
-    on every rebuild, and none of them would say anything true about the
-    work.
+    displayed year and the BibTeX ``year`` would both change on every
+    rebuild, and neither would say anything true about the work.
     """
     citation = make_citation(date_updated=None)
 
@@ -165,7 +175,7 @@ def test_an_undeclared_date_updated_leaves_the_citation_undated() -> None:
         "https://doi.org/10.71929/rubin/2570545"
     )
     assert citation.bibtex == (
-        "@techreport{sickthe,\n"
+        "@techreport{SQR-000,\n"
         "    author = {Sick, Jonathan and Lovelace, Ada},\n"
         "    title = {{The Technote Title}},\n"
         "    institution = {Vera C. Rubin Observatory},\n"
@@ -212,3 +222,44 @@ def test_is_dated_reports_whether_a_year_was_composed(
     citation = make_citation(date_updated=date_updated)
 
     assert citation.is_dated is expected
+
+
+def test_a_technote_outside_a_series_keeps_the_composed_key() -> None:
+    """A technote whose metadata states no ``id`` has no handle to be keyed
+    by, so its entry falls back to the key ``documenteer.citations`` composes
+    from author, year, and title.
+
+    Every Rubin technote belongs to a series and has a handle, so this is the
+    case the fallback exists for: a technote built on the preset outside one
+    is keyed by something a reader can cite, rather than by the nothing its
+    metadata has to offer.
+    """
+    citation = make_citation(technote_id=None)
+
+    assert citation.bibtex is not None
+    assert citation.bibtex.startswith("@techreport{sick2025the,\n")
+
+
+def test_the_bibtex_key_does_not_move_with_the_technote() -> None:
+    r"""Retitling a technote, changing who wrote it, or dropping its date
+    leaves the BibTeX key alone, because the key is the handle and the handle
+    is none of those things.
+
+    This is what a handle key buys over a composed one. A key built from
+    author, year, and title moved whenever any of the three did — and, until
+    a technote's citation stopped reading the metadata's build-clock
+    ``date_updated``, moved on every rebuild — so a reader who had already
+    stored the entry ended up with a bibliography whose ``\cite`` no longer
+    resolved.
+    """
+    metadata = make_metadata()
+    original = _bibtex_key(TechnoteCitation(metadata, date_updated=None))
+
+    metadata.title = "A Thoroughly Rewritten Technote"
+    metadata.authors = [
+        Person(name=StructuredName(given="Ada", family="Lovelace"))
+    ]
+    revised = TechnoteCitation(metadata, date_updated=DECLARED_DATE_UPDATED)
+
+    assert original == "SQR-000"
+    assert _bibtex_key(revised) == original
