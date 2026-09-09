@@ -25,6 +25,7 @@ from sphinx.testing.util import SphinxTestApp
 
 from documenteer.citations import (
     Citation,
+    CitationType,
     GuideCitation,
     OrganizationAuthor,
     PartialDate,
@@ -63,6 +64,54 @@ def _warning_naming(app: SphinxTestApp, name: str) -> str:
     """
     (warning,) = [line for line in _warnings(app) if name in line]
     return warning
+
+
+RUBIN = OrganizationAuthor(name="Vera C. Rubin Observatory")
+"""The author every composed citation credits, since none of the cases below
+turns on who wrote the work.
+"""
+
+REPOSITORY_URL = "https://github.com/lsst/daf_butler"
+"""A package's own repository, which is where a work with no DOI is located."""
+
+
+def _undated(
+    label: str,
+    *,
+    citation_type: CitationType | None = None,
+    doi: str | None = None,
+    url: str | None = None,
+    cff: str | None = None,
+    cff_preferred: bool = True,
+) -> GuideCitation:
+    """Compose an undated citation stating only the fields that decide whether
+    it is reported: what kind of work it is, whether it is located by a DOI or
+    by a URL, and which record of a CITATION.cff file it reads.
+    """
+    return GuideCitation(
+        citation=Citation(
+            title=f"Undated {label}",
+            type=citation_type,
+            doi=doi,
+            url=url,
+            authors=(RUBIN,),
+        ),
+        label=label,
+        cff=cff,
+        cff_preferred=cff_preferred,
+    )
+
+
+def _context(*citations: GuideCitation) -> dict[str, Any]:
+    """Compose the ``html_context`` of a site declaring exactly these
+    citations, in the shape the guide preset publishes, replacing the test
+    root's own.
+    """
+    return {
+        "documenteer_citations": [
+            citation.to_html_context() for citation in citations
+        ]
+    }
 
 
 @pytest.mark.sphinx(
@@ -136,6 +185,164 @@ def test_dated_citation_is_not_reported(app: SphinxTestApp) -> None:
     # The three undated entries are, so the silence above is the date's doing
     # and not an inert extension.
     assert len([line for line in warnings if WARNING_NAME in line]) == 3
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-url-software",
+    confoverrides={
+        "html_context": _context(
+            _undated(
+                "Software",
+                citation_type=CitationType.software,
+                url=REPOSITORY_URL,
+            )
+        )
+    },
+)
+def test_url_located_software_is_not_reported(app: SphinxTestApp) -> None:
+    """Software located by its repository rather than by a DOI is not
+    reported, because a package released continuously has no publication event
+    to date -- it is identified by its version and read at the date its reader
+    accessed it.
+    """
+    assert not [line for line in _warnings(app) if WARNING_NAME in line]
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-doi-software",
+    confoverrides={
+        "html_context": _context(
+            _undated(
+                "Software",
+                citation_type=CitationType.software,
+                doi="10.5281/zenodo.10385500",
+            )
+        )
+    },
+)
+def test_doi_bearing_software_is_reported(app: SphinxTestApp) -> None:
+    """Software deposited for a DOI is reported like any other work: DataCite
+    requires a publication year of every DOI, so the date exists and only has
+    to be written down.
+    """
+    assert "no publication date" in _warning_naming(app, "'Software'")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-other-types",
+    confoverrides={
+        "html_context": _context(
+            _undated(
+                "Dataset",
+                citation_type=CitationType.dataset,
+                url="https://example.org/dataset",
+            ),
+            _undated(
+                "Article",
+                citation_type=CitationType.article,
+                url="https://example.org/article",
+            ),
+            _undated(
+                "Report",
+                citation_type=CitationType.report,
+                url="https://example.org/report",
+            ),
+        )
+    },
+)
+def test_url_located_work_of_another_type_is_reported(
+    app: SphinxTestApp,
+) -> None:
+    """The exemption is keyed on the work being software. Every other kind of
+    work was published on a date whether or not it was deposited for a DOI, so
+    being located by a URL says nothing about the date it is missing.
+    """
+    for label in ("Dataset", "Article", "Report"):
+        assert "no publication date" in _warning_naming(app, f"{label!r}")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-untyped",
+    confoverrides={
+        "html_context": _context(_undated("Untyped", url=REPOSITORY_URL))
+    },
+)
+def test_url_located_untyped_entry_is_reported(app: SphinxTestApp) -> None:
+    """An entry that states no type says nothing about what the work is, so it
+    is not the software the exemption is about, and a URL alone does not make
+    it so.
+    """
+    assert "no publication date" in _warning_naming(app, "'Untyped'")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-preferred-software",
+    confoverrides={
+        "html_context": _context(
+            _undated(
+                "Preferred",
+                citation_type=CitationType.software,
+                url=REPOSITORY_URL,
+                cff=CFF_PATH,
+            )
+        )
+    },
+)
+def test_cff_preferred_software_is_reported(app: SphinxTestApp) -> None:
+    """An entry reading a CITATION.cff file's preferred-citation is reported
+    even when that record is software located by a URL, because the record the
+    entry picked out is a work other than the repository the file describes.
+    """
+    assert "no publication date" in _warning_naming(app, "'Preferred'")
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-exemplar",
+    confoverrides={
+        "html_context": _context(
+            _undated(
+                "Software",
+                citation_type=CitationType.software,
+                url=REPOSITORY_URL,
+                cff=CFF_PATH,
+                cff_preferred=False,
+            ),
+            GuideCitation(
+                citation=Citation(
+                    title="The Rubin Observatory Data Butler",
+                    type=CitationType.article,
+                    doi="10.1117/12.2629569",
+                    authors=(RUBIN,),
+                    date=PartialDate(2022),
+                ),
+                label="Paper",
+                cff=CFF_PATH,
+            ),
+        )
+    },
+)
+def test_package_site_reports_nothing(app: SphinxTestApp) -> None:
+    """The shape a package site actually has reports nothing at all: an
+    undated Software entry reading its own CITATION.cff top-level record,
+    beside the dated Paper that file's preferred-citation names.
+
+    This is what the exemption is for. Reporting the Software entry would make
+    ``suppress_warnings`` such a site's end state, which would silence the
+    Paper warning its author does want to hear.
+    """
+    assert not [line for line in _warnings(app) if WARNING_NAME in line]
 
 
 @pytest.mark.sphinx(

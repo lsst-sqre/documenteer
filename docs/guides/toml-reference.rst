@@ -429,6 +429,7 @@ Anything else — ``"June 2025"``, a month outside 1–12, a year that is not fo
 
 An entry that states no date, and whose :ref:`cff <guide-project-citations-cff>` file supplies none either, is cited undated: the rendered citation shows no year, and its BibTeX entry carries no ``year`` field.
 That is a warning, not an error — the citation still displays — and it carries the subtype ``documenteer.citation_date``, naming the entry and the record the date belongs in.
+A :ref:`software <guide-project-citations-type>` entry located by a :ref:`url <guide-project-citations-url>` rather than by a DOI is the exception, and is not reported: a package released continuously has no publication event to date, and what identifies the code a reader ran is its :ref:`version <guide-project-citations-version>`.
 A site with no date to give suppresses it the way any other Sphinx warning is suppressed (see :ref:`guide-undated-citations`):
 
 .. code-block:: python

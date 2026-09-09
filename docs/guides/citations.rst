@@ -108,6 +108,7 @@ That release is what a software citation exists to carry, which is why the note 
 Software released continuously has no publication date to speak of.
 Its :ref:`date <guide-project-citations-date>` is conventionally the year of its first release, which is defensible precisely because it never moves — every later release cites the same way, so a reader's bibliography does not churn — but it is not what identifies the code that ran.
 The version is.
+That is also why an entry like this one — software located by its repository, stating no date — is not reported as :ref:`undated <guide-undated-citations>`.
 
 A site can also set ``self`` and ``preferred`` on *different* entries, which is the site published with a DOI of its own that nonetheless asks readers to cite something else.
 The :ref:`footer <guide-footer-citations>` then shows both by default, because a landing page owes its reader the citation of the DOI it is the landing page of whether or not that is the citation it asks for.
@@ -312,6 +313,10 @@ Nothing on the rendered page says so, which is why the build does.
 Each such entry emits one ``documenteer.citation_date`` warning, naming the entry — by its :ref:`label <guide-project-citations-label>`, or by its title when it has none — and where the date belongs.
 That is the entry's own ``date`` field, and, for an entry reading a :file:`CITATION.cff` file, ``date-released`` (or ``year``) in the record it reads there: the file's ``preferred-citation``, or its top-level record when :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` selects that one.
 Naming the record matters, because a file whose top-level software record carries no date at all can sit above a dated ``preferred-citation``.
+
+A :ref:`software <guide-project-citations-type>` entry located by a :ref:`url <guide-project-citations-url>` rather than by a DOI is the exception, and is not reported.
+Software released continuously has no publication event to date — its :ref:`version <guide-project-citations-version>` is what identifies the code a reader ran, and the date that qualifies it is the date they accessed it — so reporting such an entry would make ``suppress_warnings`` the end state of every package site, silencing the dated works its author *does* want to hear about.
+Software that carries a DOI is reported like any other work, because DataCite requires a publication year of every DOI, and so is an entry reading a :file:`CITATION.cff` file's ``preferred-citation``, which names a work other than the repository the file describes.
 
 Rendering is unchanged either way, so a site with no date to give silences it by name:
 

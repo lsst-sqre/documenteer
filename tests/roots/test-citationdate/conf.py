@@ -11,6 +11,7 @@ preferred citation -- in one build.
 
 from documenteer.citations import (
     Citation,
+    CitationType,
     GuideCitation,
     OrganizationAuthor,
     PartialDate,
@@ -47,13 +48,18 @@ CITATIONS = [
         ),
         label="Dataset",
     ),
-    # Undated and read from the top-level record of a CITATION.cff shaped like
-    # lsst/daf_butler's (tests/data/citationcff/software-record.cff): a
-    # software record located by its repository, with no date-released and no
-    # year anywhere in it.
+    # Undated and read from the top-level record of a CITATION.cff: a software
+    # record with no date-released and no year anywhere in it. It carries a
+    # DOI because that is the software the check reports -- a package located
+    # only by its repository has no publication event to date and is exempt,
+    # while a DOI's registration fixed a publication year that only has to be
+    # written down. The type is the one CFF's default for a top-level record
+    # resolves to.
     GuideCitation(
         citation=Citation(
             title="daf_butler",
+            type=CitationType.software,
+            doi="10.5281/zenodo.10161119",
             url="https://github.com/lsst/daf_butler",
             authors=(RUBIN,),
         ),

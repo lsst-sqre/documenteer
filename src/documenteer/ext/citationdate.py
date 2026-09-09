@@ -27,9 +27,25 @@ configuration already read.
 It is a warning rather than an error because a work whose date its author does
 not know is still a work worth citing, and rendering is unchanged either way:
 a ``-W`` site has to supply the date, and a site that accepts an undated
-citation adds ``documenteer.citation_date`` to ``suppress_warnings``. Nothing
-here composes or alters a citation; the entries are the ones the guide preset
-published into ``html_context``.
+citation adds ``documenteer.citation_date`` to ``suppress_warnings``.
+
+One kind of work is left out of the report altogether: software located by a
+URL rather than by a DOI. Software released continuously has no publication
+event to date. The year of its first release is defensible only because it
+never moves, the year of its current release churns every January, and neither
+says which code a reader ran — the version does, which is what such a citation
+carries, qualified by the date the reader accessed it. That is how FORCE11's
+software citation principles and biblatex's ``@software`` with ``urldate``
+treat it, and reporting it instead would make ``suppress_warnings`` the end
+state of every package site, silencing the dated works its author does want to
+hear about. Two neighbours of that case are still reported: software deposited
+for a DOI, because DataCite requires a publication year of every DOI and so
+the date exists to be written down; and an entry reading a
+:file:`CITATION.cff` file's ``preferred-citation``, because that record is a
+work other than the repository the file describes, whatever its type.
+
+Nothing here composes or alters a citation; the entries are the ones the guide
+preset published into ``html_context``.
 """
 
 from __future__ import annotations
@@ -38,6 +54,7 @@ from typing import TYPE_CHECKING, Any
 
 from sphinx.util import logging
 
+from ..citations import CitationType
 from ..version import __version__
 
 if TYPE_CHECKING:
@@ -115,6 +132,31 @@ def _fix(citation: dict[str, Any]) -> str:
     return f"{ENTRY_FIX}, or date-released (or year) in {record}."
 
 
+def _has_no_publication_event(citation: dict[str, Any]) -> bool:
+    """Report whether this citation describes a work that was never published
+    on a date, which is software located by a URL rather than by a DOI.
+
+    Two of the three conditions are the ones the module docstring reasons
+    about: the work is software, and it carries no DOI whose registration
+    would have fixed a publication year. The third is the record the entry
+    reads. An entry citing a :file:`CITATION.cff` file's
+    ``preferred-citation`` has picked out a work other than the repository
+    that file describes, so it is taken at its word and reported; the
+    exemption covers the entry that describes the code itself — one stating
+    its own fields, or one reading a file's top-level record.
+
+    The DOI is what the test is written against rather than the URL, because
+    ``GuideCitation.to_html_context`` fills a DOI-located work's ``url`` in
+    from its ``https://doi.org/`` link, leaving that field set for every
+    located work.
+    """
+    if citation.get("type") != CitationType.software.value:
+        return False
+    if citation.get("doi") is not None:
+        return False
+    return not (citation.get("cff") and citation.get("cff_preferred", True))
+
+
 def check_citation_dates(app: Sphinx) -> None:
     """Warn about each citation that states no publication date.
 
@@ -125,7 +167,7 @@ def check_citation_dates(app: Sphinx) -> None:
         citations.
     """
     for citation in _citations(app):
-        if citation.get("date"):
+        if citation.get("date") or _has_no_publication_event(citation):
             continue
         logger.warning(
             "citation %s states no publication date, so it is displayed "
