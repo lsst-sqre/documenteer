@@ -26,12 +26,27 @@ A page no entry claims is left untouched, so a site that sets no ``page``
 anywhere builds exactly as it did before. Nothing here composes a citation:
 the entries are the ones the guide preset published into ``html_context``, and
 the JSON-LD is serialized by `documenteer.citations.compose_page_jsonld`.
+
+Both halves of a claim are checked as the environment is checked for
+consistency: the docname against the documents the project contains, and the
+fragment against the anchors the claimed page's doctree carries. That event is
+the first moment both are available, and it is the only one — the check cannot
+move to ``builder-inited``, as the undated-citation check did in #485, because
+it needs doctrees, which do not exist that early. The known limitation is the
+one that follows from the event: Sphinx runs ``env-check-consistency`` only
+when at least one document was re-read, so an edit to
+:file:`documenteer.toml` alone — which changes ``html_context``, whose
+``rebuild`` is ``"html"`` — leaves every document up to date and is not
+reported on that incremental rebuild. A fresh build, as in CI, reports it. The
+case that matters most is unaffected: renaming a heading changes the page a
+fragment names, and re-reads it.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from docutils import nodes
 from sphinx.util import logging
 
 from ..citations import (
@@ -81,14 +96,104 @@ def _describe(citation: dict[str, Any]) -> str:
     return f"{label!r}" if label else str(citation.get("doi"))
 
 
+def _page_anchors(env: BuildEnvironment, docname: str) -> set[str]:
+    """Return every anchor the claimed page publishes.
+
+    An anchor in the rendered HTML is an ``ids`` entry on some node of the
+    page's doctree, so collecting them all covers every way a page comes by
+    one: a heading's generated id, an explicit ``.. _label:`` target, a
+    documented object's id, a numbered figure or table. Nothing narrower does
+    — ``env.tocs`` carries only each section's *first* id, which is not the
+    explicit target's when a heading generated an id of its own first, and the
+    std domain's labels cover explicit targets alone.
+
+    The doctree is read from the doctree directory rather than resolved, so
+    this is a read that leaves the environment's own doctree cache as it found
+    it.
+
+    Parameters
+    ----------
+    env
+        The build environment.
+    docname
+        The docname of the page to read, which must be one the project
+        contains.
+    """
+    doctree = env.get_doctree(docname)
+    return {
+        node_id
+        for node in doctree.findall(nodes.Element)
+        for node_id in node["ids"]
+    }
+
+
+def _explicit_anchors(env: BuildEnvironment, docname: str) -> list[str]:
+    """Return the anchors of the explicit targets recorded on a page, sorted.
+
+    These are the anchors an author *chose*, which is what makes them worth
+    suggesting: the std domain records one per ``.. _label:`` target and none
+    for a heading's generated id, so a suggestion built from them names
+    something stable rather than a slug that moves with its heading's text.
+    A page that declares no targets yields an empty list, and is then offered
+    no suggestion at all.
+
+    Parameters
+    ----------
+    env
+        The build environment.
+    docname
+        The docname of the page whose targets to collect.
+    """
+    std: dict[str, Any] = env.domaindata.get("std", {})
+    # ``labels`` holds the targets that name a section, figure, or table;
+    # ``anonlabels`` holds every explicit target, including those. Both map a
+    # label name to a (docname, anchor, ...) tuple, and the anchor is empty
+    # for a target on the document itself, which is no location within it.
+    return sorted(
+        {
+            target[1]
+            for labels in (std.get("labels", {}), std.get("anonlabels", {}))
+            for target in labels.values()
+            if target[0] == docname and target[1]
+        }
+    )
+
+
+def _did_you_mean(env: BuildEnvironment, docname: str) -> str:
+    """Compose the sentence suggesting the page's explicit targets, or an
+    empty string when it records none.
+
+    Only explicit targets are offered. Listing every anchor on the page would
+    name each of its headings, which is noise on a long page and, worse, an
+    invitation to claim exactly the kind of generated anchor this check exists
+    to catch moving.
+
+    Parameters
+    ----------
+    env
+        The build environment.
+    docname
+        The docname of the page the claim names.
+    """
+    anchors = _explicit_anchors(env, docname)
+    if not anchors:
+        return ""
+    listing = ", ".join(f"#{anchor}" for anchor in anchors)
+    return f" Did you mean {listing}?"
+
+
 def check_citation_pages(app: Sphinx, env: BuildEnvironment) -> None:
     """Warn about a ``page`` claim naming a docname the build does not
-    contain.
+    contain, or a fragment the claimed page does not carry.
 
     The claim is the only part of the entry that is lost — its DOI still
     appears in the site's own metadata and wherever the site displays it — so
-    this is a warning rather than an error, and it carries a subtype a site
-    can suppress while a page is still being written.
+    each of these is a warning rather than an error, and both carry a subtype
+    a site can suppress while a page is still being written.
+
+    A claim whose docname is wrong is reported once, for the docname: the
+    fragment names a location on a page that does not exist, so there is
+    nothing further to say about it.
 
     Parameters
     ----------
@@ -96,19 +201,47 @@ def check_citation_pages(app: Sphinx, env: BuildEnvironment) -> None:
         The Sphinx application.
     env
         The build environment, consulted for the docnames the project
-        contains.
+        contains and for the anchors their doctrees carry.
     """
+    # Several entries can claim one page, and each doctree is unpickled from
+    # disk, so a page is read at most once however many entries name it.
+    anchors: dict[str, set[str]] = {}
     for citation in _citations(app):
         page = citation.get("page")
-        if page is None or page in env.all_docs:
+        if page is None:
+            continue
+        if page not in env.all_docs:
+            logger.warning(
+                "citation %s sets page = %r, which is not a document in this "
+                "project, so no page carries that DOI's landing-page "
+                "metadata. Write the value as a Sphinx docname (no file "
+                "extension), optionally followed by #fragment.",
+                _describe(citation),
+                page,
+                type=WARNING_TYPE,
+                subtype=WARNING_SUBTYPE,
+            )
+            continue
+        fragment = citation.get("page_fragment")
+        if not fragment:
+            continue
+        if page not in anchors:
+            anchors[page] = _page_anchors(env, page)
+        if fragment in anchors[page]:
             continue
         logger.warning(
-            "citation %s sets page = %r, which is not a document in this "
-            "project, so no page carries that DOI's landing-page metadata. "
-            "Write the value as a Sphinx docname (no file extension), "
-            "optionally followed by #fragment.",
+            "citation %s sets page = %r, but %r is not an anchor on %s, so "
+            "the landing-page URL registered against that DOI resolves to a "
+            "location the page does not contain. Add an explicit target the "
+            "entry can name — .. _%s: on its own line above the heading — "
+            "since a heading's own anchor is generated from its text and "
+            "changes whenever the text does.%s",
             _describe(citation),
+            f"{page}#{fragment}",
+            fragment,
             page,
+            fragment,
+            _did_you_mean(env, page),
             type=WARNING_TYPE,
             subtype=WARNING_SUBTYPE,
         )

@@ -296,6 +296,32 @@ def test_missing_page_warns(app: SphinxTestApp) -> None:
 
 
 @pytest.mark.sphinx(
+    "html", testroot="guide-citationpage", srcdir="guide-citationpage-anchors"
+)
+def test_claimed_fragments_are_anchors_on_their_page(
+    app: SphinxTestApp,
+) -> None:
+    """The two entries claiming fragments of ``products/object`` claim
+    anchors that page really carries, so the full stack builds with the
+    missing-docname warning as its only citation-page complaint.
+
+    The anchors are checked against the page's doctree, which the guide stack
+    fills through its own readers and extensions rather than through the
+    minimal project ``tests/ext/citationpage_test.py`` builds.
+    """
+    _build(app, "index")
+
+    citation_page_warnings = [
+        line
+        for line in app.warning.getvalue().splitlines()
+        if WARNING_NAME in line
+    ]
+
+    assert len(citation_page_warnings) == 1
+    assert "products/missing" in citation_page_warnings[0]
+
+
+@pytest.mark.sphinx(
     "html",
     testroot="guide-citationpage",
     srcdir="guide-citationpage-suppressed",

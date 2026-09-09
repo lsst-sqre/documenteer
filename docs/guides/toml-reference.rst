@@ -281,13 +281,26 @@ This is what a data release's documentation needs when each of its data products
 An entry cannot set both ``page`` and :ref:`self <guide-project-citations-self>`; the two are mutually exclusive, since the ``self`` entry's landing page is the site itself and ``page`` names a landing page inside it.
 Asking readers to cite a work whose landing page is one of this site's pages is a different claim, made with :ref:`preferred <guide-project-citations-preferred>`, which does combine with ``page``.
 
-The docname may be followed by ``#`` and a fragment identifier, naming a location within the page:
+The docname may be followed by ``#`` and a fragment identifier, naming a location within the page.
+Write that location as an explicit target in the page's source, above the heading that documents the work:
+
+.. code-block:: rst
+
+   .. _object-tap:
+
+   TAP
+   ---
+
+and claim the target:
 
 .. code-block:: toml
 
    [[project.citations]]
    doi = "10.71929/rubin/3382540"
-   page = "products/catalogs/object#tap"
+   page = "products/catalogs/object#object-tap"
+
+A heading's own anchor is also a fragment this accepts, but it is a poor one to register a DOI against: it is generated from the heading's text, so rewording "TAP" to "TAP service" turns ``#tap`` into ``#tap-service`` and the URL registered at DataCite stops resolving to anything on the page.
+An explicit target is the author's to name and to keep, and survives any rewording of the heading it sits above.
 
 Several entries may claim the same page, provided each names a different fragment — two products documented in two sections of one page, for example.
 Such a page describes both works in a JSON-LD ``@graph`` and emits *no* citation meta tags at all, because every one of them is single-valued — one title, one DOI, one date — and the page is the landing page of more than one work.
@@ -295,8 +308,9 @@ Two entries that name the same docname *and* the same fragment fail the build.
 
 The claim does not change what the site *displays*: :ref:`citation-card <guide-citation-card>` with no argument still renders the :ref:`self <guide-project-citations-self>` entry, and a page that wants to show its own citation names it by :ref:`label <guide-project-citations-label>`.
 
-A ``page`` naming a docname the project does not contain is a warning, not an error: the entry still appears everywhere else the site shows its citations, but no page carries its landing-page metadata.
-That warning carries the subtype ``documenteer.citation_page``, so a site that claims a page it has not written yet can keep it from failing a warnings-as-errors (``-W``) build:
+A ``page`` the build cannot resolve is a warning, not an error: the entry still appears everywhere else the site shows its citations, but no page carries its landing-page metadata.
+Both halves of the claim are checked — a docname the project does not contain, and a fragment that names no anchor on the page it claims, which the warning reports alongside the explicit targets that page does record.
+Those warnings carry the subtype ``documenteer.citation_page``, so a site that claims a page, or an anchor, it has not written yet can keep them from failing a warnings-as-errors (``-W``) build:
 
 .. code-block:: python
 
