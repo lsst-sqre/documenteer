@@ -1,0 +1,31 @@
+# A technote registered with a DOI that declares no date_updated, which is
+# most of the fleet. The technote package stamps the metadata's date_updated
+# with the build clock whenever the file omits the field, so this root is
+# what proves the citation reads the declared value alone -- and is composed
+# undated, and reported, when there is none. date_created is declared so that
+# the build also proves it is never read as a fallback.
+[technote]
+id = "SQR-000"
+series_id = "SQR"
+canonical_url = "https://sqr-000.lsst.io/"
+github_url = "https://github.com/lsst-sqre/sqr-000"
+github_default_branch = "main"
+date_created = 2024-01-02
+version = "1.0.0"
+doi = "10.71929/rubin/2570545"
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+ror = "https://ror.org/048g3cy84"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"
+orcid = "https://orcid.org/0000-0003-3001-676X"
+
+[[technote.authors.affiliations]]
+name = "Vera C. Rubin Observatory"
+
+[[technote.authors]]
+name.given = "Ada"
+name.family = "Lovelace"

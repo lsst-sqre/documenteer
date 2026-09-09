@@ -105,6 +105,7 @@ Each field is read from :file:`technote.toml`, except the title:
     A technote that declares no ``date_updated`` generates a file with no ``date-released`` at all — the Citation File Format requires the field at neither level, so an undated technote is written as undated rather than as dated to a day nobody published on.
     The command says so whenever it writes the file, or reports it stale.
     ``technote.date_created`` is the day the technote was *started*, not the day it was released, and is never used for the citation.
+    The citation the technote's own pages display follows the same rule; see :ref:`technote-undated-citations`.
 
 .. seealso::
 

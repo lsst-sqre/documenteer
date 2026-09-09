@@ -32,7 +32,8 @@ The article ends with a **Citing this document** section: the complete citation,
    Sick, Jonathan (2026). The LSST DM Technical Note Publishing Platform.
    Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308
 
-The creators are the ``[[technote.authors]]`` entries, in order and family name first; the year and the publisher are the technote's ``date_updated`` and ``technote.organization.name``.
+The creators are the ``[[technote.authors]]`` entries, in order and family name first; the publisher is ``technote.organization.name``, and the year is the year of the ``date_updated`` :file:`technote.toml` declares.
+A technote that declares no ``date_updated`` is cited undated — the ``(YYYY)`` is dropped rather than guessed at — and the build says so; see :ref:`technote-undated-citations` below.
 This is the sentence a reader copies into a bibliography, so it is composed from the technote's own metadata during the build and can never disagree with the page it sits at the end of.
 
 The Cite section
@@ -55,10 +56,45 @@ The entry is composed during the build from the technote's own metadata, so it n
    }
 
 A technote is a technical report, so the entry is a BibTeX ``techreport``: the publishing organization is its ``institution`` and the technote's handle is its ``number``.
-The year is the date the technote was last updated, matching the date the sidebar shows, and falls back to the date it was created.
+The ``year`` is the year of the declared ``date_updated``, the same year the citation at the end of the article shows.
 
 The entry is written into the page rather than fetched, so a reader can select and copy it by hand on a page whose JavaScript never runs.
 Where the browser offers no clipboard API, the copy button removes itself instead of failing silently when pressed.
+
+.. _technote-undated-citations:
+
+Technotes with no date
+======================
+
+Only a ``date_updated`` written in :file:`technote.toml` dates a technote's citation:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   date_updated = 2026-03-04
+
+``date_created`` is not read as a fallback, because it is the day the technote was started — neither the day it was published nor the day it was last revised.
+Nor is the date the technote's own metadata carries: the ``technote`` package fills that in with the time of the build whenever :file:`technote.toml` omits the field, so reading it would date the citation to the day the technote was last built, re-dating it on every rebuild and disagreeing with the deliberately undated :file:`CITATION.cff` written from the same file.
+
+A technote that declares no ``date_updated`` is therefore cited undated wherever it is cited: the displayed citation loses its ``(YYYY)``, the BibTeX entry carries no ``year`` field, and its key is built from the author and title alone.
+Nothing on the rendered page says so, so the build does, once, naming the field to set:
+
+.. code-block:: text
+
+   WARNING: this technote's citation states no publication date, so it is
+   displayed without its year, its BibTeX entry carries no year field, and its
+   BibTeX key is built without one. Set date_updated in the [technote] table in
+   technote.toml. [documenteer.citation_date]
+
+A ``-W`` build fails on it, so a technote with no date to give silences it by name:
+
+.. code-block:: python
+
+   # conf.py
+   suppress_warnings = ["documenteer.citation_date"]
+
+Rendering is unchanged either way, and a technote that declares no ``doi`` shows no citation at all and is never reported.
 
 Metadata for harvesters
 =======================

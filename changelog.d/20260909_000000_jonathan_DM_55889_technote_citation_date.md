@@ -1,0 +1,7 @@
+### Bug fixes
+
+- A technote's citation is now dated only by a `date_updated` declared in `technote.toml`. The `technote` package stamps the metadata's `date_updated` with the build clock whenever the file omits the field, so a technote that declared no date — most of the fleet — was cited to the year of the build that rendered it: a 2016 technote displayed "(2026)", its BibTeX entry carried `year = {2026}` and a key built from it, all of it changed on every rebuild, and none of it agreed with the deliberately undated `CITATION.cff` that `documenteer technote sync-cff` writes from the same file. Such a technote is now cited undated instead, and `date_created` is no longer read as a fallback — it is the day the technote was started, neither the day it was published nor the day it was last revised.
+
+### New features
+
+- A technote that declares no `date_updated` in `technote.toml` now says so at build time, through the same `documenteer.citation_date` warning a user guide's undated citation emits: one warning per build, naming the field to set. Nothing on the rendered page shows that a citation lost its year — the `(YYYY)` is simply absent, the BibTeX entry carries no `year` field, and its key is built without one — so the build is where an author finds out. A `-W` build fails on it, and a technote with no date to give adds `documenteer.citation_date` to `suppress_warnings`. A technote that declares no `doi` publishes no citation at all and is never reported.
