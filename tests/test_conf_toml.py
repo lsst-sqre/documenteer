@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 from sphinx.errors import ConfigError
 
 from documenteer.citations import (
@@ -580,7 +581,7 @@ def test_citations_self_on_a_cff_preferred_citation_rejected(
     # sphinx-build prints the sentence above and nothing else — no
     # validation-error tail, and no "please report this" banner.
     assert type(exc_info.value) is ConfigError
-    assert "Syntax or validation issue" not in message
+    assert "Configuration error in documenteer.toml" not in message
     assert "validation error" not in message
 
 
@@ -1831,3 +1832,191 @@ def test_cff_citation_publishes_the_files_precision(
 
     payload = json.loads(html_context["documenteer_citations_jsonld"])
     assert payload["datePublished"] == published
+
+
+PYDANTIC_FRAME = (
+    "validation error for",
+    "ConfigRoot",
+    "Value error,",
+    "input_value",
+    "input_type",
+    "errors.pydantic.dev",
+)
+"""Fragments of pydantic's own rendering of a `ValidationError`.
+
+The model is Documenteer's implementation detail, so none of these belong in
+front of an author who wrote a documenteer.toml.
+"""
+
+
+EXAMPLE_CITATIONS_BAD_DATE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+label = "Dataset"
+title = "Source catalog"
+date = "2025-06-00"
+"""
+
+
+def test_config_error_addresses_the_field_that_failed() -> None:
+    """A field rejected by a validator is addressed in the vocabulary of
+    documenteer.toml, and reported with the validator's own sentence rather
+    than through pydantic's frame.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_BAD_DATE)
+
+    message = str(exc_info.value)
+    assert "documenteer.toml" in message
+    assert "[[project.citations]] entry #2, field date" in message
+    assert "The citation date '2025-06-00' is not a date." in message
+    for fragment in PYDANTIC_FRAME:
+        assert fragment not in message
+
+
+EXAMPLE_CITATIONS_LABELLED_SELF_WITH_PAGE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Object"
+title = "Object catalog"
+self = true
+page = "products/catalogs/object"
+"""
+
+
+def test_config_error_addresses_an_entry_by_its_label() -> None:
+    """An error about a whole ``[[project.citations]]`` entry names the entry
+    the way the rest of the loader does: by position, with its label.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_LABELLED_SELF_WITH_PAGE)
+
+    message = str(exc_info.value)
+    assert "[[project.citations]] entry #1 (label 'Object')" in message
+    assert "sets both self = true" in message
+    for fragment in PYDANTIC_FRAME:
+        assert fragment not in message
+
+
+EXAMPLE_CITATIONS_AUTHOR_WITHOUT_A_NAME = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+authors = [{given_name = "Jane"}]
+"""
+
+
+def test_config_error_addresses_a_nested_array() -> None:
+    """An array inside an array of tables is addressed by both positions,
+    each counted from one and named for what it holds.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_AUTHOR_WITHOUT_A_NAME)
+
+    message = str(exc_info.value)
+    assert "[[project.citations]] entry #1, author #1" in message
+    assert "A citation author has no name." in message
+
+
+EXAMPLE_TITLE_IS_NOT_A_STRING = """
+
+[project]
+title = 3
+"""
+
+
+def test_config_error_reports_a_type_error() -> None:
+    """A value pydantic rejects on its own — rather than one of the loader's
+    validators — is reported with pydantic's own sentence, under an address
+    written in the file's vocabulary.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_TITLE_IS_NOT_A_STRING)
+
+    message = str(exc_info.value)
+    assert "[project] title" in message
+    assert "Input should be a valid string" in message
+    for fragment in PYDANTIC_FRAME:
+        assert fragment not in message
+
+
+EXAMPLE_TWO_PROBLEMS = """
+
+[project]
+title = 3
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "Object catalog"
+date = "2025-06-00"
+"""
+
+
+def test_config_error_numbers_several_problems() -> None:
+    """A file with more than one problem reports them all at once, numbered
+    and counted, so the author fixes them in one pass rather than one build
+    each.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_TWO_PROBLEMS)
+
+    message = str(exc_info.value)
+    assert message.startswith("2 configuration errors in documenteer.toml:")
+    assert "1. [project] title" in message
+    assert "2. [[project.citations]] entry #1, field date" in message
+    assert "Input should be a valid string" in message
+    assert "is not a date" in message
+
+
+def test_config_error_reports_a_toml_syntax_error() -> None:
+    """A file TOML itself cannot parse is reported as a configuration error
+    naming the file and the place the parser stopped, rather than escaping as
+    the parser's own exception.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load("[project\ntitle = 'Example Guide'\n")
+
+    message = str(exc_info.value)
+    assert "documenteer.toml" in message
+    assert "line 1" in message
+
+
+def test_config_error_chains_the_validation_error() -> None:
+    """The pydantic exception stays chained to the configuration error, so
+    the traceback Sphinx saves still has everything needed to debug the model
+    itself.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_BAD_DATE)
+
+    assert isinstance(exc_info.value.__cause__, ValidationError)
+
+
+def test_config_error_names_no_model_when_a_table_is_not_one() -> None:
+    """A table written as something other than a table is reported in TOML's
+    vocabulary, since the model standing behind the table is not what the
+    author wrote and not what they can fix.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load("project = 3\n")
+
+    message = str(exc_info.value)
+    assert "[project]" in message
+    assert "should be a table" in message
+    assert "ProjectModel" not in message
