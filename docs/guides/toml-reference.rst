@@ -132,7 +132,8 @@ A site can cite more than one work — the documentation itself and the dataset 
    authors = [{ name = "Vera C. Rubin Observatory" }]
 
 Each entry carries two kinds of field.
-The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, :ref:`date <guide-project-citations-date>`, and :ref:`version <guide-project-citations-version>`) describe the work being cited, and can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>` and :ref:`cff_preferred <guide-project-citations-cff-preferred>`).
+The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, :ref:`date <guide-project-citations-date>`, and :ref:`version <guide-project-citations-version>`) describe the work being cited.
+They can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>` and :ref:`cff_preferred <guide-project-citations-cff-preferred>`), and the ones a site's works share can be stated once in :ref:`[project.citation_defaults] <guide-project-citation-defaults>` rather than on every entry.
 The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`page <guide-project-citations-page>`, :ref:`in_footer <guide-project-citations-in-footer>`, :ref:`note <guide-project-citations-note>`, and :ref:`bibtex_key <guide-project-citations-bibtex-key>`) say how the site displays the citation, and are only ever set here.
 
 .. _guide-project-citations-doi:
@@ -638,6 +639,87 @@ CFF makes that key optional and defines its default as ``software``, so a top-le
 
 ``cff_preferred`` chooses which record of a *file* is read; :ref:`preferred <guide-project-citations-preferred>` chooses which of the site's citations is the one it asks readers to use.
 The two are unrelated, and an entry that sets ``cff_preferred`` without ``cff`` fails the build, since there is then no file whose records it could be choosing between.
+
+.. _guide-project-citation-defaults:
+
+[project.citation_defaults]
+===========================
+
+|optional|
+
+The bibliographic fields the site's :ref:`[[project.citations]] <guide-project-citations>` entries share, stated once.
+
+A site that mints a DOI per data product declares an entry per product, and those entries agree about nearly everything: the same publisher, the same author, the same year, the same :ref:`type <guide-project-citations-type>`.
+Spelled out on each of forty products, those four facts are what a reader has to look past to find the one thing an entry says — and :file:`documenteer.toml` stops being a file anyone reads.
+This table states them once, above the entries that take them:
+
+.. code-block:: toml
+
+   [project.citation_defaults]
+   type = "dataset"
+   publisher = "NSF-DOE Vera C. Rubin Observatory"
+   date = 2026
+   authors = [
+       { name = "NSF-DOE Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+   ]
+
+   [[project.citations]]
+   doi = "10.71929/rubin/2570308"
+   label = "Release"
+   self = true
+   title = "Data Preview 2"
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382539"
+   label = "Butler"
+   page = "products/catalogs/object#object-butler"
+   title = "DP2 Object catalog"
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382540"
+   label = "TAP"
+   page = "products/catalogs/object#object-tap"
+   title = "DP2 Object catalog"
+
+Each entry is then the four fields that tell one product from the next.
+
+The table is written with single brackets — there is one of it — and it sits beside the array of entries rather than inside one.
+
+**The fields it accepts**
+
+Five keys, each the entry field of the same name, written the same way and validated the same way:
+
+- :ref:`type <guide-project-citations-type>`
+- :ref:`publisher <guide-project-citations-publisher>`
+- :ref:`date <guide-project-citations-date>`
+- :ref:`authors <guide-project-citations-authors>`
+- :ref:`version <guide-project-citations-version>`
+
+**How a field resolves**
+
+Each of those fields on each entry is taken from the first source that states it:
+
+#. the entry's own value;
+#. the record its :ref:`cff <guide-project-citations-cff>` file supplies, for an entry that names one;
+#. this table;
+#. nothing, and the citation is composed without the field.
+
+A default fills only what nothing else states, so a :file:`CITATION.cff` file's ``date-released`` beats a site-wide ``date`` and a paper from 2019 keeps its own year.
+The entries a defaults table does not describe are exactly the works a site *cites* rather than publishes, and each of them states what it needs on its own.
+
+:ref:`authors <guide-project-citations-authors>` is all-or-nothing: an entry that names any author names all of them, so its list replaces this one instead of extending it.
+An entry that names none takes the default list whole, ROR identifiers and all.
+
+A defaulted :ref:`date <guide-project-citations-date>` is a date — an entry dated only by this table is not reported by the ``documenteer.citation_date`` warning — and a defaulted :ref:`version <guide-project-citations-version>` is a stated one, so it wins over the :ref:`project.version <guide-project-version>` that a software entry describing this site's own package would otherwise inherit.
+
+**The fields it does not accept**
+
+Any other key fails the build with a message naming the table and the key.
+
+Identity and presentation are per work: :ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`title <guide-project-citations-title>`, :ref:`label <guide-project-citations-label>`, :ref:`page <guide-project-citations-page>`, :ref:`note <guide-project-citations-note>`, :ref:`bibtex_key <guide-project-citations-bibtex-key>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`in_footer <guide-project-citations-in-footer>`, :ref:`cff <guide-project-citations-cff>`, and :ref:`cff_preferred <guide-project-citations-cff-preferred>` each name one work, so there is no value any of them could take that every entry would want.
+The same check catches a misspelled key, which would otherwise be a default that silently never applied.
+
+A ``[project.citation_defaults]`` table on a site that declares no :ref:`[[project.citations]] <guide-project-citations>` entries is accepted and does nothing.
 
 .. _guide-project-openapi:
 

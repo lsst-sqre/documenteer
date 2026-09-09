@@ -2647,3 +2647,424 @@ def test_config_error_names_no_model_when_a_table_is_not_one() -> None:
     assert "[project]" in message
     assert "should be a table" in message
     assert "ProjectModel" not in message
+
+
+CITATION_DEFAULTS = """
+
+[project]
+title = "Data Preview 2"
+
+[project.citation_defaults]
+type = "dataset"
+publisher = "NSF-DOE Vera C. Rubin Observatory"
+date = 2026
+authors = [
+    { name = "NSF-DOE Vera C. Rubin Observatory", ror = "048g3cy84" },
+]
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Butler"
+page = "products/object#butler"
+title = "DP2 Object catalog (Butler)"
+"""
+"""A per-product entry written the way ``[project.citation_defaults]`` is
+meant to leave it: the four fields that tell one data product from the next,
+above a table stating once what all forty of them share.
+"""
+
+
+def test_citation_defaults_fill_what_an_entry_leaves_unstated() -> None:
+    """A bibliographic field stated only in the defaults table reaches the
+    composed citation.
+
+    This is the whole point of the table: a site minting a DOI per data
+    product writes the publisher, the authors, the date, and the type once
+    instead of once per entry.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS)
+
+    (entry,) = config.citations
+    assert entry.citation.type is CitationType.dataset
+    assert entry.citation.publisher == "NSF-DOE Vera C. Rubin Observatory"
+    assert entry.citation.date == PartialDate(2026)
+    assert entry.citation.authors == (
+        OrganizationAuthor(
+            name="NSF-DOE Vera C. Rubin Observatory", ror="048g3cy84"
+        ),
+    )
+
+
+CITATION_DEFAULTS_OVERRIDDEN = """
+
+[project]
+title = "Data Preview 2"
+
+[project.citation_defaults]
+type = "dataset"
+publisher = "NSF-DOE Vera C. Rubin Observatory"
+date = 2026
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385501"
+label = "Paper"
+title = "The Data Preview 2 survey"
+type = "article"
+publisher = "Zenodo"
+date = 2024-11-02
+"""
+
+
+def test_citation_defaults_yield_to_the_entry() -> None:
+    """An entry's own value wins over the default.
+
+    A defaults table describes the works a site publishes, and the entries
+    that do not fit it are exactly the ones a site also cites — a paper of
+    another year, published by somebody else.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS_OVERRIDDEN)
+
+    (entry,) = config.citations
+    assert entry.citation.type is CitationType.article
+    assert entry.citation.publisher == "Zenodo"
+    assert entry.citation.date == PartialDate(2024, 11, 2)
+
+
+CITATION_DEFAULTS_WITH_CFF = """
+
+[project]
+title = "Example Guide"
+
+[project.citation_defaults]
+type = "dataset"
+date = 2026
+
+[[project.citations]]
+cff = "../CITATION.cff"
+label = "Paper"
+preferred = true
+"""
+
+
+def test_citation_defaults_yield_to_a_cff_record(tmp_path: Path) -> None:
+    """A CITATION.cff file's value wins over the default.
+
+    Defaults fill only what nothing else states, so a site-wide ``date``
+    never overwrites the year a file already records for the work it
+    describes.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_YEAR)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    config = DocumenteerConfig.load(
+        CITATION_DEFAULTS_WITH_CFF, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.citation.date == PartialDate(2022)
+    assert entry.citation.type is CitationType.article
+
+
+CITATION_DEFAULTS_ENTRY_AUTHORS = """
+
+[project]
+title = "Data Preview 2"
+
+[project.citation_defaults]
+type = "dataset"
+authors = [
+    { name = "NSF-DOE Vera C. Rubin Observatory", ror = "048g3cy84" },
+]
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385501"
+label = "Paper"
+title = "The Data Preview 2 survey"
+authors = [{ family_name = "Sick", given_name = "Jonathan" }]
+"""
+
+
+def test_citation_defaults_authors_are_replaced_wholesale() -> None:
+    """An entry that names any author names all of them.
+
+    A credit line is a claim about one work, so merging an entry's authors
+    into the default list would credit the work to people no source names —
+    and there would be no way to write a paper's own author list without
+    also dropping the table.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS_ENTRY_AUTHORS)
+
+    (entry,) = config.citations
+    assert entry.citation.authors == (
+        PersonAuthor(family_name="Sick", given_name="Jonathan"),
+    )
+
+
+CITATION_DEFAULTS_VERSION = """
+
+[project]
+title = "Example Guide"
+version = "1.0.0"
+
+[project.citation_defaults]
+version = "DP2.1"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Pipelines"
+type = "software"
+self = true
+title = "Example Guide"
+"""
+
+
+def test_citation_defaults_version_beats_the_implicit_one() -> None:
+    """A default ``version`` wins over the project version a software entry
+    describing this site's own package would otherwise inherit.
+
+    That inherited version is what a site states when it states nothing, so
+    a table that does state one has said something more specific.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS_VERSION)
+
+    (entry,) = config.citations
+    assert entry.citation.version == "DP2.1"
+
+
+def test_citation_defaults_date_is_a_date_to_the_warning() -> None:
+    """An entry dated only by the defaults table is a dated citation.
+
+    The ``documenteer.citation_date`` warning reads the resolved date out of
+    ``html_context`` rather than the entry, so filling the date in at
+    composition is what keeps such an entry from being reported as undated.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    (context,) = html_context["documenteer_citations"]
+    assert context["date"] == "2026"
+
+
+def test_citation_defaults_leave_the_entry_as_written() -> None:
+    """Defaults are applied where a citation is composed, not by filling the
+    entry in.
+
+    Two validations ask what the entry *itself* wrote — the one that rejects
+    ``cff_preferred`` without ``cff``, and the BibTeX key policy — so a
+    default that reached ``model_fields_set`` would change the answer to a
+    question about the file.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS)
+
+    (written,) = config.conf.project.citations
+    assert written.date is None
+    assert "date" not in written.model_fields_set
+
+
+CITATION_DEFAULTS_TEMPLATE = """
+
+[project]
+title = "Data Preview 2"
+
+[project.citation_defaults]
+{line}
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "DP2 Object catalog"
+"""
+
+
+@pytest.mark.parametrize(
+    ("key", "line"),
+    [
+        ("doi", 'doi = "10.71929/rubin/3382539"'),
+        ("url", 'url = "https://dp2.lsst.io"'),
+        ("title", 'title = "DP2 Object catalog"'),
+        ("label", 'label = "Butler"'),
+        ("self", "self = true"),
+        ("preferred", "preferred = true"),
+        ("page", 'page = "products/object"'),
+        ("in_footer", "in_footer = true"),
+        ("note", 'note = "Cite the product."'),
+        ("bibtex_key", 'bibtex_key = "DP2"'),
+        ("cff", 'cff = "../CITATION.cff"'),
+        ("cff_preferred", "cff_preferred = false"),
+        ("titel", 'titel = "DP2 Object catalog"'),
+    ],
+)
+def test_citation_defaults_reject_a_per_work_key(key: str, line: str) -> None:
+    """A key the defaults table does not accept is reported by name.
+
+    Identity and presentation are per work — a DOI, a title, a label, and a
+    page name one work each — so a default for them would be a value no
+    entry could ever want. A misspelled key is the same case arrived at by
+    accident, and both are worth more than being silently ignored.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(CITATION_DEFAULTS_TEMPLATE.format(line=line))
+
+    message = str(exc_info.value)
+    assert f"[project.citation_defaults] {key}" in message
+    assert "type, publisher, date, authors, version" in message
+    for fragment in PYDANTIC_FRAME:
+        assert fragment not in message
+
+
+def test_citation_defaults_without_citations_are_inert() -> None:
+    """A defaults table with nothing to fill loads and displays nothing.
+
+    That is the state of a site partway through adopting the table, and of
+    one whose entries have all moved elsewhere; neither is an error.
+    """
+    config = DocumenteerConfig.load(
+        '[project]\ntitle = "Example Guide"\n\n'
+        '[project.citation_defaults]\ntype = "dataset"\n'
+    )
+
+    assert config.citations == []
+
+
+DP2_PRODUCTS_SPELLED_OUT = """
+
+[project]
+title = "Data Preview 2"
+base_url = "https://dp2.lsst.io"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+self = true
+title = "Data Preview 2"
+type = "dataset"
+publisher = "NSF-DOE Vera C. Rubin Observatory"
+date = 2026
+authors = [
+    { name = "NSF-DOE Vera C. Rubin Observatory", ror = "048g3cy84" },
+]
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Butler"
+page = "products/object#butler"
+title = "DP2 Object catalog (Butler)"
+type = "dataset"
+publisher = "NSF-DOE Vera C. Rubin Observatory"
+date = 2026
+authors = [
+    { name = "NSF-DOE Vera C. Rubin Observatory", ror = "048g3cy84" },
+]
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+label = "TAP"
+page = "products/object#tap"
+title = "DP2 Object catalog (TAP)"
+type = "dataset"
+publisher = "NSF-DOE Vera C. Rubin Observatory"
+date = 2026
+authors = [
+    { name = "NSF-DOE Vera C. Rubin Observatory", ror = "048g3cy84" },
+]
+"""
+"""The two DP2-style product entries of the citation-page test root, beside
+the release they are parts of, with every bibliographic field spelled out on
+every entry."""
+
+DP2_PRODUCTS_DEFAULTED = """
+
+[project]
+title = "Data Preview 2"
+base_url = "https://dp2.lsst.io"
+
+[project.citation_defaults]
+type = "dataset"
+publisher = "NSF-DOE Vera C. Rubin Observatory"
+date = 2026
+authors = [
+    { name = "NSF-DOE Vera C. Rubin Observatory", ror = "048g3cy84" },
+]
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+self = true
+title = "Data Preview 2"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Butler"
+page = "products/object#butler"
+title = "DP2 Object catalog (Butler)"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+label = "TAP"
+page = "products/object#tap"
+title = "DP2 Object catalog (TAP)"
+"""
+"""The same three works, written as the defaults table leaves them."""
+
+
+def test_citation_defaults_compose_what_spelling_them_out_does() -> None:
+    """The defaulted form of a set of product entries publishes exactly what
+    the fully-spelled form publishes.
+
+    Everything a citation reaches — the footer, the cards, the head
+    metadata, the BibTeX keys, and the site-wide JSON-LD with its ``hasPart``
+    references — is read out of this one mapping, so comparing it is what
+    says the table changes how a site is *written* and nothing about what it
+    publishes.
+    """
+    spelled: dict[str, Any] = {}
+    DocumenteerConfig.load(DP2_PRODUCTS_SPELLED_OUT).set_citations(spelled)
+    defaulted: dict[str, Any] = {}
+    DocumenteerConfig.load(DP2_PRODUCTS_DEFAULTED).set_citations(defaulted)
+
+    assert defaulted == spelled
+
+
+CITATION_DEFAULTS_SELF = """
+
+[project]
+title = "Data Preview 2"
+base_url = "https://dp2.lsst.io"
+
+[project.citation_defaults]
+type = "dataset"
+publisher = "NSF-DOE Vera C. Rubin Observatory"
+date = 2026
+authors = [
+    { name = "NSF-DOE Vera C. Rubin Observatory", ror = "048g3cy84" },
+]
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+self = true
+title = "Data Preview 2"
+"""
+
+
+def test_citation_defaults_authors_carry_their_ror() -> None:
+    """A default author reaches the machine-readable metadata as whole an
+    author as one written on the entry.
+
+    The ROR is the half of an organization author that only a machine reads,
+    so it is the half a defaulted author could lose without any rendered
+    surface showing it.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS_SELF)
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+
+    payload = json.loads(html_context["documenteer_citations_jsonld"])
+    assert payload["creator"] == [
+        {
+            "@type": "Organization",
+            "@id": "https://ror.org/048g3cy84",
+            "name": "NSF-DOE Vera C. Rubin Observatory",
+        }
+    ]

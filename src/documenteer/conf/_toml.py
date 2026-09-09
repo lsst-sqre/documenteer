@@ -59,6 +59,7 @@ from ._utils import normalize_origin_base_url
 
 __all__ = [
     "CitationAuthorModel",
+    "CitationDefaultsModel",
     "CitationModel",
     "ConfigRoot",
     "DocumenteerConfig",
@@ -274,6 +275,55 @@ absence of one.
 """
 
 
+def _read_citation_version(v: str | None) -> str | None:
+    """Collapse a citation version's whitespace, rejecting a blank one.
+
+    A blank version is rejected rather than read as an absent one for the
+    same reason a blank ``url`` is: it is truthy, so it reads everywhere as a
+    version that *was* stated, while composing to nothing. Here it would do
+    that twice over — the rendered citation would name no release, and the
+    entry would also be denied the default a software entry inherits from the
+    project's own version, with nothing on the page to say why.
+    """
+    if v is None:
+        return None
+    version = " ".join(v.split())
+    if not version:
+        raise ValueError(
+            "The citation version is empty. Set it to the release being "
+            "cited, such as 12.3.0, or drop it."
+        )
+    return version
+
+
+def _read_citation_date(v: Any) -> PartialDate | None:
+    """Read the publication date at the precision it is written in.
+
+    A source that knows the day writes a TOML date, ``2025-06-30``. One
+    that knows only the year or the month has no TOML type for that — TOML
+    dates are always full — so it writes the year as an integer,
+    ``2025``, or the reduced ISO 8601 date as a string, ``"2025-06"``.
+    Every form is kept at its own precision, because the date reaches each
+    page's schema.org ``datePublished`` and a filled-in day would publish
+    a date the configuration never stated.
+    """
+    if v is None or isinstance(v, PartialDate):
+        return v
+    try:
+        if isinstance(v, datetime.datetime):
+            return PartialDate.from_date(v.date())
+        if isinstance(v, datetime.date):
+            return PartialDate.from_date(v)
+        # bool is an int in Python, but `date = true` is not a year.
+        if isinstance(v, int) and not isinstance(v, bool):
+            return PartialDate(v)
+        if isinstance(v, str):
+            return PartialDate.parse(v)
+    except ValueError as e:
+        raise ValueError(f"{_NOT_A_CITATION_DATE.format(value=v)} {e}") from e
+    raise ValueError(_NOT_A_CITATION_DATE.format(value=v))
+
+
 class CitationModel(BaseModel):
     """Model for an entry in the ``[[project.citations]]`` array of
     documenteer.toml.
@@ -483,56 +533,14 @@ class CitationModel(BaseModel):
     @field_validator("version")
     @classmethod
     def validate_version(cls, v: str | None) -> str | None:
-        """Collapse the version's whitespace, rejecting a blank one.
-
-        A blank version is rejected rather than read as an absent one for
-        the same reason a blank ``url`` is: it is truthy, so it reads
-        everywhere as a version that *was* stated, while composing to
-        nothing. Here it would do that twice over — the rendered citation
-        would name no release, and the entry would also be denied the
-        default a software entry inherits from the project's own version,
-        with nothing on the page to say why.
-        """
-        if v is None:
-            return None
-        version = " ".join(v.split())
-        if not version:
-            raise ValueError(
-                "The citation version is empty. Set it to the release being "
-                "cited, such as 12.3.0, or drop it."
-            )
-        return version
+        """Read the release the entry names."""
+        return _read_citation_version(v)
 
     @field_validator("date", mode="before")
     @classmethod
     def validate_date(cls, v: Any) -> PartialDate | None:
-        """Read the publication date at the precision it is written in.
-
-        A source that knows the day writes a TOML date, ``2025-06-30``. One
-        that knows only the year or the month has no TOML type for that — TOML
-        dates are always full — so it writes the year as an integer,
-        ``2025``, or the reduced ISO 8601 date as a string, ``"2025-06"``.
-        Every form is kept at its own precision, because the date reaches each
-        page's schema.org ``datePublished`` and a filled-in day would publish
-        a date the configuration never stated.
-        """
-        if v is None or isinstance(v, PartialDate):
-            return v
-        try:
-            if isinstance(v, datetime.datetime):
-                return PartialDate.from_date(v.date())
-            if isinstance(v, datetime.date):
-                return PartialDate.from_date(v)
-            # bool is an int in Python, but `date = true` is not a year.
-            if isinstance(v, int) and not isinstance(v, bool):
-                return PartialDate(v)
-            if isinstance(v, str):
-                return PartialDate.parse(v)
-        except ValueError as e:
-            raise ValueError(
-                f"{_NOT_A_CITATION_DATE.format(value=v)} {e}"
-            ) from e
-        raise ValueError(_NOT_A_CITATION_DATE.format(value=v))
+        """Read the publication date at the precision it is written in."""
+        return _read_citation_date(v)
 
     @field_validator("page")
     @classmethod
@@ -658,6 +666,81 @@ class CitationModel(BaseModel):
         return self.in_footer
 
 
+class CitationDefaultsModel(BaseModel):
+    """Model for the ``[project.citation_defaults]`` table of
+    documenteer.toml.
+
+    A site that mints a DOI per data product declares dozens of
+    ``[[project.citations]]`` entries that agree about almost everything: the
+    same publisher, the same one-element author list, the same year, the same
+    type. This table states each of those once, and every entry that leaves
+    the field unstated takes it, so an entry is written as the handful of
+    fields that tell one work from another.
+
+    Only the *bibliographic* fields are accepted, and only the ones a site's
+    works can genuinely share. Identity and presentation are per work — a
+    DOI, a URL, a title, a label, a page, a note, a BibTeX key, the ``self``
+    and ``preferred`` claims, and the CITATION.cff file one entry reads each
+    name a single work — so a default for any of them would be a value no
+    entry could use. Writing one is a configuration error rather than a
+    silently ignored key, which is also what catches a misspelling of a key
+    the table does accept.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: CitationType | None = Field(
+        None,
+        description=(
+            "The kind of work each entry that states no ``type`` is."
+        ),
+    )
+
+    publisher: str | None = Field(
+        None,
+        description=(
+            "The organization that published each entry that names no "
+            "``publisher``."
+        ),
+    )
+
+    date: PartialDate | None = Field(
+        None,
+        description=(
+            "The publication date of each entry that states no ``date``, "
+            "written in any of the forms an entry's own ``date`` accepts."
+        ),
+    )
+
+    authors: list[CitationAuthorModel] = Field(
+        default_factory=list,
+        description=(
+            "The authors of each entry that names none. An entry that names "
+            "any author replaces this list rather than adding to it."
+        ),
+    )
+
+    version: str | None = Field(
+        None,
+        description=(
+            "The release each entry that names no ``version`` is cited at, "
+            "such as a data release's ``DP2.1``."
+        ),
+    )
+
+    @field_validator("version")
+    @classmethod
+    def validate_version(cls, v: str | None) -> str | None:
+        """Read the release the table names."""
+        return _read_citation_version(v)
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def validate_date(cls, v: Any) -> PartialDate | None:
+        """Read the publication date at the precision it is written in."""
+        return _read_citation_date(v)
+
+
 class ProjectModel(BaseModel):
     """Model for the project table in the documenteer.toml file."""
 
@@ -697,6 +780,15 @@ class ProjectModel(BaseModel):
         description=(
             "Citations the site displays, in the order they appear in the "
             "footer."
+        ),
+    )
+
+    citation_defaults: CitationDefaultsModel = Field(
+        default_factory=CitationDefaultsModel,
+        description=(
+            "Bibliographic fields the ``[[project.citations]]`` entries "
+            "share, filling in each entry that states none of its own. A "
+            "table declared by a site with no citations is inert."
         ),
     )
 
@@ -1626,12 +1718,20 @@ class DocumenteerConfig:
     ) -> GuideCitation:
         """Compose one ``[[project.citations]]`` entry as a citation.
 
-        A ``cff`` file supplies the bibliographic fields; a field set on the
-        entry itself overrides the file's value. ``is_preferred`` is the
-        resolved answer to which entry the site asks readers to use (see
-        `ProjectModel.preferred_citation`), which the entry cannot decide on
-        its own because the ``self`` entry inherits it by default.
+        Each bibliographic field is resolved from the first source that
+        states it: the entry itself, then the ``cff`` file the entry names,
+        then ``[project.citation_defaults]``. Defaults fill only what nothing
+        else states, so a file's ``date-released`` beats a site-wide ``date``
+        and a paper keeps its own year. Resolution happens here rather than
+        by filling the entries in, so a validation that asks what an entry
+        itself wrote still gets the answer the file gives.
+
+        ``is_preferred`` is the resolved answer to which entry the site asks
+        readers to use (see `ProjectModel.preferred_citation`), which the
+        entry cannot decide on its own because the ``self`` entry inherits it
+        by default.
         """
+        defaults = self.conf.project.citation_defaults
         record = self._read_citation_cff(entry, index) if entry.cff else None
         source = record.citation if record else None
         if (
@@ -1693,14 +1793,24 @@ class DocumenteerConfig:
                     "it. Set doi or url, or set cff to a CITATION.cff file "
                     "that declares a doi, a url, or a repository-code."
                 )
+        # An author list is all-or-nothing at every step: a credit line is a
+        # claim about one work, so a list is replaced rather than extended,
+        # and there is no way to write a paper's own authors that would also
+        # merge in the observatory the defaults credit.
         authors: tuple[CitationAuthor, ...]
         if entry.authors:
             authors = tuple(
                 author.to_citation_author() for author in entry.authors
             )
+        elif source is not None and source.authors:
+            authors = source.authors
         else:
-            authors = source.authors if source else ()
-        citation_type = entry.type or (source.type if source else None)
+            authors = tuple(
+                author.to_citation_author() for author in defaults.authors
+            )
+        citation_type = (
+            entry.type or (source.type if source else None) or defaults.type
+        )
         return GuideCitation(
             citation=Citation(
                 title=title,
@@ -1708,8 +1818,11 @@ class DocumenteerConfig:
                 doi=doi,
                 authors=authors,
                 publisher=entry.publisher
-                or (source.publisher if source else None),
-                date=entry.date or (source.date if source else None),
+                or (source.publisher if source else None)
+                or defaults.publisher,
+                date=entry.date
+                or (source.date if source else None)
+                or defaults.date,
                 url=url,
                 version=self._resolve_citation_version(
                     entry, source, citation_type, is_preferred=is_preferred
@@ -1739,11 +1852,14 @@ class DocumenteerConfig:
     ) -> str | None:
         """Determine the release one citation names.
 
-        The entry's own ``version`` wins, then its CITATION.cff file's, as
-        every other bibliographic field resolves. What is left is the entry
-        that states neither, and the rule is deliberately narrow: a software
-        entry that describes *this site's own package* takes the project's
-        version, and every other entry stays version-less.
+        The entry's own ``version`` wins, then its CITATION.cff file's, then
+        ``[project.citation_defaults]``, as every other bibliographic field
+        resolves. What is left is the entry no source states a version for,
+        and the rule is deliberately narrow: a software entry that describes
+        *this site's own package* takes the project's version, and every
+        other entry stays version-less. A stated default therefore beats the
+        project version, which is what a site falls back to having stated
+        nothing.
 
         "This site's own package" is the entry that sets ``self``, the one
         the site marks ``preferred``, and the one reading a CITATION.cff
@@ -1763,7 +1879,11 @@ class DocumenteerConfig:
         it must never reach a citation, a BibTeX ``version`` field, or a
         ``softwareVersion``.
         """
-        stated = entry.version or (source.version if source else None)
+        stated = (
+            entry.version
+            or (source.version if source else None)
+            or self.conf.project.citation_defaults.version
+        )
         if stated is not None:
             return stated
         if citation_type is not CitationType.software:
@@ -1915,6 +2035,17 @@ class _ErrorAddress:
         self._cursor: type[BaseModel] | None = ConfigRoot
         self._noun = "item"
         self._at_item = False
+        self._rejected_by: type[BaseModel] | None = None
+
+    @property
+    def rejected_by(self) -> type[BaseModel] | None:
+        """The model that rejected a key the address ends in, when the walk
+        ended at one, and `None` otherwise.
+
+        It is what lets the error say which keys the table does accept, since
+        that is a property of the model rather than of the error.
+        """
+        return self._rejected_by
 
     def walk(self, loc: tuple[int | str, ...]) -> Self:
         """Follow an error location as far as it names the file."""
@@ -1965,7 +2096,7 @@ class _ErrorAddress:
         if isinstance(segment, int):
             return self._enter_item(segment)
         if self._cursor is None or segment not in self._cursor.model_fields:
-            return 0
+            return self._name_rejected_key(segment)
         kind, member = _classify_annotation(
             self._cursor.model_fields[segment].annotation
         )
@@ -2015,6 +2146,24 @@ class _ErrorAddress:
         self._field = None
         return 1
 
+    def _name_rejected_key(self, segment: str) -> int:
+        """Take a segment that names no field of the model, which is part of
+        the file only when the model forbids extra keys.
+
+        Such a segment is normally pydantic's own — the tag it names a union
+        member by — and ends the walk rather than being printed as though the
+        author had written it. A table that forbids extra keys is the case
+        where the author *did* write it, and the key is the whole of what the
+        error is about, so it is named.
+        """
+        cursor = self._cursor
+        if cursor is None or cursor.model_config.get("extra") != "forbid":
+            return 0
+        self._rejected_by = cursor
+        self._cursor = None
+        self._field = segment
+        return 1
+
     def _name_field(
         self, name: str, kind: str, following: int | str | None
     ) -> int:
@@ -2029,7 +2178,9 @@ class _ErrorAddress:
         return 1
 
 
-def _describe_error(error: ErrorDetails) -> str:
+def _describe_error(
+    error: ErrorDetails, *, rejected_by: type[BaseModel] | None = None
+) -> str:
     """State one validation problem in a sentence an author can act on.
 
     A validator's own `ValueError` is that sentence: it was written for the
@@ -2041,6 +2192,16 @@ def _describe_error(error: ErrorDetails) -> str:
     pydantic's documentation link is printed: the input is in the file the
     author is being sent back to, and the link explains the model rather than
     the file.
+
+    Parameters
+    ----------
+    error
+        One problem, as pydantic reports it.
+    rejected_by
+        The model that rejected an unaccepted key, when that is what the
+        error is (see `_ErrorAddress.rejected_by`). A table with a closed set
+        of keys can say what they are, which turns "not permitted" into the
+        list the author is choosing from.
     """
     ctx = error.get("ctx") or {}
     cause = ctx.get("error")
@@ -2051,6 +2212,12 @@ def _describe_error(error: ErrorDetails) -> str:
         # Documenteer's and not anything written in the file. TOML calls it a
         # table.
         return "Input should be a table"
+    if error["type"] == "extra_forbidden" and rejected_by is not None:
+        accepted = ", ".join(
+            field.alias or name
+            for name, field in rejected_by.model_fields.items()
+        )
+        return f"No such key. This table accepts {accepted}."
     return str(error["msg"]).strip()
 
 
@@ -2063,15 +2230,15 @@ def _format_validation_error(error: ValidationError) -> str:
     names the file first, then gives one paragraph per problem, each
     addressing a place in the file and saying what is wrong there.
     """
-    problems = [
-        (
-            str(
-                _ErrorAddress().walk(detail["loc"]).label(detail.get("input"))
-            ),
-            _describe_error(detail),
+    problems: list[tuple[str, str]] = []
+    for detail in error.errors(include_url=False):
+        place = _ErrorAddress().walk(detail["loc"]).label(detail.get("input"))
+        problems.append(
+            (
+                str(place),
+                _describe_error(detail, rejected_by=place.rejected_by),
+            )
         )
-        for detail in error.errors(include_url=False)
-    ]
     if len(problems) == 1:
         address, message = problems[0]
         body = f"{address}\n  {message}" if address else message
