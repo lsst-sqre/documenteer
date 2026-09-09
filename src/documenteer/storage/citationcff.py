@@ -16,6 +16,7 @@ CFF field shapes, and `tests/storage/citationcff_test.py` pins the round trip.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,7 @@ __all__ = [
     "CitationCffError",
     "CitationCffNotFoundError",
     "CitationCffParseError",
+    "CitationCffRecord",
     "read_citation_cff",
 ]
 
@@ -102,9 +104,36 @@ class CitationCffParseError(CitationCffError):
     """
 
 
+@dataclass(frozen=True, kw_only=True)
+class CitationCffRecord:
+    """A citation read from a CITATION.cff file, with the record it came
+    from.
+
+    A CFF file holds up to two records — the top level, which describes the
+    repository, and a ``preferred-citation``, which by construction describes
+    some *other* work the repository asks to be cited instead. The composed
+    `~documenteer.citations.Citation` looks the same either way, so a caller
+    that cares which work it is holding cannot tell from the citation alone.
+    Reporting it here is what saves such a caller from parsing the file a
+    second time to find out.
+    """
+
+    citation: Citation
+    """The citation the record describes."""
+
+    cited_preferred: bool
+    """Whether the record read was the file's ``preferred-citation``.
+
+    `False` covers both fallbacks to the top-level record: a file that
+    declares no preferred citation, and a caller that asked for the top level
+    with ``use_preferred_citation=False``. Either way the citation describes
+    the repository itself.
+    """
+
+
 def read_citation_cff(
     path: Path, *, use_preferred_citation: bool = True
-) -> Citation:
+) -> CitationCffRecord:
     """Read a CITATION.cff file as a citation.
 
     Parameters
@@ -120,8 +149,9 @@ def read_citation_cff(
 
     Returns
     -------
-    `~documenteer.citations.Citation`
-        The citation the file describes.
+    CitationCffRecord
+        The citation the file describes, together with which of the file's
+        two records supplied it.
 
     Raises
     ------
@@ -226,7 +256,7 @@ def read_citation_cff(
     )
     published = _date(source, path=path)
     try:
-        return Citation(
+        citation = Citation(
             title=title,
             type=_citation_type(source, is_top_level=is_top_level),
             doi=_doi(source),
@@ -249,6 +279,9 @@ def read_citation_cff(
         # value and its field but not the file it came from. The path is what
         # a reader needs to fix it.
         raise CitationCffParseError(f"{path} is not citable: {e}") from e
+    return CitationCffRecord(
+        citation=citation, cited_preferred=not is_top_level
+    )
 
 
 def _author(entry: Any, *, path: Path) -> CitationAuthor:

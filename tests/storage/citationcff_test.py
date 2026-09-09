@@ -44,7 +44,7 @@ def test_minimal_file() -> None:
     """A CFF file with only top-level fields composes a citation from
     them.
     """
-    citation = read_citation_cff(DATA_DIR / "minimal.cff")
+    citation = read_citation_cff(DATA_DIR / "minimal.cff").citation
 
     assert citation.title == "Documenteer"
     assert citation.type is CitationType.software
@@ -67,7 +67,7 @@ def test_preferred_citation_wins() -> None:
     this repository" behavior, and its entity author and identifiers-array
     DOI both resolve.
     """
-    citation = read_citation_cff(DATA_DIR / "preferred-citation.cff")
+    citation = read_citation_cff(DATA_DIR / "preferred-citation.cff").citation
 
     assert citation.title == "The LSST DM Technical Note Publishing Platform"
     # The preferred citation's own type, not the software type the repository
@@ -88,6 +88,37 @@ def test_preferred_citation_wins() -> None:
     )
 
 
+def test_the_preferred_citation_is_reported_as_the_record_read() -> None:
+    """Reading a file that declares a preferred-citation says so, since the
+    record read decides what the citation is *of*.
+
+    A preferred citation is by construction a work other than the repository,
+    so a caller that treats the citation as the repository's own — a site
+    claiming to be its DOI's landing page, say — has to be able to tell the
+    two records apart without parsing the file a second time.
+    """
+    record = read_citation_cff(DATA_DIR / "preferred-citation.cff")
+
+    assert record.cited_preferred is True
+
+
+def test_the_top_level_record_is_reported_as_not_preferred() -> None:
+    """Both roads to the top-level record report it as the record read: a
+    file that declares no preferred citation, and a caller that asked past
+    the one it declares.
+
+    The top level describes the repository itself, so a caller may treat
+    either as the repository's own citation.
+    """
+    fallback = read_citation_cff(DATA_DIR / "minimal.cff")
+    asked_for = read_citation_cff(
+        DATA_DIR / "preferred-citation.cff", use_preferred_citation=False
+    )
+
+    assert fallback.cited_preferred is False
+    assert asked_for.cited_preferred is False
+
+
 def test_top_level_record_ignores_preferred_citation() -> None:
     """Asked for the file's own record, the reader returns the top-level
     software the repository is and never looks at preferred-citation.
@@ -99,7 +130,7 @@ def test_top_level_record_ignores_preferred_citation() -> None:
     """
     citation = read_citation_cff(
         DATA_DIR / "software-record.cff", use_preferred_citation=False
-    )
+    ).citation
 
     assert citation.title == "daf_butler"
     assert citation.type is CitationType.software
@@ -120,7 +151,7 @@ def test_repository_code_stands_in_for_a_landing_page() -> None:
     """
     citation = read_citation_cff(
         DATA_DIR / "software-record.cff", use_preferred_citation=False
-    )
+    ).citation
 
     assert citation.url == "https://github.com/lsst/daf_butler"
 
@@ -139,7 +170,7 @@ def test_landing_page_beats_repository_code(tmp_path: Path) -> None:
         "repository-code: https://github.com/lsst/package\n"
     )
 
-    assert read_citation_cff(path).url == "https://package.lsst.io/"
+    assert read_citation_cff(path).citation.url == "https://package.lsst.io/"
 
 
 @pytest.mark.parametrize(
@@ -172,7 +203,7 @@ def test_type_is_mapped(
         "doi: 10.71929/rubin/2570308\n"
     )
 
-    assert read_citation_cff(path).type is expected
+    assert read_citation_cff(path).citation.type is expected
 
 
 def test_top_level_type_defaults_to_software(tmp_path: Path) -> None:
@@ -196,7 +227,7 @@ def test_top_level_type_defaults_to_software(tmp_path: Path) -> None:
         "  doi: 10.1117/12.2629569\n"
     )
 
-    citation = read_citation_cff(path, use_preferred_citation=False)
+    citation = read_citation_cff(path, use_preferred_citation=False).citation
 
     assert citation.type is CitationType.software
 
@@ -213,7 +244,7 @@ def test_untyped_file_with_no_preference_is_software(tmp_path: Path) -> None:
         "repository-code: https://github.com/lsst/package\n"
     )
 
-    assert read_citation_cff(path).type is CitationType.software
+    assert read_citation_cff(path).citation.type is CitationType.software
 
 
 def test_untyped_preferred_citation_stays_untyped(tmp_path: Path) -> None:
@@ -233,7 +264,7 @@ def test_untyped_preferred_citation_stays_untyped(tmp_path: Path) -> None:
         "  doi: 10.1117/12.2629569\n"
     )
 
-    assert read_citation_cff(path).type is None
+    assert read_citation_cff(path).citation.type is None
 
 
 def test_doi_url_is_normalized(tmp_path: Path) -> None:
@@ -246,7 +277,7 @@ def test_doi_url_is_normalized(tmp_path: Path) -> None:
         "doi: https://doi.org/10.71929/rubin/2570308\n"
     )
 
-    assert read_citation_cff(path).doi == "10.71929/rubin/2570308"
+    assert read_citation_cff(path).citation.doi == "10.71929/rubin/2570308"
 
 
 def test_publisher_preferred_over_institution(tmp_path: Path) -> None:
@@ -267,7 +298,7 @@ def test_publisher_preferred_over_institution(tmp_path: Path) -> None:
         "    name: An Institution\n"
     )
 
-    assert read_citation_cff(path).publisher == "A Publisher"
+    assert read_citation_cff(path).citation.publisher == "A Publisher"
 
 
 def test_year_and_month_stay_a_month(tmp_path: Path) -> None:
@@ -286,7 +317,7 @@ def test_year_and_month_stay_a_month(tmp_path: Path) -> None:
         "  month: 6\n"
     )
 
-    assert read_citation_cff(path).date == PartialDate(2024, 6)
+    assert read_citation_cff(path).citation.date == PartialDate(2024, 6)
 
 
 def test_name_particle_joins_the_family_name(tmp_path: Path) -> None:
@@ -304,7 +335,7 @@ def test_name_particle_joins_the_family_name(tmp_path: Path) -> None:
         "    given-names: Pieter\n"
     )
 
-    citation = read_citation_cff(path)
+    citation = read_citation_cff(path).citation
     assert citation.authors[0].citation_name == "van Dokkum, Pieter"
 
 
@@ -371,7 +402,10 @@ def test_blank_url_falls_back_to_repository_code(tmp_path: Path) -> None:
         "repository-code: https://github.com/lsst/package\n"
     )
 
-    assert read_citation_cff(path).url == "https://github.com/lsst/package"
+    assert (
+        read_citation_cff(path).citation.url
+        == "https://github.com/lsst/package"
+    )
 
 
 def test_schemeless_url_rejected(tmp_path: Path) -> None:
@@ -427,7 +461,7 @@ def test_round_trip_with_the_technote_generator(tmp_path: Path) -> None:
     cff_path = tmp_path / "CITATION.cff"
     service.sync(cff_path)
 
-    assert read_citation_cff(cff_path) == service.citation
+    assert read_citation_cff(cff_path).citation == service.citation
 
 
 def test_author_with_no_name(tmp_path: Path) -> None:
@@ -483,7 +517,7 @@ def test_null_preferred_citation_falls_back(tmp_path: Path) -> None:
         "preferred-citation:\n"
     )
 
-    assert read_citation_cff(path).title == "A repository"
+    assert read_citation_cff(path).citation.title == "A repository"
 
 
 def test_a_bare_year_stays_a_year(tmp_path: Path) -> None:
@@ -501,7 +535,7 @@ def test_a_bare_year_stays_a_year(tmp_path: Path) -> None:
         "  year: 2022\n"
     )
 
-    assert read_citation_cff(path).date == PartialDate(2022)
+    assert read_citation_cff(path).citation.date == PartialDate(2022)
 
 
 def test_round_trip_of_a_reduced_precision_date(tmp_path: Path) -> None:
@@ -519,4 +553,4 @@ def test_round_trip_of_a_reduced_precision_date(tmp_path: Path) -> None:
     path = tmp_path / "CITATION.cff"
     service.sync(path)
 
-    assert read_citation_cff(path) == service.citation
+    assert read_citation_cff(path).citation == service.citation

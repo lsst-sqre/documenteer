@@ -42,7 +42,11 @@ from ..citations import (
     normalize_citation_url,
     normalize_doi,
 )
-from ..storage.citationcff import CitationCffError, read_citation_cff
+from ..storage.citationcff import (
+    CitationCffError,
+    CitationCffRecord,
+    read_citation_cff,
+)
 from ..storage.intersphinxcacheclient import (
     DEFAULT_BASE_URL as INTERSPHINX_CACHE_DEFAULT_BASE_URL,
 )
@@ -1459,7 +1463,33 @@ class DocumenteerConfig:
         `ProjectModel.preferred_citation`), which the entry cannot decide on
         its own because the ``self`` entry inherits it by default.
         """
-        source = self._read_citation_cff(entry, index) if entry.cff else None
+        record = self._read_citation_cff(entry, index) if entry.cff else None
+        source = record.citation if record else None
+        if (
+            record is not None
+            and record.cited_preferred
+            and entry.is_self
+            and "cff_preferred" not in entry.model_fields_set
+        ):
+            # A preferred-citation names the work the repository asks to be
+            # cited *instead of* itself, so its landing page is its
+            # publisher's. Left to the default, self on such an entry
+            # publishes every page of the site as that work's full text —
+            # silently, since the entry names no record and reads like a
+            # claim about the repository. An entry that writes
+            # cff_preferred = true itself has made the claim on purpose, and
+            # is left alone.
+            raise ConfigError(
+                f"The {_describe_citation(entry, index)} sets self = true "
+                f"and cites the preferred-citation of {entry.cff!r}, which "
+                "is a work other than this repository, so this site is not "
+                "its landing page. Set preferred = true instead of "
+                "self = true to ask readers to cite that work; set "
+                "cff_preferred = false to make this site the landing page "
+                "of the repository's own record; or, if this site really is "
+                "that work's landing page, write cff_preferred = true "
+                "explicitly to say so."
+            )
         title = entry.title or (source.title if source else None)
         if title is None and entry.is_self:
             # The self citation is this site, so the site's own title is the
@@ -1526,7 +1556,9 @@ class DocumenteerConfig:
             cff_preferred=entry.cff_preferred,
         )
 
-    def _read_citation_cff(self, entry: CitationModel, index: int) -> Citation:
+    def _read_citation_cff(
+        self, entry: CitationModel, index: int
+    ) -> CitationCffRecord:
         """Read the CITATION.cff file an entry names, relative to
         documenteer.toml.
 

@@ -535,6 +535,170 @@ def test_citations_cff_top_level_record(tmp_path: Path) -> None:
     )
 
 
+EXAMPLE_CITATIONS_CFF_SELF_ON_PREFERRED = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+self = true
+label = "Paper"
+"""
+
+
+def test_citations_self_on_a_cff_preferred_citation_rejected(
+    tmp_path: Path,
+) -> None:
+    """An entry that claims to be the landing page of the work its
+    CITATION.cff prefers is rejected, since that work is by construction
+    published somewhere else.
+
+    ``self`` on such an entry is the mistake that publishes every page of
+    the site as the full text of someone else's paper, and the field the
+    author wanted is ``preferred``.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_PREFERRED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SELF_ON_PREFERRED, root_dir=docs_dir
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        _ = config.citations
+
+    message = str(exc_info.value)
+    assert "label 'Paper'" in message
+    assert "self = true" in message
+    assert "preferred-citation" in message
+    # The three ways out the message has to offer.
+    assert "preferred = true" in message
+    assert "cff_preferred = false" in message
+    assert "cff_preferred = true" in message
+    # Raised as a plain ConfigError rather than through pydantic, so a
+    # sphinx-build prints the sentence above and nothing else — no
+    # validation-error tail, and no "please report this" banner.
+    assert type(exc_info.value) is ConfigError
+    assert "Syntax or validation issue" not in message
+    assert "validation error" not in message
+
+
+EXAMPLE_CITATIONS_CFF_SELF_PREFERRED_ACKNOWLEDGED = """
+
+[project]
+title = "Example Guide"
+base_url = "https://example.lsst.io/"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+self = true
+cff_preferred = true
+label = "Paper"
+"""
+
+
+def test_citations_self_on_an_acknowledged_cff_preference_accepted(
+    tmp_path: Path,
+) -> None:
+    """Writing ``cff_preferred = true`` alongside ``self`` says the record
+    was chosen on purpose, which is a claim a site is entitled to make.
+
+    A paper whose CITATION.cff and documentation site are the same
+    repository is the case: this site really is that DOI's landing page, and
+    the head metadata describes the paper.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_PREFERRED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SELF_PREFERRED_ACKNOWLEDGED, root_dir=docs_dir
+    )
+
+    self_citation = config.self_citation
+    assert self_citation is not None
+    assert self_citation.citation.title == "An Example Paper"
+    assert self_citation.citation.doi == "10.1117/12.2629569"
+
+    html_context: dict[str, Any] = {}
+    config.set_citations(html_context)
+    assert html_context["documenteer_self_citation_metatags"].splitlines() == [
+        '<meta name="citation_title" content="An Example Paper">',
+        '<meta name="citation_author" content="Sick, Jonathan">',
+        '<meta name="citation_publication_date" content="2022">',
+        '<meta name="citation_doi" content="10.1117/12.2629569">',
+        '<meta name="citation_fulltext_html_url" '
+        'content="https://example.lsst.io/">',
+        '<meta name="DC.identifier" '
+        'content="https://doi.org/10.1117/12.2629569">',
+    ]
+
+
+EXAMPLE_CITATIONS_CFF_SELF_TOP_LEVEL = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+self = true
+cff_preferred = false
+label = "Software"
+"""
+
+
+def test_citations_self_on_a_cff_top_level_record_accepted(
+    tmp_path: Path,
+) -> None:
+    """``cff_preferred = false`` reads the record that describes the
+    repository, which is a work this site may well be the landing page of.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_PREFERRED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_SELF_TOP_LEVEL, root_dir=docs_dir
+    )
+
+    self_citation = config.self_citation
+    assert self_citation is not None
+    assert self_citation.citation.title == "Example Software"
+    assert self_citation.citation.doi == "10.5281/zenodo.10385500"
+
+
+EXAMPLE_CITATIONS_CFF_PREFERRED_ENTRY = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+preferred = true
+label = "Paper"
+"""
+
+
+def test_citations_preferred_on_a_cff_preferred_citation_accepted(
+    tmp_path: Path,
+) -> None:
+    """The documented pattern — ask readers to cite the paper the file
+    prefers, and claim nothing about where its DOI resolves — is untouched
+    by the rule ``self`` is held to.
+    """
+    (tmp_path / "CITATION.cff").write_text(CITATION_CFF_PREFERRED)
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_PREFERRED_ENTRY, root_dir=docs_dir
+    )
+
+    (entry,) = config.citations
+    assert entry.is_preferred is True
+    assert entry.is_self is False
+    assert entry.citation.title == "An Example Paper"
+    assert config.self_citation is None
+
+
 EXAMPLE_CITATIONS_CFF_PREFERRED_WITHOUT_CFF = """
 
 [project]
@@ -1634,6 +1798,14 @@ title = "Example Guide"
 [[project.citations]]
 cff = "../CITATION.cff"
 self = true
+cff_preferred = true
+"""
+"""A site that is the landing page of the work its CITATION.cff prefers.
+
+``cff_preferred = true`` is written out because ``self`` on a preferred
+citation is otherwise rejected, and the record has to be the preferred one
+here: only a reference carries the reduced-precision ``year`` and ``month``
+this exercises, where CFF's top level requires a full ``date-released``.
 """
 
 

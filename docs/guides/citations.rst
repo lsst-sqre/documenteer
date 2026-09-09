@@ -71,6 +71,7 @@ That paper's landing page is its publisher's, so the site marks it ``preferred``
    note = "Cite this paper in publications that use the package."
 
 The site then displays that citation everywhere it displays one, while no page of it claims to be the paper's landing page.
+Setting :ref:`self <guide-project-citations-self>` on that entry instead is an error the build reports, since it would publish every page of the site as the paper's full text — a claim only the paper's publisher can make.
 
 Such a repository is often worth citing twice — the paper for the work, and the package for the code that was run.
 A second entry against the same file, with :ref:`cff_preferred = false <guide-project-citations-cff-preferred>`, reads the file's top-level record rather than its preferred citation:

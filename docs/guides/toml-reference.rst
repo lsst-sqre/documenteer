@@ -218,6 +218,10 @@ It is what makes every page of the site describe the work in its Highwire and Du
 Set it only when doi.org really does send a reader here.
 A work published somewhere else — a journal article, a Zenodo record, a dataset in another archive — has that publisher's landing page, and marking it ``self`` tells a harvester this site is something it is not.
 
+An entry that reads the ``preferred-citation`` of a :ref:`cff <guide-project-citations-cff>` file is that case by construction, and the build rejects it: such a record names the work the repository asks to be cited *instead of* itself, published elsewhere.
+Set :ref:`preferred = true <guide-project-citations-preferred>` in place of ``self`` to ask readers to cite that work, or :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` to make this site the landing page of the repository's own record.
+A site that really is the preferred citation's landing page says so by writing ``cff_preferred = true`` explicitly alongside ``self``, which the build accepts.
+
 ``self`` and :ref:`page <guide-project-citations-page>` are mutually exclusive, and an entry that sets both fails the build.
 Both name where the DOI resolves: the ``self`` entry's landing page is the site itself, while ``page`` names a landing page inside the site, so setting both declares two landing pages for one work.
 
@@ -482,8 +486,14 @@ Since :file:`documenteer.toml` sits beside :file:`conf.py` in the documentation 
 A repository that already maintains a :file:`CITATION.cff` for GitHub's "Cite this repository" button has written the bibliographic record down once; pointing at it keeps :file:`documenteer.toml` from restating it.
 When the file declares a ``preferred-citation``, that is the citation Documenteer reads, exactly as GitHub renders it — unless the entry sets :ref:`cff_preferred = false <guide-project-citations-cff-preferred>`, which reads the file's top-level record instead.
 
-A ``preferred-citation`` is by construction a work *other* than the repository — the paper to cite instead of the software — so its landing page belongs to whoever published it, and :ref:`self <guide-project-citations-self>` is the wrong field for such an entry.
-Mark it :ref:`preferred <guide-project-citations-preferred>`, as above: the site asks readers to cite the paper without claiming to be the paper's landing page.
+A ``preferred-citation`` is by construction a work *other* than the repository — the paper to cite instead of the software — so its landing page belongs to whoever published it.
+An entry that reads one and sets :ref:`self <guide-project-citations-self>` fails the build, since ``self`` would publish every page of this site as that work's full text.
+Three fixes are available, and which is right depends on what the entry meant:
+
+- Set :ref:`preferred = true <guide-project-citations-preferred>` instead of ``self``, as above: the site asks readers to cite the paper without claiming to be the paper's landing page.
+- Set :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` to cite the file's top-level record instead — the repository itself, which is a work this site can be the landing page of.
+- Write ``cff_preferred = true`` explicitly alongside ``self`` if this site really is the preferred citation's landing page, as it is for a paper whose :file:`CITATION.cff` and documentation site are one repository.
+  Naming the record on purpose is the acknowledgement, and the build accepts it.
 
 The file's own ``type`` supplies the entry's :ref:`type <guide-project-citations-type>`, so a repository that describes itself as ``type: software``, or whose preferred citation is an ``article`` or a ``report``, is typed without restating it.
 A CFF type that Documenteer has no counterpart for leaves the entry untyped.
