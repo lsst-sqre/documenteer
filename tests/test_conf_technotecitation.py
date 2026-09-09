@@ -107,6 +107,7 @@ def test_bibtex_is_a_techreport_entry() -> None:
         "    author = {Sick, Jonathan and Lovelace, Ada},\n"
         "    title = {{The Technote Title}},\n"
         "    year = {2025},\n"
+        "    month = {June},\n"
         "    institution = {Vera C. Rubin Observatory},\n"
         "    number = {SQR-000},\n"
         "    doi = {10.71929/rubin/2570545},\n"
@@ -237,7 +238,7 @@ def test_a_technote_outside_a_series_keeps_the_composed_key() -> None:
     citation = make_citation(technote_id=None)
 
     assert citation.bibtex is not None
-    assert citation.bibtex.startswith("@techreport{sick2025the,\n")
+    assert citation.bibtex.startswith("@techreport{sick2025technote,\n")
 
 
 def test_the_bibtex_key_does_not_move_with_the_technote() -> None:
