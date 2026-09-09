@@ -9,10 +9,11 @@ alongside a schema.org JSON-LD block describing it and the works it cites.
 Everything comes from the ``html_context`` the guide preset populates from
 ``[[project.citations]]``; nothing here composes a citation itself.
 
-These tests build the full user-guide stack twice — once for a site that
-declares citations and once for one that declares none — because the emitted
-head is the only place the coupling between the configuration and the template
-can be observed.
+These tests build the full user-guide stack four times — for a site that
+declares citations, one that declares none, one whose preferred citation is
+kept out of the footer, and one that displays its citation nowhere at all —
+because the emitted head is the only place the coupling between the
+configuration and the template can be observed.
 """
 
 from __future__ import annotations
@@ -37,6 +38,13 @@ PAPER_DOI = "10.5281/zenodo.10385501"
 # Must match project.base_url in that same file. Pydantic's HttpUrl gives the
 # bare origin a trailing slash.
 SITE_URL = "https://example.lsst.io/"
+
+# The lone [[project.citations]] entry of tests/roots/test-guide-cardonly,
+# which the site prefers, keeps out of the footer, and shows on one card. It
+# has no DOI, so its landing page is what identifies it.
+CARDONLY_URL = "https://github.com/lsst-sqre/documenteer"
+# The lone entry of tests/roots/test-guide-undisplayed, which no surface shows.
+UNDISPLAYED_DOI = "10.5281/zenodo.10385500"
 
 # The citation JSON-LD block's own selector. The head carries a second
 # application/ld+json block -- documenteer.ext.lastmodified's per-page WebPage
@@ -206,3 +214,64 @@ def test_guide_without_citations_emits_nothing(app: SphinxTestApp) -> None:
     assert not doc.cssselect('head meta[name="DC.identifier"]')
     assert not doc.cssselect(f"head script{CITATION_JSONLD}")
     assert "documenteer_citations" not in app.config.html_context
+
+
+@pytest.mark.sphinx(
+    "html", testroot="guide-cardonly", srcdir="guide-head-cardonly"
+)
+def test_head_describes_a_preferred_citation_kept_out_of_the_footer(
+    app: SphinxTestApp,
+) -> None:
+    """A site whose only entry is the preferred citation, written
+    ``in_footer = false``, still publishes the site-wide block, with that entry
+    described in full.
+
+    ``in_footer`` chooses whether a visual surface repeats the citation, which
+    an API-heavy guide declines under several hundred pages of API reference.
+    The preferred citation is by definition the one the site asks readers to
+    use, which is what schema.org ``citation`` states, so silencing the block
+    must not take the metadata with it.
+    """
+    doc = _build(app)
+
+    (script,) = doc.cssselect(f"head script{CITATION_JSONLD}")
+    payload = json.loads(script.text_content())
+
+    # The site marks no entry ``self``, so it is its own subject and claims no
+    # DOI, exactly as it does with an entry the footer does show.
+    assert payload["@type"] == "WebSite"
+    assert payload["name"] == "Card Only Guide"
+    assert payload["url"] == SITE_URL
+    assert "@id" not in payload
+
+    (software,) = payload["citation"]
+    assert software["@type"] == "SoftwareSourceCode"
+    assert software["@id"] == CARDONLY_URL
+    assert software["name"] == "Card Only Guide"
+    assert software["creator"] == [
+        {"@type": "Organization", "name": "Vera C. Rubin Observatory"}
+    ]
+    assert software["datePublished"] == "2025-06-30"
+
+    # Nothing claims to be a DOI's landing page, so no meta tags are emitted.
+    assert not _meta(doc)
+
+
+@pytest.mark.sphinx(
+    "html", testroot="guide-undisplayed", srcdir="guide-head-undisplayed"
+)
+def test_head_omits_a_citation_no_surface_shows(app: SphinxTestApp) -> None:
+    """A site that declares a citation and neither prefers it, claims it, nor
+    shows it emits no JSON-LD block at all.
+
+    An entry no page of the site presents is not something every page of it
+    should carry the whole record of, and a block describing only the site
+    says nothing a page's own metadata does not.
+    """
+    doc = _build(app)
+
+    assert not doc.cssselect(f"head script{CITATION_JSONLD}")
+    assert not _meta(doc)
+    assert UNDISPLAYED_DOI not in (app.outdir / "index.html").read_text(
+        encoding="utf-8"
+    )

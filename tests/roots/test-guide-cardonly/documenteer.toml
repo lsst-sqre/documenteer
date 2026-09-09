@@ -1,0 +1,24 @@
+# The full user-guide stack for an API-heavy site: the shape a package guide
+# with hundreds of generated API pages takes. The site names one preferred
+# citation and writes in_footer = false on it, so that a "How to cite" block
+# does not repeat under every API stub, and shows it once as a card on the
+# home page instead. Nothing is marked self = true and no entry claims a
+# page, so that card is the site's only visible citation surface -- which is
+# what pins that the site-wide metadata describes the preferred citation
+# anyway, and that the copy script reaches the one page that has a button.
+[project]
+title = "Card Only Guide"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+url = "https://github.com/lsst-sqre/documenteer"
+label = "Software"
+type = "software"
+preferred = true
+in_footer = false
+note = "Cite the package this guide documents."
+title = "Card Only Guide"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]

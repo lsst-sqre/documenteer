@@ -11,10 +11,10 @@ set — the ``self`` entry by default, and the others opt in — in the order th
 entries are declared. Everything it renders comes from the ``html_context``
 the guide preset publishes; the template composes nothing itself.
 
-These tests build the full user-guide stack twice, once for a site that
-declares citations and once for one that declares none, because the rendered
-footer is the only place the coupling between the configuration and the
-template can be observed.
+These tests build the full user-guide stack three times — for a site that
+shows citations, one that declares none, and one that declares a citation and
+writes ``in_footer = false`` on it — because the rendered footer is the only
+place the coupling between the configuration and the template can be observed.
 """
 
 from __future__ import annotations
@@ -46,10 +46,6 @@ BIBTEX = ".rubin-footer__citation-bibtex"
 BIBTEX_ENTRY = ".rubin-footer__citation-bibtex-entry"
 COPY = ".rubin-footer__citation-copy"
 COPY_STATUS = ".rubin-footer__citation-copy-status"
-
-# The script that wires up every copy button, shipped through html_js_files
-# only by a site that declares citations.
-COPY_SCRIPT = "rubin-citation-copy.js"
 
 # The BibTeX entry documenteer.citations composes for the first
 # [[project.citations]] entry of tests/roots/test-guide/documenteer.toml.
@@ -261,32 +257,24 @@ def test_footer_bibtex_escapes_its_markup(app: SphinxTestApp) -> None:
     assert r"Smoke Test Images \& Catalogs" not in raw
 
 
-@pytest.mark.sphinx("html", testroot="guide", srcdir="guide-footer-citations")
-def test_guide_with_citations_ships_the_copy_script(
-    app: SphinxTestApp,
-) -> None:
-    """The copy script is shipped and referenced on every page, so the buttons
-    on the card and in the footer both work wherever they appear.
-    """
-    doc = _build(app, page="hidden.html")
-
-    assert (app.outdir / "_static" / COPY_SCRIPT).is_file()
-    # Sphinx appends a cache-busting ?v= query to the src, so match the path.
-    scripts = [script.get("src") or "" for script in doc.cssselect("script")]
-    assert any(f"_static/{COPY_SCRIPT}" in src for src in scripts)
-
-
 @pytest.mark.sphinx(
-    "html", testroot="guide-nocitations", srcdir="guide-footer-nocitations"
+    "html", testroot="guide-cardonly", srcdir="guide-footer-cardonly"
 )
-def test_guide_without_citations_ships_no_copy_script(
+def test_guide_that_opts_its_only_citation_out_renders_no_block(
     app: SphinxTestApp,
 ) -> None:
-    """A guide with no citations has nothing to copy, so it neither ships the
-    script nor references it.
+    """A site that writes ``in_footer = false`` on its only entry shows no
+    footer citations, even though that entry is the one it asks readers to
+    use.
+
+    This is the surface an API-heavy guide silences: the citation is still
+    shown by the card on its home page, and still described in the site-wide
+    metadata every page carries, but the footer no longer repeats it under
+    each page of API reference.
     """
     doc = _build(app)
 
-    assert not (app.outdir / "_static" / COPY_SCRIPT).exists()
-    scripts = [script.get("src") or "" for script in doc.cssselect("script")]
-    assert not any(COPY_SCRIPT in src for src in scripts)
+    (footer,) = doc.cssselect(FOOTER)
+    assert not footer.cssselect(".rubin-footer__citations")
+    assert not footer.cssselect(CITATION)
+    assert not footer.cssselect(RULE)

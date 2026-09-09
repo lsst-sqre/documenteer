@@ -110,7 +110,8 @@ The other entries reach that block as *relations* of the site rather than as rec
 - An entry that names a :ref:`page <guide-project-citations-page>` inside the site is a **part** of the site's work.
   The site-wide block names it in ``hasPart`` by reference alone, and its full record moves to the page it claims.
 - An entry with no page is a work the site **cites**.
-  It appears in the site-wide block in full when :ref:`in_footer <guide-project-citations-in-footer>` is true, and not at all when it is false.
+  The :ref:`preferred <guide-project-citations-preferred>` entry appears in the site-wide block in full whether or not the footer shows it, since it is the citation the site asks readers to use.
+  Any other appears there in full when :ref:`in_footer <guide-project-citations-in-footer>` is true, and not at all when it is false.
 
 A site that declares no citations emits none of it.
 See :ref:`guide-citation-metadata` for the whole picture.

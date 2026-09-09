@@ -1312,6 +1312,83 @@ def test_landing_page_jsonld_without_a_selected_citation() -> None:
     )
 
 
+def _preferred_citation_context(**overrides: object) -> dict[str, object]:
+    """Build the html_context mapping of a site's preferred citation, kept out
+    of the footer.
+
+    This is the shape an API-heavy guide adopts: the site names one work to
+    cite and declines to repeat a "How to cite" block under every autodoc
+    stub, so the entry is preferred and ``in_footer`` is false.
+    """
+    context = GuideCitation(
+        citation=software_citation(),
+        label="Software",
+        is_preferred=True,
+    ).to_html_context()
+    context.update(overrides)
+    return context
+
+
+def test_landing_page_jsonld_describes_the_preferred_citation() -> None:
+    """The preferred citation reaches the site-wide block in full even when
+    the footer does not show it.
+
+    It is by definition the citation the site asks readers to use, which is
+    what schema.org ``citation`` on the site's own node states; ``in_footer``
+    governs a visual surface, and silencing that surface must not take the
+    machine-readable metadata with it.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [_preferred_citation_context()],
+            site_url=SITE_URL,
+            site_title="Butler Guide",
+        )
+        or ""
+    )
+
+    assert payload["@type"] == "WebSite"
+    assert payload["name"] == "Butler Guide"
+    (software,) = payload["citation"]
+    assert software["@type"] == "SoftwareSourceCode"
+    assert software["@id"] == "https://github.com/lsst/daf_butler"
+    assert software["name"] == "daf_butler"
+    assert software["creator"] == [
+        {"@type": "Organization", "name": "Vera C. Rubin Observatory"}
+    ]
+
+
+def test_landing_page_jsonld_omits_an_undisplayed_extra_citation() -> None:
+    """An entry that is neither the preferred citation nor shown in the footer
+    stays out of the site-wide block, even beside a preferred entry that the
+    footer does not show either.
+
+    The rule the preferred entry answers is its own: an *additional* work no
+    page of the site presents is still not something every page carries the
+    whole record of.
+    """
+    payload = json.loads(
+        compose_landing_page_jsonld(
+            [
+                _preferred_citation_context(),
+                GuideCitation(
+                    citation=Citation(
+                        doi="10.5281/zenodo.10385500",
+                        title="Images & Catalogs",
+                    ),
+                    label="Unlisted",
+                ).to_html_context(),
+            ],
+            site_url=SITE_URL,
+        )
+        or ""
+    )
+
+    (software,) = payload["citation"]
+    assert software["name"] == "daf_butler"
+    assert "10.5281/zenodo.10385500" not in json.dumps(payload)
+
+
 def test_landing_page_jsonld_describes_the_site_without_a_self_citation() -> (
     None
 ):

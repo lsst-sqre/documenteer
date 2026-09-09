@@ -1696,7 +1696,7 @@ def compose_landing_page_jsonld(
     str or None
         The serialized JSON-LD document, or `None` when no citation belongs
         in it — a site that declares none, and one whose entries are neither
-        parts nor shown in the footer, emits no block at all.
+        parts, nor preferred, nor shown in the footer, emits no block at all.
 
     Notes
     -----
@@ -1711,15 +1711,26 @@ def compose_landing_page_jsonld(
       it is named in ``hasPart`` by reference alone (see
       `_minimal_reference`). Its full record belongs on the page it claims,
       which `compose_page_jsonld` composes.
-    - An entry with no page is a work the site **cites**. Only the entries
-      the site actually displays reach ``citation``, and in full: an entry
-      that appears nowhere on the page is not something a consumer of this
-      page needs the whole record of, and repeating it on all of them is
-      weight every page pays for.
+    - An entry with no page is a work the site **cites**, and reaches
+      ``citation`` in full. The site's **preferred** entry always does: it is
+      by definition the citation the site asks readers to use, which is
+      exactly what schema.org ``citation`` on the site's own node states,
+      whether or not the footer repeats it. Every *other* entry reaches
+      ``citation`` only when the footer shows it — an additional work that
+      appears nowhere on the page is not something a consumer of this page
+      needs the whole record of, and repeating it on all of them is weight
+      every page pays for.
 
-    An entry that is neither a part nor shown in the footer therefore appears
-    in no site-wide block, though a ``citation-card`` that names it still
-    renders it.
+    `GuideCitation.in_footer` therefore governs a visual surface and, for the
+    additional entries alone, whether the metadata carries them. A site that
+    writes ``in_footer = false`` on its preferred citation — the shape an
+    API-heavy guide takes, where a "How to cite" block under every autodoc
+    stub is noise — silences that surface and keeps the citation in the
+    metadata every page of it publishes.
+
+    An entry that is neither a part, nor preferred, nor shown in the footer
+    therefore appears in no site-wide block, though a ``citation-card`` that
+    names it still renders it.
 
     A site that declares citations but marks none of them ``self`` — one whose
     preferred citation is a work published elsewhere, whose landing page is
@@ -1753,7 +1764,8 @@ def compose_landing_page_jsonld(
     cited = [
         citation
         for citation in others
-        if not citation.get("page") and citation.get("in_footer")
+        if not citation.get("page")
+        and (citation.get("is_preferred") or citation.get("in_footer"))
     ]
     if self_citation is None and not parts and not cited:
         # A site with nothing to relate would publish a bare description of
