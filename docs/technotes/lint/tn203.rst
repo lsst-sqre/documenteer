@@ -1,8 +1,8 @@
-:og:description: TN203 fires when a technote's content file cannot be parsed to scan for an abstract — most commonly an index.ipynb notebook that is not valid JSON.
+:og:description: TN203 fires when Sphinx cannot read a technote's document, so the rules about what the technote publishes have nothing to read.
 
-##############################
-content-file-parseable (TN203)
-##############################
+#########################
+document-readable (TN203)
+#########################
 
 .. list-table::
    :header-rows: 1
@@ -12,8 +12,10 @@ content-file-parseable (TN203)
    * - Content
      - Error
 
-The content file must be parseable so the abstract rules can scan it.
-In practice this rule is about :file:`index.ipynb` notebooks: a notebook is a JSON document, and one that is not valid JSON — from a botched merge conflict resolution, a truncated save, or hand editing — cannot be read by the linter (or, for that matter, by Jupyter or the Sphinx build).
+Sphinx must be able to read the technote's document.
+The rules about what a technote *publishes* — its abstract, and the title it is cited by — get their answer by building the technote (:ref:`technote-lint-sphinx-read`), so a document that does not read leaves them with nothing to report on, and this rule reports the read failure instead, carrying Sphinx's own message.
+
+The common causes are an :file:`index.ipynb` notebook that is not valid JSON (from a botched merge conflict resolution, a truncated save, or hand editing), a :file:`conf.py` that raises, and a technote directory that has a :file:`conf.py` but no :file:`index` file for Sphinx to build.
 
 Example of a failing technote
 =============================
@@ -30,7 +32,7 @@ A merge conflict left markers in the notebook file, so it is no longer valid JSO
 
 .. code-block:: text
 
-   [TN203] index.ipynb could not be parsed as a notebook (invalid JSON): Expecting value: line 3 column 1 (char 15)
+   [TN203] index.ipynb could not be read by Sphinx: Notebook does not appear to be JSON: '{\n "cells": [\n<<<<<<< HEAD...
 
 How to fix it
 =============
@@ -43,4 +45,5 @@ Repair the file so it is valid JSON again:
 See also
 ========
 
-- :doc:`TN201 <tn201>` — the file parses but declares no abstract.
+- :doc:`TN201 <tn201>` — the document reads but declares no abstract.
+- :doc:`TN006 <tn006>` — the technote has no content file at all, which is reported instead of this rule.

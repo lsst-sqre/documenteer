@@ -93,6 +93,7 @@ __all__ = [
     "html_context",
     "html_theme_options",
     "documenteer_last_modified_enabled",
+    "documenteer_citation_defaults_declared",
     "git_last_updated_metatags",
     "html_sidebars",
     "html_title",
@@ -193,6 +194,9 @@ extensions = [
     "documenteer.ext.linkcheckservice",
     "documenteer.ext.intersphinxcache",
     "documenteer.ext.autotypes",
+    "documenteer.ext.citationcard",
+    "documenteer.ext.citationdate",
+    "documenteer.ext.citationpage",
 ]
 _conf.append_extensions(extensions)
 
@@ -397,6 +401,23 @@ favicons = [
 # Configure the "Edit this page" link
 _conf.set_edit_on_github(html_theme_options, html_context)
 
+# Publish the site's citations ([[project.citations]] in documenteer.toml)
+# into html_context, resolved and composed. This is the only place a citation
+# is composed: the head metadata, the citation-card directive, and the footer
+# all read documenteer_citations / documenteer_self_citation from the
+# context. Nothing is set when the site declares no citations.
+_conf.set_citations(html_context)
+
+# Whether documenteer.toml writes a [project.citation_defaults] table, which
+# documenteer.ext.citationdate reports an undated citation against: such a
+# site dates every entry from one line, so the entry the warning would
+# otherwise name alone is the one place its author should not write the date.
+# This is not a citation and no template reads it, which is why it travels as
+# a configuration value rather than as another html_context key.
+documenteer_citation_defaults_declared = (
+    _conf.conf.project.declares_citation_defaults
+)
+
 # Specifies templates to put in the primary (left) sidebars of
 # specific pages (by their docname or pattern). An empty list results in the
 # sidebar being dropped altogether.
@@ -442,6 +463,23 @@ html_js_files: list[str] = ["rubin-footer-align.js"]
 if documenteer_last_modified_enabled:
     html_static_path.append(get_asset_path("rubin-last-modified.js"))
     html_js_files.append("rubin-last-modified.js")
+
+# Both citation surfaces -- the citation-card directive and the footer
+# citations -- offer the entry's BibTeX with a button that copies it;
+# rubin-citation-copy.js is what makes those buttons work, and removes them
+# where the clipboard API is unavailable. A site that declares no citations
+# renders neither surface, so it has no button to wire and ships no script.
+#
+# Copying the file into _static/ is the whole of what happens here: which
+# *pages* reference it is documenteer.ext.citationcard's answer, given per
+# page, because declaring a citation is not displaying one. A guide that shows
+# its citation on one card and keeps it out of the footer would otherwise load
+# a script with no button to wire on every page of its API reference. The
+# extension only references what this copies, so the two conditions have to
+# stay compatible: every page it can reference the script from is a page of a
+# site that declares citations.
+if html_context.get("documenteer_citations"):
+    html_static_path.append(get_asset_path("rubin-citation-copy.js"))
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

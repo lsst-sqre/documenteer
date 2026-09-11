@@ -5,6 +5,11 @@ from __future__ import annotations
 import requests
 from pydantic import BaseModel, Field, HttpUrl, TypeAdapter
 
+# normalize_orcid lives in documenteer.citations, which owns Documenteer's
+# identifier normalizers, and is re-exported here so that the modules reaching
+# for it alongside the author database keep importing it from this module.
+from documenteer.citations import normalize_orcid
+
 __all__ = [
     "Address",
     "Affiliation",
@@ -16,33 +21,6 @@ __all__ = [
     "InvalidOrcidError",
     "normalize_orcid",
 ]
-
-
-def normalize_orcid(value: object) -> str | None:
-    """Reduce an ORCID URL to its bare identifier.
-
-    This is a lenient *reducer*, not a validator: it strips a trailing slash,
-    keeps the last path segment, and uppercases the result. Ook owns the ORCID
-    grammar and answers ``422`` for anything it does not recognize, so
-    Documenteer deliberately does not re-implement the check here and the two
-    cannot drift.
-
-    Reducing is load-bearing rather than cosmetic. The ``technote`` package's
-    ``Person.orcid`` validator re-prefixes any value that does not literally
-    start with ``https://orcid``, so ``technote.toml`` yields forms such as
-    ``https://orcid.org/http://orcid.org/0000-0003-3001-676X``; every one of
-    them reduces to the bare identifier Ook expects. It also makes a
-    comparison of two ORCIDs insensitive to the ``http``/``https`` scheme and
-    to a trailing slash.
-
-    Returns
-    -------
-    str or None
-        The bare identifier, or `None` if ``value`` is `None`.
-    """
-    if value is None:
-        return None
-    return str(value).rstrip("/").rsplit("/", maxsplit=1)[-1].upper()
 
 
 class AuthorNotFoundError(ValueError):

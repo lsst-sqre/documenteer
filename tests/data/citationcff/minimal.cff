@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it using this metadata.
+title: Documenteer
+type: software
+authors:
+  - family-names: Sick
+    given-names: Jonathan
+    orcid: https://orcid.org/0000-0003-3001-676X
+    affiliation: Rubin Observatory Project Office
+doi: 10.5281/zenodo.10385500
+url: https://documenteer.lsst.io/
+date-released: 2026-08-24

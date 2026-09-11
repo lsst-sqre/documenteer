@@ -1,8 +1,8 @@
-:og:description: TN102 fires when an author's internal_id does not resolve in the Rubin author database, either because the ID is wrong or the database record is malformed.
+:og:description: R102 fires when an author's internal_id does not resolve in the Rubin author database, either because the ID is wrong or the database record is malformed.
 
-################################
-author-internal-id-known (TN102)
-################################
+###############################
+author-internal-id-known (R102)
+###############################
 
 .. list-table::
    :header-rows: 1
@@ -28,7 +28,7 @@ Example of a failing technote
 
 .. code-block:: text
 
-   [TN102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
+   [R102] Author Lynne Jones has internal_id 'lynnej', which is not in the author database. Did you mean 'jonesrl' (R. Lynne Jones, matched by name)?
 
 When the linter can confidently match the author in the author database — by ORCID, or by a single near-exact name match — it suggests the likely ID (see :ref:`technote-lint-suggested-ids`).
 Verify the suggestion before using it; it never changes whether the command passes.
@@ -67,6 +67,6 @@ If the finding says the author's database record is *malformed*, the fix belongs
 See also
 ========
 
-- :doc:`TN101 <tn101>` — the entry declares no ``internal_id`` at all.
-- :doc:`TN103 <tn103>` — the author database could not be reached to verify the ID.
+- :doc:`R101 <r101>` — the entry declares no ``internal_id`` at all.
+- :doc:`R103 <r103>` — the author database could not be reached to verify the ID.
 - :doc:`../author-metadata` — how technote author metadata connects to the author database.

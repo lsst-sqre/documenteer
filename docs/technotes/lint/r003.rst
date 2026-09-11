@@ -1,8 +1,8 @@
-:og:description: TN003 fires when a technote's requirements.txt pins Sphinx as a separate requirement instead of relying on the version constrained by documenteer[technote].
+:og:description: R003 fires when a technote's requirements.txt pins Sphinx as a separate requirement instead of relying on the version constrained by documenteer[technote].
 
-###########################################
-requirements-no-separate-sphinx-pin (TN003)
-###########################################
+##########################################
+requirements-no-separate-sphinx-pin (R003)
+##########################################
 
 .. list-table::
    :header-rows: 1
@@ -28,7 +28,7 @@ Example of a failing technote
 
 .. code-block:: text
 
-   [TN003] requirements.txt pins 'sphinx' separately. Remove it and rely on the Sphinx version constrained by 'documenteer[technote]' to avoid version drift.
+   [R003] requirements.txt pins 'sphinx' separately. Remove it and rely on the Sphinx version constrained by 'documenteer[technote]' to avoid version drift.
 
 How to fix it
 =============
@@ -43,4 +43,4 @@ Delete the ``sphinx`` line and let ``documenteer[technote]`` resolve the Sphinx 
 See also
 ========
 
-- :doc:`TN002 <tn002>` — :file:`requirements.txt` must declare ``documenteer[technote]``.
+- :doc:`R002 <r002>` — :file:`requirements.txt` must declare ``documenteer[technote]``.

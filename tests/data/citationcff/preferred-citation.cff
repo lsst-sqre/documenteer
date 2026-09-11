@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: If you use this technote, please cite it using the metadata from this file.
+title: sqr-000
+type: software
+authors:
+  - family-names: Sick
+    given-names: Jonathan
+repository-code: https://github.com/lsst-sqre/sqr-000
+url: https://sqr-000.lsst.io/
+preferred-citation:
+  type: report
+  title: The LSST DM Technical Note Publishing Platform
+  authors:
+    - name: Vera C. Rubin Observatory
+    - family-names: Sick
+      given-names: Jonathan
+      orcid: https://orcid.org/0000-0003-3001-676X
+  institution:
+    name: Vera C. Rubin Observatory
+  number: SQR-000
+  identifiers:
+    - type: url
+      value: https://sqr-000.lsst.io/
+    - type: doi
+      value: 10.71929/rubin/2570308
+  url: https://sqr-000.lsst.io/
+  date-released: 2026-08-24

@@ -566,6 +566,7 @@ dev = [
     { name = "coverage" },
     { name = "cssselect" },
     { name = "defusedxml" },
+    { name = "jsonschema" },
     { name = "lxml" },
     { name = "mypy" },
     { name = "pytest" },
@@ -596,6 +597,7 @@ test = [
     { name = "coverage" },
     { name = "cssselect" },
     { name = "defusedxml" },
+    { name = "jsonschema" },
     { name = "lxml" },
     { name = "pytest" },
     { name = "pytest-mock" },
@@ -605,6 +607,7 @@ typing = [
     { name = "coverage" },
     { name = "cssselect" },
     { name = "defusedxml" },
+    { name = "jsonschema" },
     { name = "lxml" },
     { name = "mypy" },
     { name = "pytest" },
@@ -631,7 +634,7 @@ requires-dist = [
     { name = "packaging" },
     { name = "pybtex", specifier = ">=0.25.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pydata-sphinx-theme", marker = "extra == 'guide'", specifier = ">=0.19,<0.21" },
+    { name = "pydata-sphinx-theme", marker = "extra == 'guide'", specifier = ">=0.19,<0.22" },
     { name = "pylatexenc" },
     { name = "pyyaml" },
     { name = "requests" },
@@ -655,7 +658,7 @@ requires-dist = [
     { name = "sphinxcontrib-youtube", marker = "extra == 'technote'" },
     { name = "sphinxext-opengraph", marker = "extra == 'guide'" },
     { name = "sphinxext-rediraffe", marker = "extra == 'guide'" },
-    { name = "technote", marker = "extra == 'technote'", specifier = ">=0.9.1,<0.10.0" },
+    { name = "technote", marker = "extra == 'technote'", specifier = ">=0.11.0,<0.12.0" },
     { name = "tomlkit" },
     { name = "urllib3" },
 ]
@@ -666,6 +669,7 @@ dev = [
     { name = "coverage", extras = ["toml"] },
     { name = "cssselect" },
     { name = "defusedxml" },
+    { name = "jsonschema", specifier = ">=4" },
     { name = "lxml" },
     { name = "mypy" },
     { name = "pytest" },
@@ -696,6 +700,7 @@ test = [
     { name = "coverage", extras = ["toml"] },
     { name = "cssselect" },
     { name = "defusedxml" },
+    { name = "jsonschema", specifier = ">=4" },
     { name = "lxml" },
     { name = "pytest" },
     { name = "pytest-mock" },
@@ -705,6 +710,7 @@ typing = [
     { name = "coverage", extras = ["toml"] },
     { name = "cssselect" },
     { name = "defusedxml" },
+    { name = "jsonschema", specifier = ">=4" },
     { name = "lxml" },
     { name = "mypy" },
     { name = "pytest" },
@@ -2600,7 +2606,7 @@ wheels = [
 
 [[package]]
 name = "technote"
-version = "0.9.1"
+version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accessible-pygments" },
@@ -2613,9 +2619,9 @@ dependencies = [
     { name = "sphinx" },
     { name = "sphinx-basic-ng" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/e3/8b1dca2c0c15a1b87b384fb7476da3eb529763e5cd5b7ed22c2b8999cd46/technote-0.9.1.tar.gz", hash = "sha256:883eaef35a03b8c04df046d4fba3c0247b9636cc8c7971bb15fbd840b527deb7", size = 564838, upload-time = "2025-07-25T16:40:13.564Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/07/37f2fc20bd9c54ccfa700fdee445af69636386bdbc0d9d9e760238035774/technote-0.11.0.tar.gz", hash = "sha256:fea8ff20e4a870df2048f2164ba82f617e7972d4aa2bd586b413ca713790bc38", size = 582508, upload-time = "2026-09-04T16:49:26.202Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/37/ebda052744ebfe1b3db38647a299283ec4ec710041ebdd05d76dd74614d2/technote-0.9.1-py3-none-any.whl", hash = "sha256:73b89541a5e2c036fe97b474bffa17ae1d53de77ba8e033dccce111b5d860c73", size = 99399, upload-time = "2025-07-25T16:40:12.352Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/09/5ada9ff208d15dc3e34d0c2261eb20e13950253f978734a9e45e57fb0324/technote-0.11.0-py3-none-any.whl", hash = "sha256:23d9d6d40a05a313bb4c1931f91d2d294078db855db1f179d7d304a1adde6be8", size = 107366, upload-time = "2026-09-04T16:49:24.825Z" },
 ]
 
 [[package]]

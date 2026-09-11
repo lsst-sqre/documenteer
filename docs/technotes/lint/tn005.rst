@@ -13,7 +13,7 @@ technote-toml-valid-toml (TN005)
      - Error
 
 :file:`technote.toml` must be syntactically valid TOML.
-When the file cannot be parsed at all, none of its metadata is available, so the author rules (``TN1xx``) are skipped — but the requirements and content rules still run, so the report shows everything else that needs attention alongside this finding.
+When the file cannot be parsed at all, none of its metadata is available, so the author rules (``R1xx``) are skipped — but the requirements and content rules still run, so the report shows everything else that needs attention alongside this finding.
 
 Example of a failing technote
 =============================

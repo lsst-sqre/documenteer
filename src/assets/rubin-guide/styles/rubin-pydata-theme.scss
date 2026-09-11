@@ -308,6 +308,40 @@ html[data-theme='dark'] body {
   margin-inline: auto;
 }
 
+/* Footer citations: the [[project.citations]] entries with in_footer set,
+ * rendered by rubin-footer.html. They carry the same label/citation/note
+ * vocabulary as the citation-card directive (styled together at the end of
+ * this file), so only the frame around each entry is defined here: an accent
+ * edge rather than the card's full border, because the footer is already a
+ * bounded region and a stack of boxes inside it reads as clutter. */
+.rubin-footer__citations {
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.rubin-footer__citations-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.rubin-footer__citation {
+  margin-top: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--pst-color-primary);
+}
+
+/* The <hr> the template draws under the citations, closing the site's own
+ * half of the footer before the common Rubin one. A browser's default <hr> is
+ * an inset groove, so the whole box is redrawn as the same themed line the
+ * print footer draws. Its 1.5rem below matches the citations' 1.5rem
+ * above -- the two margins collapse against the rule's zero top margin -- so
+ * the rule sits centred in the gap it opens. */
+.rubin-footer__rule {
+  margin: 0 0 1.5rem;
+  border: 0;
+  border-top: 1px solid var(--pst-color-border);
+}
+
 .rubin-footer__nav {
   display: flex;
   flex-wrap: wrap;
@@ -383,4 +417,161 @@ html[data-theme='dark'] .rubin-footer__partner-logos img {
   .rubin-print-footer p {
     margin: 0.25rem 0;
   }
+}
+
+/* Citation surfaces. A site published with a DOI is that DOI's landing page,
+ * and it says so in two places: the citation-card directive
+ * (documenteer.ext.citationcard) on a page, and the citations in the site
+ * footer (rubin-footer.html). Both show the same three parts -- the entry's
+ * label, the full bibliographic citation with the DOI written as a resolvable
+ * link, and the entry's note -- so those parts are styled once here for both,
+ * and each surface supplies only its own frame. Everything is built from
+ * pydata's semantic tokens, which is what makes the light/dark switch work
+ * without a second set of rules. */
+
+/* The card's frame reuses the bordered-surface idiom of the "Help improve
+ * this page" box so the two read as one system.
+ *
+ * The directive builds the card as a docutils container, so the HTML writer
+ * stamps `docutils container` on it alongside the card's own class, and
+ * pydata-sphinx-theme resets `.docutils.container` horizontal padding and
+ * margin to `unset`. That reset outweighs a lone `.documenteer-citation-card`
+ * whatever the stylesheet order, which left the card's contents flush against
+ * the accent edge; chaining all three of the rendered card's classes (0,3,0)
+ * is what keeps the padding this rule asks for. tests/guide_stylesheet_test.py
+ * pins this rule's specificity, and tests/ext/citationcard_test.py pins that
+ * the card still carries the classes it chains. */
+.documenteer-citation-card.docutils.container {
+  margin: 1.5rem 0;
+  border: 1px solid var(--pst-color-border);
+  /* The accent edge marks the card as the page's citation rather than a
+   * generic callout; the tokens flip with the theme on their own. */
+  border-left: 4px solid var(--pst-color-primary);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-surface);
+  padding: 1rem 1.25rem;
+}
+
+/* The label names which work the citation is for ("Dataset", "Paper"), so it
+ * is set as a small caption rather than as part of the citation itself. */
+.documenteer-citation-card__label,
+.rubin-footer__citation-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pst-color-text-muted);
+}
+
+/* The citation ends in a DOI URL: one unbreakable token long enough to
+ * overflow a narrow column, an article squeezed by both sidebars, or a footer
+ * on a phone. Wrapping anywhere keeps it inside its surface instead of forcing
+ * a scrollbar. */
+.documenteer-citation-card__citation,
+.rubin-footer__citation-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.documenteer-citation-card__note,
+.rubin-footer__citation-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--pst-color-text-muted);
+}
+
+/* The footer already sets 0.875rem, so its note is distinguished by colour
+ * alone, and sits tighter under a citation than the card's does. */
+.rubin-footer__citation-note {
+  margin-top: 0.5rem;
+  font-size: inherit;
+}
+
+/* The BibTeX entry each surface offers: a collapsed <details> holding the
+ * entry and a button that copies it (rubin-citation-copy.js). The entry is
+ * copied rather than downloaded, so the <pre> is both the thing the script
+ * reads and the fallback a reader selects by hand when no script runs --
+ * which is why it is styled as a legible code block rather than hidden
+ * behind the button. Each surface names these parts under its own block
+ * class, so every rule lists the pair; the pydata tokens flip with the theme
+ * on their own. */
+.documenteer-citation-card__bibtex,
+.rubin-footer__citation-bibtex {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Only the words are the hit target, not the full width of the surface. */
+.documenteer-citation-card__bibtex-summary,
+.rubin-footer__citation-bibtex-summary {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--pst-color-text-muted);
+}
+
+.documenteer-citation-card__bibtex-summary:hover,
+.rubin-footer__citation-bibtex-summary:hover {
+  color: var(--pst-color-text-base);
+}
+
+/* The page background, not the card's surface, so the entry reads as a block
+ * set into whichever surface carries it. Its longest line outruns a footer on
+ * a phone, and a BibTeX field broken across lines is no longer the entry that
+ * was composed, so the block scrolls rather than wraps. */
+.documenteer-citation-card__bibtex-entry,
+.rubin-footer__citation-bibtex-entry {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-background);
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* The theme colours a bare <code> as inline code; inside the entry it is only
+ * there to say the text is code, and takes the block's own styling. */
+.documenteer-citation-card__bibtex-entry code,
+.rubin-footer__citation-bibtex-entry code {
+  padding: 0;
+  background-color: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.documenteer-citation-card__copy,
+.rubin-footer__citation-copy {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.25rem;
+  background-color: var(--pst-color-background);
+  color: var(--pst-color-text-base);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.documenteer-citation-card__copy:hover,
+.rubin-footer__citation-copy:hover {
+  border-color: var(--pst-color-primary);
+  color: var(--pst-color-primary);
+}
+
+/* Announced, not shown: the button's own label reports the outcome visually,
+ * and this region reports it to a screen reader that is not on the button. */
+.documenteer-citation-card__copy-status,
+.rubin-footer__citation-copy-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

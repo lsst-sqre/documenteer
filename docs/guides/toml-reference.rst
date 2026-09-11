@@ -13,6 +13,8 @@ The ``[project]`` table is where most of the project's metadata is set.
 
 |required|
 
+.. _guide-project-title:
+
 title
 -----
 
@@ -86,6 +88,669 @@ version
 |optional| |py-auto|
 
 The project's version, which is set to the standard Sphinx ``version`` and ``release`` configuration variables.
+
+.. _guide-project-citations:
+
+[[project.citations]]
+=====================
+
+|optional|
+
+Sites that are published with a DOI can declare their citations in the ``[[project.citations]]`` array of tables.
+Documenteer uses them to make the site a proper DOI landing page: it renders a full bibliographic citation with the DOI as a resolvable ``https://doi.org/`` link, and emits machine-readable citation metadata in the page ``<head>``.
+
+A declared citation is displayed in the :ref:`site footer <guide-footer-citations>` on every page, with the :ref:`citation-card <guide-citation-card>` directive, which renders it as a card wherever a page asks for one, and with the :ref:`doi role <guide-citation-doi-role>`, which links its DOI inline.
+
+That head metadata is what a DOI registration agency, Google Scholar, Zotero, and Google Dataset Search read.
+Every page describes the :ref:`self <guide-project-citations-self>` citation with the full set of `Highwire <https://scholar.google.com/intl/en/scholar/inclusion.html>`__ meta tags — ``citation_title``, a ``citation_author`` per author with its ``citation_author_institution`` and ``citation_author_orcid``, ``citation_publication_date``, ``citation_doi``, ``citation_publisher``, and ``citation_fulltext_html_url`` — plus the Dublin Core ``DC.identifier`` (the DOI as a ``https://doi.org/`` URL), together with a `schema.org <https://schema.org>`__ JSON-LD block describing the site, following `DataCite's crosswalk <https://doi.org/10.5281/zenodo.7661399>`__ from DataCite metadata to schema.org.
+Those Highwire tags are what gives a reader a one-click "Save to Zotero" with the right title, creators, date, and DOI.
+A field the entry does not state emits no tag, and a site that marks no entry ``self`` emits no meta tags at all — its JSON-LD block describes the site itself instead.
+The other entries reach that block as *relations* of the site rather than as records repeated on every page of it, and which relation follows from whether the entry claims a page:
+
+- An entry that names a :ref:`page <guide-project-citations-page>` inside the site is a **part** of the site's work.
+  The site-wide block names it in ``hasPart`` by reference alone, and its full record moves to the page it claims.
+- An entry with no page is a work the site **cites**.
+  The :ref:`preferred <guide-project-citations-preferred>` entry appears in the site-wide block in full whether or not the footer shows it, since it is the citation the site asks readers to use.
+  Any other appears there in full when :ref:`in_footer <guide-project-citations-in-footer>` is true, and not at all when it is false.
+
+A site that declares no citations emits none of it.
+See :ref:`guide-citation-metadata` for the whole picture.
+
+A site that declares citations should set :ref:`base_url <guide-project-base-url>` explicitly, because every URL in that metadata is composed from it — ``citation_fulltext_html_url``, the ``url`` of the site's JSON-LD node, and the landing URL of each entry that claims a :ref:`page <guide-project-citations-page>`.
+A site that states none falls back to whatever its :file:`pyproject.toml` names as its ``Homepage`` (see :ref:`[project.python] <guide-project-python>`), which is a field kept for a package index rather than for a DOI registration; a site with neither emits no ``citation_fulltext_html_url`` on any page and states no ``url`` on its site node.
+
+Because it is an *array* of tables, the table header is written with double brackets and repeated once per citation.
+A site can cite more than one work — the documentation itself and the dataset it describes, for example — and the order the entries are written in is the order they appear in the site footer.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/2570308"
+   label = "Dataset"
+   type = "dataset"
+   self = true
+   note = "Cite the DP2 dataset and this documentation."
+   title = "Data Preview 2"
+   publisher = "NSF-DOE Vera C. Rubin Observatory"
+   date = 2025-06-30
+   authors = [{ name = "NSF-DOE Vera C. Rubin Observatory" }]
+
+Each entry carries two kinds of field.
+The *bibliographic* fields (:ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`type <guide-project-citations-type>`, :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, :ref:`date <guide-project-citations-date>`, and :ref:`version <guide-project-citations-version>`) describe the work being cited.
+They can instead come from a :file:`CITATION.cff` file (see :ref:`cff <guide-project-citations-cff>` and :ref:`cff_preferred <guide-project-citations-cff-preferred>`), and the ones a site's works share can be stated once in :ref:`[project.citation_defaults] <guide-project-citation-defaults>` rather than on every entry.
+The *presentation* fields (:ref:`label <guide-project-citations-label>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`page <guide-project-citations-page>`, :ref:`in_footer <guide-project-citations-in-footer>`, :ref:`note <guide-project-citations-note>`, and :ref:`bibtex_key <guide-project-citations-bibtex-key>`) say how the site displays the citation, and are only ever set here.
+
+.. _guide-project-citations-doi:
+
+doi
+---
+
+|optional|
+
+The DOI of the work being cited.
+It can be written bare (``10.71929/rubin/2570308``), as a ``https://doi.org/`` URL, or with a ``doi:`` prefix; anything else fails the build.
+
+Every entry has to be locatable, so this field or :ref:`url <guide-project-citations-url>` must have a value — set here or supplied by :ref:`cff <guide-project-citations-cff>`.
+The :ref:`self <guide-project-citations-self>` entry is the exception, and needs a DOI specifically: it is the claim that this site is a DOI's landing page, which an entry with no DOI has no way to make.
+
+.. _guide-project-citations-type:
+
+type
+----
+
+|optional|
+
+The kind of work being cited, which decides both the schema.org type the site publishes it under in its JSON-LD metadata and the entry type of the BibTeX a reader copies:
+
+.. list-table::
+   :header-rows: 1
+
+   * - ``type``
+     - schema.org type
+     - BibTeX entry type
+   * - ``"dataset"``
+     - `Dataset <https://schema.org/Dataset>`__
+     - ``@dataset``
+   * - ``"article"``
+     - `ScholarlyArticle <https://schema.org/ScholarlyArticle>`__
+     - ``@article``
+   * - ``"software"``
+     - `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__
+     - ``@software``
+   * - ``"report"``
+     - `Report <https://schema.org/Report>`__
+     - ``@techreport``
+   * - ``"other"``
+     - `CreativeWork <https://schema.org/CreativeWork>`__
+     - ``@misc``
+
+Any other value fails the build.
+
+The BibTeX entry types are `biblatex <https://ctan.org/pkg/biblatex>`__'s, which is the vocabulary Zenodo and GitHub's "Cite this repository" export in.
+Classic BibTeX never defined ``@dataset`` or ``@software``, and a classic style that meets an entry type it does not know typesets it as ``@misc`` — so declaring the specific type costs a reader of such a style nothing.
+
+Set ``type = "dataset"`` on every data product the site publishes: `Dataset <https://schema.org/Dataset>`__ is the type Google Dataset Search indexes, and it is the one that makes a data release discoverable as data rather than as a page about data.
+
+A work that is none of the kinds above — an instrument or a facility, such as LSSTCam — is ``"other"``.
+It is published as a generic `CreativeWork <https://schema.org/CreativeWork>`__ and composes as ``@misc``: this field has no narrower kind to give such a work, and a broad type that is true beats a narrow one that is not.
+
+A citation that declares no type says nothing about what the work is: it composes as ``@misc``, and is published as a `WebSite <https://schema.org/WebSite>`__ if it is the :ref:`self <guide-project-citations-self>` citation and a `CreativeWork <https://schema.org/CreativeWork>`__ otherwise.
+So an untyped entry renders much as ``"other"`` does; what it loses is the statement, since ``"other"`` says the work was typed and is none of the listed kinds where an absent field says nothing at all.
+The ``self`` entry is typed like any other, so a site that is a data release's landing page declares ``type = "dataset"`` there too.
+
+If :ref:`cff <guide-project-citations-cff>` is set, the file's own ``type`` supplies this field, and setting it here overrides the file's value.
+A file's *top-level* record that declares no ``type`` is read as ``software``, which is the default CFF itself defines for that key and which most files rely on; a ``preferred-citation`` that declares none leaves the entry untyped.
+
+.. _guide-project-citations-label:
+
+label
+-----
+
+|optional|
+
+A short label for this citation, such as ``"Dataset"``, ``"Paper"``, or ``"TAP"``.
+It is the heading shown on the citation's card and in the site footer, one of the three ways the :ref:`citation-card <guide-citation-card>` directive and the :ref:`doi role <guide-citation-doi-role>` select an entry, and the name a warning about a citation uses.
+
+It is a display string, and it need not be unique.
+A label says what the reader needs to see at the spot the citation appears, so a site with a registered landing page per data product writes ``label = "TAP"`` on every one of those entries and selects each of them by :ref:`bibtex_key <guide-project-citations-bibtex-key>` or by DOI.
+Identity belongs to the key, which the build already keeps distinct across the site.
+A selector that two entries answer to emits a ``documenteer.citation_card`` warning naming both by key, and renders nothing, rather than picking one of them.
+
+It is a display string in the other sense too: what a work *is* is declared with :ref:`type <guide-project-citations-type>`.
+
+.. _guide-project-citations-self:
+
+self
+----
+
+|optional|
+
+Whether this site is the registered landing page of this DOI.
+Default is ``false``, and at most one entry can set it to ``true``.
+
+This is a claim about where the DOI *resolves*, and nothing else.
+It is what makes every page of the site describe the work in its Highwire and Dublin Core meta tags, and what makes it the subject of the site-wide JSON-LD block.
+Set it only when doi.org really does send a reader here.
+A work published somewhere else — a journal article, a Zenodo record, a dataset in another archive — has that publisher's landing page, and marking it ``self`` tells a harvester this site is something it is not.
+
+An entry that reads the ``preferred-citation`` of a :ref:`cff <guide-project-citations-cff>` file is that case by construction, and the build rejects it: such a record names the work the repository asks to be cited *instead of* itself, published elsewhere.
+Set :ref:`preferred = true <guide-project-citations-preferred>` in place of ``self`` to ask readers to cite that work, or :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` to make this site the landing page of the repository's own record.
+A site that really is the preferred citation's landing page says so by writing ``cff_preferred = true`` explicitly alongside ``self``, which the build accepts.
+
+``self`` and :ref:`page <guide-project-citations-page>` are mutually exclusive, and an entry that sets both fails the build.
+Both name where the DOI resolves: the ``self`` entry's landing page is the site itself, while ``page`` names a landing page inside the site, so setting both declares two landing pages for one work.
+
+Which citation the site asks readers to *use* is a separate question, answered by :ref:`preferred <guide-project-citations-preferred>`.
+The two coincide for a site that publishes its own DOI, so a ``self`` entry is also the preferred citation unless another entry claims that.
+
+A ``self`` entry's :ref:`in_footer <guide-project-citations-in-footer>` defaults to ``true`` on its own account, not only by way of being the preferred citation, since displaying the citation is part of being a landing page.
+A site that marks a *different* entry ``preferred`` therefore shows both in the footer, and writes ``in_footer = false`` on one if it wants only the other.
+
+The ``self`` entry is the one entry that may omit :ref:`title <guide-project-citations-title>`, since the site's own :ref:`project.title <guide-project-title>` is then the title of the work.
+
+A site that marks no entry ``self`` emits no citation meta tags on any page — not even the title and authors of the work it marks :ref:`preferred <guide-project-citations-preferred>`, since those tags say that *this* page is the work's full text — and its site-wide JSON-LD block describes the site itself — a schema.org `WebSite <https://schema.org/WebSite>`__ carrying the site's :ref:`project.title <guide-project-title>` and :ref:`project.base_url <guide-project-base-url>` and no identifier — with the declared works hanging off it.
+
+.. _guide-project-citations-preferred:
+
+preferred
+---------
+
+|optional|
+
+Whether this is the citation the site asks readers to use.
+Default is ``false``, and at most one entry can set it to ``true``.
+
+The preferred citation is the entry a :ref:`citation-card <guide-citation-card>` renders when it is given no label, and one of the two entries whose :ref:`in_footer <guide-project-citations-in-footer>` defaults to ``true`` — the other being the :ref:`self <guide-project-citations-self>` entry, which is the same entry unless this field names another.
+
+A :ref:`self <guide-project-citations-self>` entry is the preferred citation when no entry sets this field, so a site that publishes its own DOI states neither field twice.
+Set ``preferred`` when the citation to use is *not* a work this site is the landing page of:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   label = "Paper"
+   preferred = true
+   note = "Cite this paper in publications that use the package."
+
+Unlike ``self``, ``preferred`` says nothing about where a DOI resolves, so it emits no head metadata of its own.
+It is a statement about what this site asks for, which is the site's to make about any work at all.
+
+.. _guide-project-citations-page:
+
+page
+----
+
+|optional|
+
+The page inside this site that is the DOI's registered landing page, written as a Sphinx docname — the source file's path from the documentation root, without its file extension:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382539"
+   page = "products/catalogs/object"
+
+Default is unset, which means the site as a whole is the landing page.
+
+Setting it moves the entry's machine-readable metadata off every page and onto that one: the claimed page's Highwire and Dublin Core meta tags describe *this* entry — its title, authors, date, DOI, publisher, and this page as its ``citation_fulltext_html_url`` — alongside a JSON-LD block describing the same work at the page's own URL.
+It also says what the work *is* to the site: a claimed entry is a part of the site's own work rather than something the site cites, so the site-wide block names it in ``hasPart`` and the claimed page's block points back with ``isPartOf``.
+Every other page of the site is unaffected and keeps the :ref:`self <guide-project-citations-self>` citation's metadata.
+This is what a data release's documentation needs when each of its data products has a DOI of its own that resolves to the product's page; see :ref:`guide-citation-pages`.
+
+An entry cannot set both ``page`` and :ref:`self <guide-project-citations-self>`; the two are mutually exclusive, since the ``self`` entry's landing page is the site itself and ``page`` names a landing page inside it.
+Asking readers to cite a work whose landing page is one of this site's pages is a different claim, made with :ref:`preferred <guide-project-citations-preferred>`, which does combine with ``page``.
+
+The docname may be followed by ``#`` and a fragment identifier, naming a location within the page.
+Write that location as an explicit target in the page's source, above the heading that documents the work:
+
+.. code-block:: rst
+
+   .. _object-tap:
+
+   TAP
+   ---
+
+and claim the target:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382540"
+   page = "products/catalogs/object#object-tap"
+
+A heading's own anchor is also a fragment this accepts, but it is a poor one to register a DOI against: it is generated from the heading's text, so rewording "TAP" to "TAP service" turns ``#tap`` into ``#tap-service`` and the URL registered at DataCite stops resolving to anything on the page.
+An explicit target is the author's to name and to keep, and survives any rewording of the heading it sits above.
+
+Several entries may claim the same page, provided each names a different fragment — two products documented in two sections of one page, for example.
+Such a page describes both works in a JSON-LD ``@graph`` and emits *no* citation meta tags at all, because every one of them is single-valued — one title, one DOI, one date — and the page is the landing page of more than one work.
+Two entries that name the same docname *and* the same fragment fail the build.
+
+The claim does not change what the site *displays*: :ref:`citation-card <guide-citation-card>` with no argument still renders the :ref:`self <guide-project-citations-self>` entry, and a page that wants to show its own citation names it by :ref:`label <guide-project-citations-label>`.
+
+A ``page`` the build cannot resolve is a warning, not an error: the entry still appears everywhere else the site shows its citations, but no page carries its landing-page metadata.
+Both halves of the claim are checked — a docname the project does not contain, and a fragment that names no anchor on the page it claims, which the warning reports alongside the explicit targets that page does record.
+Those warnings carry the subtype ``documenteer.citation_page``, so a site that claims a page, or an anchor, it has not written yet can keep them from failing a warnings-as-errors (``-W``) build:
+
+.. code-block:: python
+
+   # conf.py
+   suppress_warnings = ["documenteer.citation_page"]
+
+The page's URL comes from :ref:`project.base_url <guide-project-base-url>`, with the entry's fragment appended when it names one.
+A site that sets no ``base_url`` cannot know it, so the JSON-LD node falls back to the ``https://doi.org/`` URL, as it does elsewhere, and the page emits no ``citation_fulltext_html_url``; the rest of the meta tags are unaffected.
+
+.. _guide-project-citations-in-footer:
+
+in\_footer
+----------
+
+|optional|
+
+Whether this citation appears in the :ref:`site footer <guide-footer-citations>`.
+Default is ``true`` for the entry filling either role — the :ref:`preferred <guide-project-citations-preferred>` citation, because it is what the site asks readers to use, and the :ref:`self <guide-project-citations-self>` entry, because a landing page is asked to display the citation of the DOI it is the landing page of — and ``false`` for every other, so additional citations are opt-in.
+Those are one entry on a site that marks no separate ``preferred``, which is the usual case; a site that separates them shows two footer citations unless it writes ``in_footer = false`` on one.
+Footer citations appear in the order the entries are written.
+
+It also governs the site-wide JSON-LD block, but only for the *additional* entries: one that is neither the :ref:`preferred <guide-project-citations-preferred>` citation nor the owner of a :ref:`page <guide-project-citations-page>` is described there only when the footer shows it, so a work no page of the site mentions is not carried in the metadata of every page of it.
+The preferred citation is described there either way, because it is by definition the citation the site asks readers to use, which is what the block states.
+Writing ``in_footer = false`` on it therefore silences a visual surface and leaves the metadata alone — which is what lets a site with hundreds of API pages show its citation on a :ref:`card <guide-citation-card>` and nowhere else (see :ref:`guide-citation-api-heavy`).
+An entry that sets ``page`` is a part of the site's work rather than a work it cites, and is named in the site-wide block either way.
+
+.. _guide-project-citations-note:
+
+note
+----
+
+|optional|
+
+Free text about when to use this citation, displayed alongside it.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   note = "To be used when citing the DP2 dataset and this documentation."
+
+.. _guide-project-citations-bibtex-key:
+
+bibtex_key
+----------
+
+|optional|
+
+The key this citation's BibTeX entry is written under — what a reader's own ``\cite`` commands name once they have copied the entry.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   doi = "10.71929/rubin/2570308"
+   bibtex_key = "RTN-115"
+
+The key is what a manuscript pins, so this field exists to let a site keep one stable no matter what else changes.
+Set it and the entry is written ``@article{RTN-115,`` — or whatever entry type the citation's :ref:`type <guide-project-citations-type>` implies.
+
+Unset, the key is defaulted, in this order:
+
+1. **The site's lsst.io subdomain**, for the entry describing this site's own work.
+   A site published at the root of a ``<name>.lsst.io`` host is ``<name>`` to every reader at Rubin, so ``https://dp2.lsst.io`` keys its own work ``dp2`` and ``https://safir.lsst.io/`` keys its own ``safir``.
+   The entry that gets it is the :ref:`self <guide-project-citations-self>` entry, or the :ref:`preferred <guide-project-citations-preferred>` one for a site that publishes no DOI of its own; exactly one entry ever receives it, and a site that marks neither leaves the subdomain unused.
+   A :ref:`base_url <guide-project-base-url>` that is not such a host — ``https://github.com/lsst/daf_butler``, ``https://sub.dp2.lsst.io`` — or that points below the host's root — ``https://pipelines.lsst.io/v/daily/``, one versioned build among the many that share the subdomain — names no work, and the entry falls through to the next rule.
+2. **The DOI**, verbatim, for any other entry that has one: ``10.71929/rubin/3382528``.
+   This is how :file:`lsst.bib` keys every DataCite record, so an entry copied from a Documenteer site collides with nothing a reader already has.
+3. **Author, year, and title**, for an entry with no DOI, reduced to lowercase ASCII: ``jenness2022vera``.
+   A leading ``a``, ``an``, or ``the`` is skipped when the title word is chosen, so a title opening with an article is not keyed by the article every such title shares.
+   The :ref:`version <guide-project-citations-version>` is never part of the key, so a reader's :file:`.bib` file keeps working across releases.
+
+Every key on the site has to be distinct: a reader pastes the entries into one :file:`.bib` file, which cannot hold two under one key.
+Two entries resolving to the same key — two author-year-title keys that agree, or a ``bibtex_key`` equal to another entry's default — fail the build with a message naming both entries.
+
+A key is written in printable ASCII with no whitespace and none of the characters ``,``, ``{``, ``}``, ``(``, ``)``, ``"``, ``#``, ``%``, ``~``, or ``\``, each of which ends the key or means something else to BibTeX.
+The punctuation a key does carry is ``-``, ``_``, ``.``, ``:``, and ``/`` — which is what lets a DOI be a key.
+Anything else fails the build.
+
+.. _guide-project-citations-title:
+
+title
+-----
+
+|optional|
+
+The title of the work being cited.
+Required unless :ref:`cff <guide-project-citations-cff>` supplies one, or the entry is the :ref:`self <guide-project-citations-self>` citation — which falls back to the site's :ref:`project.title <guide-project-title>`.
+
+.. _guide-project-citations-authors:
+
+authors
+-------
+
+|optional|
+
+The work's authors, in the order they should be credited.
+Each author is a table naming either an organization or a person, since the two are cited differently: a person's name is set family-name-first and may be abbreviated by a bibliography style, where an organization's name is kept whole.
+
+An organization is named with ``name``, and optionally its ROR identifier:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   authors = [
+       { name = "NSF-DOE Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+   ]
+
+A person is named with ``family_name``, and optionally ``given_name``, ``orcid``, and ``affiliation``:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   authors = [
+       { family_name = "Sick", given_name = "Jonathan", orcid = "https://orcid.org/0000-0003-3001-676X" },
+   ]
+
+Setting any author replaces the entire author list that a :ref:`cff <guide-project-citations-cff>` file supplies.
+
+.. _guide-project-citations-publisher:
+
+publisher
+---------
+
+|optional|
+
+The organization that published the work.
+
+.. _guide-project-citations-date:
+
+date
+----
+
+|optional|
+
+The work's publication date, at the precision its source states.
+
+A source that knows the day is written as a TOML date; one that knows only the year, or only the year and month, has no TOML type for that — a TOML date is always a full date — so it is written as an integer year or as a quoted ISO 8601 date:
+
+.. code-block:: toml
+
+   date = 2025-06-30   # a full date
+   date = 2025         # a year
+   date = "2025-06"    # a year and a month
+   date = "2025"       # a year, quoted
+
+Only the year appears in a rendered citation, so all four forms display alike.
+The precision matters to the machine-readable metadata: the date is published as the schema.org ``datePublished`` of the entry's JSON-LD block, exactly as written here.
+It reaches BibTeX too, where a date stated to the month or finer writes a ``month`` field after the ``year`` — ``date = "2026-07"`` composes ``year = {2026},`` then ``month = {July},`` — as the month name BibTeX, biblatex, and :file:`lsst.bib` all read.
+A day never becomes a field of its own, because BibTeX has none to put it in.
+Writing ``2025-01-01`` for a work whose sources say only "2025" would assert a publication day on every page of the site that nothing stands behind, which is why the reduced forms exist.
+
+Anything else — ``"June 2025"``, a month outside 1–12, a year that is not four digits — fails the build with a message naming the accepted forms.
+
+An entry that states no date, and whose :ref:`cff <guide-project-citations-cff>` file supplies none either, is cited undated: the rendered citation shows no year, and its BibTeX entry carries no ``year`` field.
+That is a warning, not an error — the citation still displays — and it carries the subtype ``documenteer.citation_date``, naming the entry and every place the date belongs in: the entry's own field, the :file:`CITATION.cff` record it reads, and, on a site that declares one, the :ref:`[project.citation_defaults] <guide-project-citation-defaults>` table.
+A :ref:`software <guide-project-citations-type>` entry located by a :ref:`url <guide-project-citations-url>` rather than by a DOI is the exception, and is not reported: a package released continuously has no publication event to date, and what identifies the code a reader ran is its :ref:`version <guide-project-citations-version>`.
+A site with no date to give suppresses it the way any other Sphinx warning is suppressed (see :ref:`guide-undated-citations`):
+
+.. code-block:: python
+
+   # conf.py
+   suppress_warnings = ["documenteer.citation_date"]
+
+.. _guide-project-citations-version:
+
+version
+-------
+
+|optional|
+
+The release of the work being cited.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   url = "https://github.com/lsst-sqre/safir"
+   type = "software"
+   title = "Safir"
+   version = "12.3.0"
+
+`FORCE11's software citation principles <https://doi.org/10.7717/peerj-cs.86>`__ list the version among the elements a software citation has to carry, because software is the kind of work whose behavior changes between releases: a citation naming only the project says which code was run no more precisely than naming the language would.
+
+The version qualifies the title wherever the citation is displayed — ``Safir (version 12.3.0).`` — and reaches the machine-readable metadata on the types that have somewhere to put it:
+
+- BibTeX writes ``version = {12.3.0}`` on a ``@software`` or ``@dataset`` entry, the two biblatex entry types that define the field, and omits it on every other.
+- JSON-LD writes ``softwareVersion`` on a `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__ node and ``version`` on a `Dataset <https://schema.org/Dataset>`__ node, the two schema.org types that define one.
+- The BibTeX *key* never carries it, so a reader's :file:`.bib` file keeps working across releases of the site that composed it.
+
+If :ref:`cff <guide-project-citations-cff>` is set, the file supplies this field from the ``version`` of whichever record the entry cites — the top-level record's for a repository, or a ``preferred-citation``'s own.
+Setting it here overrides the file's value.
+A blank ``version`` fails the build, the way a blank :ref:`url <guide-project-citations-url>` does: it reads everywhere as a version that was stated while composing to nothing, and it would also suppress the default described next.
+
+**The default for this site's own software**
+
+A :ref:`software <guide-project-citations-type>` entry that states no version, and whose :ref:`cff <guide-project-citations-cff>` file supplies none either, takes the site's own :ref:`project.version <guide-project-version>` when the entry describes *this site's package*.
+An entry describes this site's package when it is any of:
+
+- the :ref:`self <guide-project-citations-self>` entry — this site is that work's landing page;
+- the :ref:`preferred <guide-project-citations-preferred>` citation — this is the work the site asks readers to cite;
+- an entry reading a :file:`CITATION.cff` file's top-level record with :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` — the repository the site documents.
+
+The page a reader is on *is* the documentation of that release, so filling the version in states what the page already means.
+Every other software entry is somebody else's package, whose releases this site knows nothing about, and is left version-less: a guide that cites the Science Pipelines alongside its own package labels only its own.
+No other :ref:`type <guide-project-citations-type>` ever defaults — a dataset's or a paper's release has nothing to do with the version of the software that builds the site — even when the entry sets ``self``.
+
+The default needs a version to take.
+A site that declares neither :ref:`project.version <guide-project-version>` nor :ref:`project.python <guide-project-python>` resolves its version to the literal ``Latest``, which names a documentation build rather than a release; such a site's citations state no version at all rather than claiming one.
+
+A site whose version comes from installed package metadata is cited at whatever that metadata reports, a development build (``12.4.0.dev3+g1a2b3c4``) included.
+That is deliberate: the pages were built from that code, and naming it is more honest than rounding it to the last tag.
+A site that would rather cite the release than the build sets ``version`` on the entry, which always wins.
+
+There is no way to switch the default off other than stating a version: an explicit ``version`` is the whole of the API.
+
+.. _guide-project-citations-url:
+
+url
+---
+
+|optional|
+
+The work's landing page — where a reader goes to find it.
+
+A work with a DOI is already located by it: the rendered citation ends in the ``https://doi.org/`` link, and this field is not needed.
+It is what locates a work that has *no* DOI, such as a package or a dataset that has never been deposited:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   url = "https://github.com/lsst/daf_butler"
+   type = "software"
+   title = "daf_butler"
+   label = "Software"
+   preferred = true
+
+Such a citation renders exactly as one with a DOI does, ending in a link to this URL instead of to doi.org, and its BibTeX entry carries a ``url`` field and no ``doi``.
+
+The :ref:`preferred <guide-project-citations-preferred>` line is what puts it on a surface at all.
+:ref:`self <guide-project-citations-self>` is the field a site's own work usually sets, and it needs a DOI, so an entry located by a URL claims the site's citation this way instead; an entry that sets neither renders in no footer and answers no card that does not name it.
+See :ref:`guide-citation-url-only` for the whole configuration a package with no DOI needs.
+
+The value has to be an absolute ``http`` or ``https`` URL; a blank one, or one written without a scheme (``github.com/lsst/daf_butler``), fails the build.
+Both are values a reader cannot be sent to: a blank one renders as a citation with no link at all, and a scheme-less one is read as a path relative to whichever page carries the citation.
+
+If :ref:`cff <guide-project-citations-cff>` is set, the file supplies this field from its ``url``, or from its ``repository-code`` when it states no landing page — which is how a CFF file that has never carried a DOI locates the software it describes.
+Setting it here overrides the file's value.
+Either field of the file has to be an absolute URL for the same reason, and a blank one in the file is read as no landing page at all rather than as one.
+
+.. _guide-project-citations-cff:
+
+cff
+---
+
+|optional|
+
+The path to a `CITATION.cff <https://citation-file-format.github.io>`__ file that supplies the entry's bibliographic fields, relative to :file:`documenteer.toml`.
+Since :file:`documenteer.toml` sits beside :file:`conf.py` in the documentation directory and :file:`CITATION.cff` sits at the repository root, this is usually ``"../CITATION.cff"``.
+
+.. code-block:: toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   preferred = true
+   label = "Paper"
+   note = "Cite this paper in publications that use the package."
+
+A repository that already maintains a :file:`CITATION.cff` for GitHub's "Cite this repository" button has written the bibliographic record down once; pointing at it keeps :file:`documenteer.toml` from restating it.
+When the file declares a ``preferred-citation``, that is the citation Documenteer reads, exactly as GitHub renders it — unless the entry sets :ref:`cff_preferred = false <guide-project-citations-cff-preferred>`, which reads the file's top-level record instead.
+
+A ``preferred-citation`` is by construction a work *other* than the repository — the paper to cite instead of the software — so its landing page belongs to whoever published it.
+An entry that reads one and sets :ref:`self <guide-project-citations-self>` fails the build, since ``self`` would publish every page of this site as that work's full text.
+Three fixes are available, and which is right depends on what the entry meant:
+
+- Set :ref:`preferred = true <guide-project-citations-preferred>` instead of ``self``, as above: the site asks readers to cite the paper without claiming to be the paper's landing page.
+- Set :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` to cite the file's top-level record instead — the repository itself, which is a work this site can be the landing page of.
+- Write ``cff_preferred = true`` explicitly alongside ``self`` if this site really is the preferred citation's landing page, as it is for a paper whose :file:`CITATION.cff` and documentation site are one repository.
+  Naming the record on purpose is the acknowledgement, and the build accepts it.
+
+The file's own ``type`` supplies the entry's :ref:`type <guide-project-citations-type>`, so a repository that describes itself as ``type: software``, or whose preferred citation is an ``article`` or a ``report``, is typed without restating it.
+A CFF type that Documenteer has no counterpart for leaves the entry untyped.
+
+The file's date is likewise kept at the precision it is written in: a ``date-released`` or ``date-published`` dates the work to the day, and a reference that carries only a ``year``, or a ``year`` and a ``month``, dates it to the year or the month (see :ref:`date <guide-project-citations-date>`).
+
+Any bibliographic field set alongside ``cff`` overrides the file's value, so a single field can be corrected without abandoning the file:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   preferred = true
+   title = "Data Preview 2 Documentation"
+
+A ``cff`` path that names no file, or a file that cannot be read as a citation, fails the build with an error naming the path.
+
+Documenteer reads only the fields a citation is composed from: ``title``, ``type``, ``authors`` (both people and entities such as an observatory), ``publisher`` or ``institution``, the dates, ``version``, ``number``, and the work's location — its ``doi``, or an ``identifiers`` entry of ``type: doi``, and its ``url`` or ``repository-code``.
+Everything else a :file:`CITATION.cff` may carry — ``abstract``, ``license``, ``keywords``, ``commit``, and ``identifiers`` of any other type, such as a Software Heritage ``swh`` identifier — is not read, and a site that wants any of it states it on the page itself.
+
+The ``version`` read is the one on whichever record the entry cites, so a ``preferred-citation`` that states its own release is cited at that release rather than at the repository's (see :ref:`version <guide-project-citations-version>`).
+
+.. _guide-project-citations-cff-preferred:
+
+cff\_preferred
+--------------
+
+|optional|
+
+Which record inside the :ref:`cff <guide-project-citations-cff>` file the entry cites.
+Default is ``true``: a ``preferred-citation`` in the file is the record read, which is what GitHub's "Cite this repository" button renders.
+
+Set it to ``false`` to cite the file's *top-level* record — the software or the dataset the repository itself is:
+
+.. code-block:: toml
+
+   [[project.citations]]
+   cff = "../CITATION.cff"
+   cff_preferred = false
+   label = "Software"
+   in_footer = true
+
+:ref:`in_footer <guide-project-citations-in-footer>` is there because such an entry is neither :ref:`self <guide-project-citations-self>` nor :ref:`preferred <guide-project-citations-preferred>` — the file's ``preferred-citation`` is the work the repository asks to be cited — and an entry in neither role reaches no surface on its own.
+Without it the record is read and composed and then shown nowhere: not in the :ref:`footer <guide-footer-citations>`, not in the site-wide JSON-LD block, and only on a :ref:`card <guide-citation-card>` that names its label.
+
+That is the only way to cite a repository whose :file:`CITATION.cff` prefers a paper, and a site can do both at once by declaring two entries against the same file: one for the paper and one, with ``cff_preferred = false``, for the software.
+The top-level record's own ``type`` — which CFF restricts to ``software`` or ``dataset`` — supplies the entry's :ref:`type <guide-project-citations-type>`, and a top-level record with no DOI is located by its ``url`` or ``repository-code`` (see :ref:`url <guide-project-citations-url>`).
+CFF makes that key optional and defines its default as ``software``, so a top-level record that states no ``type`` — as most files, including generated ones, do not — is read as software rather than as a work of unstated kind.
+
+``cff_preferred`` chooses which record of a *file* is read; :ref:`preferred <guide-project-citations-preferred>` chooses which of the site's citations is the one it asks readers to use.
+The two are unrelated, and an entry that sets ``cff_preferred`` without ``cff`` fails the build, since there is then no file whose records it could be choosing between.
+
+.. _guide-project-citation-defaults:
+
+[project.citation_defaults]
+===========================
+
+|optional|
+
+The bibliographic fields the site's :ref:`[[project.citations]] <guide-project-citations>` entries share, stated once.
+
+A site that mints a DOI per data product declares an entry per product, and those entries agree about nearly everything: the same publisher, the same author, the same year, the same :ref:`type <guide-project-citations-type>`.
+Spelled out on each of forty products, those four facts are what a reader has to look past to find the one thing an entry says — and :file:`documenteer.toml` stops being a file anyone reads.
+This table states them once, above the entries that take them:
+
+.. code-block:: toml
+
+   [project.citation_defaults]
+   type = "dataset"
+   publisher = "NSF-DOE Vera C. Rubin Observatory"
+   date = 2026
+   authors = [
+       { name = "NSF-DOE Vera C. Rubin Observatory", ror = "https://ror.org/048g3cy84" },
+   ]
+
+   [[project.citations]]
+   doi = "10.71929/rubin/2570308"
+   label = "Release"
+   self = true
+   title = "Data Preview 2"
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382539"
+   label = "Butler"
+   page = "products/catalogs/object#object-butler"
+   title = "DP2 Object catalog"
+
+   [[project.citations]]
+   doi = "10.71929/rubin/3382540"
+   label = "TAP"
+   page = "products/catalogs/object#object-tap"
+   title = "DP2 Object catalog"
+
+Each entry is then the four fields that tell one product from the next.
+
+The table is written with single brackets — there is one of it — and it sits beside the array of entries rather than inside one.
+
+**The fields it accepts**
+
+Five keys, each the entry field of the same name, written the same way and validated the same way:
+
+- :ref:`type <guide-project-citations-type>`
+- :ref:`publisher <guide-project-citations-publisher>`
+- :ref:`date <guide-project-citations-date>`
+- :ref:`authors <guide-project-citations-authors>`
+- :ref:`version <guide-project-citations-version>`
+
+**How a field resolves**
+
+Each of those fields on each entry is taken from the first source that states it:
+
+#. the entry's own value;
+#. the record its :ref:`cff <guide-project-citations-cff>` file supplies, for an entry that names one;
+#. this table;
+#. nothing, and the citation is composed without the field.
+
+A default fills only what nothing else states, so a :file:`CITATION.cff` file's ``date-released`` beats a site-wide ``date`` and a paper from 2019 keeps its own year.
+The entries a defaults table does not describe are exactly the works a site *cites* rather than publishes, and each of them states what it needs on its own.
+
+:ref:`authors <guide-project-citations-authors>` is all-or-nothing: an entry that names any author names all of them, so its list replaces this one instead of extending it.
+An entry that names none takes the default list whole, ROR identifiers and all.
+
+A defaulted :ref:`date <guide-project-citations-date>` is a date — an entry dated only by this table is not reported by the ``documenteer.citation_date`` warning — and a defaulted :ref:`version <guide-project-citations-version>` is a stated one, so it wins over the :ref:`project.version <guide-project-version>` that a software entry describing this site's own package would otherwise inherit.
+
+**The reach of a defaulted version**
+
+:ref:`version <guide-project-citations-version>` is the one field whose default is worth reading twice before writing, because the *other* version default on this page is far narrower than it is.
+:ref:`project.version <guide-project-version>` fills only a :ref:`software <guide-project-citations-type>` entry that describes this site's own package — the :ref:`self <guide-project-citations-self>` entry, the :ref:`preferred <guide-project-citations-preferred>` one, or one reading a :file:`CITATION.cff` file's top-level record — and leaves every other entry version-less on purpose, since this site knows nothing about anybody else's releases.
+
+A ``version`` written here has no such scope.
+It is a *stated* version, and every entry that states none of its own takes it: the data products the site publishes, the third-party works it merely cites, and the papers and reports that never take the ``project.version`` default at all.
+It reaches the display text of all of them — a citation's title is qualified as ``Title (version DP2.1).`` whatever kind of work it is — even though BibTeX writes a ``version`` field on ``@software`` and ``@dataset`` alone, so a release written here for a site's datasets also appears in the rendered text of the ``@article`` it cites.
+
+Write it here when the release genuinely names every entry, as a data release's version names each of its products.
+A release that belongs to some of them belongs on those entries.
+
+**The fields it does not accept**
+
+Any other key fails the build with a message naming the table and the key.
+
+Identity and presentation are per work: :ref:`doi <guide-project-citations-doi>`, :ref:`url <guide-project-citations-url>`, :ref:`title <guide-project-citations-title>`, :ref:`label <guide-project-citations-label>`, :ref:`page <guide-project-citations-page>`, :ref:`note <guide-project-citations-note>`, :ref:`bibtex_key <guide-project-citations-bibtex-key>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`in_footer <guide-project-citations-in-footer>`, :ref:`cff <guide-project-citations-cff>`, and :ref:`cff_preferred <guide-project-citations-cff-preferred>` each name one work, so there is no value any of them could take that every entry would want.
+The same check catches a misspelled key, which would otherwise be a default that silently never applied.
+
+A ``[project.citation_defaults]`` table on a site that declares no :ref:`[[project.citations]] <guide-project-citations>` entries is accepted and does nothing.
 
 .. _guide-project-openapi:
 
@@ -174,6 +839,8 @@ Keyword arguments to pass to the function, if required.
    function = "example.main:create_openapi"
    keyword_args = {kwarg1 = "value1", kwarg2 = "value2"}
 
+.. _guide-project-python:
+
 [project.python]
 ================
 
@@ -184,7 +851,7 @@ With this, many metadata values are automatically detected — look for |py-auto
 
 .. note::
 
-   If a value is directly set, such as :ref:`guide-project-version`, that value will override will override information discovered from the Python project itself.
+   If a value is directly set, such as :ref:`guide-project-version`, that value will override information discovered from the Python project itself.
 
 .. seealso::
 
