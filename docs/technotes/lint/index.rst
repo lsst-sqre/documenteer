@@ -10,7 +10,8 @@ Documenteer provides a command-line linter, :command:`documenteer technote lint`
 Its most important job is verifying that every author has an ``internal_id`` that resolves in the Rubin author database (`authordb.yaml`_), since these IDs are needed to mint a DOI for the technote.
 The command also checks that the content declares an abstract, that :file:`requirements.txt` installs Documenteer correctly, and that the technote's citation metadata — its DOI, the metadata registered for that DOI with DataCite, and, where the repository has adopted one, its :file:`CITATION.cff` — is in order.
 
-Rubin's technote CI (from the `rubin-sphinx-technote-workflows <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows>`__ repository) runs this command so that builds fail early when a technote's metadata is incomplete.
+A technote repository runs this command itself, through the combined lint target its :file:`Makefile` and :file:`tox.ini` provide, so that incomplete metadata is caught before the technote is published.
+Rubin's shared technote workflow (from the `rubin-sphinx-technote-workflows <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows>`__ repository) runs the Pre-commit hooks, the build, and the upload; it does not run the linter.
 
 Run the linter
 ==============
@@ -21,7 +22,7 @@ Run the linter from the root of a technote repository:
 
    documenteer technote lint
 
-If your technote uses the standard :file:`Makefile` (see :doc:`../update`), the linter also runs as part of the repository's combined lint target, alongside the Pre-commit hooks and the link checker:
+If your technote uses the standard :file:`Makefile` (see :doc:`../update`), the linter also runs as part of the repository's combined lint target, alongside the Pre-commit hooks, the :file:`CITATION.cff` freshness check (:command:`documenteer technote sync-cff --check`, see :doc:`../citation-file`), and the link checker:
 
 .. prompt:: bash
 

@@ -70,7 +70,7 @@ To run the linters on-demand, run:
 
    make lint
 
-That command runs the Pre-commit_ hooks, the :doc:`technote linter <lint/index>` (:command:`documenteer technote lint`), and the link checker.
+That command runs the Pre-commit_ hooks, the :doc:`technote linter <lint/index>` (:command:`documenteer technote lint`), the :file:`CITATION.cff` freshness check (:command:`documenteer technote sync-cff --check`, see :doc:`citation-file`), and the link checker.
 If you ran :command:`make init`, the Pre-commit hooks will also run automatically before every Git commit.
 
 Regenerating metadata files

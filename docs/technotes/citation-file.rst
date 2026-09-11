@@ -120,7 +120,10 @@ The ``--check`` option compares the file on disk against what the technote gener
 It exits non-zero only when :file:`CITATION.cff` exists and is *stale*.
 A repository with no :file:`CITATION.cff` has simply not adopted the file, and passes — before the technote is built at all, so a repository that never opted in is not failed by a document Sphinx cannot read.
 
-This is the mechanism to keep the file current: run it in CI, where the technote is built anyway, and a metadata or title change that was not synced fails the build with the command to run.
-Rubin's shared technote workflow runs it for you.
+This is the mechanism to keep the file current: run it where the technote is built anyway, and a metadata or title change that was not synced fails with the command to run.
+The technote's own repository already runs it: :command:`make lint` — or :command:`tox run -e technote-lint` directly — runs this check right after :command:`documenteer technote lint`, so whatever runs the repository's lint target enforces the file.
 
-:command:`documenteer technote lint` reports the same staleness as :doc:`TN106 <lint/tn106>`, using this same comparison, so a technote's CI catches an unsynced file whether it runs the linter, this check, or both.
+Rubin's shared technote workflow does not run the check itself: it runs the Pre-commit hooks, the build, and the upload.
+A repository that relies on that workflow alone is therefore not yet checked in CI; adding the check there is tracked in `rubin-sphinx-technote-workflows#12 <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows/issues/12>`__.
+
+:command:`documenteer technote lint` reports the same staleness as :doc:`TN106 <lint/tn106>`, using this same comparison, so the two commands the lint target runs never disagree about whether the file is stale.

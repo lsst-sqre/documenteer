@@ -52,7 +52,9 @@ Regenerate the file:
 Commit the result alongside the :file:`technote.toml` change that caused it.
 Edit :file:`technote.toml`, never :file:`CITATION.cff` — a hand-edit to the generated file is what this rule reports, and it is lost on the next sync.
 
-To catch the two drifting apart before a reviewer does, run :command:`documenteer technote sync-cff --check` in CI; it fails the build with the command to run, and Rubin's shared technote workflow runs it for you.
+To catch the two drifting apart before a reviewer does, run :command:`make lint` — or :command:`tox run -e technote-lint` directly.
+That target runs this linter and :command:`documenteer technote sync-cff --check` together, and either one fails with the command to run.
+Rubin's shared technote workflow does not run the target yet; `rubin-sphinx-technote-workflows#12 <https://github.com/lsst-sqre/rubin-sphinx-technote-workflows/issues/12>`__ tracks adding the check to it.
 
 If the repository no longer wants a :file:`CITATION.cff` at all, delete the file: an absent file passes.
 

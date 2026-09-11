@@ -138,6 +138,20 @@ def test_migration_writes_tooling(
     assert "tox run -e lint,technote-lint,linkcheck" in makefile
 
 
+def test_migration_lint_env_checks_citation_file(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """The lint env enforces CITATION.cff freshness, not just the linter."""
+    migrate_legacy_technote(tmp_path, responses)
+
+    tox_ini = (tmp_path / "tox.ini").read_text()
+    lint_env = tox_ini.split("[testenv:technote-lint]", 1)[1].split(
+        "\n[testenv:", 1
+    )[0]
+    assert "documenteer technote lint" in lint_env
+    assert "documenteer technote sync-cff --check" in lint_env
+
+
 MODERN_TOML = """
 [technote]
 id = "SQR-065"
