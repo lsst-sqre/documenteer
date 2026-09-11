@@ -517,7 +517,7 @@ internal_id = "sickj"
     assert 'name = { name = "Full Name" }' in message
     assert "technote 0.5" in message
     assert 'name = { given = "Given", family = "Family" }' in message
-    assert "documenteer technote migrate" in message
+    assert "documenteer technote update" in message
     # The pydantic detail is retained for anyone debugging the schema error.
     assert "technote.authors.0.name" in message
 
@@ -542,7 +542,7 @@ internal_id = "sickj"
     assert 'name = { given_names = "...", family_names = "..." }' in message
     assert "renamed in November 2023" in message
     assert 'name = { given = "Given", family = "Family" }' in message
-    assert "documenteer technote migrate" in message
+    assert "documenteer technote update" in message
 
 
 def test_non_author_schema_error_has_no_legacy_message(
@@ -561,7 +561,7 @@ canonical_url = "not a url"
     findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
     message = findings[0].message
-    assert "documenteer technote migrate" not in message
+    assert "documenteer technote update" not in message
     assert "canonical_url" in message
 
 
@@ -583,7 +583,7 @@ orcid = "not-an-orcid"
     service = TechnoteLintService(context)
     findings = service.lint()
     assert [f.code for f in findings] == ["TN001"]
-    assert "documenteer technote migrate" not in findings[0].message
+    assert "documenteer technote update" not in findings[0].message
 
 
 def test_missing_toml_reports_tn004(tmp_path: Path) -> None:
@@ -1794,7 +1794,7 @@ def test_title_comparison_uses_the_document_title(
 ) -> None:
     """A technote titled by its own H1 is compared on that title.
 
-    ``technote migrate`` never writes a ``[technote] title``, so this is the
+    ``technote update`` never writes a ``[technote] title``, so this is the
     normal technote: the title DataCite registers is the document's heading,
     and comparing only what technote.toml declares would skip the check for
     almost every technote there is.

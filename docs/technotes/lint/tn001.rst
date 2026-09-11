@@ -35,18 +35,18 @@ Author names were restructured in technote 0.5, so a :file:`technote.toml` like 
 
 .. code-block:: text
 
-   [TN001] technote.toml does not conform to the schema. Its [[technote.authors]] entries use the pre-technote-0.5 author name keys 'name = { given_names = "...", family_names = "..." }', which were renamed in November 2023. Use 'name = { given = "Given", family = "Family" }' instead. Run 'documenteer technote migrate' to update technote.toml to the modern format automatically. Underlying schema errors: …
+   [TN001] technote.toml does not conform to the schema. Its [[technote.authors]] entries use the pre-technote-0.5 author name keys 'name = { given_names = "...", family_names = "..." }', which were renamed in November 2023. Use 'name = { given = "Given", family = "Family" }' instead. Run 'documenteer technote update' to update technote.toml to the modern format automatically. Underlying schema errors: …
 
 The finding always ends with the underlying Pydantic schema errors, which name the offending field for failures that are not about author names.
 
 How to fix it
 =============
 
-If the finding names a legacy author-name form, run the migration tool, which rewrites :file:`technote.toml` to the modern format:
+If the finding names a legacy author-name form, run the update command, which rewrites :file:`technote.toml` to the modern format:
 
 .. prompt:: bash
 
-   documenteer technote migrate
+   documenteer technote update
 
 For any other schema failure, read the underlying schema errors at the end of the finding — they identify the field and constraint — and correct that field against the schema documented in :doc:`../configuration`.
 For the example above, the modern form is:
@@ -91,5 +91,5 @@ See also
 
 - :doc:`TN005 <tn005>` — fires instead when the file is not valid TOML at all.
 - :doc:`../configuration` — the :file:`technote.toml` reference.
-- :doc:`../migrate` — migrating a legacy technote to the modern format.
+- :doc:`../update` — converting a legacy technote to the modern format.
 - :doc:`../citation-file` — how the ``doi`` reaches the :file:`CITATION.cff` that GitHub renders.

@@ -226,7 +226,7 @@ extend-ignore = [
 ]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"src/documenteer/services/technotemigration.py" = [
+"src/documenteer/services/technoteupdate.py" = [
     "T201",    # This script can use print
 ]
 "src/documenteer/ext/*" = [

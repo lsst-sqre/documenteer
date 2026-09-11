@@ -15,7 +15,7 @@ Documenteer provides centralized configuration and tooling for technotes.
    edit-on-github
    how-your-technote-gets-published
    lint/index
-   migrate
+   update
 
 .. toctree::
    :maxdepth: 2

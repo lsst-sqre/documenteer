@@ -187,7 +187,7 @@ def read_technote(root_dir: Path) -> TechnoteDocument:
 
     if not metadata.title:
         # An empty title is how the technote package says technote.toml
-        # declares none, which is the normal case: `technote migrate` never
+        # declares none, which is the normal case: `technote update` never
         # writes one. The document's own H1 is then the title, and is what
         # the built page publishes.
         metadata.title = resolve_title(doctree) or ""

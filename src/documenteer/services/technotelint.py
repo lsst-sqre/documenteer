@@ -1654,7 +1654,7 @@ def check_requirements(context: LintContext) -> list[LintFinding]:
 # Guidance shared by every legacy author-name hint.
 _MODERN_NAME_ADVICE = (
     'Use \'name = { given = "Given", family = "Family" }\' instead. Run '
-    "'documenteer technote migrate' to update technote.toml to the modern "
+    "'documenteer technote update' to update technote.toml to the modern "
     "format automatically."
 )
 
@@ -1684,7 +1684,7 @@ def _schema_conformance_finding(
     When the ``[[technote.authors]]`` entries use one of the historical author
     name forms, the raw pydantic report is prefixed with a message that names
     the legacy form, shows its modern replacement, and points at
-    :command:`documenteer technote migrate`. The pydantic detail is always
+    :command:`documenteer technote update`. The pydantic detail is always
     appended so schema errors that are not about legacy author names remain
     actionable.
     """

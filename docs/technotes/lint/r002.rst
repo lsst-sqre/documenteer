@@ -49,4 +49,4 @@ See also
 ========
 
 - :doc:`R003 <r003>` — do not pin Sphinx separately from ``documenteer[technote]``.
-- :doc:`../migrate` — the migration tool writes a modern :file:`requirements.txt`.
+- :doc:`../update` — the update command writes a modern :file:`requirements.txt`.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import click
@@ -18,8 +19,12 @@ from documenteer.services.technotecff import (
     CffStatus,
     TechnoteCffService,
 )
-from documenteer.services.technotemigration import TechnoteMigrationService
 from documenteer.services.technoteread import TechnoteReadError, read_technote
+from documenteer.services.technoteupdate import (
+    FileOutcome,
+    TechnoteUpdateService,
+    UpdateStatus,
+)
 from documenteer.storage.authordb import (
     AuthorDb,
     AuthorDbUnreachableError,
@@ -242,54 +247,259 @@ def _describe_sync_outcome(outcome: AuthorSyncOutcome) -> str | None:
     return f"{name} ({author.internal_id})"
 
 
-@technote.command(name="migrate")
-@click.option(
-    "--author-id",
-    "-a",
-    "author_ids",
-    multiple=True,
-    required=True,
-    help="Author IDs to add to technote.toml",
-)
-@click.option(
-    "--dir",
-    "-d",
-    "root_dir",
-    type=click.Path(exists=True),
-    required=True,
-    default=".",
-    help="Path to technote directory",
-)
-@click.option(
-    "--auto-delete",
-    "-D",
-    "auto_delete",
-    is_flag=True,
-    default=False,
-    help="Delete deprecated files without prompting",
-)
-def technote_migrate(
-    author_ids: list[str], root_dir: str, *, auto_delete: bool
-) -> None:
-    """Migrate a technote from a metadata.yaml file.
+def _update_options(command: Callable[..., None]) -> Callable[..., None]:
+    """Apply the options `technote update` and its deprecated alias share.
 
-    This command migrates an old-style Rubin technote (that uses a
-    metadata.yaml file) into the modern format.
-
-    This command creates a technote.toml file, upgrades the index.rst file,
-    and adds/updates other supporting files. Check the git diff after running
-    this command to see what changed.
-
-    authors to the technote.toml file from the Rubin author DB.
-    The `-a/--author-id` options are author IDs in the Rubin author database.
-    See https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml
+    ``migrate`` delegates to ``update`` with the same arguments, so the two
+    commands have to accept the same ones. Declaring them once keeps the
+    alias from drifting away from the command it forwards to.
     """
-    author_db = AuthorDb()
-    migration_service = TechnoteMigrationService(Path(root_dir), author_db)
-    migration_service.migrate(author_ids=author_ids)
+    options = [
+        click.option(
+            "--dir",
+            "-d",
+            "root_dir",
+            type=click.Path(exists=True, file_okay=False),
+            default=".",
+            help="Path to technote directory.",
+        ),
+        click.option(
+            "--check",
+            "check",
+            is_flag=True,
+            default=False,
+            help=(
+                "Report what would change without writing anything. Exits "
+                "non-zero if the technote is out of date."
+            ),
+        ),
+        click.option(
+            "--ignore-file",
+            "ignore_files",
+            metavar="NAME",
+            multiple=True,
+            help=(
+                "A file to leave alone, named by its path from the technote "
+                "root (such as tox.ini). Repeatable."
+            ),
+        ),
+        click.option(
+            "--author-id",
+            "-a",
+            "author_ids",
+            multiple=True,
+            help=(
+                "Author ID to add to technote.toml, for a legacy technote "
+                "being converted. Repeatable."
+            ),
+        ),
+        click.option(
+            "--auto-delete",
+            "-D",
+            "auto_delete",
+            is_flag=True,
+            default=False,
+            help=(
+                "Delete a converted technote's deprecated files without "
+                "prompting."
+            ),
+        ),
+    ]
+    for option in reversed(options):
+        command = option(command)
+    return command
+
+
+@technote.command(name="update")
+@_update_options
+def technote_update(
+    root_dir: str,
+    ignore_files: tuple[str, ...],
+    author_ids: tuple[str, ...],
+    *,
+    check: bool,
+    auto_delete: bool,
+) -> None:
+    """Bring a technote repository up to the current standard.
+
+    This command takes a technote repository from whatever state it is in to
+    the current one, and running it again changes nothing. What it does
+    depends on what it finds.
+
+    A technote that still has a metadata.yaml file is a legacy technote, and
+    is converted: technote.toml is written from the old metadata, index.rst
+    is upgraded, README.rst and the supporting files are replaced, and the
+    deprecated files are offered for deletion. Name the technote's authors
+    with the `-a/--author-id` option — IDs in the Rubin author database, at
+    https://github.com/lsst/lsst-texmf/blob/main/etc/authordb.yaml — or add
+    them afterwards with 'documenteer technote add-author'.
+
+    A technote that already has a technote.toml is refreshed instead: the
+    standard tooling files (the CI workflow, Dependabot configuration,
+    pre-commit configuration, .gitignore, Makefile, requirements.txt, and
+    tox.ini) are rewritten from Documenteer's current templates, built from
+    the metadata technote.toml declares. The technote's own writing is never
+    touched, and neither is a conf.py that carries Sphinx configuration of
+    its own; a conf.py holding nothing but what Documenteer generated is
+    brought up to date.
+
+    Each file is reported as updated, unchanged, or skipped. A file the
+    technote has customized on purpose can be held back with
+    ``--ignore-file``, which takes the path as reported (``--ignore-file
+    tox.ini``) and may be repeated.
+
+    Use ``--check`` to find out whether a technote is up to date without
+    writing anything: it exits non-zero when a file would change, so a fleet
+    campaign can detect drift and CI can enforce it.
+
+    Review what changed with 'git diff' before committing.
+    """
+    _update_technote(
+        root_dir,
+        ignore_files=ignore_files,
+        author_ids=author_ids,
+        check=check,
+        auto_delete=auto_delete,
+    )
+
+
+@technote.command(name="migrate")
+@_update_options
+def technote_migrate(
+    root_dir: str,
+    ignore_files: tuple[str, ...],
+    author_ids: tuple[str, ...],
+    *,
+    check: bool,
+    auto_delete: bool,
+) -> None:
+    """Convert a legacy technote (deprecated: use 'update').
+
+    This is a deprecated alias for 'documenteer technote update', which
+    converts a legacy metadata.yaml technote exactly as this command did and
+    additionally refreshes a technote that has already been converted. It
+    takes the same options and behaves identically.
+    """
+    click.echo(
+        "'documenteer technote migrate' is deprecated; use "
+        "'documenteer technote update' instead.",
+        err=True,
+    )
+    _update_technote(
+        root_dir,
+        ignore_files=ignore_files,
+        author_ids=author_ids,
+        check=check,
+        auto_delete=auto_delete,
+    )
+
+
+def _update_technote(
+    root_dir: str,
+    *,
+    ignore_files: tuple[str, ...],
+    author_ids: tuple[str, ...],
+    check: bool,
+    auto_delete: bool,
+) -> None:
+    """Run `technote update` against one directory.
+
+    Shared by ``update`` and its deprecated ``migrate`` alias, so that the
+    alias is the same command under an older name rather than a second
+    implementation of it.
+    """
+    root = Path(root_dir)
+    service = TechnoteUpdateService(root, AuthorDb())
+
+    if service.is_legacy:
+        _convert_legacy_technote(
+            service,
+            root,
+            author_ids=author_ids,
+            check=check,
+            auto_delete=auto_delete,
+        )
+        return
+
+    if not (root / "technote.toml").is_file():
+        raise click.ClickException(
+            f"{root} is not a technote: it has neither a technote.toml nor a "
+            f"metadata.yaml."
+        )
+
+    if author_ids:
+        click.echo(
+            "Warning: --author-id applies only to a legacy technote being "
+            "converted. Add an author to this technote with 'documenteer "
+            "technote add-author'.",
+            err=True,
+        )
+
+    try:
+        outcomes = service.refresh_tooling(
+            ignore_files=ignore_files, dry_run=check
+        )
+    except ValueError as e:
+        # Metadata this technote.toml does not declare: something to fix in
+        # the file, not a Documenteer bug, so report it rather than dumping
+        # a traceback.
+        raise click.ClickException(str(e)) from e
+
+    for outcome in outcomes:
+        click.echo(f"{outcome.path}: {_describe_update(outcome, check=check)}")
+
+    changed = [outcome for outcome in outcomes if outcome.changed]
+    if not changed:
+        click.echo("The technote's tooling is up to date.")
+        return
+
+    noun = "file" if len(changed) == 1 else "files"
+    if check:
+        click.echo(
+            f"{len(changed)} {noun} out of date. Run 'documenteer technote "
+            f"update' to bring the technote up to date.",
+            err=True,
+        )
+        raise SystemExit(1)
+    click.echo(
+        f"Updated {len(changed)} {noun}. Review the changes with 'git diff'."
+    )
+
+
+def _convert_legacy_technote(
+    service: TechnoteUpdateService,
+    root: Path,
+    *,
+    author_ids: tuple[str, ...],
+    check: bool,
+    auto_delete: bool,
+) -> None:
+    """Convert a technote that still uses metadata.yaml."""
+    if check:
+        # Every file the conversion writes would change, so there is nothing
+        # to enumerate: what the technote needs is the conversion itself.
+        click.echo(
+            f"{root} is a legacy technote that has not been converted. Run "
+            f"'documenteer technote update' to convert it.",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    service.convert_legacy(author_ids=list(author_ids))
 
     if auto_delete or click.confirm("Delete deprecated files?"):
-        migration_service.delete_deprecated_files()
+        service.delete_deprecated_files()
+
+
+def _describe_update(outcome: FileOutcome, *, check: bool) -> str:
+    """Phrase one file's outcome for the update report."""
+    if outcome.status is UpdateStatus.updated:
+        return "would update" if check else "updated"
+    if outcome.status is UpdateStatus.skipped:
+        return "skipped (--ignore-file)"
+    if outcome.status is UpdateStatus.differs:
+        return "differs from every Documenteer template; left unchanged"
+    return "unchanged"
 
 
 @technote.command(name="lint")

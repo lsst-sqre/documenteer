@@ -514,7 +514,7 @@ def test_sync_cff_titles_the_citation_from_the_document(
 ) -> None:
     """A technote with no TOML title is cited by its document's heading.
 
-    This is the normal technote: `technote migrate` never writes a
+    This is the normal technote: `technote update` never writes a
     ``[technote] title``, and the built page publishes the H1.
     """
     (tmp_path / "technote.toml").write_text(
@@ -587,3 +587,208 @@ def test_sync_cff_reports_an_unreadable_document(tmp_path: Path) -> None:
     assert "index.rst, index.md, index.ipynb" in result.output
     assert not (tmp_path / "CITATION.cff").exists()
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+UPDATE_TOML = """
+[technote]
+id = "SQR-065"
+series_id = "SQR"
+canonical_url = "https://sqr-065.lsst.io/"
+github_url = "https://github.com/lsst-sqre/sqr-065"
+"""
+
+STALE_TOX_INI = """[tox]
+environments = html
+
+[testenv:html]
+commands =
+   sphinx-build -b html . _build/html
+"""
+
+
+def make_modern_technote(root: Path) -> None:
+    """Set up a modern technote whose tooling has fallen behind."""
+    (root / "technote.toml").write_text(UPDATE_TOML)
+    (root / "index.rst").write_text("######\nSQR-65\n######\n")
+    (root / "README.rst").write_text("A README.\n")
+    (root / "conf.py").write_text(
+        "from documenteer.conf.technote import *  # noqa: F403\n\n"
+        "nitpick_ignore = []\n"
+    )
+    (root / "tox.ini").write_text(STALE_TOX_INI)
+
+
+def test_update_refreshes_a_modern_technote(tmp_path: Path) -> None:
+    """A modern technote's stale tooling is rewritten and reported."""
+    make_modern_technote(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "update", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "[testenv:sync-cff]" in (tmp_path / "tox.ini").read_text()
+    assert "tox.ini: updated" in result.output
+
+
+def test_update_leaves_the_technotes_own_files(tmp_path: Path) -> None:
+    """The README, the content, and a customized conf.py are the author's."""
+    make_modern_technote(tmp_path)
+    conf_py = (tmp_path / "conf.py").read_text()
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "update", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "README.rst").read_text() == "A README.\n"
+    assert (tmp_path / "index.rst").read_text() == "######\nSQR-65\n######\n"
+    assert (tmp_path / "conf.py").read_text() == conf_py
+    assert "conf.py: differs" in result.output
+
+
+def test_update_run_twice_changes_nothing(tmp_path: Path) -> None:
+    """A second update reports every file unchanged."""
+    make_modern_technote(tmp_path)
+
+    runner = CliRunner()
+    runner.invoke(main, ["technote", "update", "-d", str(tmp_path)])
+    result = runner.invoke(main, ["technote", "update", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "tox.ini: unchanged" in result.output
+    assert "updated" not in result.output
+    assert "up to date" in result.output
+
+
+def test_update_ignores_a_named_file(tmp_path: Path) -> None:
+    """--ignore-file leaves a customized file as the technote has it."""
+    make_modern_technote(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "technote",
+            "update",
+            "-d",
+            str(tmp_path),
+            "--ignore-file",
+            "tox.ini",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "tox.ini").read_text() == STALE_TOX_INI
+    assert "tox.ini: skipped (--ignore-file)" in result.output
+
+
+def test_update_check_reports_drift_without_writing(tmp_path: Path) -> None:
+    """--check exits non-zero on a stale technote and writes nothing."""
+    make_modern_technote(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "update", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 1
+    assert (tmp_path / "tox.ini").read_text() == STALE_TOX_INI
+    assert not (tmp_path / "Makefile").exists()
+    assert "tox.ini: would update" in result.output
+
+
+def test_update_check_passes_on_a_current_technote(tmp_path: Path) -> None:
+    """--check exits zero once the technote has been updated."""
+    make_modern_technote(tmp_path)
+
+    runner = CliRunner()
+    runner.invoke(main, ["technote", "update", "-d", str(tmp_path)])
+    result = runner.invoke(
+        main, ["technote", "update", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+
+
+def test_update_rejects_a_directory_that_is_not_a_technote(
+    tmp_path: Path,
+) -> None:
+    """A directory with neither metadata file is reported, not traced back."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "update", "-d", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "is not a technote" in result.output
+
+
+def test_update_converts_a_legacy_technote(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A metadata.yaml technote is converted, as migrate always did."""
+    responses.get(
+        "https://roundtable.lsst.cloud/ook/authors/sickj",
+        body=AUTHOR_JSON,
+        content_type="application/json",
+        status=200,
+    )
+    (tmp_path / "metadata.yaml").write_text(
+        "series: SQR\nserial_number: '065'\ndoc_title: A Technote\n"
+        "description: Hello.\ngithub_url: https://github.com/lsst-sqre/sqr-065\n"
+    )
+    (tmp_path / "index.rst").write_text("Introduction\n============\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "technote",
+            "update",
+            "-d",
+            str(tmp_path),
+            "-a",
+            "sickj",
+            "--auto-delete",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert 'id = "SQR-065"' in (tmp_path / "technote.toml").read_text()
+    assert not (tmp_path / "metadata.yaml").exists()
+
+
+def test_update_check_reports_an_unconverted_legacy_technote(
+    tmp_path: Path,
+) -> None:
+    """--check on a legacy technote fails without converting it."""
+    (tmp_path / "metadata.yaml").write_text("series: SQR\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "update", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 1
+    assert "legacy technote" in result.output
+    assert not (tmp_path / "technote.toml").exists()
+
+
+def test_migrate_is_a_deprecated_alias(tmp_path: Path) -> None:
+    """Migrate says it is deprecated and does what update does."""
+    make_modern_technote(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "migrate", "-d", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "deprecated" in result.output
+    assert "documenteer technote update" in result.output
+    assert "[testenv:sync-cff]" in (tmp_path / "tox.ini").read_text()
+
+
+def test_migrate_help_is_accurate() -> None:
+    """Migrate's help drops the required -d and the unfinished sentence."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["technote", "migrate", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "[required]" not in result.output
+    assert "authors to the technote.toml file" not in result.output

@@ -21,7 +21,7 @@ A technote's own tooling runs it for you, alongside :command:`make sync-authors`
    make sync-cff
 
 That target runs the command inside the same tox_ environment :command:`make html` builds the technote in, so a technote you can build is one you can sync.
-Technotes created or migrated with an older Documenteer may not have the target yet; :doc:`migrate` writes the :file:`Makefile` and :file:`tox.ini` that provide it.
+Technotes created or converted with an older Documenteer may not have the target yet; :command:`documenteer technote update` adds it, rewriting the :file:`Makefile` and :file:`tox.ini` that provide it (see :doc:`update`).
 
 :file:`technote.toml` is the canonical source
 =============================================
@@ -29,7 +29,7 @@ Technotes created or migrated with an older Documenteer may not have the target 
 :file:`CITATION.cff` is *fully managed*: every run regenerates it from scratch, and the generated file says so in a comment on its first line.
 To change the citation, edit :file:`technote.toml` and run the command again — an edit made directly to :file:`CITATION.cff` is lost on the next sync.
 
-The one field :file:`technote.toml` does not usually supply is the **title**: a technote is titled by its document's top-level heading unless the ``[technote]`` table declares a ``title``, and :command:`documenteer technote migrate` never writes one.
+The one field :file:`technote.toml` does not usually supply is the **title**: a technote is titled by its document's top-level heading unless the ``[technote]`` table declares a ``title``, and :command:`documenteer technote update` never writes one.
 The command therefore builds the technote with Sphinx — quietly, writing nothing, in a temporary directory — and takes the title from the document Sphinx read, so :file:`CITATION.cff` names the technote the same way the published page does.
 A technote-series repository with no :file:`conf.py` is not built by Sphinx, and is generated from :file:`technote.toml` alone.
 

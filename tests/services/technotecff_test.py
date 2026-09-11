@@ -595,7 +595,7 @@ def test_a_date_updated_that_is_not_a_date_is_reported(
 def test_document_title_names_an_untitled_technote(tmp_path: Path) -> None:
     """A title resolved from the document is used, with no warning.
 
-    This is the normal case: ``technote migrate`` never writes a
+    This is the normal case: ``technote update`` never writes a
     ``[technote] title``, so the built page is titled by its own H1 and the
     citation has to say the same thing.
     """

@@ -21,7 +21,7 @@ Run the linter from the root of a technote repository:
 
    documenteer technote lint
 
-If your technote uses the standard :file:`Makefile` (see :doc:`../migrate`), the linter also runs as part of the repository's combined lint target, alongside the Pre-commit hooks and the link checker:
+If your technote uses the standard :file:`Makefile` (see :doc:`../update`), the linter also runs as part of the repository's combined lint target, alongside the Pre-commit hooks and the link checker:
 
 .. prompt:: bash
 
@@ -277,7 +277,7 @@ The linter builds the technote
 
 The rules about what a technote *publishes* — its abstract (``TN2xx``), and the title that :doc:`TN105 <tn105>` and :doc:`TN106 <tn106>` compare — get their answer by building the technote with Sphinx, once per run, using the ``dummy`` builder that reads the document and writes nothing.
 That is the technote's own build: its :file:`conf.py`, its extensions, its markup.
-A technote is titled by its document's top-level heading unless :file:`technote.toml` declares a ``title``, and :command:`documenteer technote migrate` never writes one, so reading the document is the only way to know what the technote is called.
+A technote is titled by its document's top-level heading unless :file:`technote.toml` declares a ``title``, and :command:`documenteer technote update` never writes one, so reading the document is the only way to know what the technote is called.
 
 Two things follow:
 
@@ -306,4 +306,4 @@ Related documentation
 
 - :doc:`../author-metadata` — add and update the authors that :doc:`R101 <r101>`–:doc:`R103 <r103>` check.
 - :doc:`../citation-file` — generate the :file:`CITATION.cff` that :doc:`TN106 <tn106>` keeps in sync with :file:`technote.toml`.
-- :doc:`../migrate` — the migration tool sets up the :file:`Makefile`, :file:`requirements.txt`, and abstract directive that these rules rely on.
+- :doc:`../update` — the update command sets up the :file:`Makefile`, :file:`requirements.txt`, and abstract directive that these rules rely on.

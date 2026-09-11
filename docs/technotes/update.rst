@@ -1,0 +1,574 @@
+:og:description: documenteer technote update brings a technote repository up to the current standard — converting a legacy metadata.yaml technote, and refreshing the tooling files of one that has already been converted.
+
+#########################
+Update a technote
+#########################
+
+A technote repository falls behind Rubin's current standard in two different ways.
+One is age: a technote written before December 2023 keeps its metadata in a :file:`metadata.yaml` file and has to be converted to the current format.
+The other is drift: a technote that *has* been converted still carries the tooling files — the CI workflow, the tox and pre-commit configuration, the :file:`Makefile` — that whichever Documenteer generated them wrote, and the standard has moved on since.
+
+:command:`documenteer technote update` covers both.
+
+.. prompt:: bash
+
+   documenteer technote update
+
+Run it from the root of the technote's repository, or point it elsewhere with the ``-d/--dir`` option.
+It inspects the directory, does whichever of the two jobs the technote needs, and leaves both kinds of technote in the same state.
+Running it a second time changes nothing.
+
+.. tip::
+
+   Your technote is in the legacy format if it has a :file:`metadata.yaml` file at the top level of its repository.
+
+   LaTeX-format technotes are unaffected by this page.
+
+.. note::
+
+   :command:`documenteer technote migrate` is a deprecated alias for this command: it takes the same options, behaves identically, and prints a notice pointing here.
+   See :doc:`migrate`.
+
+.. _technote-update-refresh:
+
+Refresh a technote's tooling
+============================
+
+A technote that already has a :file:`technote.toml` file is *refreshed*.
+Documenteer rewrites the standard tooling files from its current templates, built from the metadata :file:`technote.toml` declares — the technote's handle, its repository URL, and its canonical URL.
+
+These are the files it writes:
+
+- :file:`.github/dependabot.yml`
+- :file:`.github/workflows/ci.yaml`
+- :file:`.pre-commit-config.yaml`
+- :file:`.gitignore`
+- :file:`Makefile`
+- :file:`requirements.txt`
+- :file:`tox.ini`
+
+Your own writing is never touched: :file:`README.rst` and the content file (:file:`index.rst` or :file:`index.md`) are yours.
+So is :file:`conf.py`, the moment you put anything of your own in it — it is rewritten only when it holds nothing but the import line Documenteer generates, and is otherwise reported and left alone.
+
+Every file is reported, whether or not it changed:
+
+.. code-block:: text
+
+   .github/dependabot.yml: updated
+   .github/workflows/ci.yaml: unchanged
+   .pre-commit-config.yaml: unchanged
+   .gitignore: unchanged
+   Makefile: updated
+   requirements.txt: unchanged
+   tox.ini: updated
+   conf.py: differs from every Documenteer template; left unchanged
+   Updated 3 files. Review the changes with 'git diff'.
+
+Review the changes with :command:`git diff`, then commit them and open a pull request as you would for any other change to the technote.
+
+Keep a file you have customized
+-------------------------------
+
+If you have deliberately customized one of the standard files — an extra pre-commit hook, or a tox environment of your own — hold it back with ``--ignore-file``, naming the file by the path the report prints:
+
+.. prompt:: bash
+
+   documenteer technote update --ignore-file tox.ini --ignore-file .pre-commit-config.yaml
+
+The option is repeatable, and an ignored file is reported as ``skipped (--ignore-file)``.
+
+Check without writing
+---------------------
+
+``--check`` writes nothing and reports what *would* change, exiting non-zero when any file is out of date:
+
+.. prompt:: bash
+
+   documenteer technote update --check
+
+That is how to find out whether a technote has fallen behind without changing it — across a series of technotes at once, or from a technote's own continuous integration.
+A file held back with ``--ignore-file``, and a :file:`conf.py` of your own, are not out of date: neither one fails the check.
+
+.. _technote-update-convert:
+
+Convert a legacy technote
+=========================
+
+A technote that still has a :file:`metadata.yaml` file, and no :file:`technote.toml` yet, is *converted* to the current format instead.
+This update provides many `new features <https://community.lsst.org/t/the-next-generation-of-rubin-observatory-technotes-with-documenteer-1-0/8166>`__ including a responsive and branded page design, Markdown support, improved build configuration, automated bibliography management, and citation-ready metadata.
+
+The steps below walk through the conversion, and :ref:`file-by-file notes <technote-migration-detailed>` follow in case you need to revise it.
+The conversion requires:
+
+- Python 3.12 or later
+- The :command:`uvx` command from the `uv`_ package
+
+Step 1. Clone your technote and create a branch
+-----------------------------------------------
+
+Since the conversion is performed locally, you need to clone the repository:
+
+.. code-block:: bash
+
+   git clone https://github.com/{org}/{repo}
+
+Then create a branch for the conversion (see the `Developer Guide <https://developer.lsst.io/work/flow.html>`_ for more information on branching):
+
+.. code-block:: bash
+
+   git switch -c technote-migration
+
+Working from a branch allows you to create a pull request to verify the conversion before merging it into the main branch.
+
+Step 2. Look up author IDs
+--------------------------
+
+The conversion needs the IDs of the technote's authors to fully configure the technote's metadata.
+
+Open `authordb.yaml`_ on GitHub and find the YAML keys that identify the technote's authors.
+For example, ``sickj`` is the ID for Jonathan Sick.
+
+.. _technote-migration-tool:
+
+Step 3. Run the update command
+------------------------------
+
+From the root of the cloned technote repository, run the update command, listing any identified authors that are relevant to your technote:
+
+.. code-block:: bash
+   :caption: Set author IDs with the -a option
+
+   uvx documenteer technote update -a sickj -a economouf
+
+.. dropdown:: Details for installing uv/uvx...
+
+   The update command needs **Python 3.12 or later**.
+   You can verify this by running ``python --version`` from your shell.
+
+   This official conversion procedure uses the :command:`uvx` command from uv_ to install and run the update command in an isolated Python environment.
+
+   If you don't have the :command:`uvx` command-line tool already, you can install ``uv`` several ways:
+
+   .. tab-set::
+
+      .. tab-item:: pip
+
+         .. prompt:: bash
+
+            python -m pip install uv
+
+      .. tab-item:: homebrew
+
+         .. prompt:: bash
+
+            brew install uv
+
+
+When the conversion runs, it shows a summary of the files changed and deleted.
+Use ``git diff`` to review the changes in case you need to make tweaks before committing.
+
+If you want to learn more about the changes the conversion makes, you can review the :ref:`detailed changes, below <technote-migration-detailed>`.
+
+.. _technote-migration-markdown:
+
+Step 4 (optional). Migrate to Markdown
+--------------------------------------
+
+The new technote format supports Markdown as well as reStructuredText.
+If you wish to use Markdown, you can use MyST Parser's migration tool:
+
+.. prompt:: bash
+
+   uvx --from "rst-to-myst[sphinx]" rst2myst convert index.rst
+
+The Markdown flavor used by the new technote format is MyST Markdown, which is a superset of CommonMark Markdown with support for Sphinx roles and directives.
+See the `MyST Parser documentation <https://myst-parser.readthedocs.io/en/latest/syntax/roles-and-directives.html#roles-directives>`__ for more information.
+
+Step 5 (optional). Build the technote locally
+---------------------------------------------
+
+You can build the technote locally to verify that the migrated technote compiles successfully.
+
+GitHub Actions will test the technote build when you open a pull request (next step), so you can skip this step.
+However, you can get faster feedback by building locally.
+
+.. prompt:: bash
+
+   make init
+   make html
+
+The technote's website will be in the ``_build/html`` directory.
+Open the ``index.html`` file in your web browser to view the technote:
+
+.. prompt:: bash
+
+   open _build/html/index.html
+
+You can repeat the :command:`make html` command to rebuild the technote after making changes.
+
+You might also want to run the linter to check links and find common issues:
+
+.. prompt:: bash
+
+   make lint
+
+If you have any questions or issues about the build, you should still proceed with committing and creating a pull request (see next step).
+This way you can link to the repository when you reach out for help in `#square-docs-support`_ on Slack.
+
+Step 6. Commit the conversion, pull request, and merge
+------------------------------------------------------
+
+At this point, you should have a working technote in the new format.
+If you haven't already, commit your work, push your branch to the GitHub repository, and open a pull request.
+GitHub Actions will build the technote and publish a preview version that is linked from the ``/v`` path of your technote's website.
+
+If the build works, you can merge the pull request.
+
+If there are build errors, you can reach out to `#square-docs-support`_ on Slack for help.
+Include the repository URL and ideally a link to the pull request or GitHub Actions workflow run that failed.
+
+.. _technote-migration-detailed:
+
+Conversion details
+==================
+
+The conversion is automated by the :command:`documenteer technote update` command, as described above.
+This section describes the steps it performs in detail, in case you need to make adjustments or understand the changes made to your technote.
+
+technote.toml file (added)
+--------------------------
+
+The :file:`technote.toml` file replaces the original :file:`metadata.yaml` file.
+This new file provides both metadata and Sphinx configuration for your document.
+
+Here is a simple :file:`technote.toml` file:
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   id = "EXAMPLE-000"
+   series_id = "EXAMPLE"
+   canonical_url = "https://example-000.lsst.io/"
+   github_url = "https://github.com/lsst/example-000"
+   github_default_branch = "main"
+   date_created = 2015-11-18
+   date_updated = 2023-11-01
+   organization.name = "Vera C. Rubin Observatory"
+   organization.ror = "https://ror.org/048g3cy84"
+   license.id = "CC-BY-4.0"
+
+   [[technote.authors]]
+   name = {given = "Drew", family = "Developer"}
+   internal_id = "example"
+   orcid = "https://orcid.org/0000-0001-2345-6789"
+   [[technote.authors.affiliations]]
+   name = "Rubin Observatory Project Office"
+   internal_id = "RubinObs"
+
+.. note::
+
+   The schema for this file is described in the `Technote package documentation <https://technote.lsst.io/user-guide/technote-toml.html>`__, and elsewhere in the :doc:`Documenteer documentation for Rubin technotes <index>`.
+   For now, some pointers on important metadata:
+
+   - ``id`` is the technote's handle. A lower-cased version of the handle is the subdomain of the technote's website.
+     For example, the handle for https://sqr-000.lsst.io/ is ``SQR-000``.
+   - ``series_id`` is the technote's series handle. At Rubin, this is the handle's prefix. Common series include ``RTN``, ``DMTN``, ``SQR``, and ``SITCOMTN``.
+   - ``canonical_url`` is the URL of the technote's website.
+   - ``github_url`` is the URL of the technote's GitHub repository.
+   - ``date_created`` is an optional field that specifies when the technote was first created.
+   - ``date_updated`` is an optional field that specifies when the technote was last updated. If you omit this field, the current date is used.
+   - Each author is specified with a ``[[technote.authors]]`` table (in TOML, the double brackets represent a table in an **array of tables**). Use the :command:`make add-author` command to add an author to this file using data from `authordb.yaml`_. It's important to use the ``internal_id`` field to identify authors with their corresponding key in `authordb.yaml`_. This enables Documenteer to update author information with the :command:`make sync-authors` command.
+
+conf.py file (updated)
+----------------------
+
+The :file:`conf.py` file directly configures the Sphinx build process.
+New technotes use a different configuration set provided by Documenteer that uses :file:`technote.toml` to customize the Sphinx configuration.
+For most technotes, the :file:`conf.py` file should be a single line:
+
+.. code-block:: python
+   :caption: conf.py
+
+   from documenteer.conf.technote import *  # noqa: F401, F403
+
+If your :file:`conf.py` file has additional content, some of that configuration may be migrated to :file:`technote.toml`.
+Reach out to `#square-docs-support`_ on Slack for advice.
+
+index.rst file (updated)
+------------------------
+
+The :file:`index.rst` file is the main content file for your technical note.
+The new technote format requires some changes to this file: the title is now part of the content, the abstract is marked up with a directive, status information is now part of :file:`technote.toml`, and the configuration for the reference section is dramatically simplified.
+
+Additionally, the new technote format supports Markdown as well as reStructuredText.
+See :ref:`migrate to Markdown <technote-migration-markdown>` to learn how to switch to Markdown.
+
+Title
+~~~~~
+
+The title is now part of the content, not the metadata.
+Add the title to the top of the content:
+
+.. tab-set::
+
+   .. tab-item:: rst
+      :sync: rst
+
+      .. code-block:: rst
+         :caption: index.rst
+
+         ######################
+         Example technical note
+         ######################
+
+         [... content below ...]
+
+   .. tab-item:: md
+      :sync: md
+
+      .. code-block:: md
+         :caption: index.md
+
+         # Example technical note
+
+Document status
+~~~~~~~~~~~~~~~
+
+The original technote format used a ``note`` directive to describe whether the document was a draft or deprecated.
+Now this status metadata is structured in :file:`technote.toml`.
+Delete the ``note`` directive and add the status information to :file:`technote.toml` following :doc:`document-status`.
+
+Abstract
+~~~~~~~~
+
+Legacy technotes either provided an abstract or summary through the ``description`` field in :file:`metadata.yaml`, in a ``note`` directive in :file:`index.rst`, or in a content section in :file:`index.rst`.
+The new technote format uses an ``abstract`` directive to mark up the abstract/summary.
+
+.. tab-set::
+
+   .. tab-item:: rst
+      :sync: rst
+
+      .. code-block:: rst
+         :caption: index.rst
+         :emphasize-lines: 5,6,7
+
+         ######################
+         Example technical note
+         ######################
+
+         .. abstract::
+
+            This is a summary of the technical note.
+
+         Introduction
+         ============
+
+         [... content below ...]
+
+   .. tab-item:: md
+      :sync: md
+
+      .. code-block:: md
+         :caption: index.md
+         :emphasize-lines: 3,4,5
+
+         # Example technical note
+
+         ```{abstract}
+         This is a summary of the technical note.
+         ```
+
+         ## Introduction
+
+         [... content below ...]
+
+Reference section
+~~~~~~~~~~~~~~~~~
+
+If your technote makes references to other documents with roles like :external+sphinxcontrib-bibtex:rst:role:`cite`, you'll need a reference section to display the bibliography.
+In the new technote format, this section is simplified:
+
+.. tab-set::
+
+   .. tab-item:: rst
+      :sync: rst
+
+      .. code-block:: rst
+         :caption: index.rst
+
+         [... content above ...]
+
+         References
+         ==========
+
+         .. bibliography::
+
+   .. tab-item:: md
+      :sync: md
+
+      .. code-block:: md
+         :caption: index.md
+
+         [... content above ...]
+
+         ## References
+
+         ```{bibliography}
+         ```
+
+Specifically:
+
+- The references section should be a regular section, not a "rubric."
+- The bibliography directive no longer requires any configuration; all configuration is provided by Documenteer.
+
+metadata.yaml file (deleted)
+----------------------------
+
+At this point, all relevant metadata about the technote is in :file:`technote.toml` or :file:`index.rst`/:file:`index.md`.
+Delete the deprecated :file:`metadata.yaml` file:
+
+.. prompt:: bash
+
+   git rm metadata.yaml
+
+lsstbib/ directory (deleted)
+----------------------------
+
+The legacy technote format vendored Rubin BibTeX bibliography files from https://github.com/lsst/lsst-texmf.
+The new technote format automatically downloads and caches these files so that you no longer need to commit them into your repository.
+Delete the :file:`lsstbib` directory:
+
+.. prompt:: bash
+
+   git rm -r lsstbib
+
+.gitignore file (updated)
+-------------------------
+
+The new technote format introduces additional directories that should be ignored by Git.
+Ensure at least the following paths are included in the :file:`.gitignore` file:
+
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/gitignore
+   :language: text
+   :caption: .gitignore
+
+.pre-commit-config.yaml file (added)
+------------------------------------
+
+Pre-commit_ is a Python package that runs validation and formatting checks on your technote's repository before you commit.
+Although it is not required, it's highly recommended that you set up pre-commit hooks for your technote.
+To start, add a :file:`.pre-commit-config.yaml` file:
+
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/pre-commit-config.yaml
+   :language: yaml
+   :caption: .pre-commit-config.yaml
+
+.. tip::
+
+   You can add additional pre-commit hooks to this file to suit your needs.
+   See Pre-commit's `directory of available hooks <https://pre-commit.com/hooks.html>`__ for ideas.
+
+requirements.txt file (updated)
+-------------------------------
+
+The Python dependencies for your technote are listed in a :file:`requirements.txt` file that should now look like this:
+
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/requirements.txt
+   :language: text
+   :caption: requirements.txt
+
+.. note::
+
+   If your technote has additional dependencies listed, you can reach out to `#square-docs-support`_ on Slack if you are unsure whether they are part of the Sphinx build process or separate packages needed for any custom document preprocessing.
+
+tox.ini file (added)
+--------------------
+
+Tox_ is a tool for running Python programs in dedicated virtual environments.
+This makes your local technote builds more reproducible by separating the technote's dependencies from your system and other projects.
+
+This is the recommended tox configuration to start with:
+
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/tox.ini
+   :language: ini
+   :caption: tox.ini
+
+Makefile file (updated)
+-----------------------
+
+The :file:`Makefile` file provides a simple entrypoint for building your technote and performing other common tasks.
+This is the suggested content for your :file:`Makefile` that works with the tox and pre-commit configurations:
+
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/Makefile
+   :language: make
+   :caption: Makefile
+
+.github/workflows/ci.yaml file (added/updated)
+----------------------------------------------
+
+Recent technotes have already migrated their GitHub Actions workflows to use the reusable workflow from https://github.com/lsst-sqre/rubin-sphinx-technote-workflows.
+Check the :file:`.github/workflows/ci.yaml` file to make sure it looks like this:
+
+.. code-block:: yaml
+   :caption: .github/workflows/ci.yaml
+
+   name: CI
+
+   'on': [push, pull_request, workflow_dispatch]
+
+   jobs:
+     call-workflow:
+       uses: lsst-sqre/rubin-sphinx-technote-workflows/.github/workflows/ci.yaml@v1
+       with:
+         handle: example-001
+       secrets:
+         ltd_username: ${{ secrets.LTD_USERNAME }}
+         ltd_password: ${{ secrets.LTD_PASSWORD }}
+
+Replace ``example-001`` with your technote's handle (the subdomain of ``lsst.io``).
+
+.. note::
+
+   The original Rubin technotes used Travis CI for continuous integration and deployment, but we no longer use that service.
+   In that case, you will need to create the :file:`.github/workflows` directory and add the above :file:`ci.yaml` workflow.
+   GitHub Actions will automatically start using this workflow.
+
+   If your technote has a :file:`.travis.yml` file, you should delete it:
+
+   .. prompt:: bash
+
+      git rm .travis.yml
+
+.github/dependabot.yml file (added)
+-----------------------------------
+
+Dependabot is a service provided by GitHub that generates pull requests when there are new versions of your technote's dependencies.
+Set up Dependabot by adding a :file:`.github/dependabot.yml` file:
+
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/dependabot.yml
+   :language: yaml
+   :caption: .github/dependabot.yml
+
+README.rst or README.md file (updated)
+--------------------------------------
+
+The README for a legacy-format technote likely has outdated information about how to build the technote.
+Here is a suggested README template for technotes in the new format:
+
+.. tab-set::
+
+   .. tab-item:: rst
+      :sync: rst
+
+      .. literalinclude:: _templates/README.rst
+         :language: rst
+         :caption: README.rst
+
+   .. tab-item:: md
+      :sync: md
+
+      .. literalinclude:: _templates/README.md
+         :language: md
+         :caption: README.md

@@ -71,7 +71,7 @@ make clean                  # Remove build artifacts
 
 **Services** (`src/documenteer/services/`):
 - `technoteauthor.py`: Author management for technotes
-- `technotemigration.py`: Legacy technote migration logic
+- `technoteupdate.py`: Technote update and legacy-migration logic
 
 ### Key Design Patterns
 
