@@ -2847,6 +2847,46 @@ def test_citation_defaults_date_is_a_date_to_the_warning() -> None:
     assert context["date"] == "2026"
 
 
+def test_a_declared_defaults_table_is_known_to_be_declared() -> None:
+    """A site that writes a ``[project.citation_defaults]`` table is known to
+    have written one.
+
+    It is the undated-citation warning that asks: a date the site's entries
+    share belongs in the table, and the remediation can only offer the table
+    to a site that has one.
+    """
+    config = DocumenteerConfig.load(CITATION_DEFAULTS)
+
+    assert config.conf.project.declares_citation_defaults is True
+
+
+def test_an_undeclared_defaults_table_is_known_to_be_absent() -> None:
+    """A site whose citations each state their own fields declares no
+    defaults table.
+
+    The table is always present as a model — an undeclared one is an instance
+    whose every field is unset — so this is the question ``is anything
+    defaulted?`` cannot answer.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+
+    assert config.conf.project.declares_citation_defaults is False
+
+
+def test_an_empty_defaults_table_is_still_declared() -> None:
+    """A table written with nothing in it counts as written.
+
+    Nothing is defaulted from it, so it changes no citation; what it changes
+    is that its author knows where the table is, which is what the
+    undated-citation remediation turns on.
+    """
+    config = DocumenteerConfig.load(
+        '[project]\ntitle = "Example Guide"\n\n[project.citation_defaults]\n'
+    )
+
+    assert config.conf.project.declares_citation_defaults is True
+
+
 def test_citation_defaults_leave_the_entry_as_written() -> None:
     """Defaults are applied where a citation is composed, not by filling the
     entry in.

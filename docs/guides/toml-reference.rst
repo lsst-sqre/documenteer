@@ -484,7 +484,7 @@ Writing ``2025-01-01`` for a work whose sources say only "2025" would assert a p
 Anything else — ``"June 2025"``, a month outside 1–12, a year that is not four digits — fails the build with a message naming the accepted forms.
 
 An entry that states no date, and whose :ref:`cff <guide-project-citations-cff>` file supplies none either, is cited undated: the rendered citation shows no year, and its BibTeX entry carries no ``year`` field.
-That is a warning, not an error — the citation still displays — and it carries the subtype ``documenteer.citation_date``, naming the entry and the record the date belongs in.
+That is a warning, not an error — the citation still displays — and it carries the subtype ``documenteer.citation_date``, naming the entry and every place the date belongs in: the entry's own field, the :file:`CITATION.cff` record it reads, and, on a site that declares one, the :ref:`[project.citation_defaults] <guide-project-citation-defaults>` table.
 A :ref:`software <guide-project-citations-type>` entry located by a :ref:`url <guide-project-citations-url>` rather than by a DOI is the exception, and is not reported: a package released continuously has no publication event to date, and what identifies the code a reader ran is its :ref:`version <guide-project-citations-version>`.
 A site with no date to give suppresses it the way any other Sphinx warning is suppressed (see :ref:`guide-undated-citations`):
 
@@ -647,6 +647,10 @@ Set it to ``false`` to cite the file's *top-level* record — the software or th
    cff = "../CITATION.cff"
    cff_preferred = false
    label = "Software"
+   in_footer = true
+
+:ref:`in_footer <guide-project-citations-in-footer>` is there because such an entry is neither :ref:`self <guide-project-citations-self>` nor :ref:`preferred <guide-project-citations-preferred>` — the file's ``preferred-citation`` is the work the repository asks to be cited — and an entry in neither role reaches no surface on its own.
+Without it the record is read and composed and then shown nowhere: not in the :ref:`footer <guide-footer-citations>`, not in the site-wide JSON-LD block, and only on a :ref:`card <guide-citation-card>` that names its label.
 
 That is the only way to cite a repository whose :file:`CITATION.cff` prefers a paper, and a site can do both at once by declaring two entries against the same file: one for the paper and one, with ``cff_preferred = false``, for the software.
 The top-level record's own ``type`` — which CFF restricts to ``software`` or ``dataset`` — supplies the entry's :ref:`type <guide-project-citations-type>`, and a top-level record with no DOI is located by its ``url`` or ``repository-code`` (see :ref:`url <guide-project-citations-url>`).
@@ -726,6 +730,18 @@ The entries a defaults table does not describe are exactly the works a site *cit
 An entry that names none takes the default list whole, ROR identifiers and all.
 
 A defaulted :ref:`date <guide-project-citations-date>` is a date — an entry dated only by this table is not reported by the ``documenteer.citation_date`` warning — and a defaulted :ref:`version <guide-project-citations-version>` is a stated one, so it wins over the :ref:`project.version <guide-project-version>` that a software entry describing this site's own package would otherwise inherit.
+
+**The reach of a defaulted version**
+
+:ref:`version <guide-project-citations-version>` is the one field whose default is worth reading twice before writing, because the *other* version default on this page is far narrower than it is.
+:ref:`project.version <guide-project-version>` fills only a :ref:`software <guide-project-citations-type>` entry that describes this site's own package — the :ref:`self <guide-project-citations-self>` entry, the :ref:`preferred <guide-project-citations-preferred>` one, or one reading a :file:`CITATION.cff` file's top-level record — and leaves every other entry version-less on purpose, since this site knows nothing about anybody else's releases.
+
+A ``version`` written here has no such scope.
+It is a *stated* version, and every entry that states none of its own takes it: the data products the site publishes, the third-party works it merely cites, and the papers and reports that never take the ``project.version`` default at all.
+It reaches the display text of all of them — a citation's title is qualified as ``Title (version DP2.1).`` whatever kind of work it is — even though BibTeX writes a ``version`` field on ``@software`` and ``@dataset`` alone, so a release written here for a site's datasets also appears in the rendered text of the ``@article`` it cites.
+
+Write it here when the release genuinely names every entry, as a data release's version names each of its products.
+A release that belongs to some of them belongs on those entries.
 
 **The fields it does not accept**
 
@@ -835,7 +851,7 @@ With this, many metadata values are automatically detected — look for |py-auto
 
 .. note::
 
-   If a value is directly set, such as :ref:`guide-project-version`, that value will override will override information discovered from the Python project itself.
+   If a value is directly set, such as :ref:`guide-project-version`, that value will override information discovered from the Python project itself.
 
 .. seealso::
 

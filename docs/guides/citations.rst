@@ -147,6 +147,17 @@ The :ref:`footer <guide-footer-citations>` and a :ref:`card <guide-citation-card
 The one surface it cannot reach is the inline :ref:`doi role <guide-citation-doi-role>`, whose link *text* is the DOI: an entry that has none is linked with ordinary hyperlink syntax instead.
 Nor does such a site carry the per-page citation meta tags, which describe a DOI's landing page and are emitted only for a :ref:`self <guide-project-citations-self>` entry; see :ref:`guide-citation-metadata`.
 
+.. _guide-citation-development-versions:
+
+The entry states no :ref:`version <guide-project-citations-version>` and is cited with one anyway.
+A ``software`` entry the site marks :ref:`preferred <guide-project-citations-preferred>` *is* this site's own package, so it takes the site's :ref:`project.version <guide-project-version>`, and on a site published from its default branch — as `safir.lsst.io <https://safir.lsst.io>`__ is, from ``main`` — that is the development build the documentation was made from: ``Safir (version 15.2.2.dev4+g9c8d32d17).``
+That is deliberate.
+These pages document that code and not the last tag, and naming the tag would credit a release the reader is not reading the documentation of.
+
+A site that would rather cite releases has two ways to say so.
+Setting :ref:`version <guide-project-citations-version>` on the entry pins it, and always wins over the default.
+Publishing the documentation from tags instead of from the default branch makes the version the site builds with a release, which leaves the entry stating nothing and citing ``15.2.2`` — and is the honest form of the request, since the published pages are then the release's documentation.
+
 A site whose repository keeps a :file:`CITATION.cff` file does not restate any of this: :ref:`cff <guide-project-citations-cff>` takes the URL from the file's ``url``, or from its ``repository-code`` when the file names no landing page, along with the rest of the record.
 
 .. _guide-citation-card:
@@ -391,6 +402,8 @@ Nothing on the rendered page says so, which is why the build does.
 Each such entry emits one ``documenteer.citation_date`` warning, naming the entry — by its :ref:`label <guide-project-citations-label>`, or by its title when it has none — and where the date belongs.
 That is the entry's own ``date`` field, and, for an entry reading a :file:`CITATION.cff` file, ``date-released`` (or ``year``) in the record it reads there: the file's ``preferred-citation``, or its top-level record when :ref:`cff_preferred = false <guide-project-citations-cff-preferred>` selects that one.
 Naming the record matters, because a file whose top-level software record carries no date at all can sit above a dated ``preferred-citation``.
+A site that writes a :ref:`[project.citation_defaults] <guide-project-citation-defaults>` table is offered that too, named last because that is where the date resolves from last.
+On a site that dates forty data products from one table, an undated entry is usually forty undated entries and a missing default, and the entry is the one place its author should not write the date.
 
 A :ref:`software <guide-project-citations-type>` entry located by a :ref:`url <guide-project-citations-url>` rather than by a DOI is the exception, and is not reported.
 Software released continuously has no publication event to date — its :ref:`version <guide-project-citations-version>` is what identifies the code a reader ran, and the date that qualifies it is the date they accessed it — so reporting such an entry would make ``suppress_warnings`` the end state of every package site, silencing the dated works its author *does* want to hear about.
@@ -457,6 +470,8 @@ Such a site writes :ref:`in_footer = false <guide-project-citations-in-footer>` 
 .. code-block:: rst
 
    .. citation-card::
+
+That entry states no :ref:`version <guide-project-citations-version>` either, so it is cited at the site's own — a development build on a site published from ``main``, which is :ref:`what a site published from a branch cites <guide-citation-development-versions>`.
 
 Nothing is lost by silencing the footer.
 ``in_footer`` governs the visible surfaces alone: the preferred citation is still described in full in the :ref:`site-wide JSON-LD block <guide-citation-metadata>` that every page of the site carries, so a crawler finds it wherever it lands, and a reader who arrives at the home page meets the card.

@@ -63,13 +63,16 @@ A ``doi`` that is not a DOI
 ===========================
 
 The other schema failure worth calling out is a ``[technote] doi`` that is not syntactically a DOI, because the DOI is the identifier every citation of the document resolves through — the "Citing this document" section, the BibTeX entry, the :file:`CITATION.cff` file, and the metadata registered with DataCite all read it.
-The field is validated when :file:`technote.toml` is parsed, so the finding names ``technote.doi`` along with the value it rejected:
+The field is validated when :file:`technote.toml` is parsed, so the finding names ``technote.doi`` along with the value it rejected, in the Pydantic report every TN001 finding ends with:
 
 .. code-block:: text
 
    [TN001] technote.toml does not conform to the schema: 1 validation error for TechnoteToml
    technote.doi
-     Value error, Not a DOI (10.71929). A DOI looks like 10.5281/zenodo.10385500, and may also be given as a https://doi.org/ URL.
+     Value error, Not a DOI (10.71929). A DOI looks like 10.5281/zenodo.10385500, and may also be given as a https://doi.org/ URL. [type=value_error, input_value='10.71929', input_type=str]
+       For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+The ``[type=...]`` frame and the ``errors.pydantic.dev`` link come from Pydantic itself — the version in that URL is whichever Pydantic is installed — and neither adds anything to the message above them.
 
 Write the DOI in one of the accepted spellings — all three of these declare the same DOI, and Documenteer normalizes whichever you use to the bare ``10.NNNN/suffix`` form:
 

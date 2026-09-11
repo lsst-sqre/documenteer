@@ -4,10 +4,11 @@
 A citation with no publication date is silently undated everywhere it is
 shown: the plain text loses its ``(YYYY)``, the BibTeX entry loses its ``year``
 field, and the BibTeX key is built from the author and title alone. Nothing
-about the rendered page says so, and the date can be missing from either of two
-places -- the ``[[project.citations]]`` entry, or the record of the
-CITATION.cff file the entry reads -- so ``documenteer.ext.citationdate``
-reports it as the builder is initialized and names the one that applies.
+about the rendered page says so, and the date can be missing from any of three
+places -- the ``[[project.citations]]`` entry, the record of the CITATION.cff
+file the entry reads, or the ``[project.citation_defaults]`` table every entry
+takes a date from -- so ``documenteer.ext.citationdate`` reports it as the
+builder is initialized and names the ones that apply.
 
 ``builder-inited`` runs once on every build, whether or not that build reads a
 document, which is what the last test here is about. The rest give each build
@@ -30,6 +31,7 @@ from documenteer.citations import (
     OrganizationAuthor,
     PartialDate,
 )
+from documenteer.ext.citationdate import DEFAULTS_CONFIG
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -378,6 +380,82 @@ def test_package_site_reports_nothing(app: SphinxTestApp) -> None:
     Paper warning its author does want to hear.
     """
     assert not [line for line in _warnings(app) if WARNING_NAME in line]
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-defaults-declared",
+    confoverrides={
+        "html_context": _context(
+            _undated("Butler", doi="10.71929/rubin/3382539")
+        ),
+        DEFAULTS_CONFIG: True,
+    },
+)
+def test_declared_defaults_table_is_offered(app: SphinxTestApp) -> None:
+    """A site that writes a [project.citation_defaults] table is offered it
+    beside the entry, because a date its entries share belongs there.
+
+    This is what a site minting a DOI per data product runs into: dropping
+    the defaults' date undates every entry at once, and dating forty entries
+    one at a time is the remediation the entry-only wording asks for.
+    """
+    warning = _warning_naming(app, "'Butler'")
+
+    assert "[project.citation_defaults]" in warning
+    # The entry's own field is still the first answer, and the only one for
+    # an entry whose date the rest of the site does not share.
+    assert "[[project.citations]]" in warning
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-defaults-undeclared",
+    confoverrides={
+        "html_context": _context(
+            _undated("Butler", doi="10.71929/rubin/3382539")
+        )
+    },
+)
+def test_undeclared_defaults_table_is_not_offered(app: SphinxTestApp) -> None:
+    """A site with no defaults table is told about the entry alone.
+
+    Naming a table the site never wrote would send its author looking for
+    one, and an entry is where a site that shares nothing puts a date anyway.
+    """
+    warning = _warning_naming(app, "'Butler'")
+
+    assert "citation_defaults" not in warning
+    assert "[[project.citations]]" in warning
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
+    srcdir="citationdate-defaults-cff",
+    confoverrides={
+        "html_context": _context(
+            _undated("Software", doi="10.5281/zenodo.10161119", cff=CFF_PATH)
+        ),
+        DEFAULTS_CONFIG: True,
+    },
+)
+def test_every_place_a_date_belongs_is_named_in_order(
+    app: SphinxTestApp,
+) -> None:
+    """An entry reading a CITATION.cff file on a site with a defaults table
+    has three places to put a date, and they are named in the order the value
+    resolves in: the entry, the file's record, then the table.
+    """
+    warning = _warning_naming(app, "'Software'")
+
+    assert (
+        warning.index("[[project.citations]]")
+        < warning.index(CFF_PATH)
+        < warning.index("[project.citation_defaults]")
+    )
 
 
 @pytest.mark.sphinx(

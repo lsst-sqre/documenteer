@@ -9,12 +9,16 @@ title alone. The page still renders, so nothing tells the author that the work
 they publish is being cited undated.
 
 This extension is what tells them. It reports each undated citation once per
-build, as the builder is initialized, and names the place the date belongs:
-the ``date`` field of the ``[[project.citations]]`` entry, and — when the
-entry sources its fields from a :file:`CITATION.cff` file — the record inside
-that file it reads. Which record matters, because a file whose top-level
-software record is undated can carry a dated ``preferred-citation`` beside it,
-and dating the wrong one would leave the citation exactly as it was.
+build, as the builder is initialized, and names every place the date belongs:
+the ``date`` field of the ``[[project.citations]]`` entry; when the entry
+sources its fields from a :file:`CITATION.cff` file, the record inside that
+file it reads; and, on a site that declared one, the
+``[project.citation_defaults]`` table the entry would take a date from. Which
+record matters, because a file whose top-level software record is undated can
+carry a dated ``preferred-citation`` beside it, and dating the wrong one would
+leave the citation exactly as it was. So does the table, because a site that
+mints a DOI per data product dates all of them from it, and an entry is the
+one place such a site should not be told to write the date.
 
 ``builder-inited`` is the event that makes "once per build" true of every
 build. An undated citation is a property of the configuration alone, and a
@@ -86,6 +90,28 @@ so it is always an answer — and it is the only one available to a site whose
 citation names a file it does not own.
 """
 
+DEFAULTS_CONFIG = "documenteer_citation_defaults_declared"
+"""The configuration value saying whether documenteer.toml writes a
+``[project.citation_defaults]`` table.
+
+The guide preset publishes it; it is a configuration value rather than another
+``html_context`` key because it is not a citation and no template displays it,
+and because ``html_context`` is what a site's citation surfaces read — two
+sites publishing the same citations should publish the same context whether or
+not one of them wrote its shared fields once.
+"""
+
+DEFAULTS_FIX = (
+    "or date in [project.citation_defaults] for every entry that shares it"
+)
+"""The fix a site that declared a defaults table has in addition.
+
+A site minting a DOI per data product dates forty entries from one table, so
+an undated entry on such a site is usually forty undated entries and one
+missing default. Naming only the entry points at the one place its author
+should *not* write the date.
+"""
+
 
 def _citations(app: Sphinx) -> Sequence[dict[str, Any]]:
     """Return the site's citations, in the order they are declared.
@@ -96,28 +122,38 @@ def _citations(app: Sphinx) -> Sequence[dict[str, Any]]:
     return app.config.html_context.get("documenteer_citations") or []
 
 
-def _fix(citation: dict[str, Any]) -> str:
+def _fix(citation: dict[str, Any], *, defaults_declared: bool) -> str:
     """Compose the sentence saying where this citation's date belongs.
 
-    An entry that states its own fields has one place to set a date. An entry
-    reading a :file:`CITATION.cff` file has two, and the second is named as
-    the record the entry actually reads, spelled with the path the
-    configuration wrote rather than the absolute one it resolves to.
+    Every place the site could state the date is named, in the order the
+    value resolves in — the entry, then the :file:`CITATION.cff` record the
+    entry reads, then the defaults table — which is the order the
+    configuration reference explains the three in.
+
+    An entry that states its own fields on a site with no defaults table has
+    one place to set a date. The file record is named as the record the entry
+    actually reads, spelled with the path the configuration wrote rather than
+    the absolute one it resolves to. The defaults table is offered only to a
+    site that declared one, since it is otherwise a table its author would go
+    looking for.
     """
+    fixes = [ENTRY_FIX]
     cff = citation.get("cff")
-    if not cff:
-        return f"{ENTRY_FIX}."
-    if citation.get("cff_preferred", True):
-        record = (
-            f"the preferred-citation record of {cff} (its top-level record "
-            "when the file declares no preferred citation)"
-        )
-    else:
-        record = (
-            f"the top-level record of {cff}, which cff_preferred = false "
-            "selects"
-        )
-    return f"{ENTRY_FIX}, or date-released (or year) in {record}."
+    if cff:
+        if citation.get("cff_preferred", True):
+            record = (
+                f"the preferred-citation record of {cff} (its top-level "
+                "record when the file declares no preferred citation)"
+            )
+        else:
+            record = (
+                f"the top-level record of {cff}, which cff_preferred = false "
+                "selects"
+            )
+        fixes.append(f"or date-released (or year) in {record}")
+    if defaults_declared:
+        fixes.append(DEFAULTS_FIX)
+    return f"{', '.join(fixes)}."
 
 
 def _has_no_publication_event(citation: dict[str, Any]) -> bool:
@@ -155,6 +191,7 @@ def check_citation_dates(app: Sphinx) -> None:
         citations.
     """
     citations = _citations(app)
+    defaults_declared = bool(getattr(app.config, DEFAULTS_CONFIG))
     for citation in citations:
         if citation.get("date") or _has_no_publication_event(citation):
             continue
@@ -167,7 +204,7 @@ def check_citation_dates(app: Sphinx) -> None:
             # warning is about: it collapses to the author and title alone,
             # so naming the entry by it would name the symptom.
             describe_citation(citation, citations, unlabelled_field="title"),
-            _fix(citation),
+            _fix(citation, defaults_declared=defaults_declared),
             type=WARNING_TYPE,
             subtype=WARNING_SUBTYPE,
         )
@@ -175,6 +212,9 @@ def check_citation_dates(app: Sphinx) -> None:
 
 def setup(app: Sphinx) -> ExtensionMetadata:
     """Set up the ``documenteer.ext.citationdate`` Sphinx extension."""
+    # Nothing rendered reads this, so a site that adds or removes the table
+    # owes its documents no rebuild; the check runs on every build anyway.
+    app.add_config_value(DEFAULTS_CONFIG, False, "", bool)
     app.connect("builder-inited", check_citation_dates)
 
     return {

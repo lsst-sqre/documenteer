@@ -93,6 +93,7 @@ __all__ = [
     "html_context",
     "html_theme_options",
     "documenteer_last_modified_enabled",
+    "documenteer_citation_defaults_declared",
     "git_last_updated_metatags",
     "html_sidebars",
     "html_title",
@@ -406,6 +407,16 @@ _conf.set_edit_on_github(html_theme_options, html_context)
 # all read documenteer_citations / documenteer_self_citation from the
 # context. Nothing is set when the site declares no citations.
 _conf.set_citations(html_context)
+
+# Whether documenteer.toml writes a [project.citation_defaults] table, which
+# documenteer.ext.citationdate reports an undated citation against: such a
+# site dates every entry from one line, so the entry the warning would
+# otherwise name alone is the one place its author should not write the date.
+# This is not a citation and no template reads it, which is why it travels as
+# a configuration value rather than as another html_context key.
+documenteer_citation_defaults_declared = (
+    _conf.conf.project.declares_citation_defaults
+)
 
 # Specifies templates to put in the primary (left) sidebars of
 # specific pages (by their docname or pattern). An empty list results in the

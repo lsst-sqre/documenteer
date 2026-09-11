@@ -792,6 +792,21 @@ class ProjectModel(BaseModel):
         ),
     )
 
+    @property
+    def declares_citation_defaults(self) -> bool:
+        """Whether documenteer.toml writes a ``[project.citation_defaults]``
+        table at all.
+
+        The table is always present as a model — an undeclared one is an
+        instance whose every field is unset — so "is anything defaulted?" is
+        not the question this answers. What it answers is whether the *site*
+        wrote the table, which is what decides whether the undated-citation
+        warning can name it as a place to put a date: offering the table to a
+        site that shares nothing between its entries would be advice about a
+        table that does not exist.
+        """
+        return "citation_defaults" in self.model_fields_set
+
     @field_validator("citations")
     @classmethod
     def validate_one_self_citation(
