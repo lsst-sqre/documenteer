@@ -16,6 +16,7 @@ from documenteer.conf import (
     get_asset_path,
     get_template_dir,
 )
+from documenteer.conf._errors import exit_on_config_error
 from documenteer.conf._utils import (
     get_common_nitpick_ignore,
     get_common_nitpick_ignore_regex,
@@ -154,7 +155,15 @@ warnings.filterwarnings(
     category=RemovedInNextVersionWarning,
 )
 
-_conf = DocumenteerConfig.find_and_load()
+# Reading documenteer.toml is the first of the three places a guide's
+# configuration can fail; the other two are the Edit-on-GitHub and citation
+# calls further down, which check values this file only validated the shape
+# of. Each reports and exits the process rather than raising: an exception
+# raised while conf.py runs is rendered by Sphinx as a crash of Sphinx, which
+# buries the message saying what to fix. See documenteer.conf._errors for why
+# the exit has to be the one it is.
+with exit_on_config_error("documenteer.toml"):
+    _conf = DocumenteerConfig.find_and_load()
 
 
 # ============================================================================
@@ -400,7 +409,8 @@ favicons = [
 
 
 # Configure the "Edit this page" link
-_conf.set_edit_on_github(html_theme_options, html_context)
+with exit_on_config_error("documenteer.toml"):
+    _conf.set_edit_on_github(html_theme_options, html_context)
 
 # Publish the site's citations ([[project.citations]] in documenteer.toml)
 # into html_context, resolved and composed. This is the only place a citation
@@ -417,7 +427,8 @@ _conf.set_edit_on_github(html_theme_options, html_context)
 # showed the edited one. documenteer_citations_digest is registered with
 # rebuild="env" (see documenteer.ext.citationcard), so a site that edits a
 # citation re-reads every document and the two kinds of surface agree.
-documenteer_citations_digest = _conf.set_citations(html_context)
+with exit_on_config_error("documenteer.toml"):
+    documenteer_citations_digest = _conf.set_citations(html_context)
 
 # Whether documenteer.toml writes a [project.citation_defaults] table, which
 # documenteer.ext.citationdate reports an undated citation against: such a
