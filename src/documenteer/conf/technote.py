@@ -1,11 +1,15 @@
 """Sphinx configuration for Rubin technotes."""
 
+import tomllib
 import warnings
 from contextlib import suppress
 from pathlib import Path
+from typing import NoReturn
 
+from pydantic import ValidationError
 from sphinx.deprecation import RemovedInNextVersionWarning
-from technote.sphinxconf import *  # noqa: F403
+from sphinx.errors import ConfigError
+from technote.sources.tomlsettings import TechnoteToml
 
 from documenteer.conf import (
     extend_excludes_for_non_index_source,
@@ -14,12 +18,55 @@ from documenteer.conf import (
     get_template_dir,
 )
 
+from ._errors import fail_config
 from ._technotecitation import TechnoteCitation
+from ._tomlerrors import format_validation_error
 from ._utils import (
     get_common_nitpick_ignore,
     get_common_nitpick_ignore_regex,
     get_technote_origin_base_url,
 )
+
+
+def _fail_technote_config(error: BaseException) -> NoReturn:
+    """Report a technote.toml the technote package rejected, in the same
+    words a documenteer.toml is rejected in, and end the process.
+
+    The technote package validates technote.toml with pydantic and raises
+    ``ConfigError("Syntax or validation issue in technote.toml")`` — a
+    sentence that names no table, no field, and no value — keeping the
+    `~pydantic.ValidationError` as the exception's cause. That cause is where
+    everything an author needs is, so it is read back out and reported
+    against technote's own model, which puts a malformed ``[technote] doi``
+    or a lowercase code in ``[technote.lint] ignore`` in front of whoever
+    wrote it instead of a pydantic frame.
+    """
+    cause = error.__cause__
+    if isinstance(cause, ValidationError):
+        message = format_validation_error(
+            cause, root=TechnoteToml, source="technote.toml"
+        )
+    elif isinstance(error, tomllib.TOMLDecodeError):
+        # technote parses the file before validating it, so a file TOML
+        # itself cannot read escapes as the parser's own exception. Its
+        # message carries the line and column, which is the whole of what
+        # finds an unclosed quote or bracket.
+        message = f"Syntax error in technote.toml: {error}"
+    else:
+        message = str(error)
+    fail_config(message, source="technote.toml")
+
+
+# Importing technote's preset is what reads and validates technote.toml, so
+# it is also where a bad file stops the build. It is reported and exits here
+# rather than being left to propagate: an exception raised while conf.py runs
+# is rendered by Sphinx as a crash of Sphinx, which buries the message that
+# says what to fix. See documenteer.conf._errors for why the exit has to be
+# the one it is.
+try:
+    from technote.sphinxconf import *  # noqa: F403
+except (ConfigError, tomllib.TOMLDecodeError) as _technote_config_error:
+    _fail_technote_config(_technote_config_error)
 
 # Suppress warnings about deprecated features in future Sphinx versions.
 # This is noise for users because Documenteer itself constrains the Sphinx

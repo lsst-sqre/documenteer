@@ -306,11 +306,22 @@ def _read_doctree(root_dir: Path) -> nodes.document:
     from sphinx.application import Sphinx  # noqa: PLC0415
     from sphinx.util.docutils import patch_docutils  # noqa: PLC0415
 
+    # Imported here, like the Sphinx pieces above, so that importing this
+    # module does not pull in the configuration package the CLI has no other
+    # reason to load.
+    from documenteer.conf._errors import raising_config_errors  # noqa: PLC0415
+
     with (
         tempfile.TemporaryDirectory(prefix="documenteer-read-") as build_dir,
         patch_docutils(str(root_dir)),
         _docutils_namespace(),
         _isolated_technote_config(),
+        # A technote.toml the presets reject ends a sphinx-build process
+        # outright, since nothing else is going on in it. This process is a
+        # Documenteer command with a report of its own to finish, so the
+        # failure comes back as an exception instead and is turned into a
+        # TechnoteReadError below.
+        raising_config_errors(),
     ):
         build = Path(build_dir)
         try:

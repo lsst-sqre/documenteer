@@ -2561,6 +2561,39 @@ def test_config_error_addresses_a_nested_array() -> None:
     assert "A citation author has no name." in message
 
 
+EXAMPLE_CITATIONS_UNKNOWN_TYPE = """
+
+[project]
+title = "Example Guide"
+
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+title = "LSSTCam"
+type = "instrument"
+"""
+
+
+def test_config_error_names_the_citation_types() -> None:
+    """A ``type`` outside the vocabulary is rejected in Documenteer's own
+    words: the five kinds a citation is written as, and the one an instrument
+    or a facility takes.
+
+    Pydantic's own sentence for an enumeration lists the members but says
+    nothing about choosing between them, so the author of a work that is none
+    of them is left to guess which of the five to force it into.
+    """
+    with pytest.raises(ConfigError) as exc_info:
+        DocumenteerConfig.load(EXAMPLE_CITATIONS_UNKNOWN_TYPE)
+
+    message = str(exc_info.value)
+    assert "[[project.citations]] entry #1, field type" in message
+    assert "'instrument' is not a citation type" in message
+    for kind in ("dataset", "article", "software", "report", "other"):
+        assert f'"{kind}"' in message
+    assert "an instrument or a facility" in message
+    assert "Input should be" not in message
+
+
 EXAMPLE_TITLE_IS_NOT_A_STRING = """
 
 [project]
