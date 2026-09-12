@@ -108,11 +108,12 @@ class TechnoteDocument:
     Notes
     -----
     ``metadata.date_updated`` is not the date ``technote.toml`` declares: the
-    technote package defaults an undeclared ``date_updated`` to the moment of
-    the build. A caller that needs the *declared* date — as CITATION.cff
-    generation does, since a date that changes every run would make the
-    generated file differ from itself — must read ``technote.toml`` rather
-    than take it from here.
+    technote package resolves an undeclared ``date_updated`` from the
+    checked-out commit's committer date. A caller that needs the *declared*
+    date — as CITATION.cff generation does, since that file is checked in and
+    compared against the repository, so a commit date would leave it stale on
+    every content commit — must read ``technote.toml`` rather than take it
+    from here.
     """
 
     metadata: TechnoteMetadata
