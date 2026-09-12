@@ -1,10 +1,8 @@
 ### New features
 
-- A technote that sets `[technote] doi` in `technote.toml` now shows a **Cite** section in its sidebar: the DOI written as a full, resolvable `https://doi.org/…` hyperlink, and the technote's BibTeX entry behind a disclosure with a button that copies it to the clipboard. DataCite asks a DOI's landing page to display the DOI as a resolvable link alongside a bibliographic record, and this is where a technote says so.
+- Every technote now shows a **Cite** section in its sidebar: the technote's BibTeX entry behind a disclosure with a button that copies it to the clipboard and, for a technote registered with a DOI, that DOI written as a full, resolvable `https://doi.org/…` hyperlink. DataCite asks a DOI's landing page to display the DOI as a resolvable link alongside a bibliographic record, and this is where a technote says so.
 
-  The entry is a BibTeX `techreport` composed at build time from the technote's own metadata — its authors, its publisher as the `institution`, its handle (`SQR-000`) as the `number`, its DOI, and its canonical URL — by the same `documenteer.citations` composer a user guide's citations use, so the two read identically. The entry is rendered into the page rather than fetched, so it stays selectable and copyable on a page whose JavaScript never runs.
-
-  A technote that declares no DOI renders no Cite section at all and ships no script, so it builds exactly as it did before.
+  The entry is a BibTeX `techreport` composed at build time from the technote's own metadata — its authors, its publisher as the `institution`, its handle (`SQR-000`) as the `number`, its canonical URL, and its DOI where it has one — by the same `documenteer.citations` composer a user guide's citations use, so the two read identically. A technote with no DOI is therefore entered by its URL, which is how lsst-texmf's `lsst.bib` already records one, so the entry a reader copies from the page matches the one they would have found there. The entry is rendered into the page rather than fetched, so it stays selectable and copyable on a page whose JavaScript never runs.
 
 ### Other changes
 
