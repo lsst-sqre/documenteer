@@ -2,8 +2,10 @@
 """Tests for how an invalid configuration file ends a Sphinx build.
 
 A ``documenteer.toml`` or ``technote.toml`` that does not validate is a
-mistake in a file a documentation author wrote, and the message Documenteer
-composes says what is wrong with it. Sphinx renders every `SphinxError`
+mistake in a file a documentation author wrote, and the message the build
+prints — Documenteer's own for a ``documenteer.toml``, the technote package's
+for a ``technote.toml`` — says what is wrong with it. Sphinx renders every
+`SphinxError`
 raised while :file:`conf.py` runs inside a crash frame — a "Configuration
 error!" banner, a versions dump, an abridged traceback, a saved-traceback
 path, and an invitation to report the problem to sphinx-doc — which buries
@@ -130,10 +132,10 @@ def test_technote_reports_a_bad_doi_without_a_crash_frame(
     """A technote whose ``doi`` is not a DOI names the field and the form a
     DOI is written in.
 
-    The technote package raises a `~sphinx.errors.ConfigError` saying only
-    that there is a "syntax or validation issue" somewhere in the file, and
-    keeps the pydantic failure as its cause. Naming the field is the whole
-    point of reading that cause.
+    Older technote releases raised a `~sphinx.errors.ConfigError` saying only
+    that there was a "syntax or validation issue" somewhere in the file.
+    Naming the field is the whole point of the message that replaced it, so
+    the absence of that sentence is asserted alongside the field.
     """
     root = _write_technote(tmp_path / "technote", TECHNOTE_BAD_DOI)
 
@@ -173,6 +175,45 @@ def test_technote_reports_a_lowercase_lint_code(
     _assert_reported_once(output, "Not a lint rule code ('tn105').")
     assert "[technote.lint] ignore" in output
     assert "TN105" in output
+
+
+TECHNOTE_BAD_AFFILIATION_ROR = """
+[technote]
+id = "SQR-000"
+series_id = "SQR"
+canonical_url = "https://sqr-000.lsst.io/"
+github_url = "https://github.com/lsst-sqre/sqr-000"
+
+[[technote.authors]]
+name = {given = "Jane", family = "Doe"}
+
+[[technote.authors.affiliations]]
+name = "Rubin Observatory"
+ror = "not-a-ror"
+"""
+
+
+@pytest.mark.parametrize("show_traceback", [False, True])
+def test_technote_reports_a_malformed_affiliation_ror(
+    tmp_path: Path, *, show_traceback: bool
+) -> None:
+    """An affiliation whose ``ror`` is not a URL is addressed by the word
+    technote calls one item of that array, not by a word of Documenteer's.
+
+    An error nested two arrays deep is where the two formatters could
+    disagree: only the technote package knows that one item of
+    ``affiliations`` is an affiliation, so relaying its message verbatim is
+    what puts that word in front of the author.
+    """
+    root = _write_technote(tmp_path / "technote", TECHNOTE_BAD_AFFILIATION_ROR)
+
+    returncode, output = _build(root, show_traceback=show_traceback)
+
+    assert returncode != 0
+    _assert_reported_once(
+        output, "[[technote.authors]] author #1, affiliation #1, field ror"
+    )
+    assert "Syntax or validation issue" not in output
 
 
 READ_PROBE = """

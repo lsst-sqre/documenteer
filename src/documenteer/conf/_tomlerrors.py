@@ -11,9 +11,11 @@ This module translates such an error back into the file. It walks the same
 location against the models it came from and accumulates the address in TOML's
 own vocabulary — the table, the position of the entry counted from one, the
 field — then states each problem as the sentence its validator raised. It is
-written against any pydantic model rooted at a TOML file, so
-:file:`documenteer.toml` and :file:`technote.toml` report their problems the
-same way even though only one of the two models is Documenteer's.
+written against any pydantic model rooted at a TOML file, and Documenteer
+reports :file:`documenteer.toml` with it. The technote package carries this
+same design for :file:`technote.toml`, which it validates and words itself, so
+both files address their problems the same way even though only one of them is
+Documenteer's to report.
 """
 
 from __future__ import annotations

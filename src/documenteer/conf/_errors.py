@@ -1,9 +1,11 @@
 """How a configuration file that does not validate ends a Sphinx build.
 
-A ``documenteer.toml`` or ``technote.toml`` that does not validate is a
-mistake in a file a documentation author wrote, and Documenteer composes a
-message that says what is wrong with it and how to fix it. Getting that
-message in front of the author is what this module is for.
+A ``documenteer.toml`` that does not validate is a mistake in a file a
+documentation author wrote, and Documenteer composes a message that says what
+is wrong with it and how to fix it. Getting that message in front of the
+author is what this module is for — and a ``technote.toml``'s message too,
+which the technote package composes in the same vocabulary and the technote
+preset relays unchanged.
 
 Raising is not enough. Sphinx renders the failure instead of the message, and
 two facts about how it does that leave no way to ask it not to. Both were
