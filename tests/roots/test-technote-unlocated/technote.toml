@@ -1,0 +1,20 @@
+# A technote with neither a DOI nor a canonical_url, which is the one shape
+# whose citation has nothing to be located by. Every technote published to
+# lsst.io declares a canonical URL, so this root is the degenerate case: it
+# exists to prove the citation degrades to unlinked text rather than
+# rendering an empty link or the word "None".
+[technote]
+id = "SQR-002"
+series_id = "SQR"
+github_url = "https://github.com/lsst-sqre/sqr-002"
+github_default_branch = "main"
+date_created = 2024-01-02
+date_updated = 2025-06-30
+version = "1.0.0"
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"

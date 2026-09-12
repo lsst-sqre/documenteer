@@ -74,7 +74,7 @@ The field is validated when :file:`technote.toml` is parsed, so the finding name
 
 The ``[type=...]`` frame and the ``errors.pydantic.dev`` link come from Pydantic itself — the version in that URL is whichever Pydantic is installed — and neither adds anything to the message above them.
 
-Write the DOI in one of the accepted spellings — all three of these declare the same DOI, and Documenteer normalizes whichever you use to the bare ``10.NNNN/suffix`` form:
+Write the DOI in one of the accepted spellings — these three all declare the same DOI, and Documenteer normalizes whichever you use to the bare ``10.NNNN/suffix`` form (see :ref:`the whole list <technote-doi-spellings>`):
 
 .. code-block:: toml
    :caption: technote.toml

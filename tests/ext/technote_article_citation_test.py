@@ -2,14 +2,18 @@
 """Build tests for the citation a technote shows at the end of its article,
 and for the machine-readable identifiers its ``<head>`` carries.
 
-A technote registered with a DOI is that DOI's landing page. DataCite asks
-such a page for two things: a full bibliographic citation a reader can copy,
-with the DOI written as a resolvable link, and the same identity stated in
-metadata a harvester can read. The first is the "Citing this document"
-section rendered through the theme's otherwise-empty
-``sections/article-footer.html``; the second is emitted by the ``technote``
-package itself, and is asserted here because Documenteer's preset is what
-decides a technote is published this way.
+Every technote ends its article with a "Citing this document" section,
+rendered through the theme's otherwise-empty
+``sections/article-footer.html``: a full bibliographic citation a reader can
+copy, ending in a hyperlink to the work -- its DOI where it has one, and its
+canonical URL where it does not.
+
+A technote registered with a DOI is additionally that DOI's landing page, and
+DataCite asks such a page to state that identity in metadata a harvester can
+read as well. Those tags are emitted by the ``technote`` package itself, and
+are asserted here because Documenteer's preset is what decides a technote is
+published this way -- and because they are the claim that stays DOI-only
+while the displayed citation no longer is.
 
 The text and the link both come from the ``html_context`` that
 ``documenteer.conf.technote`` publishes; the template composes nothing
@@ -39,6 +43,17 @@ CITATION_TEXT = (
     "Sick, Jonathan; Lovelace, Ada (2025). "
     "Technote Citation Surfaces Test. "
     f"Vera C. Rubin Observatory. {DOI_URL}"
+)
+
+
+# What the same composition makes of tests/roots/test-technote-nocitation,
+# which declares no DOI: the same reference, located by the canonical URL
+# that identifies the technote in the absence of one.
+NO_DOI_URL = "https://sqr-001.lsst.io/"
+NO_DOI_CITATION_TEXT = (
+    "Sick, Jonathan (2025). "
+    "Technote Without a DOI Test. "
+    f"Vera C. Rubin Observatory. {NO_DOI_URL}"
 )
 
 
@@ -162,23 +177,73 @@ def test_the_json_ld_identifies_the_technote_by_its_doi(
 @pytest.mark.sphinx(
     "html", testroot="technote-nocitation", srcdir="technote-nocitation"
 )
-def test_a_technote_without_a_doi_ends_its_article_as_before(
+def test_a_technote_without_a_doi_is_cited_by_its_url(
     app: SphinxTestApp, warning: StringIO
 ) -> None:
-    """A technote with no DOI builds as it did before the surface existed:
-    the article footer the theme renders stays empty, no DOI is claimed in
-    the head, and nothing warns.
+    """A technote with no DOI ends its article with the same citation,
+    located by its canonical URL: the URL a technote is served from is a
+    stable identifier for it, so there is a reference to copy either way.
     """
     doc = _build(app)
 
     (footer,) = doc.cssselect(".technote-article-footer-container")
-    assert not footer.cssselect(SECTION)
-    assert _text(footer) == ""
+    (section,) = footer.cssselect(SECTION)
+    (text,) = section.cssselect(TEXT)
+    assert text.text_content() == NO_DOI_CITATION_TEXT
+
+    (link,) = text.cssselect("a")
+    assert link.get("href") == NO_DOI_URL
+
+    assert _build_warnings(warning) == []
+
+
+@pytest.mark.sphinx(
+    "html", testroot="technote-nocitation", srcdir="technote-nocitation"
+)
+def test_a_technote_without_a_doi_claims_none_in_its_head(
+    app: SphinxTestApp,
+) -> None:
+    """Displaying a citation is not claiming a DOI. A technote without one
+    still states none in the metadata a harvester reads: no ``citation_doi``
+    tag, and no ``identifier`` in the JSON-LD block, because that identity
+    belongs to a registered work alone.
+    """
+    doc = _build(app)
 
     assert _meta(doc, "citation_doi") is None
     assert "identifier" not in _json_ld(doc)
 
-    assert _build_warnings(warning) == []
+
+@pytest.mark.sphinx(
+    "html", testroot="technote-unlocated", srcdir="technote-unlocated"
+)
+def test_a_technote_with_nothing_to_link_is_cited_as_text(
+    app: SphinxTestApp,
+) -> None:
+    """A technote that declares neither a DOI nor a ``canonical_url`` has no
+    locator, so its citation ends after the publisher: a reference naming the
+    work and its authors, with nothing hyperlinked.
+
+    Every technote published to lsst.io declares a canonical URL, so this is
+    the degenerate case. It is worth a build because the failure mode is a
+    template writing an empty link -- or the word ``None`` -- into a citation
+    a reader would copy.
+
+    The build's warnings are not asserted on here: a technote that declares
+    no ``canonical_url`` sets no ``html_baseurl``, which sphinx-sitemap
+    warns about on its own account, and that warning is about the sitemap
+    rather than about anything this root is built to show.
+    """
+    doc = _build(app)
+
+    (section,) = doc.cssselect(SECTION)
+    (text,) = section.cssselect(TEXT)
+    assert text.text_content() == (
+        "Sick, Jonathan (2025). "
+        "Technote Without a Locator Test. "
+        "Vera C. Rubin Observatory."
+    )
+    assert not text.cssselect("a")
 
 
 @pytest.mark.sphinx(

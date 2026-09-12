@@ -1,6 +1,8 @@
 """Composition of a technote's own citation from its technote.toml metadata.
 
-A technote registered with a DOI is that DOI's landing page, and DataCite
+Every technote is citable: a registered one by its DOI, and every other by
+its canonical URL, which is as stable as the site that serves it. A technote
+registered with a DOI is additionally that DOI's landing page, and DataCite
 asks such a page to show a full bibliographic citation with the DOI written
 as a resolvable link. This module turns the metadata the ``technote`` package
 parses out of ``technote.toml`` into the shared
@@ -49,9 +51,12 @@ class TechnoteCitation:
 
     Notes
     -----
-    Every property is `None` when the technote declares no DOI, so that a
-    technote without one renders no citation surface at all rather than an
-    empty one.
+    A citation is composed for every technote, whether or not it declares a
+    DOI, because a technote's URL is a citable locator in its own right. The
+    DOI is what *locates* the citation when there is one — see
+    `plain_text_url` — and `doi_url` is the only property that is `None`
+    without one, since it is the only one that makes a claim a DOI-less
+    technote cannot make.
     """
 
     def __init__(self, metadata: TechnoteMetadata) -> None:
@@ -61,49 +66,72 @@ class TechnoteCitation:
     def doi_url(self) -> str | None:
         """The technote's DOI as a resolvable ``https://doi.org`` URL, or
         `None` when it has no DOI.
+
+        This is the DOI *as a DOI*, which is what the sidebar's DOI line
+        displays and what only a registered technote has. The URL a rendered
+        citation hyperlinks is `plain_text_url`, which falls back to the
+        canonical URL.
         """
-        citation = self._compose()
-        return None if citation is None else citation.doi_url
+        return self._compose().doi_url
 
     @property
-    def plain_text(self) -> str | None:
-        """The technote's citation as a plain-text bibliographic reference,
-        or `None` when it has no DOI.
+    def plain_text(self) -> str:
+        """The technote's citation as a plain-text bibliographic reference.
 
         This is the citation DataCite asks a landing page to display:
-        creators, year, title, publisher, and then the DOI written as a
-        resolvable URL.
+        creators, year, title, publisher, and then the work's location — the
+        DOI written as a resolvable URL, or the technote's canonical URL when
+        it has no DOI.
         """
-        citation = self._compose()
-        return None if citation is None else citation.to_plain_text()
+        return self._compose().to_plain_text()
 
     @property
-    def plain_text_lead(self) -> str | None:
-        """`plain_text` up to the DOI URL it ends in, or `None` when the
-        technote has no DOI.
+    def plain_text_lead(self) -> str:
+        """`plain_text` up to the location it ends in.
 
         A displayed citation ends in a hyperlink to the work, so the text is
         offered pre-split at that point: writing `plain_text_lead` and then a
-        link to `doi_url` reproduces `plain_text` exactly, and a template
-        never has to do string surgery to hyperlink the DOI. The split is
+        link to `plain_text_url` reproduces `plain_text` exactly, and a
+        template never has to do string surgery to hyperlink it. The split is
         `documenteer.citations.Citation.to_plain_text_parts`, the one place
         that decides where a citation's text ends and its link begins, so
         this surface and the guide's cannot part company over it.
+
+        A technote that has neither a DOI nor a canonical URL has nothing to
+        link, and this is then the whole citation with nothing following it.
         """
-        citation = self._compose()
-        if citation is None:
-            return None
-        lead, _ = citation.to_plain_text_parts()
+        lead, _ = self._compose().to_plain_text_parts()
         return lead
 
     @property
-    def bibtex(self) -> str | None:
-        r"""The technote's BibTeX entry, or `None` when it has no DOI.
+    def plain_text_url(self) -> str | None:
+        """The URL `plain_text` ends in and a rendered citation hyperlinks:
+        the DOI as a resolvable URL, the canonical URL when the technote has
+        no DOI, or `None` when it has neither.
+
+        The name is the guide's: ``GuideCitation.to_html_context`` publishes
+        the same split under ``plain_text_lead`` and ``plain_text_url``, so
+        the two surfaces' templates read identically.
+
+        `None` is what a technote that states no ``canonical_url`` and no
+        ``doi`` composes. Every technote published to ``lsst.io`` states one,
+        so this is the degenerate case rather than a normal one: the citation
+        renders as text with no link, naming the work and its authors without
+        claiming a location that was never declared.
+        """
+        _, location = self._compose().to_plain_text_parts()
+        return location
+
+    @property
+    def bibtex(self) -> str:
+        r"""The technote's BibTeX entry.
 
         A technote is a technical report, so the entry is a ``techreport``:
         its publisher is written as the ``institution`` and its handle
         (``SQR-000``) as the ``number``, neither of which a ``misc`` entry
-        has a field for.
+        has a field for. A ``doi`` field is written only for a technote that
+        has a DOI; the ``url`` field carries the canonical URL either way,
+        which is how :file:`lsst.bib` already records a DOI-less technote.
 
         The handle is the entry's citation key as well, written verbatim, so
         the entry is keyed the way Rubin authors already cite technotes:
@@ -116,37 +144,27 @@ class TechnoteCitation:
         ``id`` — one outside a series, with no handle to be keyed by — falls
         back to `documenteer.citations.Citation.bibtex_key`.
         """
-        citation = self._compose()
-        if citation is None:
-            return None
-        return citation.to_bibtex(
+        return self._compose().to_bibtex(
             entry_type=BibtexEntryType.techreport, key=self._metadata.id
         )
 
-    def _compose(self) -> Citation | None:
-        """Compose the citation from the current metadata, or return `None`
-        when the technote has no DOI.
-        """
-        doi = (
-            None
-            if self._metadata.citation is None
-            else self._metadata.citation.doi
-        )
-        if doi is None:
-            return None
+    def _compose(self) -> Citation:
+        """Compose the citation from the current metadata."""
+        citation_metadata = self._metadata.citation
         organization = self._metadata.organization
         canonical_url = self._metadata.canonical_url
         return Citation(
             title=self._metadata.title,
             type=CitationType.report,
-            doi=doi,
+            doi=(None if citation_metadata is None else citation_metadata.doi),
             authors=tuple(
                 _person_author(author) for author in self._metadata.authors
             ),
             publisher=None if organization is None else organization.name,
             date=self._date,
             # A Rubin technote's DOI resolves to its Zenodo record, so the
-            # technote's own site is a second landing page worth naming.
+            # technote's own site is a second landing page worth naming --
+            # and the only one a technote without a DOI has.
             url=None if canonical_url is None else str(canonical_url),
             number=self._metadata.id,
         )

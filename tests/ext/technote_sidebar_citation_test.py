@@ -1,11 +1,11 @@
 # type: ignore
 """Build tests for the citation surface a technote shows in its sidebar.
 
-A technote registered with a DOI is that DOI's landing page, and DataCite
-asks such a page to display the DOI as a resolvable link alongside a full
-bibliographic record. The technote's sidebar is where it says so: the DOI as
-a ``https://doi.org/`` hyperlink, and the BibTeX entry with a button that
-copies it.
+Every technote is citable, so every technote's sidebar carries a **Cite**
+section: the BibTeX entry with a button that copies it, and -- for a technote
+registered with a DOI, which is additionally that DOI's landing page, and
+which DataCite asks to display its DOI as a resolvable link -- the DOI as a
+``https://doi.org/`` hyperlink above it.
 
 Everything rendered comes from the ``html_context`` that
 ``documenteer.conf.technote`` publishes; the template composes nothing
@@ -33,7 +33,7 @@ COPY = ".technote-sidebar-citation__copy"
 COPY_STATUS = ".technote-sidebar-citation__copy-status"
 
 # The script that wires up the copy button, shared with the guide's citation
-# surfaces and shipped only by a technote that has a DOI.
+# surfaces. Every technote displays a citation, so every technote ships it.
 COPY_SCRIPT = "rubin-citation-copy.js"
 
 # What documenteer.citations composes from
@@ -48,6 +48,20 @@ BIBTEX_ENTRY_TEXT = """@techreport{SQR-000,
     number = {SQR-000},
     doi = {10.71929/rubin/2570545},
     url = {https://sqr-000.lsst.io/}
+}"""
+
+
+# What the same composition makes of tests/roots/test-technote-nocitation,
+# which declares no DOI: the same techreport, keyed by the same handle, whose
+# ``url`` is the canonical URL and which claims no ``doi``.
+NO_DOI_BIBTEX_ENTRY_TEXT = """@techreport{SQR-001,
+    author = {Sick, Jonathan},
+    title = {{Technote Without a DOI Test}},
+    year = {2025},
+    month = {June},
+    institution = {Vera C. Rubin Observatory},
+    number = {SQR-001},
+    url = {https://sqr-001.lsst.io/}
 }"""
 
 
@@ -160,20 +174,39 @@ def test_the_copy_script_is_shipped(app: SphinxTestApp) -> None:
 @pytest.mark.sphinx(
     "html", testroot="technote-nocitation", srcdir="technote-nocitation"
 )
-def test_a_technote_without_a_doi_renders_nothing(
+def test_a_technote_without_a_doi_offers_its_url_located_entry(
     app: SphinxTestApp, warning: StringIO
 ) -> None:
-    """A technote with no DOI builds as it did before the surface existed:
-    no component, no script, and no warnings.
+    """A technote with no DOI still has a Cite section, because its URL is
+    a citable locator: the BibTeX entry is there, located by that URL and
+    claiming no DOI, and so is the script that copies it.
     """
     doc = _build(app)
 
-    assert not doc.cssselect(SECTION)
-    assert not (app.outdir / "_static" / COPY_SCRIPT).exists()
-    assert not any(COPY_SCRIPT in source for source in _script_sources(doc))
-    # The rest of the sidebar is untouched.
-    assert doc.cssselect(".technote-sidebar-section")
+    (section,) = doc.cssselect(SECTION)
+    (pre,) = section.cssselect(BIBTEX_ENTRY)
+    assert pre.text_content() == NO_DOI_BIBTEX_ENTRY_TEXT
+
+    assert (app.outdir / "_static" / COPY_SCRIPT).is_file()
+    assert any(COPY_SCRIPT in source for source in _script_sources(doc))
     assert _build_warnings(warning) == []
+
+
+@pytest.mark.sphinx(
+    "html", testroot="technote-nocitation", srcdir="technote-nocitation"
+)
+def test_a_technote_without_a_doi_shows_no_doi_line(
+    app: SphinxTestApp,
+) -> None:
+    """The DOI line is the one part of the section a technote without a DOI
+    does not get: it is a claim to be a registered work's landing page, and
+    an empty or invented line there would be that claim made falsely.
+    """
+    doc = _build(app)
+
+    (section,) = doc.cssselect(SECTION)
+    assert not section.cssselect(DOI)
+    assert "doi.org" not in _text(section)
 
 
 @pytest.mark.sphinx(

@@ -177,28 +177,27 @@ if _id is not None:
         f"https://{_id.lower()}.lsst.io/v/"
     )
 
-# A technote registered with a DOI is that DOI's landing page, and says so in
-# its sidebar: the DOI as a resolvable link, and the BibTeX entry with a
-# button that copies it (components/sidebar-citation.html). Both values come
-# from this one object, which composes them from the technote's own metadata
-# through documenteer.citations; the template composes nothing.
+# Every technote is citable -- a registered one by its DOI, and every other by
+# its canonical URL, which is as stable -- and every technote says so in its
+# sidebar: the BibTeX entry with a button that copies it, and, for a technote
+# registered with a DOI, that DOI as a resolvable link
+# (components/sidebar-citation.html). Every value comes from this one object,
+# which composes them from the technote's own metadata through
+# documenteer.citations; the template composes nothing.
 #
 # The object, rather than the composed strings, is what goes into the context
 # because a technote's title is not known yet: technote.ext.metadata copies
 # the document's H1 into the metadata at html-page-context time, so the entry
-# has to be composed when the template reads it. The DOI is known now, which
-# is what decides whether the surface exists at all -- a technote without one
-# publishes nothing and ships no script, and so builds exactly as it did
-# before the surface existed.
+# has to be composed when the template reads it.
 _citation = TechnoteCitation(T.metadata)  # noqa: F405
-html_js_files: list[str] = []
-if _citation.doi_url is not None:
-    html_context["documenteer_technote_citation"] = _citation  # noqa: F405
-    # The same script the guide's citation surfaces use; it reads the entry
-    # from the <pre> the component renders and removes the button where the
-    # clipboard API is unavailable.
-    html_static_path.append(get_asset_path("rubin-citation-copy.js"))
-    html_js_files.append("rubin-citation-copy.js")
+html_context["documenteer_technote_citation"] = _citation  # noqa: F405
+# The same script the guide's citation surfaces use; it reads the entry from
+# the <pre> the component renders and removes the button where the clipboard
+# API is unavailable. Every technote renders a copy button, so every technote
+# ships the script -- the rule that a page carrying no button loads no script
+# is kept by there being no such technote page.
+html_static_path.append(get_asset_path("rubin-citation-copy.js"))
+html_js_files: list[str] = ["rubin-citation-copy.js"]
 
 # Ook link-check service settings for documenteer.ext.linkcheckservice.
 # Only the technote-derived settings are set here; the others keep the
