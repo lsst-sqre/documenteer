@@ -310,7 +310,7 @@ def _read_doctree(root_dir: Path) -> nodes.document:
     # Imported here, like the Sphinx pieces above, so that importing this
     # module does not pull in the configuration package the CLI has no other
     # reason to load.
-    from documenteer.conf._errors import raising_config_errors  # noqa: PLC0415
+    from documenteer.conf import raising_config_errors  # noqa: PLC0415
 
     with (
         tempfile.TemporaryDirectory(prefix="documenteer-read-") as build_dir,

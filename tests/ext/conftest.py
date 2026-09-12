@@ -22,6 +22,15 @@ _CONFIG_MODULES = (
 )
 
 
+# A test root whose documenteer.toml or technote.toml is deliberately invalid
+# does not fail its build: the presets print the message and end the process
+# with os._exit, which takes this whole pytest session down with status 2 and
+# no traceback. Build such a root either in a subprocess (as
+# tests/config_error_exit_test.py does) or inside
+# ``documenteer.conf.raising_config_errors()``, which puts the ConfigError
+# back in place of the exit.
+
+
 def _evict_config_modules() -> None:
     """Drop the cached Sphinx config preset modules from ``sys.modules``."""
     for name in _CONFIG_MODULES:

@@ -1,3 +1,4 @@
+from ._errors import raising_config_errors
 from ._toml import DocumenteerConfig
 from ._utils import (
     extend_excludes_for_non_index_source,
@@ -12,4 +13,5 @@ __all__ = [
     "extend_static_paths_with_asset_extension",
     "get_asset_path",
     "get_template_dir",
+    "raising_config_errors",
 ]

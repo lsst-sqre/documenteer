@@ -260,3 +260,62 @@ def test_a_read_technote_raises_instead_of_exiting(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("RAISED:")
     assert "Not a DOI (10.71929)." in result.stdout
+
+
+ESCAPE_HATCH_PROBE = """
+import sys
+from pathlib import Path
+
+from sphinx.application import Sphinx
+from sphinx.errors import ConfigError
+
+from documenteer.conf import raising_config_errors
+
+root = Path.cwd()
+with raising_config_errors():
+    try:
+        Sphinx(
+            srcdir=str(root),
+            confdir=str(root),
+            outdir=str(root / "_build"),
+            doctreedir=str(root / "_build" / ".doctrees"),
+            buildername="dummy",
+            status=None,
+            warning=None,
+        )
+    except ConfigError as error:
+        sys.stdout.write(f"RAISED: {error}\\n")
+    else:
+        sys.stdout.write("BUILT\\n")
+"""
+"""Drive a build of an invalid technote the way a downstream project would.
+
+Run as a subprocess for the same reason the read probe is: an unwrapped
+build of this root ends the interpreter, so an in-process check would take
+the test session down rather than fail.
+"""
+
+
+def test_the_escape_hatch_is_public(tmp_path: Path) -> None:
+    """`documenteer.conf.raising_config_errors` is the supported way for a
+    caller outside Documenteer to drive a build in its own process.
+
+    Documenteer's own in-process read uses it, but so must anything else that
+    imports a preset without wanting the preset's exit — a project's pytest
+    fixture, a notebook, a script. That is only true if the name is reachable
+    from the public `documenteer.conf` package rather than only from the
+    private module it is defined in.
+    """
+    root = _write_technote(tmp_path / "technote", TECHNOTE_BAD_DOI)
+
+    result = subprocess.run(
+        [sys.executable, "-c", ESCAPE_HATCH_PROBE],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("RAISED:")
+    assert "Not a DOI (10.71929)." in result.stdout
