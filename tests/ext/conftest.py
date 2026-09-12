@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # The Sphinx configuration presets compute every setting at import time from
 # the configuration file in the current working directory, so a module left
@@ -16,6 +20,24 @@ _CONFIG_MODULES = (
     "documenteer.conf.technote",
     "technote.sphinxconf",
 )
+
+
+def _evict_config_modules() -> None:
+    """Drop the cached Sphinx config preset modules from ``sys.modules``."""
+    for name in _CONFIG_MODULES:
+        sys.modules.pop(name, None)
+
+
+@pytest.fixture
+def evict_config_modules() -> Callable[[], None]:
+    """Return a callable that drops the cached config preset modules.
+
+    A test that builds twice within one test function calls this between the
+    builds, so the second build re-reads its configuration file rather than
+    re-binding the settings the first build already computed — which is what
+    makes such a test say anything about what the second build resolved.
+    """
+    return _evict_config_modules
 
 
 @pytest.fixture(autouse=True)
@@ -30,5 +52,4 @@ def _fresh_config_modules() -> None:
     every build re-import them against their own configuration. The pops are
     no-ops for tests that never import them.
     """
-    for name in _CONFIG_MODULES:
-        sys.modules.pop(name, None)
+    _evict_config_modules()

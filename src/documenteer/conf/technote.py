@@ -107,7 +107,6 @@ extensions.extend(  # noqa: F405
         "sphinx_sitemap",
         "documenteer.ext.linkcheckservice",
         "documenteer.ext.intersphinxcache",
-        "documenteer.ext.citationdate",
     ]
 )
 
@@ -191,17 +190,7 @@ if _id is not None:
 # is what decides whether the surface exists at all -- a technote without one
 # publishes nothing and ships no script, and so builds exactly as it did
 # before the surface existed.
-#
-# Only a date_updated written in technote.toml dates the citation. The
-# metadata's own field cannot be read for it: technote stamps that one with
-# the build clock whenever the file omits it, which would date most of the
-# fleet's citations to the day they were last built. A technote that declares
-# none is cited undated, and documenteer.ext.citationdate reports it -- the
-# rendered page shows nothing of the missing year.
-_citation = TechnoteCitation(
-    T.metadata,  # noqa: F405
-    date_updated=T.toml.technote.date_updated_datetime,  # noqa: F405
-)
+_citation = TechnoteCitation(T.metadata)  # noqa: F405
 html_js_files: list[str] = []
 if _citation.doi_url is not None:
     html_context["documenteer_technote_citation"] = _citation  # noqa: F405

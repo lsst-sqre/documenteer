@@ -30,8 +30,6 @@ from ..citations import (
 )
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from technote.metadata.model import Person, TechnoteMetadata
 
 __all__ = ["TechnoteCitation"]
@@ -46,15 +44,8 @@ class TechnoteCitation:
         The technote's metadata, as ``technote`` models it. The object is
         held rather than copied: it is the same instance the theme's Jinja
         context reads, so a title filled in from the document's H1 during the
-        build is reflected here.
-    date_updated
-        The ``date_updated`` technote.toml declares, or `None` when it
-        declares none. It is passed separately because the metadata's own
-        field cannot answer the question: ``technote`` stamps that one with
-        the build clock whenever the file omits it, so an undeclared date is
-        indistinguishable there from a real one. Read it from
-        ``T.toml.technote.date_updated_datetime``, which is the declared
-        value alone.
+        build is reflected here, and its ``date_updated`` is the one date
+        every dated surface on the page states.
 
     Notes
     -----
@@ -63,11 +54,8 @@ class TechnoteCitation:
     empty one.
     """
 
-    def __init__(
-        self, metadata: TechnoteMetadata, *, date_updated: datetime | None
-    ) -> None:
+    def __init__(self, metadata: TechnoteMetadata) -> None:
         self._metadata = metadata
-        self._date_updated = date_updated
 
     @property
     def doi_url(self) -> str | None:
@@ -135,16 +123,6 @@ class TechnoteCitation:
             entry_type=BibtexEntryType.techreport, key=self._metadata.id
         )
 
-    @property
-    def is_dated(self) -> bool:
-        """Whether the citation carries a publication date.
-
-        `documenteer.ext.citationdate` reads this to report an undated
-        technote once per build, rather than looking for a missing ``(YYYY)``
-        in the strings composed here.
-        """
-        return self._date is not None
-
     def _compose(self) -> Citation | None:
         """Compose the citation from the current metadata, or return `None`
         when the technote has no DOI.
@@ -175,27 +153,27 @@ class TechnoteCitation:
 
     @property
     def _date(self) -> PartialDate | None:
-        """The date the citation is dated by, or `None` when technote.toml
-        declares none.
+        """The date the citation is dated by.
 
-        Only a ``date_updated`` written in technote.toml dates a citation.
-        The metadata's own ``date_updated`` is deliberately not read: it is
-        stamped with the build clock whenever the file omits the field, so
-        reading it would date most of the fleet's citations to the day they
-        were last built — and the displayed year, the BibTeX ``year``, and
-        the BibTeX key would all change on every rebuild.
+        The metadata's ``date_updated`` is that date, whatever resolved it.
+        ``technote`` reads it from technote.toml when the file declares the
+        field and derives it from the committer date of the published commit
+        when the file does not, so one reproducible value reaches the
+        citation, the sidebar's "Updated", the page's ``<head>`` metadata,
+        and the article-end citation alike — and a rebuild of an unchanged
+        commit composes the same citation it composed before.
 
-        ``date_created`` is not a fallback either, for the reason
-        `documenteer.services.technotecff` gives for the CITATION.cff file
-        this citation has to agree with: it is the day the technote was
+        ``date_created`` is not read: it is the day the technote was
         started, which is neither the day it was published nor the day it was
-        last revised. A technote that declares no ``date_updated`` is cited
-        undated, and `documenteer.ext.citationdate` says so during the build.
+        last revised, which is why `documenteer.services.technotecff` leaves
+        it out of CITATION.cff too. Metadata carrying no ``date_updated`` at
+        all — which no technote ``technote`` builds has — composes an undated
+        citation rather than reaching for a substitute.
 
-        The declared date is formatted through the theme's own formatter, so
-        a citation and the date the page displays are read the same way.
+        The date is formatted through the theme's own formatter, so a
+        citation and the date the page displays are read the same way.
         """
-        date = self._date_updated
+        date = self._metadata.date_updated
         return (
             None if date is None else PartialDate.parse(format_iso_date(date))
         )
