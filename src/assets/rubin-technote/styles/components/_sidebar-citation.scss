@@ -1,9 +1,10 @@
 /*
  * The sidebar's Cite section (templates/technote/components/
- * sidebar-citation.html): the technote's DOI as a resolvable link, and its
- * BibTeX entry behind a copy button. The section's frame, heading, and
- * icon-and-value row are the theme's own sidebar vocabulary; only the parts
- * the theme has no equivalent for are styled here.
+ * sidebar-citation.html): the technote's BibTeX entry behind a copy button,
+ * and -- for a technote registered with a DOI -- that DOI as a resolvable
+ * link above it. The section's frame, heading, and icon-and-value row are
+ * the theme's own sidebar vocabulary; only the parts the theme has no
+ * equivalent for are styled here.
  *
  * The guide's citation surfaces (rubin-pydata-theme.scss) are the same three
  * parts under their own block classes; these rules keep the technote's

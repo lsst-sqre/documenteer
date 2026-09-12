@@ -1,7 +1,8 @@
 /*
  * The "Citing this document" section at the end of the article
  * (templates/technote/sections/article-footer.html): the technote's full
- * bibliographic citation, with the DOI written as a resolvable link.
+ * bibliographic citation, ending in a resolvable link to the work -- its
+ * DOI where it has one, and its canonical URL where it does not.
  *
  * The theme leaves sections/article-footer.html empty and gives it no
  * styling, so unlike the sidebar's Cite section -- which slots into the
