@@ -1112,15 +1112,15 @@ UNDATED_TOML = CITABLE_TOML.replace(DATE_UPDATED_LINE, "")
 """CITABLE_TOML with no ``date_updated``, so its citation carries no date."""
 
 
-def test_undated_technote_is_told_the_registered_issue_date(
+def test_an_undeclared_date_updated_is_not_a_finding_of_its_own(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A record's ``Issued`` date is quoted as the value to declare.
+    """A technote that matches the record but declares no ``date_updated``
+    reports nothing.
 
-    This is the shape of a Zenodo legacy record: a ``publicationYear``
-    alongside an ``Issued`` date that states the same publication to the
-    day. The day is what the author should write down, so the message
-    quotes the whole date.
+    An undeclared date is no longer a gap: the technote is cited by the date
+    of the commit it is published from. Reporting it would be a permanent
+    warning on most of the fleet about a citation that is dated.
     """
     _mock_author(responses)
     responses.get(
@@ -1133,41 +1133,53 @@ def test_undated_technote_is_told_the_registered_issue_date(
         status=200,
     )
     context = _write_technote(tmp_path, UNDATED_TOML)
-    findings = TechnoteLintService(context).lint()
-    assert [f.code for f in findings] == ["TN105"]
-    assert "issue date of 2016-05-24" in findings[0].message
-    assert "date_updated = 2016-05-24" in findings[0].message
-    assert "cited undated" in findings[0].message
+
+    assert TechnoteLintService(context).lint() == []
 
 
-def test_undated_technote_is_told_the_registered_publication_year(
+def test_the_registered_issue_date_is_context_on_a_drifted_technote(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """A record that states only a year names the year to look within.
+    """A finding raised by real drift carries the registered date as context,
+    phrased as information rather than as an instruction.
 
-    This is the shape of a Rubin-minted record — ``publicationYear`` and an
-    empty ``dates`` list — so the message cannot quote a value to paste and
-    names the year the technote was published in instead.
+    The author is already reading the registered record because something
+    else disagrees with it, and the date is the one field of that record
+    whose effect on the technote is worth spelling out: it is not where the
+    citation's date comes from, and declaring ``date_updated`` is how to pin
+    the citation to a fixed date instead.
     """
     _mock_author(responses)
     responses.get(
         DATACITE_URL,
-        body=_datacite_body(),
+        body=_datacite_body(
+            title="An older title",
+            publication_year=2016,
+            dates=({"date": "2016-05-24", "dateType": "Issued"},),
+        ),
         content_type="application/vnd.api+json",
         status=200,
     )
     context = _write_technote(tmp_path, UNDATED_TOML)
+
     findings = TechnoteLintService(context).lint()
+
     assert [f.code for f in findings] == ["TN105"]
-    assert "publication year of 2026" in findings[0].message
-    assert "published in 2026" in findings[0].message
-    assert "cited undated" in findings[0].message
+    message = findings[0].message
+    assert "An older title" in message
+    assert "issued on 2016-05-24" in message
+    assert "publishing commit" in message
+    assert "date_updated" in message
+    assert "set 'date_updated" not in message
 
 
-def test_the_undated_citation_joins_the_other_differences(
+def test_a_record_with_only_a_year_says_the_year_it_was_issued_in(
     tmp_path: Path, responses: RequestsMock
 ) -> None:
-    """The date instruction is a clause of the one TN105 finding."""
+    """A record that states only a year — every Rubin-minted one, since
+    DataCite's mandatory ``publicationYear`` is its only date — says the year
+    rather than inviting a January 1st nobody published on.
+    """
     _mock_author(responses)
     responses.get(
         DATACITE_URL,
@@ -1176,10 +1188,36 @@ def test_the_undated_citation_joins_the_other_differences(
         status=200,
     )
     context = _write_technote(tmp_path, UNDATED_TOML)
+
     findings = TechnoteLintService(context).lint()
+
     assert [f.code for f in findings] == ["TN105"]
-    assert "An older title" in findings[0].message
-    assert "date_updated" in findings[0].message
+    assert "issued in 2026" in findings[0].message
+
+
+def test_a_declared_date_leaves_the_registered_date_unmentioned(
+    tmp_path: Path, responses: RequestsMock
+) -> None:
+    """A technote that declares ``date_updated`` has already pinned its
+    citation, so the note about the registered date has nothing to add.
+    """
+    _mock_author(responses)
+    responses.get(
+        DATACITE_URL,
+        body=_datacite_body(
+            title="An older title",
+            publication_year=2016,
+            dates=({"date": "2016-05-24", "dateType": "Issued"},),
+        ),
+        content_type="application/vnd.api+json",
+        status=200,
+    )
+    context = _write_technote(tmp_path, CITABLE_TOML)
+
+    findings = TechnoteLintService(context).lint()
+
+    assert [f.code for f in findings] == ["TN105"]
+    assert "date_updated" not in findings[0].message
 
 
 @pytest.mark.parametrize("declared", ["2019-03-01", "2030-11-14"])

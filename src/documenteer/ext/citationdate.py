@@ -7,26 +7,24 @@ entry drops its ``year`` field, and the BibTeX key collapses to the author and
 title alone. The page still renders, so nothing tells the author that the work
 they publish is being cited undated.
 
-This extension is what tells them, for a user guide's declared citations and
-for the citation a technote composes of itself alike. It reports each undated
-citation once per build, as the builder is initialized, and names every place
-the date belongs.
+This extension is what tells them, for a user guide's declared citations. It
+reports each undated citation once per build, as the builder is initialized,
+and names every place the date belongs: the ``date`` field of the
+``[[project.citations]]`` entry; when the entry sources its fields from a
+:file:`CITATION.cff` file, the record inside that file it reads; and, on a
+site that declared one, the ``[project.citation_defaults]`` table the entry
+would take a date from. Which record matters, because a file whose top-level
+software record is undated can carry a dated ``preferred-citation`` beside
+it, and dating the wrong one would leave the citation exactly as it was. So
+does the table, because a site that mints a DOI per data product dates all of
+them from it, and an entry is the one place such a site should not be told to
+write the date.
 
-For a guide those are the ``date`` field of the ``[[project.citations]]``
-entry; when the entry sources its fields from a :file:`CITATION.cff` file, the
-record inside that file it reads; and, on a site that declared one, the
-``[project.citation_defaults]`` table the entry would take a date from. Which
-record matters, because a file whose top-level software record is undated can
-carry a dated ``preferred-citation`` beside it, and dating the wrong one would
-leave the citation exactly as it was. So does the table, because a site that
-mints a DOI per data product dates all of them from it, and an entry is the
-one place such a site should not be told to write the date.
-
-For a technote it is ``date_updated`` in technote.toml, the only date a
-technote's citation is composed from. A technote's metadata always carries a
-``date_updated`` — the ``technote`` package stamps it with the build clock
-whenever the file omits the field — so an undated technote is not one that
-looks undated anywhere but here.
+A technote is not reported here and does not load this extension. Its
+citation is dated by the metadata's ``date_updated``, which ``technote``
+resolves for every build — from technote.toml when the file declares the
+field, and from the committer date of the published commit when it does not
+— so a technote's citation always carries a date.
 
 ``builder-inited`` is the event that makes "once per build" true of every
 build. An undated citation is a property of the configuration alone, and a
@@ -56,14 +54,13 @@ the date exists to be written down; and an entry reading a
 :file:`CITATION.cff` file's ``preferred-citation``, because that record is a
 work other than the repository the file describes, whatever its type.
 
-Nothing here composes or alters a citation; the entries and the technote's
-citation are the ones the guide and technote presets published into
-``html_context``.
+Nothing here composes or alters a citation; the entries are the ones the
+guide preset published into ``html_context``.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
 from sphinx.util import logging
 
@@ -76,7 +73,7 @@ if TYPE_CHECKING:
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata
 
-__all__ = ["DatedCitation", "setup"]
+__all__ = ["setup"]
 
 logger = logging.getLogger(__name__)
 
@@ -121,16 +118,6 @@ missing default. Naming only the entry points at the one place its author
 should *not* write the date.
 """
 
-
-TECHNOTE_FIX = "Set date_updated in the [technote] table in technote.toml"
-"""The one place a technote's citation can be dated from.
-
-``date_created`` is not an alternative: it is the day the technote was
-started, which is neither the day it was published nor the day it was last
-revised, and it is left out of the technote's CITATION.cff for the same
-reason.
-"""
-
 UNDATED_MESSAGE = (
     "%s states no publication date, so it is displayed without its year, "
     "its BibTeX entry carries no year field, and its BibTeX key is built "
@@ -138,25 +125,10 @@ UNDATED_MESSAGE = (
 )
 """What every undated citation is reported with.
 
-A guide's entry and a technote's own citation are the same problem with
-different fixes, so they are reported in the same words up to the sentence
-that names where the date belongs.
+The sentence that names where the date belongs is composed per entry, since
+an entry reading a :file:`CITATION.cff` file and a site declaring shared
+defaults each add a place the date could be written.
 """
-
-
-class DatedCitation(Protocol):
-    """A composed citation that knows whether it carries a date.
-
-    Only this much of `documenteer.conf._technotecitation.TechnoteCitation` is
-    read here, and reading it structurally is what keeps this extension —
-    which a user guide loads too — from importing a module that needs the
-    ``technote`` package installed.
-    """
-
-    @property
-    def is_dated(self) -> bool:
-        """Whether the citation carries a publication date."""
-        ...
 
 
 def _citations(app: Sphinx) -> Sequence[dict[str, Any]]:
@@ -166,19 +138,6 @@ def _citations(app: Sphinx) -> Sequence[dict[str, Any]]:
     declares none publishes nothing, and this extension is then a no-op.
     """
     return app.config.html_context.get("documenteer_citations") or []
-
-
-def _technote_citation(app: Sphinx) -> DatedCitation | None:
-    """Return the citation the technote composes of itself, or `None`.
-
-    The technote preset publishes it only when technote.toml declares a DOI,
-    because that is what makes the technote a landing page with a citation to
-    show; a technote without one has nothing here to be undated.
-    """
-    citation: DatedCitation | None = app.config.html_context.get(
-        "documenteer_technote_citation"
-    )
-    return citation
 
 
 def _fix(citation: dict[str, Any], *, defaults_declared: bool) -> str:
@@ -246,9 +205,8 @@ def check_citation_dates(app: Sphinx) -> None:
     Parameters
     ----------
     app
-        The Sphinx application, whose ``html_context`` carries the resolved
-        citations — a guide's declared entries, a technote's citation of
-        itself, or, for a project that is neither, nothing at all.
+        The Sphinx application, whose ``html_context`` carries the guide's
+        declared citations, or nothing at all for a site that declares none.
     """
     citations = _citations(app)
     defaults_declared = bool(getattr(app.config, DEFAULTS_CONFIG))
@@ -264,15 +222,6 @@ def check_citation_dates(app: Sphinx) -> None:
             "citation "
             + describe_citation(citation, citations, unlabelled_field="title"),
             _fix(citation, defaults_declared=defaults_declared),
-            type=WARNING_TYPE,
-            subtype=WARNING_SUBTYPE,
-        )
-    technote_citation = _technote_citation(app)
-    if technote_citation is not None and not technote_citation.is_dated:
-        logger.warning(
-            UNDATED_MESSAGE,
-            "this technote's citation",
-            f"{TECHNOTE_FIX}.",
             type=WARNING_TYPE,
             subtype=WARNING_SUBTYPE,
         )

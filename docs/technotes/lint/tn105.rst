@@ -1,4 +1,4 @@
-:og:description: TN105 fires when the title or authors registered with DataCite for a technote's DOI no longer match technote.toml, and tells a technote that declares no date_updated what date DataCite has for it.
+:og:description: TN105 fires when the title or authors registered with DataCite for a technote's DOI no longer match technote.toml, and tells a technote that declares no date_updated when the registered record says it was issued.
 
 #################################
 datacite-metadata-current (TN105)
@@ -17,7 +17,7 @@ That registered record is what the rest of the scholarly world reads: it is what
 :file:`technote.toml` can go on changing after that — a title is reworded, an author joins — and the registered record does not follow by itself.
 
 This rule reads the metadata registered for the technote's ``[technote] doi`` from DataCite's public API and reports when the registered **title** or **author list** no longer matches :file:`technote.toml`, or when the two sides register the same author under **conflicting ORCIDs**.
-It also reports a technote that declares no ``date_updated``, since such a technote is cited without a date — and the registered record is where the missing date already is, so the finding quotes it back.
+A finding raised for one of those reasons also says when the registered record was issued, if the technote declares no ``date_updated`` — not as a problem, but because that is the field which pins the citation to a fixed date, and the author is already reading the record.
 
 .. note::
 
@@ -40,32 +40,34 @@ The technote is renamed in :file:`technote.toml` after its DOI was registered:
 
 .. code-block:: text
 
-   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from technote.toml: the registered title is 'The technote', but technote.toml declares 'The technote, revised'. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
+   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from the technote: the registered title is 'The technote', but the technote is titled 'The technote, revised'. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
 
 An author who joined the technote after its DOI was registered reads much the same way, naming the people the two sides do not agree on:
 
 .. code-block:: text
 
-   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from technote.toml: technote.toml declares authors the record does not register ('AlSayyad, Yusra'). Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
+   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from the technote: technote.toml declares authors the record does not register ('AlSayyad, Yusra'). Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
 
 An author registered under somebody else's ORCID reads as the conflict it is, naming both identifiers:
 
 .. code-block:: text
 
-   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from technote.toml: the ORCID registered for 'Sick, Jonathan' is https://orcid.org/0000-0002-1793-3689, but technote.toml declares https://orcid.org/0000-0003-3001-676X. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
+   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from the technote: the ORCID registered for 'Sick, Jonathan' is https://orcid.org/0000-0002-1793-3689, but technote.toml declares https://orcid.org/0000-0003-3001-676X. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
 
-A technote that declares no ``date_updated`` is told what date to declare, in the words the registered record supports.
-A record that states a full date quotes the line to write:
-
-.. code-block:: text
-
-   [TN105] The metadata registered for DOI 10.5281/zenodo.51968 differs from the technote: the registered record gives an issue date of 2016-05-24, but technote.toml declares no date_updated, so the technote is cited undated; set 'date_updated = 2016-05-24' to date the citation. Compare with the registered metadata at https://api.datacite.org/dois/10.5281/zenodo.51968.
-
-A record that states only a year — which is every Rubin-minted record — names the year to look within instead:
+Where the technote declares no ``date_updated``, any of those findings closes with a sentence about the registered date.
+A record that registers a full date says the day:
 
 .. code-block:: text
 
-   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from the technote: the registered record gives a publication year of 2026, but technote.toml declares no date_updated, so the technote is cited undated; set date_updated to the date the technote was published in 2026 to date the citation. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
+   [TN105] The metadata registered for DOI 10.5281/zenodo.51968 differs from the technote: the registered title is 'Smtn-005 V1.0 Cloud Statistics Via All-Sky Camera', but the technote is titled 'Cloud statistics via all-sky camera'. The registered record was issued on 2016-05-24. technote.toml declares no date_updated, so the technote is dated by its publishing commit; declare date_updated to pin the citation to a fixed date instead. Compare with the registered metadata at https://api.datacite.org/dois/10.5281/zenodo.51968.
+
+A record that registers only a year — which is every Rubin-minted record — says the year:
+
+.. code-block:: text
+
+   [TN105] The metadata registered for DOI 10.71929/rubin/2570308 differs from the technote: technote.toml declares authors the record does not register ('AlSayyad, Yusra'). The registered record was issued in 2026. technote.toml declares no date_updated, so the technote is dated by its publishing commit; declare date_updated to pin the citation to a fixed date instead. Compare with the registered metadata at https://api.datacite.org/dois/10.71929/rubin/2570308.
+
+The sentence is never a finding on its own: a technote that matches its registered record and declares no ``date_updated`` reports nothing at all.
 
 The message names each field that differs and links to the record it compared against, so you can read exactly what is registered:
 
@@ -80,7 +82,7 @@ Decide which side is right — the finding does not assume :file:`technote.toml`
 
 - **The technote changed.** Release the technote again so that its DOI's metadata is updated from the current :file:`technote.toml`. Rubin's technote CI registers metadata as part of a release, so publishing a new version brings the record back in step.
 - **The registered record is right and :file:`technote.toml` drifted** — a title that was edited in the wrong place, an author who was removed by accident, or a mistyped ``orcid``. Correct :file:`technote.toml`, and regenerate :file:`CITATION.cff` (:doc:`TN106 <tn106>`) if the repository has one.
-- **The technote declares no** ``date_updated``. Declare one, using the date the finding quotes, and regenerate :file:`CITATION.cff` (:doc:`TN106 <tn106>`) if the repository has one. This is the one part of the finding that is always yours to fix, and always worth fixing: an undated citation is wrong everywhere it is rendered.
+- **The technote declares no** ``date_updated``. Nothing is broken — the citation is dated by the commit the technote is published from. Declaring ``date_updated``, using the date the finding reports, pins the citation to that day instead, so that a later typo fix does not re-date the work; regenerate :file:`CITATION.cff` (:doc:`TN106 <tn106>`) if the repository has one, since that file is written only from a declared date.
 - **The registered record is wrong and a release will not fix it.** Ask in the ``#square-help`` Slack channel for the DataCite record to be corrected; DOI metadata is registered by Rubin's services rather than from your working copy.
 - **Nobody at Rubin can change the registered record.** See :ref:`technote-lint-tn105-unchangeable` below.
 
@@ -93,7 +95,7 @@ What is compared
 Only two fields are compared — the title and the authors — and tolerantly wherever tolerance can be afforded.
 A false positive here is worse than a miss: the rule warns about metadata you may not control directly, and a warning nobody can act on trains people to ignore the linter.
 The one exact comparison is between two ORCIDs, for the reason given below.
-The date the rule also reports on is not a comparison at all; see :ref:`technote-lint-tn105-date` below.
+The registered date the rule also reports is not a comparison at all; see :ref:`technote-lint-tn105-date` below.
 
 Title
     Compared ignoring case and whitespace, so ``The Technote`` and ``the  technote`` agree.
@@ -134,12 +136,13 @@ The registered date is read, but it is not compared either; the next section say
 
 .. _technote-lint-tn105-date:
 
-The date the technote is cited by
-=================================
+The registered date, and the date the technote is cited by
+==========================================================
 
-A technote's citation is dated by ``[technote] date_updated``, and only by it.
-A technote that declares none is cited undated — in its own rendered citation, in the :file:`CITATION.cff` the repository generates, and in the metadata every harvester reads.
-That is a gap a technote author can always close, and the registered DOI record is exactly where the missing date already is, so TN105 reports it and quotes the date back.
+A technote that declares ``[technote] date_updated`` is cited by that date.
+A technote that declares none is cited by the commit it is published from — its citation is dated either way; see :ref:`technote-citation-date`.
+So the registered date is **not** a gap to be closed, and TN105 never raises a finding about it.
+What it does is mention the registered date at the end of a finding that already exists, for the technote that declares no ``date_updated``: the author is reading the record anyway, and ``date_updated`` is the field that pins the citation to one day rather than letting it follow the latest commit.
 
 **Which field the date comes from.**
 The year comes from DataCite's ``publicationYear``.
@@ -147,13 +150,13 @@ DataCite's metadata schema makes it mandatory and defines it as the year the res
 It is also the only date a Rubin-minted record carries.
 
 A record may additionally list an entry in ``dates`` typed ``Issued``, which DataCite defines as "the date that the resource is published or distributed".
-That states the same publication to the day, and a full date is a value you can write straight into :file:`technote.toml`, so the finding quotes it as the line to write.
+That states the same publication to the day, so the sentence reports the day where one is registered.
 A DOI minted years ago by the Zenodo–GitHub release integration is the common case: such a record carries both a ``publicationYear`` of 2016 and an ``Issued`` date of ``2016-05-24``.
-A record that registers no full date names the year to look within instead, rather than inviting a January 1st nobody published on.
+A record that registers no full date says the year instead, rather than implying a January 1st nobody published on.
 
 **The DOI's own registration date is deliberately not consulted.**
 A DataCite record also carries ``created``, ``registered``, and ``updated`` attributes.
-Those are timestamps of the *DOI record* — when the DOI was minted and last touched — and say nothing about when the technote was published, so reading them would date a citation by an event in Rubin's minting pipeline.
+Those are timestamps of the *DOI record* — when the DOI was minted and last touched — and say nothing about when the technote was published.
 
 **A date the technote does declare is never compared against the record.**
 The rule says nothing about the date at all once one is declared, whether it falls before or after the registered date.

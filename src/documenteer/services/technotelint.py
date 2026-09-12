@@ -1022,12 +1022,14 @@ def _check_datacite(
     — the document does not read, or it has no heading — is not compared on
     the title, only on its authors.
 
-    The rule also carries one thing that is not a comparison. A DOI-bearing
-    technote that declares no ``date_updated`` is cited undated, and the
-    registered record is where the publication date already is, so the rule
-    hands it over as the value to declare. See
-    `_datacite_differences` for why a *declared* date is never compared
-    against the record.
+    The rule also carries one thing that is not a comparison, and never
+    raises a finding on its own: when a technote that declares no
+    ``date_updated`` has drifted for some other reason, the finding says when
+    the record was issued. Such a technote is dated by the commit it is
+    published from rather than being undated, so the registered date is
+    context for an author already reading the record — and a pointer at the
+    field that pins the citation to a fixed date instead. See
+    `_undated_citation_note`.
     """
     doi = parsed.technote.doi
     if doi is None:
@@ -1053,12 +1055,15 @@ def _check_datacite(
     if not differences:
         return []
     drift = "; ".join(differences)
+    note = ""
+    if parsed.technote.date_updated is None and record.issued is not None:
+        note = f" {_undated_citation_note(record.issued)}"
     return [
         LintFinding.from_check(
             "TN105",
             f"The metadata registered for DOI {normalized} differs from the "
-            f"technote: {drift}. Compare with the registered metadata at "
-            f"{record.url}.",
+            f"technote: {drift}.{note} Compare with the registered metadata "
+            f"at {record.url}.",
         )
     ]
 
@@ -1072,14 +1077,13 @@ def _datacite_differences(
     title, a record that registers no creators — is not compared on that
     field, since an absent value is not a claim that disagrees with anything.
 
-    The date is the exception to that shape, and it is not a comparison at
-    all. A technote that declares no ``date_updated`` is cited undated, and
-    DataCite already knows when the work was published, so the record's date
-    is handed over as the value to declare. A ``date_updated`` the technote
-    *does* declare is never compared against the record: an edit after
-    registration legitimately postdates the DOI, and minting legitimately
-    postdates the last edit, so a comparison would be noise in both
-    directions.
+    The registered date is not among the fields compared, whether or not the
+    technote declares a ``date_updated``. An edit after registration
+    legitimately postdates the DOI and minting legitimately postdates the
+    last edit, so a comparison would be noise in both directions — and a
+    technote that declares nothing is dated by the commit it is published
+    from, which is a date the record has no opinion about. What the caller
+    does say about the registered date is in `_undated_citation_note`.
     """
     differences: list[str] = []
 
@@ -1098,35 +1102,32 @@ def _datacite_differences(
             _author_differences(parsed.technote.authors, record.creators)
         )
 
-    if parsed.technote.date_updated is None and record.issued is not None:
-        differences.append(_undated_citation_difference(record.issued))
-
     return differences
 
 
-def _undated_citation_difference(issued: PartialDate) -> str:
-    """Phrase the instruction to date an undated citation.
+def _undated_citation_note(issued: PartialDate) -> str:
+    """Phrase what the registered date means for a technote that declares no
+    ``date_updated``.
 
-    The wording follows the precision the record states. A date stated to
-    the day is a value the author can write straight into
-    ``technote.toml``, so it is quoted as the assignment to make. A year —
-    which is all a Rubin-minted record carries, since DataCite's mandatory
-    ``publicationYear`` is its only date — is not, so the message names the
-    year to look within instead of inviting a January 1st nobody published
-    on.
+    This says nothing is wrong, because nothing is: such a technote is cited
+    by the committer date of the commit it is published from, which is the
+    publication event and is reproducible. The registered date is reported
+    because the author is already reading the record over some other
+    difference, and because the field that would pin the citation to one
+    fixed date — rather than letting it follow the latest typo fix — is
+    worth naming while they are there.
+
+    The wording follows the precision the record states. A record that
+    registers a full date says the day; a record that registers only a year
+    — which is every Rubin-minted one, since DataCite's mandatory
+    ``publicationYear`` is its only date — says the year, rather than
+    implying a January 1st nobody published on.
     """
-    if issued.day is not None:
-        return (
-            f"the registered record gives an issue date of {issued}, but "
-            "technote.toml declares no date_updated, so the technote is "
-            f"cited undated; set 'date_updated = {issued}' to date the "
-            "citation"
-        )
+    when = f"on {issued}" if issued.day is not None else f"in {issued.year}"
     return (
-        f"the registered record gives a publication year of {issued.year}, "
-        "but technote.toml declares no date_updated, so the technote is "
-        "cited undated; set date_updated to the date the technote was "
-        f"published in {issued.year} to date the citation"
+        f"The registered record was issued {when}. technote.toml declares no "
+        "date_updated, so the technote is dated by its publishing commit; "
+        "declare date_updated to pin the citation to a fixed date instead."
     )
 
 

@@ -35,8 +35,7 @@ The article ends with a **Citing this document** section: the complete citation,
    Sick, Jonathan (2026). The LSST DM Technical Note Publishing Platform.
    Vera C. Rubin Observatory. https://doi.org/10.71929/rubin/2570308
 
-The creators are the ``[[technote.authors]]`` entries, in order and family name first; the publisher is ``technote.organization.name``, and the year is the year of the ``date_updated`` :file:`technote.toml` declares.
-A technote that declares no ``date_updated`` is cited undated — the ``(YYYY)`` is dropped rather than guessed at — and the build says so; see :ref:`technote-undated-citations` below.
+The creators are the ``[[technote.authors]]`` entries, in order and family name first; the publisher is ``technote.organization.name``, and the year is the year of the technote's ``date_updated`` — the date :file:`technote.toml` declares, or, where it declares none, the date of the commit the technote is published from; see :ref:`technote-citation-date` below.
 This is the sentence a reader copies into a bibliography, so it is composed from the technote's own metadata during the build and can never disagree with the page it sits at the end of.
 
 The Cite section
@@ -60,7 +59,7 @@ The entry is composed during the build from the technote's own metadata, so it n
    }
 
 A technote is a technical report, so the entry is a BibTeX ``techreport``: the publishing organization is its ``institution`` and the technote's handle is its ``number``.
-The ``year`` and ``month`` are those of the declared ``date_updated``; the year is the same one the citation at the end of the article shows.
+The ``year`` and ``month`` are those of the technote's ``date_updated``; the year is the same one the citation at the end of the article shows.
 
 The citation key is the handle as well, written exactly as ``id`` in :file:`technote.toml` spells it.
 That is how Rubin authors already cite technotes: lsst-texmf's :file:`lsst.bib` keys every technote and document entry by handle, so ``\citeds{SQR-000}`` in an lsstdoc document and ``\cite{SQR-000}`` against this entry resolve the same key.
@@ -70,12 +69,12 @@ A technote outside a series, with no ``id`` to key by, falls back to a key compo
 The entry is written into the page rather than fetched, so a reader can select and copy it by hand on a page whose JavaScript never runs.
 Where the browser offers no clipboard API, the copy button removes itself instead of failing silently when pressed.
 
-.. _technote-undated-citations:
+.. _technote-citation-date:
 
-Technotes with no date
-======================
+Where the date comes from
+=========================
 
-Only a ``date_updated`` written in :file:`technote.toml` dates a technote's citation:
+A technote's citation is dated by ``[technote] date_updated``:
 
 .. code-block:: toml
    :caption: technote.toml
@@ -83,28 +82,19 @@ Only a ``date_updated`` written in :file:`technote.toml` dates a technote's cita
    [technote]
    date_updated = 2026-03-04
 
-``date_created`` is not read as a fallback, because it is the day the technote was started — neither the day it was published nor the day it was last revised.
-Nor is the date the technote's own metadata carries: the ``technote`` package fills that in with the time of the build whenever :file:`technote.toml` omits the field, so reading it would date the citation to the day the technote was last built, re-dating it on every rebuild and disagreeing with the deliberately undated :file:`CITATION.cff` written from the same file.
+A technote that declares none is dated by the commit it is published from — the committer date of the commit the build checked out, which for a technote published by CI is the push that published it.
+``SOURCE_DATE_EPOCH`` takes precedence over the commit where a reproducible-build wrapper sets one, and the build clock is used only outside a Git repository, where there is no commit to read.
+``date_created`` is never consulted: it is the day the technote was *started*, which is neither the day it was published nor the day it was last revised.
 
-A technote that declares no ``date_updated`` is therefore cited undated wherever it is cited: the displayed citation loses its ``(YYYY)`` and the BibTeX entry carries no ``year`` field.
-Its key is the handle either way, so no stored citation of it changes.
-Nothing on the rendered page says so, so the build does, once, naming the field to set:
+Either way the technote has exactly one date, and every surface states that one: the sidebar's **Updated** line, the ``citation_publication_date`` metadata tag, the JSON-LD block, the **Cite** section, and the citation at the end of the article.
+Rebuilding an unchanged commit composes exactly the same citation, so a reader who has already stored the BibTeX entry keeps a working one.
 
-.. code-block:: text
+Declaring ``date_updated`` is how you *pin* the date.
+Without it the citation follows the latest commit, so a typo fix re-dates the work; with it the citation states the day you chose and goes on stating it however often the repository is touched afterwards.
+That is the field to set for a technote whose publication date is a fact about the document rather than about its repository — a version released on a particular day, or a document whose DOI was minted for a particular text.
 
-   WARNING: this technote's citation states no publication date, so it is
-   displayed without its year, its BibTeX entry carries no year field, and its
-   BibTeX key is built without one. Set date_updated in the [technote] table in
-   technote.toml. [documenteer.citation_date]
-
-A ``-W`` build fails on it, so a technote with no date to give silences it by name:
-
-.. code-block:: python
-
-   # conf.py
-   suppress_warnings = ["documenteer.citation_date"]
-
-Rendering is unchanged either way, and a technote that declares no ``doi`` shows no citation at all and is never reported.
+The same date is what :command:`documenteer technote sync-cff` writes as ``date-released``, with one deliberate difference: it writes the field only from a *declared* ``date_updated``, never from the commit date.
+See :doc:`citation-file` for why.
 
 Metadata for harvesters
 =======================
