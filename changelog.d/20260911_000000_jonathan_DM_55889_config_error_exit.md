@@ -9,3 +9,7 @@
 - Configuration failures that are not validation failures — a `self` entry with no DOI, two citations sharing one BibTeX key, an unreadable `CITATION.cff` — now present identically to the ones that are, since they reach the same reporting path.
 
 - None of this changes what a programmatic caller sees. `DocumenteerConfig.load()` still raises `ConfigError`, and the in-process technote read behind `documenteer technote lint` and `documenteer technote sync-cff` still gets an exception rather than an exit, so those commands finish their own reports. `sync-cff` gains the better message in the bargain: it used to relay `Syntax or validation issue in technote.toml`.
+
+### New features
+
+- New `documenteer.conf.raising_config_errors` context manager, for driving a Sphinx build in a process that has other work to do. A preset imported with an invalid `documenteer.toml` or `technote.toml` ends the interpreter — which is right for `sphinx-build`, whose process exists to run that one build, and wrong for a project's pytest fixture, a notebook, or a script, each of which would be terminated with status 2 and no traceback. Inside the block the failure is a catchable `ConfigError` instead. Documenteer's own in-process technote read uses it; the name is now public so anything else building a deliberately invalid root can too.

@@ -39,7 +39,11 @@ Documenteer itself is one of those callers: ``documenteer technote lint`` and
 inside the command's own process, through the very presets ``sphinx-build``
 imports. Exiting there would take the command down mid-run and its report
 with it, so such a build runs under `raising_config_errors`, which puts the
-`ConfigError` back.
+`ConfigError` back. That escape hatch is re-exported as
+`documenteer.conf.raising_config_errors` for anyone else driving a build
+in-process — a project's pytest fixture, a notebook, a script — since an
+unwrapped build of an invalid configuration file would end their interpreter
+too.
 """
 
 from __future__ import annotations
@@ -146,12 +150,19 @@ def raising_config_errors() -> Iterator[None]:
     """Make a configuration failure inside the block raise
     `~sphinx.errors.ConfigError` instead of ending the process.
 
-    This is for a Sphinx build Documenteer runs inside a process of its own
-    that has other work to do — the in-process read behind ``documenteer
-    technote lint`` and ``documenteer technote sync-cff``. Such a build's
-    configuration failure is one result among several the command is
-    collecting, so it has to come back as an exception the command can catch
-    and report in its own voice.
+    This is for a Sphinx build run inside a process that has other work to
+    do — Documenteer's own in-process read behind ``documenteer technote
+    lint`` and ``documenteer technote sync-cff``, and, downstream, a project
+    that drives a build from a pytest fixture, a notebook, or a script of its
+    own. Such a build's configuration failure is one result among several the
+    caller is collecting, so it has to come back as an exception the caller
+    can catch and report in its own voice rather than as the process exit a
+    ``sphinx-build`` run wants.
+
+    It is re-exported as `documenteer.conf.raising_config_errors`, which is
+    the name to import: a build of a deliberately invalid configuration file
+    that is *not* wrapped in this block ends the interpreter with status 2
+    and no traceback, taking the test session or notebook kernel with it.
     """
     token = _RAISE_INSTEAD_OF_EXITING.set(True)
     try:
