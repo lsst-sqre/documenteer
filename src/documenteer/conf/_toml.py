@@ -8,15 +8,14 @@ import datetime
 import re
 import sys
 import tomllib
-from collections.abc import Mapping, MutableMapping
+from collections.abc import MutableMapping
 from dataclasses import dataclass, field, replace
 from email.message import Message
 from functools import cached_property
 from importlib.metadata import PackageNotFoundError, metadata
 from importlib.metadata import version as get_version
 from pathlib import Path
-from types import UnionType
-from typing import Any, Self, Union, cast, get_args, get_origin
+from typing import Any, Self, cast
 from urllib.parse import urlparse
 
 from pydantic import (
@@ -29,7 +28,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_core import ErrorDetails
 from sphinx.errors import ConfigError
 
 from ..citations import (
@@ -55,6 +53,7 @@ from ..storage.intersphinxcacheclient import (
     DEFAULT_BASE_URL as INTERSPHINX_CACHE_DEFAULT_BASE_URL,
 )
 from ..storage.linkcheckclient import DEFAULT_BASE_URL as OOK_DEFAULT_BASE_URL
+from ._tomlerrors import format_validation_error
 from ._utils import normalize_origin_base_url
 
 __all__ = [
@@ -324,6 +323,38 @@ def _read_citation_date(v: Any) -> PartialDate | None:
     raise ValueError(_NOT_A_CITATION_DATE.format(value=v))
 
 
+_NOT_A_CITATION_TYPE = (
+    '{value!r} is not a citation type. Write it as "dataset", "article", '
+    '"software", "report", or "other"; a work that is none of those kinds '
+    '— an instrument or a facility, such as LSSTCam — is "other".'
+)
+"""How a citation type outside the vocabulary is rejected, naming the five
+kinds a work is written as and the one that takes the rest.
+
+Pydantic's own sentence for an enumeration lists the members and stops there,
+which leaves whoever cites a work that none of them names to guess which of
+the five to force it into. The vocabulary is deliberately small and ``other``
+is where such a work belongs; saying so is what turns a rejection into an
+instruction, and it is what the ``type`` reference in
+:file:`docs/guides/toml-reference.rst` says as well.
+"""
+
+_CITATION_TYPES = frozenset(member.value for member in CitationType)
+"""The citation types, spelled as documenteer.toml writes them."""
+
+
+def _read_citation_type(v: Any) -> Any:
+    """Reject a citation type outside the vocabulary in Documenteer's words.
+
+    Every other value is passed through untouched, so pydantic still does the
+    reading: this replaces the message of the one failure the enumeration can
+    have, and nothing else.
+    """
+    if isinstance(v, str) and v not in _CITATION_TYPES:
+        raise ValueError(_NOT_A_CITATION_TYPE.format(value=v))
+    return v
+
+
 class CitationModel(BaseModel):
     """Model for an entry in the ``[[project.citations]]`` array of
     documenteer.toml.
@@ -542,6 +573,12 @@ class CitationModel(BaseModel):
         """Read the publication date at the precision it is written in."""
         return _read_citation_date(v)
 
+    @field_validator("type", mode="before")
+    @classmethod
+    def validate_type(cls, v: Any) -> Any:
+        """Name the kinds a citation is written as when it is none of them."""
+        return _read_citation_type(v)
+
     @field_validator("page")
     @classmethod
     def validate_page(cls, v: str | None) -> str | None:
@@ -739,6 +776,12 @@ class CitationDefaultsModel(BaseModel):
     def validate_date(cls, v: Any) -> PartialDate | None:
         """Read the publication date at the precision it is written in."""
         return _read_citation_date(v)
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def validate_type(cls, v: Any) -> Any:
+        """Name the kinds a citation is written as when it is none of them."""
+        return _read_citation_type(v)
 
 
 class ProjectModel(BaseModel):
@@ -1157,7 +1200,11 @@ class DocumenteerConfig:
         except ValidationError as e:
             # Chained so the pydantic exception stays in the traceback Sphinx
             # saves, for anyone debugging the model rather than the file.
-            raise ConfigError(_format_validation_error(e)) from e
+            raise ConfigError(
+                format_validation_error(
+                    e, root=ConfigRoot, source="documenteer.toml"
+                )
+            ) from e
         return cls(conf, root_dir=root_dir if root_dir is not None else Path())
 
     @property
@@ -1973,296 +2020,3 @@ def _describe_citation(entry: CitationModel, index: int) -> str:
     if entry.label:
         return f"{position} (label {entry.label!r})"
     return position
-
-
-_ARRAY_ITEM_NOUNS = {
-    "citations": "entry",
-    "authors": "author",
-}
-"""What one item of an array is called, keyed by the array's name in
-documenteer.toml.
-
-An array has no names of its own, so an error inside one is addressed by
-position — and the word in front of the number is what tells an author which
-array they are being pointed at. ``entry`` is the word `_describe_citation`
-already uses of a ``[[project.citations]]`` entry, so both paths address the
-same entry the same way. An array not named here falls back to ``item``.
-"""
-
-
-def _classify_annotation(
-    annotation: Any,
-) -> tuple[str, type[BaseModel] | None]:
-    """Say what a model field is in the vocabulary of TOML — a ``table``, an
-    ``array``, a ``mapping``, or a ``scalar`` — along with the model its
-    contents are, when it has one.
-
-    An optional field is classified as what it is when it is written, since
-    leaving it out is how documenteer.toml says ``None``.
-    """
-    origin = get_origin(annotation)
-    if origin is Union or origin is UnionType:
-        members = [
-            member
-            for member in get_args(annotation)
-            if member is not type(None)
-        ]
-        if not members:
-            return "scalar", None
-        return _classify_annotation(members[0])
-    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-        return "table", annotation
-    if origin in (list, tuple, set, frozenset):
-        args = [arg for arg in get_args(annotation) if arg is not Ellipsis]
-        item = args[0] if args else None
-        if isinstance(item, type) and issubclass(item, BaseModel):
-            return "array", item
-        return "array", None
-    if origin is dict:
-        parameters = get_args(annotation)
-        value = parameters[-1] if parameters else None
-        if isinstance(value, type) and issubclass(value, BaseModel):
-            return "mapping", value
-        return "mapping", None
-    return "scalar", None
-
-
-class _ErrorAddress:
-    """The place in documenteer.toml that a pydantic error location points
-    at.
-
-    Pydantic addresses an error in the model it validated: a dotted,
-    zero-based path such as ``project.citations.1.date``, sometimes ending in
-    the name of the union member that rejected the value. An author reading
-    that has to translate it back into the file they wrote. This walks the
-    same location against the models and accumulates the address in the
-    file's own vocabulary instead — the table the error is in, the position of
-    the entry counted from one, and the field — stopping at the first segment
-    that names no part of the file, which is how a union member's tag is
-    dropped.
-    """
-
-    def __init__(self) -> None:
-        self._table: list[str] = []
-        self._trail: list[str] = []
-        self._field: str | None = None
-        self._is_array_of_tables = False
-        self._cursor: type[BaseModel] | None = ConfigRoot
-        self._noun = "item"
-        self._at_item = False
-        self._rejected_by: type[BaseModel] | None = None
-
-    @property
-    def rejected_by(self) -> type[BaseModel] | None:
-        """The model that rejected a key the address ends in, when the walk
-        ended at one, and `None` otherwise.
-
-        It is what lets the error say which keys the table does accept, since
-        that is a property of the model rather than of the error.
-        """
-        return self._rejected_by
-
-    def walk(self, loc: tuple[int | str, ...]) -> Self:
-        """Follow an error location as far as it names the file."""
-        segments = list(loc)
-        index = 0
-        while index < len(segments):
-            following = (
-                segments[index + 1] if index + 1 < len(segments) else None
-            )
-            consumed = self._step(segments[index], following)
-            if consumed == 0:
-                break
-            index += consumed
-        return self
-
-    def label(self, value: Any) -> Self:
-        """Name the array entry the error is about by its ``label``, when the
-        rejected input is an entry that has one.
-
-        The position of an entry says where it is; its label says which one it
-        is, and is what its author called it. Only an error about a whole
-        entry is labelled, since that is the only one whose input is the entry
-        itself.
-        """
-        if self._field is not None or not self._trail:
-            return self
-        if isinstance(value, Mapping):
-            label = value.get("label")
-            if isinstance(label, str) and label:
-                self._trail[-1] += f" (label {label!r})"
-        return self
-
-    def __str__(self) -> str:
-        head = ""
-        if self._table:
-            path = ".".join(self._table)
-            head = f"[[{path}]]" if self._is_array_of_tables else f"[{path}]"
-        rest = ", ".join(self._trail)
-        if self._field is not None:
-            rest = f"{rest}, field {self._field}" if rest else self._field
-        return f"{head} {rest}".strip()
-
-    def _step(self, segment: int | str, following: int | str | None) -> int:
-        """Take the next segment of the location, returning how many segments
-        it consumed — zero when it names no part of the file, which ends the
-        walk.
-        """
-        if isinstance(segment, int):
-            return self._enter_item(segment)
-        if self._cursor is None or segment not in self._cursor.model_fields:
-            return self._name_rejected_key(segment)
-        kind, member = _classify_annotation(
-            self._cursor.model_fields[segment].annotation
-        )
-        if kind == "table":
-            # A table is part of the address whether or not the error reaches
-            # inside it, so `[project.python]` names the table that is missing
-            # as readily as the one a field of failed.
-            self._enter_table(segment, member)
-            return 1
-        if kind == "mapping" and isinstance(following, str):
-            # A mapping of scalars is a table in TOML, and its key is written
-            # in that table rather than being an index into anything.
-            self._enter_table(segment, member)
-            self._field = following
-            return 2
-        if (
-            kind == "array"
-            and member is not None
-            and isinstance(following, int)
-        ):
-            self._enter_array(segment, member)
-            return 1
-        return self._name_field(segment, kind, following)
-
-    def _enter_table(self, name: str, member: type[BaseModel] | None) -> None:
-        (self._trail or self._table).append(name)
-        self._cursor = member
-        self._field = None
-
-    def _enter_array(self, name: str, member: type[BaseModel]) -> None:
-        # Only an array *of tables* is written `[[...]]`, and only the
-        # outermost one heads the address: an array nested inside an entry is
-        # named by the noun its own items carry.
-        if not self._trail:
-            self._table.append(name)
-            self._is_array_of_tables = True
-        self._noun = _ARRAY_ITEM_NOUNS.get(name, "item")
-        self._cursor = member
-        self._at_item = True
-        self._field = None
-
-    def _enter_item(self, position: int) -> int:
-        if not self._at_item:
-            return 0
-        self._trail.append(f"{self._noun} #{position + 1}")
-        self._at_item = False
-        self._field = None
-        return 1
-
-    def _name_rejected_key(self, segment: str) -> int:
-        """Take a segment that names no field of the model, which is part of
-        the file only when the model forbids extra keys.
-
-        Such a segment is normally pydantic's own — the tag it names a union
-        member by — and ends the walk rather than being printed as though the
-        author had written it. A table that forbids extra keys is the case
-        where the author *did* write it, and the key is the whole of what the
-        error is about, so it is named.
-        """
-        cursor = self._cursor
-        if cursor is None or cursor.model_config.get("extra") != "forbid":
-            return 0
-        self._rejected_by = cursor
-        self._cursor = None
-        self._field = segment
-        return 1
-
-    def _name_field(
-        self, name: str, kind: str, following: int | str | None
-    ) -> int:
-        self._cursor = None
-        if kind == "array" and isinstance(following, int):
-            # An array of scalars is written inline, so an element of it is a
-            # position within the field rather than a table of its own.
-            item = _ARRAY_ITEM_NOUNS.get(name, "item")
-            self._field = f"{name} {item} #{following + 1}"
-            return 2
-        self._field = name
-        return 1
-
-
-def _describe_error(
-    error: ErrorDetails, *, rejected_by: type[BaseModel] | None = None
-) -> str:
-    """State one validation problem in a sentence an author can act on.
-
-    A validator's own `ValueError` is that sentence: it was written for the
-    person who wrote the file, so it is used verbatim, without the ``Value
-    error,`` prefix pydantic puts in front of it. Everything pydantic rejects
-    on its own — a missing field, a value of the wrong type, a value outside
-    an enumeration — comes with a short message of its own, which is used as
-    it stands unless it names a model class. Neither the rejected input nor
-    pydantic's documentation link is printed: the input is in the file the
-    author is being sent back to, and the link explains the model rather than
-    the file.
-
-    Parameters
-    ----------
-    error
-        One problem, as pydantic reports it.
-    rejected_by
-        The model that rejected an unaccepted key, when that is what the
-        error is (see `_ErrorAddress.rejected_by`). A table with a closed set
-        of keys can say what they are, which turns "not permitted" into the
-        list the author is choosing from.
-    """
-    ctx = error.get("ctx") or {}
-    cause = ctx.get("error")
-    if error["type"] in {"value_error", "assertion_error"} and cause:
-        return str(cause).strip()
-    if error["type"] == "model_type":
-        # Pydantic names the model class the table is read into, which is
-        # Documenteer's and not anything written in the file. TOML calls it a
-        # table.
-        return "Input should be a table"
-    if error["type"] == "extra_forbidden" and rejected_by is not None:
-        accepted = ", ".join(
-            field.alias or name
-            for name, field in rejected_by.model_fields.items()
-        )
-        return f"No such key. This table accepts {accepted}."
-    return str(error["msg"]).strip()
-
-
-def _format_validation_error(error: ValidationError) -> str:
-    """Report everything wrong with a documenteer.toml, in the file's own
-    terms.
-
-    Pydantic's rendering of a `~pydantic.ValidationError` is written for
-    whoever wrote the model. This is written for whoever wrote the file: it
-    names the file first, then gives one paragraph per problem, each
-    addressing a place in the file and saying what is wrong there.
-    """
-    problems: list[tuple[str, str]] = []
-    for detail in error.errors(include_url=False):
-        place = _ErrorAddress().walk(detail["loc"]).label(detail.get("input"))
-        problems.append(
-            (
-                str(place),
-                _describe_error(detail, rejected_by=place.rejected_by),
-            )
-        )
-    if len(problems) == 1:
-        address, message = problems[0]
-        body = f"{address}\n  {message}" if address else message
-        return f"Configuration error in documenteer.toml:\n\n{body}"
-    paragraphs = [
-        f"{number}. {address}\n   {message}"
-        if address
-        else f"{number}. {message}"
-        for number, (address, message) in enumerate(problems, start=1)
-    ]
-    header = f"{len(problems)} configuration errors in documenteer.toml:"
-    return "\n\n".join([header, *paragraphs])

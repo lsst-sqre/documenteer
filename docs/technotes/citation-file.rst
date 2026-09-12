@@ -101,7 +101,9 @@ Each field is read from :file:`technote.toml`, except the title:
 
 ``date-released``
     ``technote.date_updated``, the day the technote was last published, written on both the top level and the preferred citation.
-    A technote that declares no ``date_updated`` generates a file with no ``date-released`` at all, and the command says so — the Citation File Format requires the field at neither level, so an undated technote is written as undated rather than as dated to a day nobody published on.
+    Only a *declared* ``date_updated`` is written here.
+    The technote's own pages fall back to the date of the commit they are published from (see :ref:`technote-citation-date`), and this file deliberately does not: it is a checked-in file compared against the repository by :doc:`TN106 <lint/tn106>`, so a commit date would make every content commit leave it stale and every ``sync-cff`` rewrite it.
+    A technote that declares no ``date_updated`` therefore generates a file with no ``date-released`` at all, and the command says so — the Citation File Format requires the field at neither level, so such a file is valid CFF 1.2.0 and is written as undated rather than as dated to a day nobody published on.
     ``technote.date_created`` is the day the technote was *started*, not the day it was released, and is never used for the citation.
 
 .. seealso::

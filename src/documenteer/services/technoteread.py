@@ -108,11 +108,12 @@ class TechnoteDocument:
     Notes
     -----
     ``metadata.date_updated`` is not the date ``technote.toml`` declares: the
-    technote package defaults an undeclared ``date_updated`` to the moment of
-    the build. A caller that needs the *declared* date — as CITATION.cff
-    generation does, since a date that changes every run would make the
-    generated file differ from itself — must read ``technote.toml`` rather
-    than take it from here.
+    technote package resolves an undeclared ``date_updated`` from the
+    checked-out commit's committer date. A caller that needs the *declared*
+    date — as CITATION.cff generation does, since that file is checked in and
+    compared against the repository, so a commit date would leave it stale on
+    every content commit — must read ``technote.toml`` rather than take it
+    from here.
     """
 
     metadata: TechnoteMetadata
@@ -306,11 +307,22 @@ def _read_doctree(root_dir: Path) -> nodes.document:
     from sphinx.application import Sphinx  # noqa: PLC0415
     from sphinx.util.docutils import patch_docutils  # noqa: PLC0415
 
+    # Imported here, like the Sphinx pieces above, so that importing this
+    # module does not pull in the configuration package the CLI has no other
+    # reason to load.
+    from documenteer.conf import raising_config_errors  # noqa: PLC0415
+
     with (
         tempfile.TemporaryDirectory(prefix="documenteer-read-") as build_dir,
         patch_docutils(str(root_dir)),
         _docutils_namespace(),
         _isolated_technote_config(),
+        # A technote.toml the presets reject ends a sphinx-build process
+        # outright, since nothing else is going on in it. This process is a
+        # Documenteer command with a report of its own to finish, so the
+        # failure comes back as an exception instead and is turned into a
+        # TechnoteReadError below.
+        raising_config_errors(),
     ):
         build = Path(build_dir)
         try:

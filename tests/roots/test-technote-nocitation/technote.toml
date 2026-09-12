@@ -1,0 +1,19 @@
+# The same technote without a DOI. Most technotes are never registered with
+# one, so this root is what proves they keep building exactly as they did
+# before the citation surface existed.
+[technote]
+id = "SQR-001"
+series_id = "SQR"
+canonical_url = "https://sqr-001.lsst.io/"
+github_url = "https://github.com/lsst-sqre/sqr-001"
+github_default_branch = "main"
+date_created = 2024-01-02
+date_updated = 2025-06-30
+version = "1.0.0"
+
+[technote.organization]
+name = "Vera C. Rubin Observatory"
+
+[[technote.authors]]
+name.given = "Jonathan"
+name.family = "Sick"

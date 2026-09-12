@@ -658,7 +658,7 @@ requires-dist = [
     { name = "sphinxcontrib-youtube", marker = "extra == 'technote'" },
     { name = "sphinxext-opengraph", marker = "extra == 'guide'" },
     { name = "sphinxext-rediraffe", marker = "extra == 'guide'" },
-    { name = "technote", marker = "extra == 'technote'", specifier = ">=0.11.0,<0.12.0" },
+    { name = "technote", marker = "extra == 'technote'", specifier = ">=0.12.0a1,<0.13.0" },
     { name = "tomlkit" },
     { name = "urllib3" },
 ]
@@ -2606,7 +2606,7 @@ wheels = [
 
 [[package]]
 name = "technote"
-version = "0.11.0"
+version = "0.12.0a1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accessible-pygments" },
@@ -2619,9 +2619,9 @@ dependencies = [
     { name = "sphinx" },
     { name = "sphinx-basic-ng" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2a/07/37f2fc20bd9c54ccfa700fdee445af69636386bdbc0d9d9e760238035774/technote-0.11.0.tar.gz", hash = "sha256:fea8ff20e4a870df2048f2164ba82f617e7972d4aa2bd586b413ca713790bc38", size = 582508, upload-time = "2026-09-04T16:49:26.202Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/2c/04a82cf9c52b546f037a4c064c290d121db1a98b0a20f6f4ad465999a2dd/technote-0.12.0a1.tar.gz", hash = "sha256:e9ccf9f7b67e5a2714f93ed3cb7a68504a965c77c8016ba03c8206aa264504c8", size = 599892, upload-time = "2026-09-12T11:03:11.548Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/09/5ada9ff208d15dc3e34d0c2261eb20e13950253f978734a9e45e57fb0324/technote-0.11.0-py3-none-any.whl", hash = "sha256:23d9d6d40a05a313bb4c1931f91d2d294078db855db1f179d7d304a1adde6be8", size = 107366, upload-time = "2026-09-04T16:49:24.825Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/5d/ceb6c1ec140183a734ad56e1aad1febf653afa44302ff7dd49837f6b7183/technote-0.12.0a1-py3-none-any.whl", hash = "sha256:d92664c8bab3596758c445f796fedf73524d5d68ad90f66681d0302b775f3f7c", size = 115446, upload-time = "2026-09-12T11:03:10.088Z" },
 ]
 
 [[package]]

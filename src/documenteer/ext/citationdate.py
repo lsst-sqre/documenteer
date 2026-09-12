@@ -1,5 +1,4 @@
-"""Build-time reporting of a user guide citation that states no publication
-date.
+"""Build-time reporting of a citation that states no publication date.
 
 A date is one of DataCite's mandatory metadata fields, and it is the field a
 citation loses most quietly. Every surface that shows a citation simply omits
@@ -8,17 +7,24 @@ entry drops its ``year`` field, and the BibTeX key collapses to the author and
 title alone. The page still renders, so nothing tells the author that the work
 they publish is being cited undated.
 
-This extension is what tells them. It reports each undated citation once per
-build, as the builder is initialized, and names every place the date belongs:
-the ``date`` field of the ``[[project.citations]]`` entry; when the entry
-sources its fields from a :file:`CITATION.cff` file, the record inside that
-file it reads; and, on a site that declared one, the
-``[project.citation_defaults]`` table the entry would take a date from. Which
-record matters, because a file whose top-level software record is undated can
-carry a dated ``preferred-citation`` beside it, and dating the wrong one would
-leave the citation exactly as it was. So does the table, because a site that
-mints a DOI per data product dates all of them from it, and an entry is the
-one place such a site should not be told to write the date.
+This extension is what tells them, for a user guide's declared citations. It
+reports each undated citation once per build, as the builder is initialized,
+and names every place the date belongs: the ``date`` field of the
+``[[project.citations]]`` entry; when the entry sources its fields from a
+:file:`CITATION.cff` file, the record inside that file it reads; and, on a
+site that declared one, the ``[project.citation_defaults]`` table the entry
+would take a date from. Which record matters, because a file whose top-level
+software record is undated can carry a dated ``preferred-citation`` beside
+it, and dating the wrong one would leave the citation exactly as it was. So
+does the table, because a site that mints a DOI per data product dates all of
+them from it, and an entry is the one place such a site should not be told to
+write the date.
+
+A technote is not reported here and does not load this extension. Its
+citation is dated by the metadata's ``date_updated``, which ``technote``
+resolves for every build — from technote.toml when the file declares the
+field, and from the committer date of the published commit when it does not
+— so a technote's citation always carries a date.
 
 ``builder-inited`` is the event that makes "once per build" true of every
 build. An undated citation is a property of the configuration alone, and a
@@ -48,8 +54,8 @@ the date exists to be written down; and an entry reading a
 :file:`CITATION.cff` file's ``preferred-citation``, because that record is a
 work other than the repository the file describes, whatever its type.
 
-Nothing here composes or alters a citation; the entries are the ones the guide
-preset published into ``html_context``.
+Nothing here composes or alters a citation; the entries are the ones the
+guide preset published into ``html_context``.
 """
 
 from __future__ import annotations
@@ -110,6 +116,18 @@ A site minting a DOI per data product dates forty entries from one table, so
 an undated entry on such a site is usually forty undated entries and one
 missing default. Naming only the entry points at the one place its author
 should *not* write the date.
+"""
+
+UNDATED_MESSAGE = (
+    "%s states no publication date, so it is displayed without its year, "
+    "its BibTeX entry carries no year field, and its BibTeX key is built "
+    "without one. %s"
+)
+"""What every undated citation is reported with.
+
+The sentence that names where the date belongs is composed per entry, since
+an entry reading a :file:`CITATION.cff` file and a site declaring shared
+defaults each add a place the date could be written.
 """
 
 
@@ -187,8 +205,8 @@ def check_citation_dates(app: Sphinx) -> None:
     Parameters
     ----------
     app
-        The Sphinx application, whose ``html_context`` carries the resolved
-        citations.
+        The Sphinx application, whose ``html_context`` carries the guide's
+        declared citations, or nothing at all for a site that declares none.
     """
     citations = _citations(app)
     defaults_declared = bool(getattr(app.config, DEFAULTS_CONFIG))
@@ -196,14 +214,13 @@ def check_citation_dates(app: Sphinx) -> None:
         if citation.get("date") or _has_no_publication_event(citation):
             continue
         logger.warning(
-            "citation %s states no publication date, so it is displayed "
-            "without its year, its BibTeX entry carries no year field, and "
-            "its BibTeX key is built without one. %s",
+            UNDATED_MESSAGE,
             # The title is the fallback for an unlabelled entry rather than
             # the key, because an undated key is one of the things this
             # warning is about: it collapses to the author and title alone,
             # so naming the entry by it would name the symptom.
-            describe_citation(citation, citations, unlabelled_field="title"),
+            "citation "
+            + describe_citation(citation, citations, unlabelled_field="title"),
             _fix(citation, defaults_declared=defaults_declared),
             type=WARNING_TYPE,
             subtype=WARNING_SUBTYPE,

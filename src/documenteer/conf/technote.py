@@ -3,9 +3,10 @@
 import warnings
 from contextlib import suppress
 from pathlib import Path
+from typing import NoReturn
 
 from sphinx.deprecation import RemovedInNextVersionWarning
-from technote.sphinxconf import *  # noqa: F403
+from sphinx.errors import ConfigError
 
 from documenteer.conf import (
     extend_excludes_for_non_index_source,
@@ -14,11 +15,48 @@ from documenteer.conf import (
     get_template_dir,
 )
 
+from ._errors import fail_config
+from ._technotecitation import TechnoteCitation
 from ._utils import (
     get_common_nitpick_ignore,
     get_common_nitpick_ignore_regex,
     get_technote_origin_base_url,
 )
+
+
+def _fail_technote_config(error: ConfigError) -> NoReturn:
+    """Report a technote.toml the technote package rejected, in the words
+    technote composed for it, and end the process.
+
+    From technote 0.12 the message is technote's own work.
+    ``technote.sources.tomlerrors.format_validation_error`` — the same design
+    as `documenteer.conf._tomlerrors`, ported — addresses each validation
+    failure by the table, the entry counted from one, and the field an author
+    wrote, and a file TOML itself cannot parse arrives already wrapped in a
+    `~sphinx.errors.ConfigError` naming the line and column the parser stopped
+    at. Nothing is left to translate; what is left is to keep the message out
+    of Sphinx's crash frame.
+
+    So it is relayed unchanged rather than re-composed from the
+    `~pydantic.ValidationError` technote keeps as the error's cause. Technote
+    writes in the same vocabulary a ``documenteer.toml`` is reported in, and
+    only technote knows what one item of its own arrays is called: it says
+    ``author #1, affiliation #1`` where Documenteer's formatter, which knows
+    only the arrays of its own file, would say ``author #1, item #1``.
+    """
+    fail_config(str(error), source="technote.toml")
+
+
+# Importing technote's preset is what reads and validates technote.toml, so
+# it is also where a bad file stops the build. It is reported and exits here
+# rather than being left to propagate: an exception raised while conf.py runs
+# is rendered by Sphinx as a crash of Sphinx, which buries the message that
+# says what to fix. See documenteer.conf._errors for why the exit has to be
+# the one it is.
+try:
+    from technote.sphinxconf import *  # noqa: F403
+except ConfigError as _technote_config_error:
+    _fail_technote_config(_technote_config_error)
 
 # Suppress warnings about deprecated features in future Sphinx versions.
 # This is noise for users because Documenteer itself constrains the Sphinx
@@ -128,6 +166,28 @@ if _id is not None:
     html_context["editions_url"] = (  # noqa: F405
         f"https://{_id.lower()}.lsst.io/v/"
     )
+
+# Every technote is citable -- a registered one by its DOI, and every other by
+# its canonical URL, which is as stable -- and every technote says so in its
+# sidebar: the BibTeX entry with a button that copies it, and, for a technote
+# registered with a DOI, that DOI as a resolvable link
+# (components/sidebar-citation.html). Every value comes from this one object,
+# which composes them from the technote's own metadata through
+# documenteer.citations; the template composes nothing.
+#
+# The object, rather than the composed strings, is what goes into the context
+# because a technote's title is not known yet: technote.ext.metadata copies
+# the document's H1 into the metadata at html-page-context time, so the entry
+# has to be composed when the template reads it.
+_citation = TechnoteCitation(T.metadata)  # noqa: F405
+html_context["documenteer_technote_citation"] = _citation  # noqa: F405
+# The same script the guide's citation surfaces use; it reads the entry from
+# the <pre> the component renders and removes the button where the clipboard
+# API is unavailable. Every technote renders a copy button, so every technote
+# ships the script -- the rule that a page carrying no button loads no script
+# is kept by there being no such technote page.
+html_static_path.append(get_asset_path("rubin-citation-copy.js"))
+html_js_files: list[str] = ["rubin-citation-copy.js"]
 
 # Ook link-check service settings for documenteer.ext.linkcheckservice.
 # Only the technote-derived settings are set here; the others keep the
