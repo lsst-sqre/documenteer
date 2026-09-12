@@ -208,9 +208,10 @@ class TechnoteCffService:
         -----
         Everything but the title is read from ``technote.toml``, including
         the release date, which a Sphinx read cannot supply: the technote
-        package defaults an undeclared ``date_updated`` to the moment of the
-        build, and a citation dated by the clock would make every run
-        generate a different file. The title is the one field the *document*
+        package resolves an undeclared ``date_updated`` from the checked-out
+        commit's committer date, and this file is checked in and compared
+        against the repository, so a commit date would leave it stale on
+        every content commit. The title is the one field the *document*
         resolves — a technote normally declares none in ``technote.toml`` and
         is titled by its H1 — so it is the one field taken from the read.
         """
