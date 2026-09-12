@@ -55,8 +55,9 @@ Whitespace around the DOI, and between a ``doi:`` prefix and the DOI itself, is 
 A value that is not syntactically a DOI is rejected when :file:`technote.toml` is read; see :doc:`TN001 <lint/tn001>`.
 
 The rest of the ``<head>`` does not depend on the DOI at all.
-technote 0.11, which Documenteer now requires, adds a Dublin Core block and a schema.org ``Report`` node to every technote, DOI or not, and renames the Highwire tag ``citation_date`` to ``citation_publication_date``; anything that scrapes the old name needs updating.
-See the :doc:`changelog </changelog>` entry for that requirement and the `technote 0.11 release notes <https://technote.lsst.io/changelog.html>`__.
+technote 0.11 added a Dublin Core block and a schema.org ``Report`` node to every technote, DOI or not, and *renamed* the Highwire tag ``citation_date`` to ``citation_publication_date``; anything that scrapes the old name needs updating.
+Documenteer requires technote 0.12 or later, so every technote it builds emits the new name.
+See the :doc:`changelog </changelog>` entry for that requirement and the `technote release notes <https://technote.lsst.io/changelog.html>`__.
 
 Citing this document
 ====================
