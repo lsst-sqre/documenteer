@@ -199,6 +199,24 @@ def test_refresh_tooling_rewrites_stale_tox_ini(tmp_path: Path) -> None:
     assert "[testenv:sync-cff]" in tox_ini
 
 
+def test_refresh_tooling_indents_tox_ini_consistently(
+    tmp_path: Path,
+) -> None:
+    """Every continuation line of the rendered tox.ini is indented alike."""
+    make_modern_technote(tmp_path)
+
+    service = TechnoteUpdateService(tmp_path, AuthorDb())
+    service.refresh_tooling()
+
+    tox_ini = (tmp_path / "tox.ini").read_text()
+    indents = {
+        len(line) - len(line.lstrip(" "))
+        for line in tox_ini.splitlines()
+        if line.startswith(" ")
+    }
+    assert indents == {4}
+
+
 def test_refresh_tooling_writes_every_standard_file(tmp_path: Path) -> None:
     """Every standard tooling file is present after an update."""
     make_modern_technote(tmp_path)

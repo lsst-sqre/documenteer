@@ -47,6 +47,11 @@ These are the files it writes:
 - :file:`requirements.txt`
 - :file:`tox.ini`
 
+Each of these seven files is *replaced*, not merged: Documenteer renders the template and writes the result over whatever the repository had.
+Anything of your own in one of them — an extra tox environment, an added pre-commit hook, a comment explaining why the CI workflow does what it does — goes with the old copy of the file, and the report calls that ``updated`` like any other change.
+If you need to keep such a file, hold it back with :ref:`--ignore-file <technote-update-ignore-file>`.
+Merging a customization into the refreshed file, so that you need not choose between the template and your own copy, is tracked in `documenteer#514 <https://github.com/lsst-sqre/documenteer/issues/514>`__.
+
 Your own writing is never touched: :file:`README.rst` and the content file (:file:`index.rst` or :file:`index.md`) are yours.
 So is :file:`conf.py`, the moment you put anything of your own in it — it is rewritten only when it holds nothing but the import line Documenteer generates, and is otherwise reported and left alone.
 
@@ -66,6 +71,8 @@ Every file is reported, whether or not it changed:
 
 Review the changes with :command:`git diff`, then commit them and open a pull request as you would for any other change to the technote.
 
+.. _technote-update-ignore-file:
+
 Keep a file you have customized
 -------------------------------
 
@@ -76,6 +83,12 @@ If you have deliberately customized one of the standard files — an extra pre-c
    documenteer technote update --ignore-file tox.ini --ignore-file .pre-commit-config.yaml
 
 The option is repeatable, and an ignored file is reported as ``skipped (--ignore-file)``.
+
+.. caution::
+
+   The :file:`Makefile` and :file:`tox.ini` are a pair: the :file:`Makefile`'s targets are thin wrappers around the tox environments :file:`tox.ini` defines.
+   Holding :file:`tox.ini` back while the :file:`Makefile` is refreshed leaves :command:`make lint` calling a ``technote-lint`` environment that the retained :file:`tox.ini` may not define, and the target fails.
+   Hold both files back, or neither, and bring a retained :file:`tox.ini` forward by hand.
 
 Check without writing
 ---------------------
