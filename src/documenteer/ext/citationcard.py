@@ -37,11 +37,17 @@ This module also decides which pages reference the script behind the ``Copy
 BibTeX`` buttons, for the site footer's as well as the card's (see
 `CitationCopyScript`): a card is a per-page surface, so the question of which
 pages carry a button is one only a per-page handler can answer.
+
+A card is also kept out of the page description sphinxext-opengraph harvests
+(see `omit_cards_from_description`), so that a page whose card comes before
+its prose is summarized by what it says rather than by whom it asks to be
+cited.
 """
 
 from __future__ import annotations
 
 import difflib
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from docutils import nodes
@@ -54,7 +60,7 @@ from ..citations import describe_citation, normalize_doi
 from ..version import __version__
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata
@@ -65,6 +71,7 @@ __all__ = [
     "CitationCopyScript",
     "CitationDoiRole",
     "citation_bibtex",
+    "omit_cards_from_description",
     "setup",
 ]
 
@@ -570,6 +577,191 @@ def _has_copy_button(doctree: nodes.document | None) -> bool:
     return next(doctree.findall(citation_bibtex), None) is not None
 
 
+OPENGRAPH_EXTENSION = "sphinxext.opengraph"
+"""The extension whose harvested page description the cards are kept out of."""
+
+
+def omit_cards_from_description(
+    app: Sphinx,
+    pagename: str,
+    templatename: str,
+    context: dict[str, Any],
+    doctree: nodes.document | None,
+) -> None:
+    """Rewrite this page's harvested description with its cards left out.
+
+    sphinxext-opengraph composes a page's ``description`` and
+    ``og:description`` by walking the doctree in document order, so a card
+    near the top of a page with little prose of its own becomes the page's
+    summary: a search result and a social preview that are nothing but an
+    author list. A citation is metadata a page carries, not what the page is
+    about, so the card's text is excluded and the description is what the
+    page's own prose says -- which is the description the page had before it
+    showed a card at all.
+
+    The cards are detached from the doctree only for the length of the second
+    walk and are put back before this handler returns, so no other
+    ``html-page-context`` handler -- `CitationCopyScript.add_copy_script`
+    among them -- ever meets a doctree missing them.
+
+    A page with no card returns before any of that: the description is then
+    already the one this handler would compute, and walking the doctree again
+    to learn so would cost every page of the site a walk it does not need.
+
+    Parameters
+    ----------
+    app
+        The Sphinx application.
+    pagename
+        The docname of the page being rendered.
+    templatename
+        The template used to render the page.
+    context
+        The template context, modified in place.
+    doctree
+        The page's resolved doctree, or `None` for a page with no source
+        document, which can carry no card.
+
+    Notes
+    -----
+    This runs late (see `setup`) so that the tags it rewrites are the ones
+    sphinxext-opengraph has already written into ``context["metatags"]`` at
+    the default handler priority. Rewriting them is what keeps the two
+    descriptions -- the Open Graph one and the plain ``<meta>`` one -- saying
+    the same thing, whichever of them the site publishes.
+
+    The description is recomputed with sphinxext-opengraph's own parser
+    rather than with a reimplementation of it, so the two can never disagree
+    about anything but the cards. A release that moves that parser leaves
+    this handler unable to find it, and the page keeps the description
+    sphinxext-opengraph gave it rather than failing the build over a
+    ``<meta>`` tag.
+    """
+    if doctree is None or OPENGRAPH_EXTENSION not in app.extensions:
+        return
+
+    cards = _find_cards(doctree)
+    if not cards:
+        return
+
+    try:
+        from sphinxext.opengraph import (  # noqa: PLC0415
+            DEFAULT_DESCRIPTION_LENGTH,
+            make_tag,
+        )
+        from sphinxext.opengraph._description_parser import (  # noqa: PLC0415
+            get_description,
+        )
+        from sphinxext.opengraph._title_parser import (  # noqa: PLC0415
+            get_title,
+        )
+    except ImportError:
+        logger.debug(
+            "sphinxext-opengraph does not expose the description parser "
+            "this version of Documenteer knows about; leaving the "
+            "description of %s as that extension composed it.",
+            pagename,
+        )
+        return
+
+    # The page's own ``:ogp_description_length:`` wins over the site's, the
+    # way sphinxext-opengraph reads it, so that a page that asks for a longer
+    # description gets the same one back minus its cards.
+    fields = context.get("meta") or {}
+    try:
+        desc_len = int(
+            fields.get(
+                "ogp_description_length", app.config.ogp_description_length
+            )
+        )
+    except (TypeError, ValueError):
+        desc_len = DEFAULT_DESCRIPTION_LENGTH
+
+    # The page title is skipped by the walk when the description would only
+    # repeat it, and it is spelled both with and without its HTML.
+    known_titles = set(get_title(context.get("title") or ""))
+
+    described = get_description(doctree, desc_len, known_titles)
+    if not described:
+        # sphinxext-opengraph wrote no description tag, so there is none to
+        # rewrite: the page is all card and has nothing else to say.
+        return
+
+    with _cards_detached(cards):
+        without_cards = get_description(doctree, desc_len, known_titles)
+
+    if without_cards == described:
+        return
+
+    context["metatags"] = _rewrite_description_tags(
+        context.get("metatags") or "",
+        described,
+        without_cards,
+        make_tag,
+    )
+
+
+def _find_cards(doctree: nodes.document) -> list[nodes.Element]:
+    """Return the page's card containers, in document order."""
+    return [
+        node
+        for node in doctree.findall(nodes.container)
+        if CARD_CLASS in node["classes"]
+    ]
+
+
+@contextmanager
+def _cards_detached(cards: Sequence[nodes.Element]) -> Iterator[None]:
+    """Take the cards out of their doctree for the body of the ``with``, and
+    put each one back where it was on the way out.
+
+    The cards are detached back to front so that each one's position is still
+    the position it holds in the tree as it stands, and reattached front to
+    back for the same reason.
+    """
+    detached: list[tuple[nodes.Element, int, nodes.Element]] = []
+    try:
+        for card in reversed(cards):
+            parent = card.parent
+            index = parent.index(card)
+            parent.remove(card)
+            detached.append((parent, index, card))
+        yield
+    finally:
+        for parent, index, card in reversed(detached):
+            parent.insert(index, card)
+
+
+def _rewrite_description_tags(
+    metatags: str,
+    described: str,
+    without_cards: str,
+    make_tag: Callable[[str, str, str], str],
+) -> str:
+    """Replace the description sphinxext-opengraph wrote into the page's
+    ``<meta>`` tags with the one computed without the cards.
+
+    The tags are found by composing the ones sphinxext-opengraph would have
+    written for the description it harvested -- with its own tag writer, so
+    the spelling matches exactly -- rather than by matching the shape of a
+    ``<meta>`` tag, which would risk rewriting a description some other
+    extension published. A page left with nothing to say loses the tags
+    rather than publishing an empty description.
+    """
+    for name, attribute in (
+        ("og:description", "property"),
+        ("description", "name"),
+    ):
+        old = f"{make_tag(name, described, attribute)}\n"
+        new = (
+            f"{make_tag(name, without_cards, attribute)}\n"
+            if without_cards
+            else ""
+        )
+        metatags = metatags.replace(old, new)
+    return metatags
+
+
 def _as_doi(selector: str) -> str | None:
     """Reduce a selector to the bare DOI it spells, or `None` when it spells
     none.
@@ -803,6 +995,10 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     # One instance per application, so the footer answer it keeps belongs to
     # this build's configuration and to no other.
     app.connect("html-page-context", CitationCopyScript().add_copy_script)
+    # Priority 600 runs the handler after the default-priority (500) handler
+    # sphinxext-opengraph connects, so the tags it rewrites are the ones that
+    # extension has already written into the page's metatags.
+    app.connect("html-page-context", omit_cards_from_description, priority=600)
 
     return {
         "version": __version__,
