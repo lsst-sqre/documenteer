@@ -40,6 +40,7 @@ from ..citations import (
     OrganizationAuthor,
     PartialDate,
     PersonAuthor,
+    compose_citations_digest,
     compose_highwire_tags,
     compose_landing_page_jsonld,
     normalize_bibtex_key,
@@ -1584,13 +1585,28 @@ class DocumenteerConfig:
             None,
         )
 
-    def set_citations(self, html_context: MutableMapping[str, Any]) -> None:
-        """Publish the resolved citations into Sphinx's ``html_context``.
+    def set_citations(self, html_context: MutableMapping[str, Any]) -> str:
+        """Publish the resolved citations into Sphinx's ``html_context``,
+        returning the digest that says which citations they are.
 
         Parameters
         ----------
         html_context
             The Sphinx ``html_context`` mapping to populate.
+
+        Returns
+        -------
+        str
+            The digest `~documenteer.citations.compose_citations_digest`
+            composes of the published citations, which the preset assigns to
+            the ``documenteer_citations_digest`` configuration value. That
+            value's ``rebuild`` is ``"env"``, so a site that edits its
+            citations re-reads every document — which is what the
+            ``citation-card`` directive and the ``doi`` role need, having
+            resolved their entry as the document was read. The context itself
+            cannot carry that: ``html_context``'s own ``rebuild`` is
+            ``"html"``, and widening it would re-read every document whenever
+            anything else in the context changed.
 
         Notes
         -----
@@ -1622,7 +1638,7 @@ class DocumenteerConfig:
         """
         contexts = [citation.to_html_context() for citation in self.citations]
         if not contexts:
-            return
+            return compose_citations_digest(contexts)
         html_context["documenteer_citations"] = contexts
         self_context = next(
             (context for context in contexts if context["is_self"]), None
@@ -1647,6 +1663,7 @@ class DocumenteerConfig:
         )
         if jsonld is not None:
             html_context["documenteer_citations_jsonld"] = jsonld
+        return compose_citations_digest(contexts)
 
     def _key_citations(
         self,

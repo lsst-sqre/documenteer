@@ -1,0 +1,31 @@
+# The full user-guide stack for a site whose one page shows its citations
+# through the two surfaces that resolve them while the page is *read* -- a
+# citation-card and a doi role -- so a build over a warm doctree cache can be
+# asked whether an edit to this file reached them.
+[project]
+title = "Citation Rebuild Guide"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Site"
+type = "dataset"
+self = true
+title = "Citation Rebuild Guide"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
+
+# Shown in the footer so that it reaches the site-wide JSON-LD block in full,
+# which is what lets one edit be checked against a read-time surface (the
+# card and the role) and a write-time one (the block) at once.
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+label = "Dataset"
+type = "dataset"
+in_footer = true
+title = "Citation Rebuild Images"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-01-15
+authors = [{ name = "Vera C. Rubin Observatory" }]

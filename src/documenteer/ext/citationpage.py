@@ -32,14 +32,15 @@ consistency: the docname against the documents the project contains, and the
 fragment against the anchors the claimed page's doctree carries. That event is
 the first moment both are available, and it is the only one — the check cannot
 move to ``builder-inited``, as the undated-citation check did in #485, because
-it needs doctrees, which do not exist that early. The known limitation is the
-one that follows from the event: Sphinx runs ``env-check-consistency`` only
-when at least one document was re-read, so an edit to
-:file:`documenteer.toml` alone — which changes ``html_context``, whose
-``rebuild`` is ``"html"`` — leaves every document up to date and is not
-reported on that incremental rebuild. A fresh build, as in CI, reports it. The
-case that matters most is unaffected: renaming a heading changes the page a
-fragment names, and re-reads it.
+it needs doctrees, which do not exist that early. Sphinx runs
+``env-check-consistency`` only when at least one document was re-read, which
+an edit to :file:`documenteer.toml` alone once left untrue — the citations
+travel in ``html_context``, whose ``rebuild`` is ``"html"``. They now also
+reach ``documenteer_citations_digest``, whose ``rebuild`` is ``"env"`` (see
+`documenteer.ext.citationcard`), so a claim added or edited in that file is
+checked on the incremental rebuild that follows rather than on the next fresh
+build. Renaming a heading re-reads the page that carries it, so a claim on the
+anchor it moved is checked then too.
 """
 
 from __future__ import annotations

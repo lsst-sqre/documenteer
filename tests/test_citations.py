@@ -6,7 +6,10 @@ import datetime
 import importlib
 import importlib.util
 import json
+import os
 import re
+import subprocess
+import sys
 
 import pytest
 
@@ -18,6 +21,7 @@ from documenteer.citations import (
     OrganizationAuthor,
     PartialDate,
     PersonAuthor,
+    compose_citations_digest,
     compose_highwire_tags,
     compose_landing_page_jsonld,
     compose_page_jsonld,
@@ -2170,3 +2174,62 @@ def test_describe_citation_falls_back_for_an_unlabelled_entry() -> None:
         describe_citation(unlabelled, [unlabelled], unlabelled_field="title")
         == "'The Rubin Butler'"
     )
+
+
+def _citation_context(**overrides: object) -> dict[str, object]:
+    """Compose one citation's ``html_context`` mapping, as the guide preset
+    publishes it, with the named fields replaced.
+    """
+    fields: dict[str, object] = {
+        "title": "DP2 Object catalog",
+        "authors": [OrganizationAuthor(name="Vera C. Rubin Observatory")],
+        "publisher": "Vera C. Rubin Observatory",
+        "date": PartialDate(year=2025, month=6, day=30),
+        "doi": "10.71929/rubin/3382539",
+        "type": CitationType.dataset,
+    }
+    fields.update(overrides)
+    return GuideCitation(
+        citation=Citation(**fields),  # type: ignore[arg-type]
+        label="Butler",
+    ).to_html_context()
+
+
+def test_citations_digest_is_stable_across_processes() -> None:
+    """The same citations digest to the same value in a fresh interpreter,
+    which is what keeps an unchanged documenteer.toml from invalidating the
+    doctree cache on the next build.
+
+    The second value is computed in a subprocess, under a different hash seed,
+    because every way a digest could vary between builds — a salted `hash`, an
+    object id, a set's iteration order — varies only *between* processes and
+    would go unnoticed in a second call here.
+    """
+    contexts = [_citation_context()]
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import json, sys;"
+            "from documenteer.citations import compose_citations_digest;"
+            "print(compose_citations_digest(json.load(sys.stdin)))",
+        ],
+        input=json.dumps(contexts),
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "PYTHONHASHSEED": "1"},
+    )
+
+    assert result.stdout.strip() == compose_citations_digest(contexts)
+
+
+def test_citations_digest_changes_with_the_citations() -> None:
+    """A citation that loses its date digests differently, so the build that
+    follows the edit re-reads every document that displays it.
+    """
+    dated = [_citation_context()]
+    undated = [_citation_context(date=None)]
+
+    assert compose_citations_digest(dated) != compose_citations_digest(undated)

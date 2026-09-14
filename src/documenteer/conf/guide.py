@@ -94,6 +94,7 @@ __all__ = [
     "html_theme_options",
     "documenteer_last_modified_enabled",
     "documenteer_citation_defaults_declared",
+    "documenteer_citations_digest",
     "git_last_updated_metatags",
     "html_sidebars",
     "html_title",
@@ -406,7 +407,17 @@ _conf.set_edit_on_github(html_theme_options, html_context)
 # is composed: the head metadata, the citation-card directive, and the footer
 # all read documenteer_citations / documenteer_self_citation from the
 # context. Nothing is set when the site declares no citations.
-_conf.set_citations(html_context)
+#
+# The digest set_citations returns is what tells Sphinx the citations changed.
+# html_context's own rebuild is "html", so an edit to documenteer.toml alone
+# would leave every document up to date -- and the citation-card directive and
+# the doi role resolve their entry as the document is *read*, so their pages
+# would go on showing the citation the previous build baked into the doctree
+# while the head metadata and the footer, composed as the page is written,
+# showed the edited one. documenteer_citations_digest is registered with
+# rebuild="env" (see documenteer.ext.citationcard), so a site that edits a
+# citation re-reads every document and the two kinds of surface agree.
+documenteer_citations_digest = _conf.set_citations(html_context)
 
 # Whether documenteer.toml writes a [project.citation_defaults] table, which
 # documenteer.ext.citationdate reports an undated citation against: such a

@@ -124,6 +124,30 @@ Naming all three in the warning is how an author who wrote a label that no
 longer selects on its own learns that the key and the DOI do.
 """
 
+CITATIONS_DIGEST_CONFIG = "documenteer_citations_digest"
+"""The configuration value carrying a digest of the site's resolved citations.
+
+Both surfaces in this module resolve their entry while the document is *read*
+and write the rendered result into the doctree, so an edited citation reaches
+them only on a build that reads the document again. Sphinx decides that from
+the configuration values whose ``rebuild`` is ``"env"``, and
+``html_context`` -- where the citations themselves travel -- is ``"html"``:
+editing :file:`documenteer.toml` over a warm doctree cache used to leave every
+card and role showing the previous build's citation while the ``<head>``
+metadata, the JSON-LD, and the footer, all composed as the page is written,
+showed the edited one.
+
+The digest is therefore registered here, by the extension whose surfaces need
+the re-read, and the guide preset assigns it from the citations it publishes
+(see `~documenteer.citations.compose_citations_digest`). It is a digest rather
+than the citations themselves because nothing reads the value -- Sphinx only
+has to see it differ -- and the payload would otherwise be pickled into the
+build environment a second time.
+
+A site that declares no citations leaves it at the default empty string, so
+such a site is never told its citations changed.
+"""
+
 CANDIDATE_LIMIT = 3
 """How many entries a warning names before it falls back to counting them.
 
@@ -772,6 +796,10 @@ def setup(app: Sphinx) -> ExtensionMetadata:
     )
     app.add_directive("citation-card", CitationCard)
     app.add_role("doi", CitationDoiRole())
+    # The rebuild is "env" because a change to the site's citations has to
+    # invalidate every doctree: the directive and the role above bake their
+    # entry into one.
+    app.add_config_value(CITATIONS_DIGEST_CONFIG, "", "env", str)
     # One instance per application, so the footer answer it keeps belongs to
     # this build's configuration and to no other.
     app.connect("html-page-context", CitationCopyScript().add_copy_script)

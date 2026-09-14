@@ -16,6 +16,7 @@ from documenteer.citations import (
     OrganizationAuthor,
     PartialDate,
     PersonAuthor,
+    compose_citations_digest,
 )
 from documenteer.conf import DocumenteerConfig
 
@@ -2103,6 +2104,24 @@ def test_set_citations_without_citations() -> None:
     html_context: dict[str, Any] = {}
     config.set_citations(html_context)
     assert html_context == {}
+
+
+def test_set_citations_digests_what_it_published() -> None:
+    """set_citations returns a digest of the citations it published -- which
+    is what the guide preset assigns to ``documenteer_citations_digest``, the
+    ``rebuild = "env"`` value that re-reads the documents whose cards and
+    roles resolved a citation as they were read.
+
+    A site that publishes none returns the empty string, which is that value's
+    own default, so such a site is never told its citations changed.
+    """
+    config = DocumenteerConfig.load(EXAMPLE_CITATIONS_INLINE)
+    html_context: dict[str, Any] = {}
+
+    assert config.set_citations(html_context) == compose_citations_digest(
+        html_context["documenteer_citations"]
+    )
+    assert DocumenteerConfig.load(EXAMPLE).set_citations({}) == ""
 
 
 EXAMPLE_CITATIONS_NAMELESS_AUTHOR = """

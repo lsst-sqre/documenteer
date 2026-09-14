@@ -16,6 +16,7 @@ the same metadata always yields byte-identical output during a Sphinx build.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -37,6 +38,7 @@ __all__ = [
     "OrganizationAuthor",
     "PartialDate",
     "PersonAuthor",
+    "compose_citations_digest",
     "compose_highwire_tags",
     "compose_landing_page_jsonld",
     "compose_page_jsonld",
@@ -1665,6 +1667,54 @@ def _site_node(site_title: str | None, site_url: str | None) -> dict[str, Any]:
     if site_url:
         node["url"] = site_url
     return node
+
+
+def compose_citations_digest(
+    citations: Sequence[Mapping[str, Any]],
+) -> str:
+    """Reduce a site's resolved citations to a value that changes whenever
+    they do, and otherwise never.
+
+    Parameters
+    ----------
+    citations
+        Every citation the site declares, in declaration order, as the
+        mappings `GuideCitation.to_html_context` composes.
+
+    Returns
+    -------
+    str
+        A hex digest of the whole set. It is the empty string for a site that
+        declares no citations, so that such a site's value equals the
+        configuration default and it is never told its citations changed.
+
+    Notes
+    -----
+    This is what the guide preset publishes as the
+    ``documenteer_citations_digest`` configuration value, whose ``rebuild`` is
+    ``"env"``: a ``citation-card`` and a ``doi`` role resolve their entry as
+    the document is *read* and bake the result into the doctree, so an edit to
+    :file:`documenteer.toml` that left every document up to date would leave
+    those surfaces showing the citation the previous build composed. Sphinx
+    re-reads on a changed ``env`` value, so carrying the citations in one is
+    what makes the surfaces that read them agree with the ones -- the
+    ``<head>`` metadata, the JSON-LD, the footer -- composed at write time.
+
+    The whole context mapping is digested, not a chosen handful of its fields,
+    because everything in it is something some surface displays: the note a
+    card writes under the citation, the ``in_footer`` flag that decides which
+    pages reference the copy script, the composed BibTeX a reader copies.
+
+    The digest is taken over the JSON serialization with its keys sorted, so
+    it is a value the *next* build recomputes identically. Nothing that varies
+    between processes -- a salted `hash`, an object id, a set's iteration
+    order -- may enter it, or an unchanged file would invalidate every doctree
+    on every build.
+    """
+    if not citations:
+        return ""
+    payload = json.dumps(citations, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def compose_landing_page_jsonld(
