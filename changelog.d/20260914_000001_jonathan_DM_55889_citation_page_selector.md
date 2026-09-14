@@ -1,0 +1,3 @@
+### Other changes
+
+- The `page` field reference in the user-guide TOML reference no longer tells a claimed landing page to show its own citation "by `label`". A site with a registered landing page per data product is exactly the site whose labels repeat — every product has a `TAP` entry — so the page selects its citation by `bibtex_key` or by DOI, as the `label` field reference and the [Landing pages inside the site](https://documenteer.lsst.io/guides/citations.html#landing-pages-inside-the-site) example already said. The same paragraph also corrected which entry an argument-less `citation-card` renders: it is the site's `preferred` citation, which is the `self` entry only on a site that marks no other.

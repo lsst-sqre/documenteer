@@ -1,0 +1,3 @@
+### Bug fixes
+
+- A `citation-card` no longer becomes a user guide's page description. sphinxext-opengraph composes each page's `description` and `og:description` by walking the page in document order, so a card placed above a page's prose — as a "How to cite" block on a home page usually is — published an author list as the page's summary in search results and social previews. Documenteer now recomputes the description with the page's cards left out, so a page is summarized by what it says rather than by whom it asks to be cited. A page whose prose already fills the description keeps the one it had; on a page with a shorter introduction, what followed the card takes the card's place in the description.

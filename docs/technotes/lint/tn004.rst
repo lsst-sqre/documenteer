@@ -1,4 +1,4 @@
-:og:description: TN004 fires when no technote.toml exists in the linted directory — usually because the command ran outside the technote's root, or the technote is a legacy technote that has not been migrated.
+:og:description: TN004 fires when no technote.toml exists in the linted directory — usually because the command ran outside the technote's root, or the technote is a legacy technote that has not been converted.
 
 #############################
 technote-toml-present (TN004)
@@ -43,14 +43,14 @@ First check where you ran the command: it lints the current directory by default
    documenteer technote lint --dir path/to/technote
 
 If the repository genuinely has no :file:`technote.toml` but has a :file:`metadata.yaml`, it is a legacy technote.
-Migrate it to the modern format, which creates :file:`technote.toml`:
+Convert it to the modern format, which creates :file:`technote.toml`:
 
 .. prompt:: bash
 
-   documenteer technote migrate
+   documenteer technote update
 
 See also
 ========
 
 - :doc:`TN005 <tn005>` — :file:`technote.toml` exists but is not valid TOML.
-- :doc:`../migrate` — migrating a legacy technote to the modern format.
+- :doc:`../update` — converting a legacy technote to the modern format.

@@ -1,0 +1,68 @@
+:og:description: R101 fires when a technote author has no internal_id, the key that links the author to the Rubin author database and is needed to mint a DOI.
+
+#################################
+author-internal-id-present (R101)
+#################################
+
+.. list-table::
+   :header-rows: 1
+
+   * - Group
+     - Default severity
+   * - Metadata
+     - Error
+
+Every ``[[technote.authors]]`` entry in :file:`technote.toml` must declare an ``internal_id``.
+The ``internal_id`` links the author to their entry in the Rubin author database (`authordb.yaml`_), which is how authors are identified consistently across Rubin documents — and a missing ID blocks minting a DOI for the technote.
+
+Example of a failing technote
+=============================
+
+.. code-block:: toml
+   :caption: technote.toml
+
+   [technote]
+   id = "SQR-000"
+
+   [[technote.authors]]
+   name = { given = "Yusra", family = "AlSayyad" }
+   orcid = "https://orcid.org/0000-0002-4913-6541"
+
+.. code-block:: text
+
+   [R101] Author Yusra AlSayyad is missing an internal_id. Did you mean 'alsayyady' (matched by ORCID)? Run 'documenteer technote sync-authors' to add it.
+
+When the linter can confidently match the author in the author database — by ORCID, or by a single near-exact name match — it suggests the likely ID (see :ref:`technote-lint-suggested-ids`).
+Verify the suggestion before using it; it never changes whether the command passes.
+
+How to fix it
+=============
+
+When the entry declares an ``orcid``, as in the example above, run :command:`documenteer technote sync-authors`:
+
+.. prompt:: bash
+
+   documenteer technote sync-authors
+
+It resolves the same ORCID and writes the ``internal_id`` into that entry for you, reporting what it filled in:
+
+.. code-block:: text
+
+   Synchronized authors to technote.toml:
+   - Yusra AlSayyad (alsayyady, matched by ORCID)
+
+Otherwise, add the author's ID from `authordb.yaml`_ to the entry by hand, then run the same command to synchronize the rest of the author's metadata from the database:
+
+.. code-block:: toml
+
+   [[technote.authors]]
+   name = { given = "Yusra", family = "AlSayyad" }
+   internal_id = "alsayyady"
+
+If the author has no entry in the author database yet, add one first by submitting a pull request to `lsst/lsst-texmf <https://github.com/lsst/lsst-texmf>`__ — see :doc:`../author-metadata` for the workflow.
+
+See also
+========
+
+- :doc:`R102 <r102>` — the entry has an ``internal_id``, but it is not in the author database.
+- :doc:`../author-metadata` — how technote author metadata connects to the author database.

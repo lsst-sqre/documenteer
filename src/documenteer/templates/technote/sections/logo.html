@@ -1,0 +1,15 @@
+{# The technote sidebar. Overridden from the theme's own sections/logo.html
+   so that the citation component can be added to it: the theme composes this
+   section out of includes and offers no block to extend, so the three the
+   theme lists are repeated here verbatim and ours follows them.
+
+   Keep this in step with the theme's sections/logo.html when technote adds a
+   component to the sidebar; a component the theme includes and this file does
+   not is a component Rubin technotes silently lose. #}
+{% include "components/sidebar-logo.html" %}
+
+{% include "components/sidebar-version.html" %}
+
+{% include "components/sidebar-source.html" %}
+
+{% include "components/sidebar-citation.html" %}

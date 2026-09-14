@@ -122,7 +122,7 @@ The report says so, and names the ID it replaced:
    - Yusra AlSayyad (alsayyady, matched by ORCID)
    - Jonathan Sick (sickj)
 
-This is the fix for :doc:`TN101 <lint/tn101>` and :doc:`TN102 <lint/tn102>` findings on an author who declares an ORCID: run :command:`make sync-authors` rather than editing the ID by hand.
+This is the fix for :doc:`R101 <lint/r101>` and :doc:`R102 <lint/r102>` findings on an author who declares an ORCID: run :command:`make sync-authors` rather than editing the ID by hand.
 
 One repair the command will not make for you is one that would list the same author twice.
 If the ID an entry's ORCID resolves to is already declared by another entry — the same person listed once under the right ID and once under a wrong one — the entry is reported as a warning and left as you declared it, because only you can say which of the two entries is the duplicate to drop:

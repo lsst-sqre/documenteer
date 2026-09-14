@@ -61,3 +61,12 @@ ignore = [
 "pipelines/install.rst" = "guides/index.rst"
 "pipelines/package-docs-cli.rst" = "guides/index.rst"
 "pipelines/stack-docs-cli.rst" = "guides/index.rst"
+# Technote lint rules gained a rule-set prefix: the Rubin-specific rules moved
+# from TN to R codes, and their landing pages moved with them. Links to the old
+# pages are in the wild (a lint finding's "Learn more" footer prints the page
+# URL), so the old paths keep resolving.
+"technotes/lint/tn002.rst" = "technotes/lint/r002.rst"
+"technotes/lint/tn003.rst" = "technotes/lint/r003.rst"
+"technotes/lint/tn101.rst" = "technotes/lint/r101.rst"
+"technotes/lint/tn102.rst" = "technotes/lint/r102.rst"
+"technotes/lint/tn103.rst" = "technotes/lint/r103.rst"

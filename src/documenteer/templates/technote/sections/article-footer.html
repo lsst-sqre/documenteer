@@ -1,0 +1,38 @@
+{# How to cite the technote, at the end of the article: the full
+   bibliographic citation, ending in a link to the work.
+
+   Every technote is citable, so every technote ends with this section. A
+   technote registered with a DOI is located by that DOI -- it is the DOI's
+   landing page, and DataCite asks a landing page to show a complete citation
+   a reader can copy, not just the identifier -- and every other technote is
+   located by its canonical URL, which is as stable and which lsst.bib
+   already cites DOI-less technotes by. The sidebar's Cite section
+   (components/sidebar-citation.html) offers the BibTeX entry for a reference
+   manager, and the DOI where there is one; this is the human-readable
+   sentence, placed where a reader arrives once they have finished reading.
+
+   The theme's own sections/article-footer.html is intentionally empty and is
+   overridden here, which is the seam the theme provides for end matter.
+
+   The text and the link both come from the html_context that
+   documenteer.conf.technote publishes (documenteer.citations composes them),
+   pre-split at the location so that this template hyperlinks it without
+   doing string surgery of its own: writing the lead and then the link
+   reproduces the citation exactly. A technote that declares neither a DOI
+   nor a canonical_url has no location to write, and its citation is the lead
+   alone -- a reference naming the work and its authors, with nothing
+   hyperlinked and nothing invented.
+
+   Every interpolated value is escaped explicitly, because Sphinx's Jinja
+   environment does not autoescape and a citation is composed from free text
+   in technote.toml -- a title with an ampersand in it is ordinary. #}
+{%- if documenteer_technote_citation %}
+<section class="technote-article-citation" aria-labelledby="technote-article-citation-heading">
+  <h2 class="technote-article-citation__heading" id="technote-article-citation-heading">Citing this document</h2>
+  {#- Nothing may separate the lead from the link: the lead ends in the single
+      space the citation puts before its identifier, and a newline here would
+      be a second one. #}
+  <p class="technote-article-citation__text">{{ documenteer_technote_citation.plain_text_lead|e
+    }}{% if documenteer_technote_citation.plain_text_url %}<a href="{{ documenteer_technote_citation.plain_text_url|e }}">{{ documenteer_technote_citation.plain_text_url|e }}</a>{% endif %}</p>
+</section>
+{%- endif %}

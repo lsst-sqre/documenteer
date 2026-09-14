@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Self, cast
+from typing import Any, Self, cast
 
 import tomlkit
 
@@ -84,6 +84,20 @@ class TechnoteTomlFile:
         """The editable tomlkit document."""
         return self._doc
 
+    @property
+    def data(self) -> dict[str, Any]:
+        """The file's content as plain Python data.
+
+        Every tomlkit item carries its own formatting — the whitespace and
+        comments around it — which is what makes an *edit* preserve the rest
+        of the file, and what gets in the way of simply *reading* a value.
+        Unwrapping yields ordinary dicts, lists, strings, and
+        `~datetime.date` objects instead, so a consumer that only reads
+        technote.toml (such as CITATION.cff generation) never has to reason
+        about tomlkit's types.
+        """
+        return self._doc.unwrap()
+
     @classmethod
     def open(cls, path: Path) -> Self:
         """Open a technote.toml file from the given path.
@@ -104,6 +118,26 @@ class TechnoteTomlFile:
     def save(self, path: Path) -> None:
         """Write the technote.toml file to the given path."""
         path.write_text(tomlkit.dumps(self._doc))
+
+    @property
+    def lint_settings(self) -> Any:
+        """The raw ``[technote.lint]`` value, or `None` when there is none.
+
+        The value is returned unwrapped and *unvalidated* — including when it
+        is not a table at all — because the lint service is what knows which
+        settings it understands, and reports a configuration it cannot use
+        rather than dropping it silently.
+
+        Lint configuration is read here, from the file's own text, rather
+        than from technote's parsed model: a technote.toml that fails schema
+        validation is exactly the file whose lint configuration still has to
+        be honored, since the failure is itself a finding the configuration
+        may name.
+        """
+        technote = self.data.get("technote")
+        if not isinstance(technote, dict):
+            return None
+        return technote.get("lint")
 
     @property
     def technote_table(self) -> tomlkit.items.Table:

@@ -475,3 +475,26 @@ def test_upsert_author_with_idless_affiliation(
     # A second sync is a no-op on the file.
     technote.upsert_author(author)
     assert tomlkit.dumps(technote.doc) == first_pass
+
+
+def test_lint_settings_reads_the_table() -> None:
+    """The ``[technote.lint]`` table is read as plain Python data."""
+    technote = TechnoteTomlFile(
+        BASIC_TECHNOTE_TOML + '\n[technote.lint]\nignore = ["TN105"]\n'
+    )
+    assert technote.lint_settings == {"ignore": ["TN105"]}
+
+
+def test_lint_settings_absent_is_none() -> None:
+    """A file that configures no linting has no settings to read."""
+    assert TechnoteTomlFile(BASIC_TECHNOTE_TOML).lint_settings is None
+
+
+def test_lint_settings_are_unvalidated() -> None:
+    """A value that is not a table is returned rather than dropped.
+
+    The lint service is what knows which settings it understands, so it is
+    what reports a configuration it cannot use.
+    """
+    technote = TechnoteTomlFile(BASIC_TECHNOTE_TOML + 'lint = "off"\n')
+    assert technote.lint_settings == "off"

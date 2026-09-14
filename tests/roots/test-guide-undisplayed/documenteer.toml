@@ -1,0 +1,19 @@
+# The full user-guide stack for a site that declares a citation and displays
+# it nowhere: nothing is marked self or preferred, so the entry's in_footer
+# defaults to false, no page claims it, and no page carries a card. Such a
+# site is what pins that declaring a citation is not by itself a reason to
+# publish site-wide metadata or to ship the copy script.
+[project]
+title = "Undisplayed Citation Guide"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "10.5281/zenodo.10385500"
+label = "Dataset"
+type = "dataset"
+note = "Cite the dataset this guide documents."
+title = "Undisplayed Images & Catalogs"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-01-15
+authors = [{ name = "Vera C. Rubin Observatory" }]

@@ -1,0 +1,3 @@
+### Other changes
+
+- A `[[project.citations]]` entry in a user guide that sets both `self = true` and `page` is now rejected when the configuration loads. The two fields answer the same question — where this DOI resolves — so an entry that set both declared two landing pages for one work: the claimed page published the DOI at its own URL while every other page published the same DOI at the site URL, and the claimed page took the per-page branch and lost the site-wide block's `hasPart` and `citation` relations. The error names both fields and points at `preferred = true`, which is how a site asks readers to cite a work whose landing page is one of its own pages and which does combine with `page`.

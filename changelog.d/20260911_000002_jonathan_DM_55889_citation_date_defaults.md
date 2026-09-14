@@ -1,0 +1,3 @@
+### New features
+
+- The `documenteer.citation_date` warning now names `[project.citation_defaults]` as a place an undated citation's date belongs, on a site that declares that table. Such a site dates every entry from one line, so an undated entry there is usually every entry undated and one missing default — and the `[[project.citations]]` entry the warning used to name alone is the one place its author should not write the date. All three locations are named in the order the date resolves in: the entry, the `CITATION.cff` record the entry reads, then the defaults table. A site that declares no such table sees the wording it saw before.

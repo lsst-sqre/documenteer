@@ -1,0 +1,91 @@
+# The full user-guide stack for a site whose per-product DOIs resolve to pages
+# inside the site, so the page-level landing-page metadata can be pinned
+# against a real build.
+[project]
+title = "Citation Page Test"
+base_url = "https://example.lsst.io"
+github_url = "https://github.com/lsst-sqre/documenteer"
+
+[[project.citations]]
+doi = "10.71929/rubin/2570308"
+label = "Release"
+type = "dataset"
+self = true
+note = "Cite the release and this documentation."
+title = "Citation Page Test Release"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
+
+# Two products documented on the same page, told apart by their fragments.
+[[project.citations]]
+doi = "10.71929/rubin/3382539"
+label = "Object (Butler)"
+type = "dataset"
+page = "products/object#butler"
+title = "Object catalog (Butler)"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
+
+[[project.citations]]
+doi = "10.71929/rubin/3382540"
+label = "Object (TAP)"
+type = "dataset"
+page = "products/object#tap"
+title = "Object catalog (TAP)"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
+
+# A product with a page to itself, claimed without a fragment.
+[[project.citations]]
+doi = "10.71929/rubin/3382541"
+label = "Visit"
+type = "dataset"
+page = "products/visit"
+# The title carries the characters that would break out of a meta tag's
+# content attribute or open an element of their own, so the head metadata's
+# escaping is exercised end to end rather than only in the composer's unit
+# tests.
+title = 'Visit "raw" <all> table'
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
+
+# Claims a page this site does not build, so the missing-docname warning has
+# something to report.
+[[project.citations]]
+doi = "10.71929/rubin/3382542"
+label = "Missing"
+type = "dataset"
+page = "products/missing"
+title = "Retired catalog"
+publisher = "Vera C. Rubin Observatory"
+date = 2025-06-30
+authors = [{ name = "Vera C. Rubin Observatory" }]
+
+# A work the site cites rather than publishes: no page of its own, but shown
+# in the footer, so it reaches the site-wide JSON-LD block in full.
+[[project.citations]]
+doi = "10.5281/zenodo.10385501"
+label = "Paper"
+type = "article"
+in_footer = true
+title = "The Citation Page Test Survey"
+publisher = "Zenodo"
+date = 2024-11-02
+authors = [
+    { family_name = "Sick", given_name = "Jonathan", orcid = "0000-0003-3001-676X" },
+]
+
+# Neither a part nor in the footer, so nothing but a card that names it ever
+# shows it and the site-wide block says nothing about it.
+[[project.citations]]
+doi = "10.5281/zenodo.10385502"
+label = "Unlisted"
+type = "software"
+title = "Citation Page Test pipeline"
+publisher = "Zenodo"
+date = 2024-11-02
+authors = [{ name = "Vera C. Rubin Observatory" }]
