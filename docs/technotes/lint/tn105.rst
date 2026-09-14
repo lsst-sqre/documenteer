@@ -59,7 +59,7 @@ A record that registers a full date says the day:
 
 .. code-block:: text
 
-   [TN105] The metadata registered for DOI 10.5281/zenodo.51968 differs from the technote: the registered title is 'Smtn-005 V1.0 Cloud Statistics Via All-Sky Camera', but the technote is titled 'Cloud statistics via all-sky camera'. The registered record was issued on 2016-05-24. technote.toml declares no date_updated, so the technote is dated by its publishing commit; declare date_updated to pin the citation to a fixed date instead. Compare with the registered metadata at https://api.datacite.org/dois/10.5281/zenodo.51968.
+   [TN105] The metadata registered for DOI 10.5281/zenodo.51968 differs from the technote: the registered title is 'Smtn-005 V1.0 Cloud Statistics Via All-Sky Camera', but the technote is titled 'Cloud Statistics via All-Sky Camera For Rubin Observatory'; the record registers authors technote.toml does not declare ('Sick, Jonathan'). The registered record was issued on 2016-05-24. technote.toml declares no date_updated, so the technote is dated by its publishing commit; declare date_updated to pin the citation to a fixed date instead. Compare with the registered metadata at https://api.datacite.org/dois/10.5281/zenodo.51968.
 
 A record that registers only a year — which is every Rubin-minted record — says the year:
 
