@@ -168,14 +168,15 @@ Citation cards
 The ``citation-card`` directive renders one of the site's citations as a card carrying the full citation, the citation's label, and its note.
 It is the page-level counterpart to the footer citations, and is the right tool for a dedicated "Citing this site" page, or for a section of the home page.
 
-.. directive:: .. citation-card:: [label]
+.. directive:: .. citation-card:: [selector]
 
    Render one of the site's :ref:`[[project.citations]] <guide-project-citations>` entries as a card.
+   The optional argument selects the entry by its label, its BibTeX key, or its DOI; with no argument the card renders the site's preferred citation.
 
    The card shows the citation's :ref:`label <guide-project-citations-label>`, the full bibliographic citation with the DOI as a ``https://doi.org/`` hyperlink, and the citation's :ref:`note <guide-project-citations-note>`.
    An entry that sets no note renders no note, and an entry with no label renders no label.
 
-   **Default: the site's own citation**
+   **Default: the site's preferred citation**
 
    With no argument, the card renders the site's :ref:`preferred <guide-project-citations-preferred>` citation — the work the site asks readers to cite, which is the entry marked :ref:`self = true <guide-project-citations-self>` on a site that marks no other:
 
@@ -273,6 +274,16 @@ It is the page-level counterpart to the footer citations, and is the right tool 
    The entry is in the page rather than in a script, so it can always be selected and copied by hand.
    A browser that gives the page no clipboard access — an insecure origin, say — has the button removed and keeps the entry; a page whose scripts never load keeps both.
    A non-HTML builder renders the entry as a plain literal block, since a disclosure and a button mean nothing there.
+
+   **Editing citations after a build**
+
+   A card and a :ref:`doi role <guide-citation-doi-role>` resolve their entry while the page is *read*, and the rendered result is cached with the page's doctree.
+   So that an edit to ``[[project.citations]]`` reaches them, the guide preset publishes a digest of the resolved citations as a configuration value whose change invalidates the environment: the build after a citation edit re-reads every document, and Sphinx says why in its log (``updating environment: [config changed ('documenteer_citations_digest')]``).
+   That build takes as long as a fresh one.
+   A build whose citations are unchanged — including one where :file:`documenteer.toml` was rewritten cosmetically, or edited somewhere other than its citations — is still incremental and re-reads nothing.
+
+   A full re-read over a warm build directory can surface warnings a fresh build does not, such as autodoc's ``duplicate object description`` on a project whose API reference is documented from two places.
+   Those warnings are not caused by the citations, and a project that builds with ``-W`` over a persistent doctree directory should expect the first build after a citation edit to report them; a fresh build (``-E``, or a cleared build directory) is the reference.
 
    **Options**
 

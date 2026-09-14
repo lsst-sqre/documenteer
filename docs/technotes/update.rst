@@ -87,7 +87,7 @@ The option is repeatable, and an ignored file is reported as ``skipped (--ignore
 .. caution::
 
    The :file:`Makefile` and :file:`tox.ini` are a pair: the :file:`Makefile`'s targets are thin wrappers around the tox environments :file:`tox.ini` defines.
-   Holding :file:`tox.ini` back while the :file:`Makefile` is refreshed leaves :command:`make lint` calling a ``technote-lint`` environment that the retained :file:`tox.ini` may not define, and the target fails.
+   Holding :file:`tox.ini` back while the :file:`Makefile` is refreshed leaves the refreshed targets calling environments the retained :file:`tox.ini` may not define — :command:`make lint` calls ``technote-lint`` and :command:`make sync-cff` calls ``sync-cff`` — and each such target fails.
    Hold both files back, or neither, and bring a retained :file:`tox.ini` forward by hand.
 
 Check without writing
@@ -298,12 +298,11 @@ conf.py file (updated)
 
 The :file:`conf.py` file directly configures the Sphinx build process.
 New technotes use a different configuration set provided by Documenteer that uses :file:`technote.toml` to customize the Sphinx configuration.
-For most technotes, the :file:`conf.py` file should be a single line:
+For most technotes, the :file:`conf.py` file is the template :command:`documenteer technote update` writes — a comment pointing at these docs, and one import:
 
-.. code-block:: python
+.. literalinclude:: ../../src/documenteer/storage/localtemplates/technote/conf.py
+   :language: python
    :caption: conf.py
-
-   from documenteer.conf.technote import *  # noqa: F401, F403
 
 If your :file:`conf.py` file has additional content, some of that configuration may be migrated to :file:`technote.toml`.
 Reach out to `#square-docs-support`_ on Slack for advice.
