@@ -140,7 +140,7 @@ The registered date, and the date the technote is cited by
 ==========================================================
 
 A technote that declares ``[technote] date_updated`` is cited by that date.
-A technote that declares none is cited by the commit it is published from — its citation is dated either way; see :ref:`technote-citation-date`.
+A technote that declares none is cited by the commit it is published from, by that commit's UTC calendar day — its citation is dated either way; see :ref:`technote-citation-date`.
 So the registered date is **not** a gap to be closed, and TN105 never raises a finding about it.
 What it does is mention the registered date at the end of a finding that already exists, for the technote that declares no ``date_updated``: the author is reading the record anyway, and ``date_updated`` is the field that pins the citation to one day rather than letting it follow the latest commit.
 

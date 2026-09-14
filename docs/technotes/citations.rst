@@ -130,10 +130,14 @@ A technote that declares none is dated by the commit it is published from — th
 ``SOURCE_DATE_EPOCH`` takes precedence over the commit where a reproducible-build wrapper sets one, and the build clock is used only outside a Git repository, where there is no commit to read.
 ``date_created`` is never consulted: it is the day the technote was *started*, which is neither the day it was published nor the day it was last revised.
 
+The commit date is read in UTC, so the day the technote states is the commit's UTC calendar day rather than the author's local one.
+A commit whose ``git log -1 --format=%cI`` prints ``2026-08-24T17:11:39-07:00`` was made on the afternoon of August 24 in Pacific time, and August 24 is the day both Git and GitHub show for it, but the technote is dated ``2026-08-25``.
+A commit made late enough in the day in any timezone behind UTC crosses into the next UTC day like that, so a date that looks off by one against :command:`git log` is this conversion rather than a bug.
+
 Either way the technote has exactly one date, and every surface states that one: the sidebar's **Updated** line, the ``citation_publication_date`` metadata tag, the JSON-LD block, the **Cite** section, and the citation at the end of the article.
 Rebuilding an unchanged commit composes exactly the same citation, so a reader who has already stored the BibTeX entry keeps a working one.
 
-Declaring ``date_updated`` is how you *pin* the date.
+Declaring ``date_updated`` is how you *pin* the date, and how you state the local day you mean rather than the UTC one a commit lands on.
 Without it the citation follows the latest commit, so a typo fix re-dates the work; with it the citation states the day you chose and goes on stating it however often the repository is touched afterwards.
 That is the field to set for a technote whose publication date is a fact about the document rather than about its repository — a version released on a particular day, or a document whose DOI was minted for a particular text.
 
