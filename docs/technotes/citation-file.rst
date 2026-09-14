@@ -80,7 +80,7 @@ Each field is read from :file:`technote.toml`, except the title:
 
 ``title``
     ``technote.title``, or — as is normal, since :file:`technote.toml` usually declares no title — the top-level heading of the technote's own document, read by building it.
-    A technote that has a title in neither place is cited by its ID, and the command says so.
+    A technote that has a title in neither place is cited by its ID, and the command says so when it writes the file.
 
 ``authors``
     The ``[[technote.authors]]`` entries, in order.
@@ -98,10 +98,12 @@ Each field is read from :file:`technote.toml`, except the title:
 
 ``url`` and ``repository-code``
     ``technote.canonical_url`` and ``technote.github_url``.
+    The canonical URL is written in the same normalized form the technote's own pages publish — a bare host such as ``https://sqr-000.lsst.io`` gains the trailing slash — so :file:`CITATION.cff` and the page state the technote's location the same way.
 
 ``date-released``
     ``technote.date_updated``, the day the technote was last published, written on both the top level and the preferred citation.
-    A technote that declares no ``date_updated`` generates a file with no ``date-released`` at all, and the command says so — the Citation File Format requires the field at neither level, so an undated technote is written as undated rather than as dated to a day nobody published on.
+    A technote that declares no ``date_updated`` generates a file with no ``date-released`` at all — the Citation File Format requires the field at neither level, so an undated technote is written as undated rather than as dated to a day nobody published on.
+    The command says so whenever it writes the file, or reports it stale.
     ``technote.date_created`` is the day the technote was *started*, not the day it was released, and is never used for the citation.
 
 .. seealso::
@@ -119,6 +121,7 @@ The ``--check`` option compares the file on disk against what the technote gener
 
 It exits non-zero only when :file:`CITATION.cff` exists and is *stale*.
 A repository with no :file:`CITATION.cff` has simply not adopted the file, and passes — before the technote is built at all, so a repository that never opted in is not failed by a document Sphinx cannot read.
+A check that finds the file current is silent: it reports nothing about the metadata the file had to do without, because it wrote no file to do without it.
 
 This is the mechanism to keep the file current: run it where the technote is built anyway, and a metadata or title change that was not synced fails with the command to run.
 The technote's own repository already runs it: :command:`make lint` — or :command:`tox run -e technote-lint` directly — runs this check right after :command:`documenteer technote lint`, so whatever runs the repository's lint target enforces the file.

@@ -180,6 +180,34 @@ def test_render_preferred_citation(tmp_path: Path) -> None:
     assert str(reference["date-released"]) == "2026-08-24"
 
 
+def test_a_bare_host_url_gains_the_trailing_slash_the_pages_publish(
+    tmp_path: Path,
+) -> None:
+    """``canonical_url`` reaches CITATION.cff in the spelling the technote's
+    own pages carry.
+
+    The technote package parses ``canonical_url`` as a pydantic ``HttpUrl``,
+    which gives a bare host a trailing slash, and every page surface — the
+    sidebar BibTeX, the article-end link, ``DC.identifier``, the JSON-LD —
+    publishes that spelling. Read straight from the TOML, the same field
+    would reach two Documenteer outputs spelled two ways.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(
+        FULL_TOML.replace(
+            'canonical_url = "https://sqr-000.lsst.io/"',
+            'canonical_url = "https://sqr-000.lsst.io"',
+        )
+    )
+
+    document = yaml.safe_load(
+        TechnoteCffService.from_technote_toml(toml_path).render()
+    )
+
+    assert document["url"] == "https://sqr-000.lsst.io/"
+    assert document["preferred-citation"]["url"] == "https://sqr-000.lsst.io/"
+
+
 def test_authors_round_trip(tmp_path: Path) -> None:
     """An author's ORCID and affiliation reach both author lists."""
     toml_path = tmp_path / "technote.toml"
@@ -432,6 +460,25 @@ def test_a_technote_dated_only_by_its_creation_carries_no_date(
     assert "year" not in reference
     assert len(service.warnings) == 1
     assert "no date_updated" in service.warnings[0]
+
+
+def test_the_undated_warning_is_about_the_file(tmp_path: Path) -> None:
+    """The warning names what actually carries no date: this file.
+
+    The technote's own citation is dated by the commit that published it, so
+    offering to "date the citation" would describe dating something that is
+    already dated. It is CITATION.cff that states a release date only when
+    technote.toml declares ``date_updated``.
+    """
+    toml_path = tmp_path / "technote.toml"
+    toml_path.write_text(CREATED_ONLY_TOML)
+
+    service = TechnoteCffService.from_technote_toml(toml_path)
+
+    (warning,) = service.warnings
+    assert "date the citation" not in warning
+    assert "CITATION.cff carries no release date" in warning
+    assert "date_updated field" in warning
 
 
 def test_the_top_level_record_carries_the_doi_and_the_date(

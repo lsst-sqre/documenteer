@@ -353,6 +353,14 @@ orcid = "https://orcid.org/0000-0003-3001-676X"
 """
 
 
+UNDATED_CFF_TOML = CFF_TOML.replace(
+    "date_updated = 2026-08-24", "date_created = 2016-05-02T20:47:13Z"
+)
+"""A technote dated only by the day it was started, which most technotes are:
+``documenteer technote update`` never writes a ``date_updated``.
+"""
+
+
 def test_sync_cff_writes_and_is_idempotent(tmp_path: Path) -> None:
     """sync-cff writes CITATION.cff, and a second run changes nothing."""
     (tmp_path / "technote.toml").write_text(CFF_TOML)
@@ -373,17 +381,13 @@ def test_sync_cff_warns_once_about_a_missing_date(tmp_path: Path) -> None:
     """A technote dated only by its creation still generates a file, and the
     command says once why that file carries no release date.
     """
-    (tmp_path / "technote.toml").write_text(
-        CFF_TOML.replace(
-            "date_updated = 2026-08-24", "date_created = 2016-05-02T20:47:13Z"
-        )
-    )
+    (tmp_path / "technote.toml").write_text(UNDATED_CFF_TOML)
     runner = CliRunner()
 
     result = runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
 
     assert result.exit_code == 0, result.output
-    assert result.output.count("declares no date_updated") == 1
+    assert result.stderr.count("declares no date_updated") == 1
     assert "date-released" not in (tmp_path / "CITATION.cff").read_text()
 
 
@@ -450,6 +454,48 @@ def test_sync_cff_check_current(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0, result.output
+
+
+def test_sync_cff_check_is_silent_when_the_file_is_current(
+    tmp_path: Path,
+) -> None:
+    """A --check that finds nothing to do says nothing on stderr.
+
+    The technote's own ``technote-lint`` tox environment runs this check on
+    every green ``make lint``, and most technotes declare no ``date_updated``
+    — so a warning composed before the comparison made every passing run of
+    the lint target report a gap the run had nothing to do about.
+    """
+    (tmp_path / "technote.toml").write_text(UNDATED_CFF_TOML)
+    runner = CliRunner()
+    runner.invoke(main, ["technote", "sync-cff", "-d", str(tmp_path)])
+
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert result.stderr == ""
+
+
+def test_sync_cff_check_warns_once_when_the_file_is_stale(
+    tmp_path: Path,
+) -> None:
+    """A --check that reports staleness reports the metadata gap with it.
+
+    The file is about to be regenerated, so what the regenerated file will
+    not carry is worth saying — once — alongside the staleness.
+    """
+    (tmp_path / "technote.toml").write_text(UNDATED_CFF_TOML)
+    (tmp_path / "CITATION.cff").write_text("cff-version: 1.2.0\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["technote", "sync-cff", "-d", str(tmp_path), "--check"]
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr.count("declares no date_updated") == 1
 
 
 def test_sync_cff_without_technote_toml(tmp_path: Path) -> None:

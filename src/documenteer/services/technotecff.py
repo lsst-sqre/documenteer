@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Self
 
 import yaml
+from pydantic import HttpUrl, ValidationError
 
 from documenteer.citations import (
     Citation,
@@ -253,10 +254,15 @@ class TechnoteCffService:
         )
         released_date = _released_date(technote)
         if released_date is None:
+            # Said about the file rather than about "the citation": the
+            # technote's own citation is dated by the commit that published
+            # it, so a reader told to date the citation would go looking for
+            # something already dated. It is this file that states a release
+            # date only when technote.toml declares one.
             warnings.append(
                 f"technote.toml declares no date_updated, so {CFF_FILENAME} "
                 "carries no release date. Add a date_updated field to the "
-                "[technote] table to date the citation."
+                "[technote] table to date this file."
             )
         citation = Citation(
             title=title,
@@ -271,7 +277,7 @@ class TechnoteCffService:
             ),
             publisher=_text(organization.get("name")),
             date=released_date,
-            url=_text(technote.get("canonical_url")),
+            url=_canonical_url(technote.get("canonical_url")),
             number=technote_id,
         )
         return cls(
@@ -492,6 +498,34 @@ def _citation_author(entry: Any, position: int) -> CitationAuthor:
         orcid=_text(author.get("orcid")),
         affiliation=next((n for n in affiliation_names if n), None),
     )
+
+
+def _canonical_url(value: Any) -> str | None:
+    """Express ``canonical_url`` the way the technote's own pages publish it.
+
+    The technote package parses ``canonical_url`` as a pydantic `~pydantic.
+    HttpUrl`, and everything the built page states the technote's location in
+    — the sidebar BibTeX, the article-end link, ``DC.identifier``, the
+    JSON-LD — carries that normalized spelling, which gives a bare host a
+    trailing slash. ``sync-cff`` reads technote.toml directly rather than
+    through those models, so it normalizes the value the same way: the same
+    field spelled two ways across two Documenteer outputs is a difference a
+    reader has to reconcile and neither output explains.
+
+    A value that is not a URL at all is written as it stands, the way it was
+    before it was normalized here. ``canonical_url`` is validated wherever the
+    technote's metadata is loaded — the technote's own Sphinx build, and the
+    linter's TN001 schema check, which reports it even for a technote Sphinx
+    does not build — so rejecting it a third time here would only fail
+    CITATION.cff generation over something already reported.
+    """
+    text = _text(value)
+    if text is None:
+        return None
+    try:
+        return str(HttpUrl(text))
+    except ValidationError:
+        return text
 
 
 def _released_date(technote: Mapping[str, Any]) -> PartialDate | None:

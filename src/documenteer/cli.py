@@ -725,12 +725,10 @@ def technote_sync_cff(root_dir: str, *, check: bool) -> None:
         # Documenteer bug, so report the condition rather than a traceback.
         raise click.ClickException(str(e)) from e
 
-    for warning in service.warnings:
-        click.echo(f"Warning: {warning}", err=True)
-
     if check:
         # The absent case returned above, so the file is here to compare.
         if service.status(cff_path) is CffStatus.stale:
+            _report_cff_warnings(service)
             click.echo(
                 f"{cff_path} is out of date with {toml_path}. Run "
                 f"'documenteer technote sync-cff' to regenerate it.",
@@ -743,4 +741,20 @@ def technote_sync_cff(root_dir: str, *, check: bool) -> None:
     if service.sync(cff_path) is CffStatus.current:
         click.echo(f"{cff_path} is already up to date.")
     else:
+        _report_cff_warnings(service)
         click.echo(f"Wrote {cff_path}")
+
+
+def _report_cff_warnings(service: TechnoteCffService) -> None:
+    """Report the metadata the generated CITATION.cff had to do without.
+
+    Reported only by a run that changes something — a write, or a ``--check``
+    that reports staleness — because a warning describes the content of the
+    file *this run* wrote or rejected. A run that finds the file already
+    current wrote nothing to warn about, and a technote's ``technote-lint``
+    tox environment runs ``--check`` on every green :command:`make lint`:
+    warning there would put a line on stderr in every passing lint run of
+    every technote that declares no ``date_updated``, which is most of them.
+    """
+    for warning in service.warnings:
+        click.echo(f"Warning: {warning}", err=True)
