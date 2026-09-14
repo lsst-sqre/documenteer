@@ -289,7 +289,7 @@ Inline DOI links
 
 A card is a block, so a page that only needs to *mention* a work — the first bullet of an access list, a cell in a table of data products, a sentence pointing at the paper — cannot use one.
 The ``doi`` role links a declared citation's DOI inline instead, reading the same :ref:`[[project.citations]] <guide-project-citations>` entries the card and the footer do.
-A page that would otherwise write ``https://doi.org/10.71929/rubin/3382539`` into a sentence by hand, or into a substitution that holds it, names the entry's label and gets whatever the configuration declares.
+A page that would otherwise write ``https://doi.org/10.71929/rubin/3382539`` into a sentence by hand, or into a substitution that holds it, names the entry and gets whatever the configuration declares.
 
 .. role:: doi
 

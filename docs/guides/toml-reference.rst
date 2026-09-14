@@ -260,7 +260,7 @@ preferred
 Whether this is the citation the site asks readers to use.
 Default is ``false``, and at most one entry can set it to ``true``.
 
-The preferred citation is the entry a :ref:`citation-card <guide-citation-card>` renders when it is given no label, and one of the two entries whose :ref:`in_footer <guide-project-citations-in-footer>` defaults to ``true`` — the other being the :ref:`self <guide-project-citations-self>` entry, which is the same entry unless this field names another.
+The preferred citation is the entry a :ref:`citation-card <guide-citation-card>` renders when it is given no argument, and one of the two entries whose :ref:`in_footer <guide-project-citations-in-footer>` defaults to ``true`` — the other being the :ref:`self <guide-project-citations-self>` entry, which is the same entry unless this field names another.
 
 A :ref:`self <guide-project-citations-self>` entry is the preferred citation when no entry sets this field, so a site that publishes its own DOI states neither field twice.
 Set ``preferred`` when the citation to use is *not* a work this site is the landing page of:
@@ -326,7 +326,8 @@ Several entries may claim the same page, provided each names a different fragmen
 Such a page describes both works in a JSON-LD ``@graph`` and emits *no* citation meta tags at all, because every one of them is single-valued — one title, one DOI, one date — and the page is the landing page of more than one work.
 Two entries that name the same docname *and* the same fragment fail the build.
 
-The claim does not change what the site *displays*: :ref:`citation-card <guide-citation-card>` with no argument still renders the :ref:`self <guide-project-citations-self>` entry, and a page that wants to show its own citation names it by :ref:`label <guide-project-citations-label>`.
+The claim does not change what the site *displays*: :ref:`citation-card <guide-citation-card>` with no argument still renders the site's :ref:`preferred <guide-project-citations-preferred>` citation, and a page that wants to show its own citation selects it by :ref:`bibtex_key <guide-project-citations-bibtex-key>` or by DOI.
+A site that claims a page per data product is exactly the site whose :ref:`label <guide-project-citations-label>` values repeat — every product has a ``"TAP"`` entry — so a label is what the card *shows*, not what it selects with, and a selector two entries answer to warns rather than picking one of them.
 
 A ``page`` the build cannot resolve is a warning, not an error: the entry still appears everywhere else the site shows its citations, but no page carries its landing-page metadata.
 Both halves of the claim are checked — a docname the project does not contain, and a fragment that names no anchor on the page it claims, which the warning reports alongside the explicit targets that page does record.
@@ -650,7 +651,7 @@ Set it to ``false`` to cite the file's *top-level* record — the software or th
    in_footer = true
 
 :ref:`in_footer <guide-project-citations-in-footer>` is there because such an entry is neither :ref:`self <guide-project-citations-self>` nor :ref:`preferred <guide-project-citations-preferred>` — the file's ``preferred-citation`` is the work the repository asks to be cited — and an entry in neither role reaches no surface on its own.
-Without it the record is read and composed and then shown nowhere: not in the :ref:`footer <guide-footer-citations>`, not in the site-wide JSON-LD block, and only on a :ref:`card <guide-citation-card>` that names its label.
+Without it the record is read and composed and then shown nowhere: not in the :ref:`footer <guide-footer-citations>`, not in the site-wide JSON-LD block, and only on a :ref:`card <guide-citation-card>` that names it.
 
 That is the only way to cite a repository whose :file:`CITATION.cff` prefers a paper, and a site can do both at once by declaring two entries against the same file: one for the paper and one, with ``cff_preferred = false``, for the software.
 The top-level record's own ``type`` — which CFF restricts to ``software`` or ``dataset`` — supplies the entry's :ref:`type <guide-project-citations-type>`, and a top-level record with no DOI is located by its ``url`` or ``repository-code`` (see :ref:`url <guide-project-citations-url>`).
