@@ -51,6 +51,10 @@ ignore = [
     # ascl.net serves an incomplete TLS certificate chain, so linkcheck's
     # verification fails even though the site is available in browsers.
     "https://ascl.net",
+    # The FORCE11 software-citation DOI resolves to peerj.com, which answers
+    # linkcheck's requests with 403 Forbidden (bot blocking); the article is
+    # reachable in a browser.
+    "https://doi.org/10.7717/peerj-cs.86",
 ]
 
 [sphinx.redirects]
