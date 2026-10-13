@@ -5,18 +5,18 @@
     "build": "webpack"
   },
   "devDependencies": {
-    "autoprefixer": "^10.5.4",
+    "autoprefixer": "^10.6.1",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^7.1.5",
     "css-minimizer-webpack-plugin": "^8.0.0",
     "mini-css-extract-plugin": "^2.10.2",
     "normalize.css": "^8.0.1",
     "postcss-loader": "^8.2.1",
-    "prettier": "3.9.6",
-    "sass": "^1.103.1",
-    "sass-loader": "^17.0.0",
+    "prettier": "3.9.10",
+    "sass": "^1.105.1",
+    "sass-loader": "^17.0.1",
     "style-loader": "^4.0.0",
-    "webpack": "^5.110.1",
+    "webpack": "^5.111.1",
     "webpack-cli": "^7.2.3"
   },
   "dependencies": {
