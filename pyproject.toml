@@ -50,7 +50,7 @@ guide = [
     # Theme and extensions for Rubin user guide projects
     "autodoc_pydantic",
     "sphinx_design>=0.7.0",
-    "pydata-sphinx-theme>=0.19,<0.22",
+    "pydata-sphinx-theme>=0.19,<0.24",
     "sphinx-autodoc-typehints",
     "sphinx-automodapi",
     "sphinx-copybutton",
