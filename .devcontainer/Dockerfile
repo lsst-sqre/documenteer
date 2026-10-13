@@ -1,5 +1,6 @@
 # Project dev container for documenteer.
-# A minimal Python 3.13 base plus uv and the system packages the build needs.
+# A minimal Python base (matching .python-version) plus uv and the system
+# packages the build needs.
 # Kept project-only and COPY-free so a local build and the stoker-derived
 # sandbox build are identical.
 FROM mcr.microsoft.com/devcontainers/python:1-3.13-bookworm

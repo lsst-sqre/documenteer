@@ -4,9 +4,6 @@
 
 name: Periodic CI
 
-env:
-  PYTHON_VERSION: "3.13"
-
 "on":
   schedule:
     - cron: "0 12 * * 1"
@@ -37,10 +34,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.0
 
+      # uv reads the canonical Python version from .python-version, so nox and
+      # its unparametrized sessions (lint, docs, ...) run on that interpreter.
       - name: Run nox
-        run: uv run --only-group=nox nox -P $UV_PYTHON -s lint
-        env:
-          UV_PYTHON: ${{ env.PYTHON_VERSION }}
+        run: uv run --only-group=nox nox -s lint
 
       - name: Report status
         if: failure()
@@ -61,6 +58,7 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.14"
+          - "3.15"
         sphinx-version:
           - "8"
           - "9"
@@ -92,6 +90,12 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.0
 
+      # The canonical development Python (.python-version) identifies the
+      # matrix cells that upload the demo builds below.
+      - name: Read the canonical Python version
+        id: python
+        run: echo "version=$(cat .python-version)" >> "$GITHUB_OUTPUT"
+
       - name: Run nox
         run: >
           uv run --only-group=nox nox
@@ -104,7 +108,7 @@ jobs:
       # Guarded so partial/missing HTML (sphinx-build runs with --keep-going)
       # under `if: always()` never hard-fails the job.
       - name: Stage demo builds for upload
-        if: always() && matrix.python-version == env.PYTHON_VERSION && (matrix.sphinx-version == '9' || matrix.sphinx-version == 'dev')
+        if: always() && matrix.python-version == steps.python.outputs.version && (matrix.sphinx-version == '9' || matrix.sphinx-version == 'dev')
         run: |
           for d in rst-technote md-technote ipynb-technote; do
             if [ -d "demo/$d/_build/html" ]; then
@@ -119,7 +123,7 @@ jobs:
       # build breaks. NOTE: bump the stable sphinx-version check when the
       # matrix's current stable Sphinx moves past '9'.
       - name: Upload demo builds
-        if: always() && matrix.python-version == env.PYTHON_VERSION && (matrix.sphinx-version == '9' || matrix.sphinx-version == 'dev')
+        if: always() && matrix.python-version == steps.python.outputs.version && (matrix.sphinx-version == '9' || matrix.sphinx-version == 'dev')
         uses: actions/upload-artifact@v7
         with:
           name: demo-technotes-sphinx${{ matrix.sphinx-version }}
@@ -168,9 +172,8 @@ jobs:
         uses: astral-sh/setup-uv@v10.3.0
 
       - name: Run nox
-        run: uv run --only-group=nox nox -P $UV_PYTHON -s docs docs-linkcheck
+        run: uv run --only-group=nox nox -s docs docs-linkcheck
         env:
-          UV_PYTHON: ${{ env.PYTHON_VERSION }}
           OOK_TOKEN: ${{ secrets.OOK_TOKEN }}
 
       - name: Report status

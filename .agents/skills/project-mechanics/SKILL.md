@@ -12,7 +12,7 @@ of each phase and use the named commands verbatim.
 Tasks run through nox (via nox-uv). Invoke nox through uv so the runner
 group is provisioned automatically: `uv run --only-group=nox nox ...`.
 The `test`, `typing`, and `demo` sessions are parametrized over both
-Python (3.12, 3.13) and Sphinx (8, 9, dev), so their session IDs carry
+Python (3.12 through 3.15) and Sphinx (8, 9, dev), so their session IDs carry
 both factors, e.g. `test-3.13(sphinx='8')`. uv furnishes the requested
 interpreter on demand. Run `nox -l` to confirm the exact IDs.
 
@@ -54,7 +54,7 @@ order, in the foreground, plus `uv run --only-group=nox nox -s
 and `uv run --only-group=nox nox -s docs` (Documenteer's own Sphinx docs
 build).
 
-The full Python × Sphinx matrix (3.12/3.13 × Sphinx 8/9), `nox -s
+The full Python × Sphinx matrix (3.12-3.15 × Sphinx 8/9), `nox -s
 docs-linkcheck` (linkcheck), and `nox -s packaging` (build + twine
 check) are CI's responsibility, not the in-iteration gate.
 
