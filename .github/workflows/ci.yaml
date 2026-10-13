@@ -180,6 +180,16 @@ jobs:
       contents: read
       id-token: write
 
+    # Link checking goes through the Ook link-check service, which needs
+    # OOK_TOKEN. Dependabot and fork pull requests don't receive repository
+    # secrets, and the extension's built-in fallback checker is too flaky
+    # from a runner against the archival hosts this guide cites (zenodo.org,
+    # datacite.org, ctan.org all timed out on dependabot docs jobs), so those
+    # runs build the docs but skip the link check. Links are still checked on
+    # every push to main and every ticket-branch pull request.
+    env:
+      HAS_OOK_TOKEN: ${{ secrets.OOK_TOKEN != '' }}
+
     steps:
       - uses: actions/checkout@v7
         with:
@@ -207,8 +217,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.0
 
-      - name: Run nox
-        run: uv run --only-group=nox nox -P $UV_PYTHON -s docs docs-linkcheck
+      - name: Build docs
+        run: uv run --only-group=nox nox -P $UV_PYTHON -s docs
+        env:
+          UV_PYTHON: ${{ env.PYTHON_VERSION }}
+
+      - name: Check links
+        if: env.HAS_OOK_TOKEN == 'true'
+        run: uv run --only-group=nox nox -P $UV_PYTHON -s docs-linkcheck
         env:
           UV_PYTHON: ${{ env.PYTHON_VERSION }}
           OOK_TOKEN: ${{ secrets.OOK_TOKEN }}
@@ -217,7 +233,7 @@ jobs:
       # Actions UI. Runs even when docs-linkcheck fails (broken links) so the
       # JSON is available for triage; may be absent if the service degraded.
       - name: Upload link-check results
-        if: always()
+        if: always() && env.HAS_OOK_TOKEN == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: linkcheck-results

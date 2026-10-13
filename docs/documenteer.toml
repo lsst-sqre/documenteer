@@ -55,10 +55,6 @@ ignore = [
     # linkcheck's requests with 403 Forbidden (bot blocking); the article is
     # reachable in a browser.
     "https://doi.org/10.7717/peerj-cs.86",
-    # Zenodo DOIs are permanent identifiers, and zenodo.org routinely takes
-    # longer than linkcheck's 15 s read timeout to answer the resolved
-    # request; four dependabot docs jobs failed on it on 2026-10-13 alone.
-    "https://doi.org/10.5281/zenodo",
 ]
 
 [sphinx.redirects]
