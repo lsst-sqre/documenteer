@@ -2,7 +2,7 @@
 Sourcing BibTeX files from GitHub
 #################################
 
-For documentation that references published documents, it's useful formally cite references in additional to the typical practice of linking directly to other webpages.
+For documentation that references published documents, it's useful to formally cite references in addition to the typical practice of linking directly to other web pages.
 In the Sphinx documentation system, a good workflow is to code bibliographic references through standard BibTeX files and then reference items in those BibTeX files with the sphinxcontrib-bibtex_ extension.
 At Rubin Observatory, we maintain a centralized set of BibTeX files in the https://github.com/lsst/lsst-texmf  repository.
 Documenteer provides a Sphinx extension, ``documenteer.ext.githubbibcache``, that downloads BibTeX files from one or more GitHub repositories, caches them, and automatically configures sphinxcontrib-bibtex_ to use those BibTeX files.
@@ -16,7 +16,7 @@ This page explains how to set up ``documenteer.ext.githubbibcache`` in your Sphi
 Extension set up
 ================
 
-The extension from Documenteer needs to be loaded _before_ the sphinxcontrib-bibtex_ extension because it adds configurations that are later used by sphinxcontrib-bibtex_.
+The extension from Documenteer needs to be loaded *before* the sphinxcontrib-bibtex_ extension because it adds configurations that are later used by sphinxcontrib-bibtex_.
 In your project's :file:`conf.py` file, set up the extensions like this:
 
 .. code-block:: python

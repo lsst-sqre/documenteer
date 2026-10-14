@@ -68,3 +68,8 @@ target/
 venv
 
 .playwright-mcp
+
+# Vale external style packages synced by `vale sync` (see .vale.ini).
+# The Documenteer style (styles/Documenteer) and vocabulary (styles/config)
+# are committed; the downloaded Google package is not.
+/styles/Google/

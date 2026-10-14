@@ -127,6 +127,26 @@ def docs_linkcheck(session: nox.Session) -> None:
     session.run("make", "-C", "docs", "linkcheck", external=True)
 
 
+@session(uv_only_groups=["vale"], uv_no_install_project=True)
+def vale(session: nox.Session) -> None:
+    """Lint documentation prose with Vale (advisory; never blocks).
+
+    ``vale sync`` downloads the Google package into styles/ (gitignored).
+    Pass paths as posargs to lint a subset, e.g.
+    ``nox -s vale -- docs/guides/citations.rst``; the default is ``docs``.
+    A nonzero Vale exit only means it had findings, so it is tolerated.
+    This session is deliberately not in ``nox.options.sessions``.
+    """
+    session.run("vale", "sync")
+    session.run(
+        "vale",
+        # Only lint sources; skips docs/_build HTML and .rst.txt copies.
+        "--glob=*.{rst,md}",
+        *(session.posargs or ["docs"]),
+        success_codes=[0, 1],
+    )
+
+
 @session(python=_PYTHONS, uv_groups=["test"], uv_extras=_EXTRAS)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def demo(session: nox.Session, sphinx: str) -> None:

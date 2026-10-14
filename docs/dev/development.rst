@@ -87,6 +87,8 @@ The available sessions are:
      - Build the demo technote projects as an end-to-end smoke test. Parametrized over Python (``3.12`` through ``3.15``) and Sphinx versions (``8``, ``9``, ``dev``).
    * - ``packaging``
      - Build the PyPI package and check it with twine.
+   * - ``vale``
+     - Lint the documentation prose with Vale (advisory; not in the default set and never blocks). See :doc:`vale`.
 
 By default the ``test`` session runs without coverage instrumentation.
 To collect coverage and print a combined report across the test sessions, set ``DOCUMENTEER_COVERAGE``, e.g. ``DOCUMENTEER_COVERAGE=1 uv run --only-group=nox nox -s test``.
@@ -150,6 +152,14 @@ To check links:
 .. code-block:: sh
 
    uv run --only-group=nox nox -s docs-linkcheck
+
+For advisory editorial feedback on the prose, run Vale_ (see :doc:`vale`):
+
+.. code-block:: sh
+
+   uv run --only-group=nox nox -s vale
+
+.. _Vale: https://vale.sh
 
 .. _dev-change-log:
 
