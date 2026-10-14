@@ -7,15 +7,28 @@ from pathlib import Path
 import nox
 from nox_uv import session
 
+# The canonical Python version for development, declared in .python-version
+# so uv (``uv run``, ``uv sync``) and CI pick up the same interpreter. nox
+# itself runs on that interpreter when invoked through ``uv run``, so the
+# sessions without an explicit ``python`` (lint, docs, ...) inherit it too.
+_DEFAULT_PYTHON = (
+    Path(__file__).parent.joinpath(".python-version").read_text().strip()
+)
+
+# Every Python version the project supports; the test/typing/demo sessions
+# are parametrized over this list. Keep it in sync with the classifiers in
+# pyproject.toml and the matrix in the GitHub Actions workflows.
+_PYTHONS = ["3.12", "3.13", "3.14", "3.15"]
+
 # Default sessions (run when nox is invoked without -s) stay lean: lint, the
-# Sphinx 8/9 test runs on Python 3.13, Sphinx 8 typing, and a docs build. The
-# full Python x Sphinx grid (3.12-3.14, including the Sphinx "dev" runs) is
+# Sphinx 8/9 test runs on the canonical Python, Sphinx 8 typing, and a docs
+# build. The full Python x Sphinx grid (including the Sphinx "dev" runs) is
 # opt-in via ``nox -s test`` / ``nox -s typing``.
 nox.options.sessions = [
     "lint",
-    "typing-3.13(sphinx='8')",
-    "test-3.13(sphinx='8')",
-    "test-3.13(sphinx='9')",
+    f"typing-{_DEFAULT_PYTHON}(sphinx='8')",
+    f"test-{_DEFAULT_PYTHON}(sphinx='8')",
+    f"test-{_DEFAULT_PYTHON}(sphinx='9')",
     "docs",
 ]
 
@@ -55,9 +68,7 @@ def lint(session: nox.Session) -> None:
     session.run("prek", "run", "--all-files", *session.posargs)
 
 
-@session(
-    python=["3.12", "3.13", "3.14"], uv_groups=["test"], uv_extras=_EXTRAS
-)
+@session(python=_PYTHONS, uv_groups=["test"], uv_extras=_EXTRAS)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def test(session: nox.Session, sphinx: str) -> None:
     """Run the test suite with pytest.
@@ -77,9 +88,7 @@ def test(session: nox.Session, sphinx: str) -> None:
         session.run("pytest", *session.posargs)
 
 
-@session(
-    python=["3.12", "3.13", "3.14"], uv_groups=["typing"], uv_extras=_EXTRAS
-)
+@session(python=_PYTHONS, uv_groups=["typing"], uv_extras=_EXTRAS)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def typing(session: nox.Session, sphinx: str) -> None:
     """Check type annotations with mypy."""
@@ -118,9 +127,7 @@ def docs_linkcheck(session: nox.Session) -> None:
     session.run("make", "-C", "docs", "linkcheck", external=True)
 
 
-@session(
-    python=["3.12", "3.13", "3.14"], uv_groups=["test"], uv_extras=_EXTRAS
-)
+@session(python=_PYTHONS, uv_groups=["test"], uv_extras=_EXTRAS)
 @nox.parametrize("sphinx", ["8", "9", "dev"])
 def demo(session: nox.Session, sphinx: str) -> None:
     """Build the demo technote projects as an end-to-end smoke test.

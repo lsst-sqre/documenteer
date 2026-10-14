@@ -23,13 +23,19 @@ The lead developer and maintainer is `Jonathan Sick`_.
 Environment set up
 ==================
 
-To develop Documenteer, create a virtual environment with your method of choice (like virtualenvwrapper) and then clone or fork, and install:
+To develop Documenteer, clone or fork the repository and install it with uv_:
 
 .. code-block:: sh
 
    git clone https://github.com/lsst-sqre/documenteer.git
    cd documenteer
    make init
+
+The canonical Python version for development is declared in the :file:`.python-version` file at the root of the repository.
+uv reads that file, so ``make init`` (``uv sync``) and ``uv run`` furnish that interpreter automatically, and the GitHub Actions workflows use the same file to pick the Python for their lint and docs jobs.
+Documenteer supports a wider range of Python versions than that (see ``requires-python`` and the classifiers in :file:`pyproject.toml`); the full set is exercised by the nox_ test matrix described below.
+
+.. _uv: https://docs.astral.sh/uv/
 
 A complete environment also needs the compiled web assets (see :doc:`theme-assets`).
 Because the asset build pulls the private ``@lsst-sqre/rubin-style-dictionary`` package from GitHub Packages, you must first :ref:`authenticate npm to GitHub Packages <theme-assets-github-packages>` with a classic ``read:packages`` personal access token.
@@ -58,7 +64,7 @@ Run nox through uv so the runner and its environments are managed for you:
 
    uv run --only-group=nox nox
 
-Running ``nox`` with no arguments runs a lean default set: lint, typing and the Sphinx 8 and 9 test runs on the latest supported Python (3.13), and a docs build.
+Running ``nox`` with no arguments runs a lean default set: lint, typing and the Sphinx 8 and 9 test runs on the canonical development Python (from :file:`.python-version`), and a docs build.
 The available sessions are:
 
 .. list-table:: nox sessions
@@ -68,9 +74,9 @@ The available sessions are:
    * - Session
      - Description
    * - ``test``
-     - Run the test suite with pytest. Parametrized over Python (``3.12``, ``3.13``) and Sphinx versions (``8``, ``9``, ``dev``). Coverage is opt-in (see below).
+     - Run the test suite with pytest. Parametrized over Python (``3.12`` through ``3.15``) and Sphinx versions (``8``, ``9``, ``dev``). Coverage is opt-in (see below).
    * - ``typing``
-     - Run mypy (type annotations checker). Parametrized over Python (``3.12``, ``3.13``) and Sphinx versions (``8``, ``9``, ``dev``).
+     - Run mypy (type annotations checker). Parametrized over Python (``3.12`` through ``3.15``) and Sphinx versions (``8``, ``9``, ``dev``).
    * - ``lint``
      - Run the prek hooks (including the prettier web-asset hook).
    * - ``coverage-report``
@@ -78,7 +84,7 @@ The available sessions are:
    * - ``docs`` / ``docs-linkcheck``
      - Build the documentation and check its links.
    * - ``demo``
-     - Build the demo technote projects as an end-to-end smoke test. Parametrized over Python (``3.12``, ``3.13``) and Sphinx versions (``8``, ``9``, ``dev``).
+     - Build the demo technote projects as an end-to-end smoke test. Parametrized over Python (``3.12`` through ``3.15``) and Sphinx versions (``8``, ``9``, ``dev``).
    * - ``packaging``
      - Build the PyPI package and check it with twine.
 

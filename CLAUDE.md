@@ -16,11 +16,11 @@ make init                    # Initialize development environment
 uv sync --extra technote --extra guide --group dev --group nox --group lint  # Install with all extras
 ```
 
-Tasks are run with [nox](https://nox.thea.codes/) (via [nox-uv](https://github.com/cthoyt/nox-uv)). Invoke nox through uv so the runner is provisioned automatically: `uv run --only-group=nox nox -s <session>`. The `test`, `typing`, and `demo` sessions are parametrized over both Python (3.12, 3.13) and Sphinx (8, 9, dev), so their session IDs carry both factors, e.g. `nox -s "test-3.13(sphinx='8')"`. uv furnishes the requested interpreter on demand. Bare `nox` runs a lean default set (3.13 × Sphinx 8/9); run `nox -l` to see the exact IDs.
+Tasks are run with [nox](https://nox.thea.codes/) (via [nox-uv](https://github.com/cthoyt/nox-uv)). Invoke nox through uv so the runner is provisioned automatically: `uv run --only-group=nox nox -s <session>`. The `test`, `typing`, and `demo` sessions are parametrized over both Python (3.12 through 3.15) and Sphinx (8, 9, dev), so their session IDs carry both factors, e.g. `nox -s "test-3.13(sphinx='8')"`. uv furnishes the requested interpreter on demand. The canonical development Python is declared in `.python-version` (currently 3.13); uv, nox's default sessions, and the GitHub Actions workflows all read it from there. Bare `nox` runs a lean default set (the canonical Python × Sphinx 8/9); run `nox -l` to see the exact IDs.
 
 ### Testing and Quality Assurance
 ```bash
-nox -s "test-3.13(sphinx='8')"   # Run tests on Python 3.13 with Sphinx 8.x (sphinx also '9'/'dev'; python also '3.12')
+nox -s "test-3.13(sphinx='8')"   # Run tests on Python 3.13 with Sphinx 8.x (sphinx also '9'/'dev'; python also '3.12', '3.14', '3.15')
 nox -s test                      # Run the full Python × Sphinx grid
 nox -s coverage-report           # Generate coverage report
 nox -s "typing-3.13(sphinx='8')" # Run mypy type checking
