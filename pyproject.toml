@@ -121,6 +121,13 @@ docs = [
     "sphinx-click",
     "sphinxcontrib-autoprogram",
 ]
+vale = [
+    # Advisory prose linting for the docs (nox -s vale). The PyPI wrapper
+    # ships the Vale binary, pinned through uv.lock.
+    "vale",
+    # docutils supplies rst2html, which Vale shells out to for parsing RST.
+    "docutils",
+]
 dev = [
     {include-group = "test"},  # include test dependencies
     {include-group = "typing"},  # include type checking dependencies

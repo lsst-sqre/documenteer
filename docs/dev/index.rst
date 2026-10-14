@@ -7,6 +7,7 @@ Development
    :caption: Guides
 
    development
+   vale
    release
    dependency-policy
 

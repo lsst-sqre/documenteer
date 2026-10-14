@@ -22,7 +22,7 @@ These extensions are included and pre-configured in all technotes:
    This extension allows you to include a literal code block where the source for that code block is available at an web URL.
 
 :doc:`documenteer.ext.bibtex </sphinx-extensions/lsst-pybtex-style>`
-   This extension works with the `sphinxcontrib-bibtex`_ extension to handle the BibTeX entires in https://github.com/lsst/lsst-texmf.
+   This extension works with the `sphinxcontrib-bibtex`_ extension to handle the BibTeX entries in https://github.com/lsst/lsst-texmf.
 
 :doc:`documenteer.ext.githubbibcache </sphinx-extensions/githubbibcache>`
   This extension automatically downloads and caches the BibTeX files from https://github.com/lsst/lsst-texmf, for use with the `sphinxcontrib-bibtex`_ extension.
@@ -31,7 +31,7 @@ These extensions are included and pre-configured in all technotes:
    This extension allows you to use the MyST_ markup language (i.e., Markdown) in your technote.
 
 `sphinx.ext.intersphinx`_
-   This extension allows you to link to other Sphinx projects, including other Rubin technotes and user guides and many open-source projects like Astropy and Numpy.
+   This extension allows you to link to other Sphinx projects, including other Rubin technotes and user guides and many open-source projects like Astropy and NumPy.
 
 `sphinxcontrib-bibtex`_
    This extension allow you to include a BibTeX-based bibliography in your technote.

@@ -15,7 +15,7 @@ You can make a single commit directly from GitHub's website.
 To open this interface, either:
 
 - Navigate to the :file:`index.rst` or :file:`index.md` file on the technote's GitHub page and press the :kbd:`e` key (alternatively click the pencil icon in the top right corner of the file view).
-- From the technote's pubilshed page, click the :guilabel:`Edit on GitHub` link on the left sidebar, under the :guilabel:`Source` heading.
+- From the technote's published page, click the :guilabel:`Edit on GitHub` link on the left sidebar, under the :guilabel:`Source` heading.
 
 Make your edits and end a commit message.
 It's recommended to commit to a new branch so that you can preview your changes in a pull request before merging them.

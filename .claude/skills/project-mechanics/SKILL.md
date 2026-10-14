@@ -40,6 +40,15 @@ per-invocation combine and upload raw `.coverage.*` data for a central
 - `lint_touched`: `uv run --only-group=lint prek run --files {files}`
 - `lint_all`: `uv run --only-group=nox nox -s lint`
 
+## Prose (optional)
+
+- `vale`: `uv run --only-group=nox nox -s vale -- <docs paths>` runs Vale
+  (Google style + house rules) over documentation prose. Advisory only: it
+  is **not** part of final validation, never fails, and has no prek hook.
+  Use it for feedback when editing pages under `docs/`; add legitimate terms
+  to `styles/config/vocabularies/Documenteer/accept.txt`, fix real typos in
+  the source.
+
 ## Typing
 
 - `typing`: `uv run --only-group=nox nox -s "typing-3.13(sphinx='8')"`

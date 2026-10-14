@@ -9,7 +9,7 @@ This page explains how to use the ``technote-wide-content`` CSS utility class to
 Tables and code blocks
 ======================
 
-To allow a table or code block to span the available horizontal space on a page, you can preceed it with the ``technote-wide-content`` class in a ``rst-class`` directive.
+To allow a table or code block to span the available horizontal space on a page, you can precede it with the ``technote-wide-content`` class in a ``rst-class`` directive.
 The ``rst-class`` directive is not part of the table or code-block's directive, but is a separate preceeding directive that applies the ``technote-wide-content`` class to the following content.
 
 Tables

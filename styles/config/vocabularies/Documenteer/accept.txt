@@ -1,0 +1,118 @@
+# Documenteer vocabulary -- case-sensitive accepted spellings for Vale.Spelling.
+# Seeded empirically from a full-corpus spelling pass (DM-56680).
+# Entries are regular expressions; add legitimate project, astronomy, and
+# software terms here. Fix genuine typos in the source instead of accepting
+# them. See docs/dev/vale.rst.
+
+# --- Rubin / project terms --------------------------------------------------
+[Dd]ocumenteer
+[Tt]echnotes?
+Ook
+Safir
+Jira
+LSST
+LSSTCam
+Rubin
+SQuaRE
+DocuShare
+Zenodo
+Zotero
+DOIs?
+ORCIDs?
+ROR
+DataCite
+Highwire
+Redoc
+arXiv
+Astropy
+Gantt
+
+# --- People (author examples and credits) -----------------------------------
+Economou
+
+# --- Software / tooling terms -----------------------------------------------
+APIs?
+URIs?
+[Pp]ydantic
+pydata
+MyST
+[Dd]ocstrings?
+[Ii]ntersphinx
+autodoc
+automodapi
+docname
+docutils
+documenters
+subsite
+[Pp]refetch(es|ed|ing)?
+nox
+namespaces?
+[Cc]odespaces?
+uv
+prek
+npm
+webpack
+Webpack
+toctrees?
+epilog
+enum
+dev
+vendored
+untyped
+unfixable
+unindented
+sdist
+rst
+toml
+pytest
+mypy
+linter
+linkcheck
+gitignored
+nitpicky
+Dependabot
+[Bb]ib[Tt]e[Xx]
+biblatex
+bibkeys?
+bibitem
+pybtex
+validator
+upstreamed
+unparse
+unparseable
+superset
+stringifying
+retryable
+[Rr]evalidat(e|es|ed|ing|ion)
+backoff
+repr
+preset
+[Pp]arsers?
+NumPy
+nbdime
+MRO
+Makefile
+lowercases
+indexable
+ETag
+dataclass
+config
+Conda
+committer
+classmethods
+[Bb]uiltins
+boolean
+[Bb]ackports?
+Walkthrough
+typo
+formatters
+
+# --- RST syntax / code-identifier artifacts ---------------------------------
+# Snake_case identifiers (API function names, config keys) read as prose by
+# Vale's spell checker; accept any lowercase snake_case token.
+[a-z][a-z0-9]*(_[a-z0-9]+)+
+# Trailing-underscore RST reference names (e.g. `Sphinx_`, `uv_`).
+[A-Za-z][A-Za-z0-9_]*_
+# Vale's dictionary has no possessives, so "else's" and "commit's" are
+# otherwise flagged even though the base word is fine.
+[A-Za-z]+'s

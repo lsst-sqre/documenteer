@@ -35,7 +35,10 @@ Coverage is opt-in via `DOCUMENTEER_COVERAGE=1`, which runs the test suite under
 ```bash
 nox -s docs                 # Build documentation
 nox -s docs-linkcheck       # Check documentation links
+nox -s vale                 # Advisory prose lint (Vale + Google style); `-- path.rst` for one file
 ```
+
+Vale is advisory only: it never fails CI, is not in the default nox sessions, and has no prek hook. Legitimate terms it flags go in `styles/config/vocabularies/Documenteer/accept.txt`; genuine typos get fixed in the source. See `docs/dev/vale.rst`.
 
 ### Cleanup
 ```bash

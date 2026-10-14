@@ -186,6 +186,30 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK }}
 
+  # Weekly whole-corpus Vale snapshot (advisory prose linting; see
+  # docs/dev/vale.rst). The nox session tolerates Vale's "findings" exit
+  # code, so this job cannot fail on prose and has no Slack notification;
+  # the report is uploaded as an artifact for review.
+  vale-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Run Vale over the documentation
+        run: uv run --only-group=nox nox -s vale | tee vale-report.txt
+
+      - name: Upload Vale report
+        uses: actions/upload-artifact@v7
+        with:
+          name: vale-report
+          path: vale-report.txt
+          if-no-files-found: warn
+          retention-days: 60
+
   pypi:
     runs-on: ubuntu-latest
 

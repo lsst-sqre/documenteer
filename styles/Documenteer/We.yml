@@ -1,0 +1,18 @@
+extends: existence
+message: "Address the reader as 'you', not '%s'. If you mean the project, name 'Documenteer' or 'Rubin Observatory'."
+link: https://developer.lsst.io/user-docs/index.html
+# House style (LSST DM User Documentation Style Guide): avoid "we" because it
+# is ambiguous about who is speaking. Say "you" for the reader, or name
+# Documenteer / Rubin Observatory for the project. Replaces Google.We, whose
+# token coverage of reStructuredText prose is thin.
+level: warning
+ignorecase: true
+tokens:
+  # "us" is deliberately omitted: it collides with "US" (US time zones, US
+  # facilities) far more often than it appears as the first-person pronoun.
+  - "we"
+  - "we're"
+  - "we've"
+  - "we'll"
+  - "our"
+  - "ours"

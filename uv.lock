@@ -619,6 +619,10 @@ typing = [
     { name = "types-requests" },
     { name = "types-setuptools" },
 ]
+vale = [
+    { name = "docutils" },
+    { name = "vale" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -721,6 +725,10 @@ typing = [
     { name = "types-pyyaml" },
     { name = "types-requests" },
     { name = "types-setuptools" },
+]
+vale = [
+    { name = "docutils" },
+    { name = "vale" },
 ]
 
 [[package]]
@@ -2799,6 +2807,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d6/94/380dad6c2bbe12417025aacd12cfc08322ed4c9dd8f760bff7035b86f22d/uv-0.11.26-py3-none-win32.whl", hash = "sha256:79e5c1b3410047e1962290c3b7b8f512d2c1bb95200c60b016f7729287cf34c0", size = 23947180, upload-time = "2026-06-30T14:51:53.065Z" },
     { url = "https://files.pythonhosted.org/packages/d0/13/9c588226d5b478328d739e654944430719f3ffe8999d6a24d425ec9664ab/uv-0.11.26-py3-none-win_amd64.whl", hash = "sha256:d95567e9470dc48ff03265f420c3c6973f6437f18a79d5e00b6eb4b2d9379907", size = 26909320, upload-time = "2026-06-30T14:51:57.235Z" },
     { url = "https://files.pythonhosted.org/packages/21/1d/ea66b12813878797126e2b3aca124b1c9c5ef53120702d1c00172f90a21d/uv-0.11.26-py3-none-win_arm64.whl", hash = "sha256:7e69d1569afbb936e7bf4e4ab2f72d606405f4a68f380f088a0b2233e84e056a", size = 25176820, upload-time = "2026-06-30T14:52:01.05Z" },
+]
+
+[[package]]
+name = "vale"
+version = "3.22.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/53/4ac171f2521de4985c7f097f29a7057ee35c27c61b7513e701aeda101f99/vale-3.22.0.0.tar.gz", hash = "sha256:7597e92958de6b6c951e807b050fc78366026a35dc1e593561b6fccc6f76cf12", size = 5386, upload-time = "2026-09-18T07:35:07.675Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/6f/23c2cd295e419e0f803e55232144357e1c696e8f7980c123ca013460effb/vale-3.22.0.0-py3-none-any.whl", hash = "sha256:db7de242dd36f5eaf0b705e5cf5a8f957a693066879434ff192c735372c51d31", size = 5942, upload-time = "2026-09-18T07:35:06.538Z" },
 ]
 
 [[package]]

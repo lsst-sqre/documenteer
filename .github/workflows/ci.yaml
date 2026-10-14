@@ -257,6 +257,48 @@ jobs:
         if: >
           github.event_name != 'pull_request' || startsWith(github.head_ref, 'tickets/')
 
+  # Advisory prose linting with Vale (https://vale.sh). This job is
+  # deliberately non-blocking and is this repo's only use of
+  # continue-on-error: vale-action runs reviewdog with fail_on_error: false
+  # and filter_mode: added, so findings surface as inline annotations on
+  # changed lines only and the job stays green even when Vale reports
+  # issues. It is intentionally absent from pypi-publish's needs. See
+  # docs/dev/vale.rst.
+  vale:
+    runs-on: ubuntu-latest
+    # Annotations are only meaningful on pull requests (reviewdog needs a diff).
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: '.python-version'
+
+      # Vale shells out to rst2html (docutils) to parse reStructuredText.
+      - name: Install docutils
+        run: pip install docutils
+
+      - name: Run Vale
+        uses: errata-ai/vale-action@v3
+        # Vale is advisory: annotations should appear on the PR, but the
+        # check must stay green. fail_on_error: false covers Vale's own
+        # findings (and, since v3, GitHub's per-step annotation cap), but
+        # the step can still exit nonzero on a runtime error (download,
+        # sync, reviewdog), so tolerate any step failure outright.
+        continue-on-error: true
+        with:
+          # Match the Vale release pinned by the `vale` dependency group in
+          # uv.lock so local `nox -s vale` runs and CI agree.
+          version: 3.22.0
+          # vale-action runs `vale sync` to download the Google package.
+          # The default reporter (github-pr-annotations) works with the
+          # read-only GITHUB_TOKEN on forked PRs, unlike github-pr-check.
+          fail_on_error: false
+          filter_mode: added
+          files: docs
+
   test-package:
     name: Test PyPI package build
     runs-on: ubuntu-latest

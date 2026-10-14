@@ -158,7 +158,7 @@ documenteer\_openapi\_generator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This configuration specifies the function that can generate the OpenAPI specification as a JSON-serialized string.
-Setting this configration also enables the extension.
+Setting this configuration also enables the extension.
 
 The most basic form of this configuration is a `dict` with a ``"func"`` key.
 The format of the value is ``{module}:{function}``.
