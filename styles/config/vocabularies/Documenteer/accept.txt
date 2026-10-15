@@ -38,6 +38,7 @@ pydata
 MyST
 [Dd]ocstrings?
 [Ii]ntersphinx
+doctrees?
 autodoc
 automodapi
 docname
