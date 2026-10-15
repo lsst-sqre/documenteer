@@ -181,9 +181,14 @@ jobs:
     # id token, which only exists in a job holding id-token: write. Without
     # it the recheck still informs this build's report and the contribution
     # is skipped with an info note.
+    #
+    # pull-requests: write lets the Docverse upload step post (and update)
+    # a comment on ticket-branch pull requests linking to the edition
+    # preview. Without it the action skips the comment with a warning.
     permissions:
       contents: read
       id-token: write
+      pull-requests: write
 
     # Link checking goes through the Ook link-check service, which needs
     # OOK_TOKEN. Dependabot and fork pull requests don't receive repository
@@ -243,17 +248,20 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # Only attempt documentation uploads for tagged releases and pull
-      # requests from ticket branches in the same repository.  This avoids
-      # version clutter in the docs and failures when a PR doesn't have access
-      # to secrets.
-      - name: Upload to LSST the Docs
-        uses: lsst-sqre/ltd-upload@v1
+      # Only publish for tagged releases and pull requests from ticket branches
+      # in the same repository. This avoids edition clutter and failures when a
+      # PR (fork, dependabot) doesn't have access to the DOCVERSE_TOKEN secret.
+      - name: Upload to Docverse
+        # Pinned to the pre-release head of lsst-sqre/docverse-upload; switch
+        # to a version tag once the action has an official release.
+        uses: lsst-sqre/docverse-upload@05c6698b00482673da2d1bcd93b367ebe74a98d0
         with:
-          project: 'documenteer'
-          dir: 'docs/_build/html'
-          username: ${{ secrets.LTD_USERNAME }}
-          password: ${{ secrets.LTD_PASSWORD }}
+          org: rubin
+          project: documenteer
+          dir: docs/_build/html
+          token: ${{ secrets.DOCVERSE_TOKEN }}
+          github-token: ${{ github.token }}
+          comment-on-pr: 'true'
         if: >
           github.event_name != 'pull_request' || startsWith(github.head_ref, 'tickets/')
 
