@@ -1,0 +1,3 @@
+### Bug fixes
+
+- A `software` citation that reads a `CITATION.cff` file declaring no `preferred-citation` is no longer reported as undated. The exemption for software located by a URL rather than a DOI now follows the record the file actually supplied (its top-level record, which describes the repository) instead of the entry's `cff_preferred` flag, whose default asks for a preferred citation the file may not have. Such an entry is also cited at the project's version, as a `cff_preferred = false` entry already was. Resolved citations carry the record read as `cff_cited_preferred` alongside `cff_preferred`.
