@@ -847,10 +847,80 @@ def test_citations_cff_provenance_reaches_the_html_context(
     # The path as documenteer.toml wrote it, which is what an author edits.
     assert entry.cff == "../CITATION.cff"
     assert entry.cff_preferred is False
+    assert entry.cff_cited_preferred is False
     context = entry.to_html_context()
     assert context["date"] is None
     assert context["cff"] == "../CITATION.cff"
     assert context["cff_preferred"] is False
+    assert context["cff_cited_preferred"] is False
+
+
+def test_citations_cff_provenance_names_the_record_read(
+    tmp_path: Path,
+) -> None:
+    """An entry left at the default ``cff_preferred`` reads the file's
+    preferred-citation when the file has one, and its top-level record when
+    it does not; the entry carries which it got, not which it asked for.
+
+    The distinction is what the undated-citation check keys on: a software
+    entry that read a file's top-level record describes the repository, and
+    is exempt, whatever the flag says.
+    """
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    (tmp_path / "CITATION.cff").write_text(
+        SOFTWARE_RECORD_CFF_PATH.read_text(encoding="utf-8")
+    )
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_DEFAULT_RECORD, root_dir=docs_dir
+    )
+    (entry,) = config.citations
+    assert entry.cff_preferred is True
+    assert entry.cff_cited_preferred is True
+    assert entry.to_html_context()["cff_cited_preferred"] is True
+
+    (tmp_path / "CITATION.cff").write_text(UNDATED_SOFTWARE_ONLY_CFF)
+    config = DocumenteerConfig.load(
+        EXAMPLE_CITATIONS_CFF_DEFAULT_RECORD, root_dir=docs_dir
+    )
+    (entry,) = config.citations
+    assert entry.cff_preferred is True
+    assert entry.cff_cited_preferred is False
+    assert entry.to_html_context()["cff_cited_preferred"] is False
+    assert entry.citation.type is CitationType.software
+    assert entry.citation.url == "https://example.lsst.io"
+    # The top-level record is this site's own package, so it is cited at
+    # the project's version even though the entry never asked for the top
+    # level by name.
+    assert entry.citation.version == "4.5.6"
+
+
+EXAMPLE_CITATIONS_CFF_DEFAULT_RECORD = """
+
+[project]
+title = "Example Guide"
+version = "4.5.6"
+
+[[project.citations]]
+cff = "../CITATION.cff"
+label = "Software"
+preferred = true
+"""
+"""An entry that says nothing about which record it reads."""
+
+UNDATED_SOFTWARE_ONLY_CFF = """\
+cff-version: 1.2.0
+message: If you use this software, please cite it using this metadata.
+type: software
+title: Example
+authors:
+  - name: Vera C. Rubin Observatory
+repository-code: https://github.com/lsst-sqre/example
+url: https://example.lsst.io
+"""
+"""A CITATION.cff that describes only the repository — no preferred-citation,
+no version, no date — the shape Documenteer's own file takes."""
 
 
 def test_citations_inline_entry_has_no_cff_provenance() -> None:
@@ -862,6 +932,7 @@ def test_citations_inline_entry_has_no_cff_provenance() -> None:
     (entry,) = config.citations
     assert entry.cff is None
     assert entry.to_html_context()["cff"] is None
+    assert entry.cff_cited_preferred is False
 
 
 EXAMPLE_CITATIONS_CFF_TYPE_OVERRIDE = """

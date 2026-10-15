@@ -1312,6 +1312,18 @@ class GuideCitation:
     without one.
     """
 
+    cff_cited_preferred: bool = False
+    """Whether the record actually read from `cff` was the file's
+    ``preferred-citation``.
+
+    This differs from `cff_preferred` for a file that declares no preferred
+    citation: the entry asked for one, and read the top-level record because
+    there was nothing else to read. The work such an entry describes is the
+    repository itself, which is what decides whether an undated software
+    citation is reported (see `documenteer.ext.citationdate`). `False` when
+    `cff` is `None`.
+    """
+
     def to_html_context(self) -> dict[str, Any]:
         r"""Express the citation as the mapping published into Sphinx's
         ``html_context``.
@@ -1356,6 +1368,7 @@ class GuideCitation:
             "page_fragment": self.page_fragment,
             "cff": self.cff,
             "cff_preferred": self.cff_preferred,
+            "cff_cited_preferred": self.cff_cited_preferred,
             "title": citation.title,
             "authors": [
                 _author_context(author) for author in citation.authors
