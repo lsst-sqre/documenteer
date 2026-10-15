@@ -45,7 +45,7 @@ To get feedback on the page you are working on, pass its path (or several paths)
 
 .. code-block:: sh
 
-   uv run --only-group=nox nox -s vale -- docs/guides/citations.rst
+   uv run --only-group=nox nox -s vale -- docs/guides/citations/index.rst
 
 What happens in CI
 ==================
