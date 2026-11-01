@@ -38,7 +38,7 @@ jobs:
           npm run build
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
 
       # uv reads the canonical Python version from .python-version, so nox and
       # its unparametrized sessions (lint, docs, ...) run on that interpreter.
@@ -84,7 +84,7 @@ jobs:
         uses: ts-graphviz/setup-graphviz@v2
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
 
       # The canonical development Python (.python-version) identifies the
       # matrix cell that uploads the demo builds below.
@@ -148,7 +148,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
 
       - name: Download coverage data
         uses: actions/download-artifact@v8
@@ -225,7 +225,7 @@ jobs:
           npm run build
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
 
       - name: Build docs
         run: uv run --only-group=nox nox -s docs
@@ -254,7 +254,7 @@ jobs:
       - name: Upload to Docverse
         # Pinned to the pre-release head of lsst-sqre/docverse-upload; switch
         # to a version tag once the action has an official release.
-        uses: lsst-sqre/docverse-upload@05c6698b00482673da2d1bcd93b367ebe74a98d0
+        uses: lsst-sqre/docverse-upload@ba4a9c8992fda311687eac8c5d1ea486739aa792
         with:
           org: rubin
           project: documenteer
