@@ -248,13 +248,24 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # DM-56907 test only: plant build-cache paths in the HTML output so the
+      # docverse-upload exclusion filter has something to drop. Remove before merge.
+      - name: Inject fake build caches (DM-56907 test)
+        run: |
+          mkdir -p docs/_build/html/.doctrees docs/_build/html/sub/.doctrees docs/_build/html/__pycache__
+          head -c 1048576 /dev/urandom > docs/_build/html/.doctrees/environment.pickle
+          head -c 65536 /dev/urandom > docs/_build/html/sub/.doctrees/sub.doctree
+          echo "<p>real page</p>" > docs/_build/html/sub/index.html
+          echo "cache" > docs/_build/html/__pycache__/x.pyc
+          echo "--- planted ---"; find docs/_build/html -path "*/.doctrees/*" -o -name .buildinfo -o -path "*/__pycache__/*" | sort
+
       # Only publish for tagged releases and pull requests from ticket branches
       # in the same repository. This avoids edition clutter and failures when a
       # PR (fork, dependabot) doesn't have access to the DOCVERSE_TOKEN secret.
       - name: Upload to Docverse
         # Pinned to the pre-release head of lsst-sqre/docverse-upload; switch
         # to a version tag once the action has an official release.
-        uses: lsst-sqre/docverse-upload@174ec75d7bf704d2fdb4494b943d25a35706be30
+        uses: lsst-sqre/docverse-upload@09bca60d0377049349b604232d83ae6d6814967e # tickets/DM-56907-scrub (test pin, do not merge)
         with:
           org: rubin
           project: documenteer
