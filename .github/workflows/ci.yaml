@@ -252,9 +252,7 @@ jobs:
       # in the same repository. This avoids edition clutter and failures when a
       # PR (fork, dependabot) doesn't have access to the DOCVERSE_TOKEN secret.
       - name: Upload to Docverse
-        # Pinned to the pre-release head of lsst-sqre/docverse-upload; switch
-        # to a version tag once the action has an official release.
-        uses: lsst-sqre/docverse-upload@174ec75d7bf704d2fdb4494b943d25a35706be30
+        uses: lsst-sqre/docverse-upload@v1
         with:
           org: rubin
           project: documenteer
