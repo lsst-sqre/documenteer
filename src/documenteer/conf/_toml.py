@@ -1904,7 +1904,7 @@ class DocumenteerConfig:
                 or defaults.date,
                 url=url,
                 version=self._resolve_citation_version(
-                    entry, source, citation_type, is_preferred=is_preferred
+                    entry, record, citation_type, is_preferred=is_preferred
                 ),
             ),
             label=entry.label,
@@ -1919,12 +1919,13 @@ class DocumenteerConfig:
             # inside it, rather than only the documenteer.toml entry.
             cff=entry.cff,
             cff_preferred=entry.cff_preferred,
+            cff_cited_preferred=record.cited_preferred if record else False,
         )
 
     def _resolve_citation_version(
         self,
         entry: CitationModel,
-        source: Citation | None,
+        record: CitationCffRecord | None,
         citation_type: CitationType | None,
         *,
         is_preferred: bool,
@@ -1942,8 +1943,9 @@ class DocumenteerConfig:
 
         "This site's own package" is the entry that sets ``self``, the one
         the site marks ``preferred``, and the one reading a CITATION.cff
-        file's top-level record with ``cff_preferred = false`` — the three
-        ways a site says an entry is the thing it documents. A guide's own
+        file's top-level record — whether ``cff_preferred = false`` asked
+        for it or the file declares no preferred citation — the three ways a
+        site says an entry is the thing it documents. A guide's own
         version *is* that package's version, and the page a reader is on is
         the documentation of that release, so filling it in states what the
         page already means. Every other software entry is somebody else's
@@ -1958,6 +1960,7 @@ class DocumenteerConfig:
         it must never reach a citation, a BibTeX ``version`` field, or a
         ``softwareVersion``.
         """
+        source = record.citation if record else None
         stated = (
             entry.version
             or (source.version if source else None)
@@ -1970,7 +1973,7 @@ class DocumenteerConfig:
         describes_this_package = (
             entry.is_self
             or is_preferred
-            or (entry.cff is not None and not entry.cff_preferred)
+            or (record is not None and not record.cited_preferred)
         )
         if not describes_this_package:
             return None

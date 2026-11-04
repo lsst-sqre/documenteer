@@ -181,11 +181,15 @@ def _has_no_publication_event(citation: dict[str, Any]) -> bool:
     Two of the three conditions are the ones the module docstring reasons
     about: the work is software, and it carries no DOI whose registration
     would have fixed a publication year. The third is the record the entry
-    reads. An entry citing a :file:`CITATION.cff` file's
+    *read*. An entry citing a :file:`CITATION.cff` file's
     ``preferred-citation`` has picked out a work other than the repository
     that file describes, so it is taken at its word and reported; the
     exemption covers the entry that describes the code itself — one stating
-    its own fields, or one reading a file's top-level record.
+    its own fields, or one reading a file's top-level record. The test is
+    ``cff_cited_preferred``, the record the file actually supplied, rather
+    than the entry's ``cff_preferred`` flag: a file that declares no
+    preferred citation hands an entry its top-level record whatever the
+    flag says, and that record is the repository.
 
     The DOI is what the test is written against rather than the URL, because
     ``GuideCitation.to_html_context`` fills a DOI-located work's ``url`` in
@@ -196,7 +200,7 @@ def _has_no_publication_event(citation: dict[str, Any]) -> bool:
         return False
     if citation.get("doi") is not None:
         return False
-    return not (citation.get("cff") and citation.get("cff_preferred", True))
+    return not citation.get("cff_cited_preferred", False)
 
 
 def check_citation_dates(app: Sphinx) -> None:

@@ -133,7 +133,8 @@ def vale(session: nox.Session) -> None:
 
     ``vale sync`` downloads the Google package into styles/ (gitignored).
     Pass paths as posargs to lint a subset, e.g.
-    ``nox -s vale -- docs/guides/citations.rst``; the default is ``docs``.
+    ``nox -s vale -- docs/guides/citations/index.rst``; the default is
+    ``docs``.
     A nonzero Vale exit only means it had findings, so it is tolerated.
     This session is deliberately not in ``nox.options.sessions``.
     """

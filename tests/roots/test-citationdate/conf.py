@@ -76,6 +76,7 @@ CITATIONS = [
             authors=(RUBIN,),
         ),
         cff="../CITATION.cff",
+        cff_cited_preferred=True,
     ),
 ]
 
