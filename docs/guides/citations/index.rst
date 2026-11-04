@@ -4,17 +4,16 @@
 Citations
 #########
 
-Your documentation can help readers reference your project by including citation information.
-A site can carry several citations: the DOI the site itself is published under, a paper that describes the work, and the software the site documents.
-Documenteer displays those citations in four places:
+You can include citation information in your documentation project to help readers reference your work in publications.
+A site can carry several citations: the DOI the site itself is published under, a paper that describes the work, and the software the site documents, and so on.
+Citations are defined in :file:`documenteer.toml` and Documentation displays those citations in four places:
 
 - As :ref:`machine-readable metadata <guide-citation-metadata>` in every page's HTML ``<head>``, which is what makes a site a DOI's landing page
 - In the :ref:`site footer <guide-footer-citations>`, so a reader finds the citation from any page of the site
 - In :ref:`citation cards <guide-citation-card>` placed in your content, on a DOI landing page or on a page about citing the project
 - As :ref:`inline DOI links <guide-citation-doi-role>`, wherever a sentence, a bullet, or a table cell refers to one of the works
 
-All four read the same declared citations, so they never disagree about how the site asks to be cited.
-The rest of this page shows the basics: how to declare a citation, and where it appears.
+This page shows the basics: how to declare a citation, and how to display them.
 The recipes that follow cover specific kinds of site, and the display pages go into each surface in depth.
 
 Declaring a citation
@@ -30,22 +29,10 @@ An entry is made of three kinds of field:
 
 The :ref:`field reference <guide-project-citations>` describes every field; the recipes below show which fields each kind of site needs.
 
-Recipes for declaring citations
--------------------------------
+Example documenteer.toml ``[[project.citations]]``
+--------------------------------------------------
 
-.. toctree::
-   :maxdepth: 1
-
-   doi-landing-page
-   site-pages
-   cff
-   url-only
-   api-heavy
-
-An example documenteer.toml ``[[project.citations]]``
------------------------------------------------------
-
-Documenteer's own site declares two citations, one based on the :file:`CITATION.cff` for the GitHub repository, and a second for a conference proceedings article:
+This is an example configuration with two citations: one based on the :file:`CITATION.cff` for the GitHub repository, and a second for a conference proceedings article.
 
 .. code-block:: toml
    :caption: docs/documenteer.toml
@@ -71,11 +58,24 @@ Documenteer's own site declares two citations, one based on the :file:`CITATION.
    ]
    note = "Cite this paper when describing how Rubin Observatory builds its documentation."
 
-The first entry reads Documenteer's own :file:`CITATION.cff` file at the root of its repository, a software record with no DOI, and marks it as the citation the site prefers.
-The second states the fields of a conference paper itself, located by its DOI, and keeps the paper out of the footer so that a card or an inline link is the only place it shows.
+Recipes for declaring citations
+-------------------------------
 
-Where citations are displayed
-=============================
+These recipes cover common scenarios for configuring citations:
+
+.. toctree::
+   :maxdepth: 1
+
+   doi-landing-page
+   site-pages
+   cff
+   url-only
+   api-heavy
+
+Additionally, the :ref:`guide-project-citations` schema reference covers every :file:`documenteer.toml` field in detail.
+
+Displaying citations
+====================
 
 Site footer
 -----------
