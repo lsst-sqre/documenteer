@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import importlib
 import importlib.util
 import json
@@ -1813,16 +1813,22 @@ def test_highwire_tags_compose_the_full_set() -> None:
         '<meta name="citation_title" content="Images &amp; Catalogs">',
         '<meta name="citation_author" content="Vera C. Rubin Observatory">',
         '<meta name="citation_author" content="Sick, Jonathan">',
-        '<meta name="citation_author_institution" '
-        'content="Rubin Observatory">',
-        '<meta name="citation_author_orcid" '
-        'content="https://orcid.org/0000-0003-3001-676X">',
+        (
+            '<meta name="citation_author_institution" '
+            'content="Rubin Observatory">'
+        ),
+        (
+            '<meta name="citation_author_orcid" '
+            'content="https://orcid.org/0000-0003-3001-676X">'
+        ),
         '<meta name="citation_publication_date" content="2025/06/30">',
         '<meta name="citation_doi" content="10.5281/zenodo.10385500">',
         '<meta name="citation_publisher" content="Vera C. Rubin Observatory">',
         f'<meta name="citation_fulltext_html_url" content="{SITE_URL}">',
-        '<meta name="DC.identifier" '
-        'content="https://doi.org/10.5281/zenodo.10385500">',
+        (
+            '<meta name="DC.identifier" '
+            'content="https://doi.org/10.5281/zenodo.10385500">'
+        ),
     ]
 
 
@@ -1982,9 +1988,7 @@ def test_highwire_tags_match_technotes_formatter() -> None:
                         state=model.TechnoteState.stable, note=None
                     ),
                     canonical_url=SITE_URL,
-                    date_updated=datetime.datetime(
-                        2025, 6, 30, tzinfo=datetime.UTC
-                    ),
+                    date_updated=dt.datetime(2025, 6, 30, tzinfo=dt.UTC),
                     authors=[
                         model.Person(
                             name=model.StructuredName(
@@ -2140,9 +2144,9 @@ def test_partial_date_round_trips_a_calendar_date() -> None:
     """A full calendar date survives the trip through the partial date and
     back, and a reduced-precision date has no day to return.
     """
-    full = PartialDate.from_date(datetime.date(2025, 6, 30))
+    full = PartialDate.from_date(dt.date(2025, 6, 30))
     assert full == PartialDate(2025, 6, 30)
-    assert full.to_date() == datetime.date(2025, 6, 30)
+    assert full.to_date() == dt.date(2025, 6, 30)
     assert PartialDate(2025, 6).to_date() is None
     assert PartialDate(2025).to_date() is None
 
@@ -2245,9 +2249,11 @@ def test_citations_digest_is_stable_across_processes() -> None:
         [
             sys.executable,
             "-c",
-            "import json, sys;"
-            "from documenteer.citations import compose_citations_digest;"
-            "print(compose_citations_digest(json.load(sys.stdin)))",
+            (
+                "import json, sys;"
+                "from documenteer.citations import compose_citations_digest;"
+                "print(compose_citations_digest(json.load(sys.stdin)))"
+            ),
         ],
         input=json.dumps(contexts),
         capture_output=True,

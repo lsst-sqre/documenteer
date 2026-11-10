@@ -112,11 +112,7 @@ def _patch_find_mod_objs() -> None:
     where it is being documented instead.
     """
     try:
-        from sphinx_automodapi import (  # noqa: PLC0415
-            automodapi,
-            automodsumm,
-            utils,
-        )
+        from sphinx_automodapi import automodapi, automodsumm, utils  # noqa: PLC0415
     except ImportError:
         return
 

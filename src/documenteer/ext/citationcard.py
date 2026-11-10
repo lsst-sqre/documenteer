@@ -645,16 +645,9 @@ def omit_cards_from_description(
         return
 
     try:
-        from sphinxext.opengraph import (  # noqa: PLC0415
-            DEFAULT_DESCRIPTION_LENGTH,
-            make_tag,
-        )
-        from sphinxext.opengraph._description_parser import (  # noqa: PLC0415
-            get_description,
-        )
-        from sphinxext.opengraph._title_parser import (  # noqa: PLC0415
-            get_title,
-        )
+        from sphinxext.opengraph import DEFAULT_DESCRIPTION_LENGTH, make_tag  # noqa: PLC0415
+        from sphinxext.opengraph._description_parser import get_description  # noqa: PLC0415
+        from sphinxext.opengraph._title_parser import get_title  # noqa: PLC0415
     except ImportError:
         logger.debug(
             "sphinxext-opengraph does not expose the description parser "
