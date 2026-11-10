@@ -397,6 +397,71 @@ def test_autotypes_annotated_metadata(app: SphinxTestApp, warning) -> None:
     for member in ("PENDING", "EXECUTING", "COMPLETED"):
         assert f">ExecutionPhase.{member}<" in phase
 
+    # The same members on a model that only *inherits* the field: autodoc
+    # copies the base class's source annotation onto the subclass.
+    inherited = signature("QueuedJob.phase")
+    for member in ("PENDING", "EXECUTING", "COMPLETED"):
+        assert f">ExecutionPhase.{member}<" in inherited
+
+
+_ANNOTATED_ROOT_PACKAGES = ("annotatedpkg", "aliaspkg", "extphase")
+"""Top-level packages the ``autotypes-annotated`` test root imports."""
+
+
+def _forget_modules(monkeypatch, roots: tuple[str, ...]) -> None:
+    """Drop the modules under *roots* from ``sys.modules`` for one test.
+
+    A build leaves its mark on the classes it documents: autodoc copies
+    source annotations onto them. Forgetting the modules makes the next
+    build import pristine ones, as a new process would.
+    """
+    import sys  # noqa: PLC0415
+
+    for name in list(sys.modules):
+        if name.split(".")[0] in roots:
+            monkeypatch.delitem(sys.modules, name)
+
+
+@pytest.mark.sphinx(
+    "dummy",
+    testroot="autotypes-annotated",
+    srcdir="autotypes-annotated-pickled",
+)
+def test_autotypes_annotated_metadata_pickled_doctrees(
+    app: SphinxTestApp, make_app, monkeypatch
+) -> None:
+    """Metadata fragments degrade when a build reuses pickled doctrees.
+
+    Two builders sharing one doctree directory is the shape of running
+    ``docs`` and then ``docs-linkcheck``: the second build reads no
+    sources, so autodoc never runs and leaves none of its side effects on
+    the documented classes for the reference resolution to lean on.
+    """
+    _forget_modules(monkeypatch, _ANNOTATED_ROOT_PACKAGES)
+    app.build()
+    assert "reference target not found" not in app.warning.getvalue()
+
+    # Start over as a second process would: with the pickled doctrees and
+    # environment on disk, but with none of the first build's imports.
+    _forget_modules(monkeypatch, _ANNOTATED_ROOT_PACKAGES)
+    html_app = make_app("html", srcdir=app.srcdir)
+    assert html_app.doctreedir == app.doctreedir
+    read: list[str] = []
+    html_app.connect(
+        "source-read", lambda _app, docname, _source: read.append(docname)
+    )
+    html_app.build()
+
+    assert read == []
+    assert "reference target not found" not in html_app.warning.getvalue()
+
+    html = (html_app.outdir / "index.html").read_text()
+    for field in ("Job.phase", "QueuedJob.phase"):
+        sig = _field_signature(html, f"annotatedpkg.{field}")
+        assert sig.count("<a") == sig.count('<a class="headerlink"')
+        for member in ("PENDING", "EXECUTING", "COMPLETED"):
+            assert f">ExecutionPhase.{member}<" in sig
+
 
 @pytest.mark.sphinx(
     "html", testroot="autotypes-annotated", srcdir="autotypes-annotated-neg"
@@ -1038,6 +1103,72 @@ def test_project_typing_registry_keeps_typevar_entries(
     assert [e.value for e in registry["StampValue"]] == [alias]
 
 
+def _write_unimported_package(tmp_path, monkeypatch, name: str) -> None:
+    """Write an importable package that nothing has imported yet.
+
+    The package defines a TypeVar in a private module and re-exports a
+    class from it, the way a documented package keeps its typing objects
+    out of its public namespace.
+    """
+    import sys  # noqa: PLC0415
+
+    package = tmp_path / name
+    package.mkdir()
+    (package / "__init__.py").write_text(
+        "from ._impl import Box\n\n__all__ = ['Box']\n"
+    )
+    (package / "_impl.py").write_text(
+        "from typing import Generic, TypeVar\n\n"
+        "T = TypeVar('T')\n\n\n"
+        "class Box(Generic[T]):\n"
+        "    pass\n"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    # Leave no trace of the import the scan under test performs.
+    for modname in (name, f"{name}._impl"):
+        monkeypatch.delitem(sys.modules, modname, raising=False)
+        monkeypatch.setitem(sys.modules, modname, None)
+        del sys.modules[modname]
+
+
+def test_project_typing_registry_imports_documented_modules(
+    tmp_path, monkeypatch, clear_typing_registry_cache
+) -> None:
+    """The registry does not depend on autodoc having imported anything.
+
+    A build that reuses pickled doctrees never runs autodoc, so the
+    documented modules are only known by name, from the build environment.
+    """
+    import sys  # noqa: PLC0415
+
+    _write_unimported_package(tmp_path, monkeypatch, "lazyregprobe")
+    assert "lazyregprobe" not in sys.modules
+
+    registry = _project_typing_registry(_StubEnv("lazyregprobe"))
+
+    assert [e.module for e in registry["T"]] == ["lazyregprobe._impl"]
+
+    # A documented module that cannot be imported is skipped.
+    _typing_registry_cache.clear()
+    assert _project_typing_registry(_StubEnv("nosuchregprobe")) == {}
+
+
+def test_mro_root_namespace_imports_documented_modules(
+    tmp_path, monkeypatch
+) -> None:
+    """The MRO root scan sees documented modules autodoc never imported."""
+    import sys  # noqa: PLC0415
+
+    _write_unimported_package(tmp_path, monkeypatch, "lazymroprobe")
+    assert "lazymroprobe" not in sys.modules
+
+    index = _mro_root_namespace(
+        frozenset({"lazymroprobe"}), _StubEnv("lazymroprobe")
+    )
+
+    assert index["Box"] is sys.modules["lazymroprobe"].Box
+
+
 def _entries(*pairs: tuple[object, str]) -> list[_TypingEntry]:
     """Build registry entries from ``(value, module)`` pairs."""
     return [_TypingEntry(value, module) for value, module in pairs]
@@ -1234,6 +1365,36 @@ def test_annotated_metadata_fragments_source_text() -> None:
     # Only the metadata positions count: the annotated type itself keeps
     # following the ordinary ladder.
     assert "Phase" not in fragments
+
+
+def test_annotated_metadata_fragments_inherited_source_text(
+    rootdir, monkeypatch
+) -> None:
+    """An inherited field's source annotation is read without autodoc.
+
+    The base class's module evaluates its annotations, so no string is to
+    be found on either class: the member paths exist only in the source
+    text, which autodoc would copy onto the subclass while documenting it.
+    """
+    import importlib  # noqa: PLC0415
+
+    monkeypatch.syspath_prepend(str(rootdir / "test-autotypes-annotated"))
+    _forget_modules(monkeypatch, _ANNOTATED_ROOT_PACKAGES)
+    module = importlib.import_module("annotatedpkg.inherited")
+    job = module.QueuedJob
+    assert not any(
+        isinstance(value, str)
+        for base in (job, module.SerializedJob)
+        for value in vars(base).get("__annotations__", {}).values()
+    )
+
+    fragments = _annotated_metadata_fragments(job)
+
+    for member in ("PENDING", "EXECUTING", "COMPLETED"):
+        assert f"ExecutionPhase.{member}" in fragments
+    # Only the metadata positions count, here as for any source text.
+    assert "ExecutionPhase" not in fragments
+    assert "ExecutionPhase.NOSUCH" not in fragments
 
 
 def test_annotated_metadata_fragments_misses() -> None:

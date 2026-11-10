@@ -9,6 +9,13 @@ situation this test root is about.
 from __future__ import annotations
 
 from .constrained import KafkaSettings, SentryConfig
+from .inherited import QueuedJob, SerializedJob
 from .phased import Job
 
-__all__ = ["Job", "KafkaSettings", "SentryConfig"]
+__all__ = [
+    "Job",
+    "KafkaSettings",
+    "QueuedJob",
+    "SentryConfig",
+    "SerializedJob",
+]

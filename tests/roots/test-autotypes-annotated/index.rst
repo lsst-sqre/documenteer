@@ -18,6 +18,13 @@ annotation.
 .. autopydantic_model:: annotatedpkg.Job
    :members:
 
+A model that *inherits* such a field renders the annotation's source text
+too, although its own module evaluates its annotations:
+
+.. autopydantic_model:: annotatedpkg.QueuedJob
+   :members:
+   :inherited-members: BaseModel
+
 The same fragment family reaches a *type alias's* own page, where the
 reference node carries only a ``py:module`` context:
 
