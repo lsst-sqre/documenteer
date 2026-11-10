@@ -71,6 +71,7 @@ from typing import (
 )
 
 from sphinx.ext.intersphinx import InventoryAdapter
+from sphinx.pycode import ModuleAnalyzer
 from sphinx.util.nodes import make_refnode
 from sphinx.util.typing import ExtensionMetadata, stringify_annotation
 
@@ -179,14 +180,44 @@ def _collect_type_params(
             registry.setdefault(name, []).append(_TypingEntry(param, modname))
 
 
+def _import_documented_modules(env: BuildEnvironment | None) -> None:
+    """Import every module this project documents.
+
+    The scans of :data:`sys.modules` below read whatever has been imported
+    so far, and what has been imported depends on how the build got here.
+    A build that reads the sources has had autodoc import every documented
+    module (and, through them, the private modules where TypeVars and
+    aliases are actually defined). A build that resolves references out of
+    pickled doctrees never runs autodoc, so only the modules that earlier
+    references happened to pull in are loaded — and since each scan is
+    cached, a scan taken at that point would stay incomplete for the rest
+    of the build.
+
+    Importing the documented modules first makes both kinds of build scan
+    the same set. The names come from the pickled build environment
+    (the Python domain's modules and the ``automodapi`` pages recorded by
+    :func:`_record_automodapi_module_pages`), so they are available
+    however the doctrees were obtained. A module that fails to import is
+    skipped, as it is everywhere else here.
+    """
+    if env is None:
+        return
+    modules = set(env.domaindata.get("py", {}).get("modules", {}))
+    modules.update(getattr(env, _ENV_MODULE_PAGES_ATTR, {}))
+    for modname in sorted(modules):
+        _import_module(modname)
+
+
 def _project_typing_registry(
     env: BuildEnvironment,
 ) -> dict[str, list[_TypingEntry]]:
     """Map bare names to typing objects found in project modules.
 
-    Autodoc has already imported every documented module (and, through
-    them, the private modules where TypeVars and aliases are actually
-    defined), so ``sys.modules`` is scanned for modules under the same
+    Every documented module is imported (which a source-reading build's
+    autodoc has already done, and a build reusing pickled doctrees has
+    not: see :func:`_import_documented_modules`), and through them the
+    private modules where TypeVars and aliases are actually defined. Then
+    ``sys.modules`` is scanned for modules under the same
     top-level packages as the documented modules. This lets a bare
     reference like ``T`` — whose defining module is not recoverable from
     the reference node — be recognized as a TypeVar.
@@ -204,6 +235,7 @@ def _project_typing_registry(
     cached = _typing_registry_cache.get(key)
     if cached is not None:
         return cached
+    _import_documented_modules(env)
     domain_data = env.domaindata.get("py", {})
     roots = {name.split(".")[0] for name in domain_data.get("modules", {})}
     roots.update(name.split(".")[0] for name in domain_data.get("objects", {}))
@@ -464,9 +496,10 @@ def _mro_root_namespace(
     MRO class that supplies the field page's inherited docstrings) — its
     only home is ``pydantic.fields``.
 
-    Autodoc has already imported every module those packages pull in, so
-    scanning :data:`sys.modules` under the MRO's package roots finds them.
-    The scan is cached per build environment, following
+    Importing the documented modules loads every module those packages
+    pull in (see :func:`_import_documented_modules`), so scanning
+    :data:`sys.modules` under the MRO's package roots finds them. The scan
+    is cached per build environment, following
     :func:`_project_typing_registry`.
     """
     import sys  # noqa: PLC0415
@@ -480,6 +513,7 @@ def _mro_root_namespace(
     cached = by_roots.get(roots)
     if cached is not None:
         return cached
+    _import_documented_modules(env)
     index: dict[str, Any] = {}
     for modname, module in list(sys.modules.items()):
         if modname.split(".")[0] not in roots:
@@ -1112,14 +1146,56 @@ def _own_annotations(base: type) -> dict[str, Any] | None:
     return None
 
 
+def _source_annotations(base: type) -> list[str]:
+    """Return the source text of the annotations a class body writes.
+
+    Autodoc's attribute documenter copies the *source text* of every MRO
+    class's annotations onto the class it is documenting, for each
+    attribute that class does not annotate itself. An inherited field is
+    therefore rendered from its source text on the subclass's page even
+    when the base class's module evaluates its annotations, and Sphinx
+    unparses that text into cross-references exactly as written.
+
+    That copy lands in the documented class's ``__annotations__``, but
+    only as a side effect of autodoc documenting the class. A build that
+    resolves references out of pickled doctrees never runs autodoc, so
+    the copy is not there to be read back. The text is recovered here
+    from the same place autodoc gets it — Sphinx's static analysis of the
+    defining module's source — which depends on nothing an earlier phase
+    of the build did.
+
+    A module without retrievable source (a built-in or an extension
+    module) has no source annotations to recover.
+    """
+    modname = getattr(base, "__module__", None)
+    qualname = getattr(base, "__qualname__", None)
+    if not isinstance(modname, str) or not isinstance(qualname, str):
+        return []
+    try:
+        analyzer = ModuleAnalyzer.for_module(modname)
+        analyzer.analyze()
+        return [
+            annotation
+            for (classname, _), annotation in analyzer.annotations.items()
+            if classname == qualname
+        ]
+    except Exception:
+        # PycodeError for a module without source, and anything a broken
+        # source file can raise out of the parser.
+        return []
+
+
 def _class_annotation_values(cls: type) -> list[Any]:
     """Collect the annotation values Sphinx renders for a class's members.
 
-    Both sources Sphinx itself falls back through are read: the raw
+    Every source Sphinx itself can render from is read: the raw
     ``__annotations__`` of every class in the MRO (which is what
     ``sphinx.util.typing.get_type_hints`` returns when evaluation fails,
-    and which holds unevaluated *strings* under :pep:`563`), and the
-    evaluated hints when they are available.
+    and which holds unevaluated *strings* under :pep:`563`), the source
+    text of the annotations each of those classes writes (which autodoc
+    copies onto a subclass that inherits them: see
+    :func:`_source_annotations`), and the evaluated hints when they are
+    available.
     """
     values: list[Any] = []
     try:
@@ -1132,12 +1208,15 @@ def _class_annotation_values(cls: type) -> list[Any]:
         annotations = _own_annotations(base)
         if annotations is not None:
             values.extend(annotations.values())
+        values.extend(_source_annotations(base))
     with contextlib.suppress(Exception):
         values.extend(typing.get_type_hints(cls, include_extras=True).values())
     return values
 
 
-_annotated_fragment_cache: dict[int, dict[int, frozenset[str]]] = {}
+_annotated_fragment_cache: dict[
+    int, dict[int, tuple[type, frozenset[str]]]
+] = {}
 
 
 def _annotated_metadata_fragments(
@@ -1153,7 +1232,8 @@ def _annotated_metadata_fragments(
     fragments instead — a constraint class from the ``repr()`` of a
     Pydantic ``FieldInfo`` (``Ge``, ``Le``), a dataclass field's
     unquoted string value (``file``), or an enum member written into the
-    metadata of a source-text annotation (``ExecutionPhase.PENDING``).
+    metadata of a source-text annotation (``ExecutionPhase.PENDING``),
+    which a class that merely *inherits* the field renders too.
 
     Those fragments describe how a value is validated; they are not
     references to anything, and the first two are not even names of
@@ -1165,7 +1245,9 @@ def _annotated_metadata_fragments(
     The index resolves nothing, so it adds no lookup surface and no
     ambiguity question: it is consulted only after every resolution rung
     has already failed. It is cached per build environment and class,
-    following :func:`_mro_root_namespace`.
+    following :func:`_mro_root_namespace`. Each entry holds on to its
+    class, so that the ``id()`` it is filed under cannot be handed to a
+    different class while the entry exists.
     """
     key = id(env)
     by_class = _annotated_fragment_cache.get(key)
@@ -1174,8 +1256,8 @@ def _annotated_metadata_fragments(
         by_class = {}
         _annotated_fragment_cache[key] = by_class
     cached = by_class.get(id(cls))
-    if cached is not None:
-        return cached
+    if cached is not None and cached[0] is cls:
+        return cached[1]
     fragments: set[str] = set()
     for value in _class_annotation_values(cls):
         if isinstance(value, str):
@@ -1183,7 +1265,7 @@ def _annotated_metadata_fragments(
             continue
         fragments |= _runtime_metadata_fragments(value)
     result = frozenset(fragments)
-    by_class[id(cls)] = result
+    by_class[id(cls)] = (cls, result)
     return result
 
 
