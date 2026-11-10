@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
 from docutils import nodes
 from sphinx import addnodes
@@ -24,6 +26,7 @@ from documenteer.ext.autotypes.xrefs import (
     _alias_metadata_fragments,
     _annotated_metadata_fragments,
     _candidate_names,
+    _inventory_item_uri,
     _is_mangled_target,
     _is_plain_type_alias,
     _is_project_private_runtime_object,
@@ -177,8 +180,16 @@ def test_autotypes_inherited_docstring_links(
     app: SphinxTestApp, warning
 ) -> None:
     """A bare ref inherited from an external base links via intersphinx."""
-    app.build()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        app.build()
     assert "reference target not found" not in warning.getvalue()
+
+    # Resolving through the intersphinx fallback must not index inventory
+    # items as tuples, which Sphinx 8.2+ deprecates and Sphinx 10 removes.
+    assert not [
+        str(w.message) for w in caught if "tuple interface" in str(w.message)
+    ]
 
     # ``StampFormatter.write_local_file`` has no docstring of its own, so
     # the page carries the external base class's — including its bare
@@ -1623,3 +1634,21 @@ def test_find_alias_docstring(rootdir) -> None:
         assert _find_assignment_docstring("autotypespkg._impl", "nope") is None
     finally:
         sys.path.pop(0)
+
+
+def test_inventory_item_uri_from_tuple() -> None:
+    """Sphinx 8.0 and 8.1 store inventory items as plain tuples."""
+    item = ("extpkg", "1.0", "https://extpkg.example.com/a.html#a", "-")
+    assert _inventory_item_uri(item) == "https://extpkg.example.com/a.html#a"
+
+
+def test_inventory_item_uri_from_attribute() -> None:
+    """Sphinx 8.2+ items expose ``uri``; the tuple interface is not used."""
+
+    class Item:
+        uri = "https://extpkg.example.com/a.html#a"
+
+        def __getitem__(self, index: int) -> str:
+            raise AssertionError("tuple interface used")
+
+    assert _inventory_item_uri(Item()) == "https://extpkg.example.com/a.html#a"

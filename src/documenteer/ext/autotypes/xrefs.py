@@ -67,7 +67,6 @@ from typing import (
     NamedTuple,
     TypeAliasType,
     TypeVar,
-    cast,
 )
 
 from sphinx.ext.intersphinx import InventoryAdapter
@@ -876,7 +875,7 @@ def _resolve_intersphinx(
         for name in candidates:
             if name not in entries:
                 continue
-            return make(cast("str", entries[name][2]))
+            return make(_inventory_item_uri(entries[name]))
 
     # Bare names: unique match on the terminal name across all py
     # entries of all inventories (an ``ObservationInfo`` annotation
@@ -887,6 +886,20 @@ def _resolve_intersphinx(
         if uri:
             return make(uri)
     return None
+
+
+def _inventory_item_uri(item: Any) -> str:
+    """Get the URI of an intersphinx inventory item.
+
+    Sphinx 8.2 and later store inventory items as objects with a ``uri``
+    attribute, and deprecate indexing them as tuples (removed in Sphinx 10).
+    Sphinx 8.0 and 8.1 store plain ``(project, version, uri, display name)``
+    tuples.
+    """
+    uri = getattr(item, "uri", None)
+    if uri is None:
+        uri = item[2]
+    return uri
 
 
 _intersphinx_index_cache: dict[int, dict[str, str]] = {}
@@ -911,7 +924,7 @@ def _intersphinx_terminal_index(env: BuildEnvironment) -> dict[str, str]:
                 terminal = name.rsplit(".", 1)[-1]
                 if terminal in ambiguous:
                     continue
-                uri = cast("str", entries[name][2])
+                uri = _inventory_item_uri(entries[name])
                 if terminal in index and index[terminal] != uri:
                     ambiguous.add(terminal)
                     del index[terminal]
