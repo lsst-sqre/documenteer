@@ -1664,15 +1664,19 @@ _MODERN_NAME_ADVICE = (
 _LEGACY_NAME_HINTS: tuple[tuple[tuple[str, ...], str], ...] = (
     (
         ("name",),
-        "Its [[technote.authors]] entries use the legacy single-string "
-        "author name form 'name = { name = \"Full Name\" }', which technote "
-        "0.5 removed.",
+        (
+            "Its [[technote.authors]] entries use the legacy single-string "
+            "author name form 'name = { name = \"Full Name\" }', which "
+            "technote 0.5 removed."
+        ),
     ),
     (
         ("given_names", "family_names"),
-        "Its [[technote.authors]] entries use the pre-technote-0.5 author "
-        'name keys \'name = { given_names = "...", '
-        'family_names = "..." }\', which were renamed in November 2023.',
+        (
+            "Its [[technote.authors]] entries use the pre-technote-0.5 author "
+            'name keys \'name = { given_names = "...", '
+            'family_names = "..." }\', which were renamed in November 2023.'
+        ),
     ),
 )
 

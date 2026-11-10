@@ -255,8 +255,10 @@ def test_flags_line_up_across_mixed_rows() -> None:
 
     rows = report.render(now=NOW)[1:]
     assert rows == [
-        "  pydantic  hit     fetched 2026-08-18T17:58:24Z (26 minutes ago)"
-        f"  {MOVED_FLAG}",
+        (
+            "  pydantic  hit     fetched 2026-08-18T17:58:24Z (26 minutes ago)"
+            f"  {MOVED_FLAG}"
+        ),
         "  python    served  fetch time unavailable",
     ]
 

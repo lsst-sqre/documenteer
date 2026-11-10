@@ -205,6 +205,12 @@ def _update_author_table(table: tomlkit.items.Table, author: Author) -> None:
     if author.orcid is not None:
         table["orcid"] = str(author.orcid)
 
+    # Only create the affiliations array of tables once there is an
+    # affiliation to put in it. tomlkit 0.15.2 and later serialize an empty
+    # array of tables as ``affiliations = []``, which would otherwise rewrite
+    # every author who has no affiliations.
+    if not author.affiliations:
+        return
     if "affiliations" not in table:
         table.add("affiliations", tomlkit.aot())
     affiliations_aot = cast("tomlkit.items.AoT", table["affiliations"])

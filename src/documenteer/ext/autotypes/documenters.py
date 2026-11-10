@@ -247,9 +247,7 @@ def _setup_type_alias_documenter(app: Sphinx) -> None:
         app.registry.add_documenter("type", TypeAliasDocumenter)
 
         def _register_autotype(app: Sphinx, config: Any) -> None:
-            from sphinx.ext.autodoc.directive import (  # noqa: PLC0415
-                AutodocDirective,
-            )
+            from sphinx.ext.autodoc.directive import AutodocDirective  # noqa: PLC0415
 
             app.add_directive("autotype", AutodocDirective, override=True)
 

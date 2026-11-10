@@ -630,10 +630,14 @@ def test_citations_self_on_an_acknowledged_cff_preference_accepted(
         '<meta name="citation_author" content="Sick, Jonathan">',
         '<meta name="citation_publication_date" content="2022">',
         '<meta name="citation_doi" content="10.1117/12.2629569">',
-        '<meta name="citation_fulltext_html_url" '
-        'content="https://example.lsst.io/">',
-        '<meta name="DC.identifier" '
-        'content="https://doi.org/10.1117/12.2629569">',
+        (
+            '<meta name="citation_fulltext_html_url" '
+            'content="https://example.lsst.io/">'
+        ),
+        (
+            '<meta name="DC.identifier" '
+            'content="https://doi.org/10.1117/12.2629569">'
+        ),
     ]
 
 
@@ -2076,10 +2080,14 @@ def test_set_citations_publishes_highwire_tags() -> None:
         '<meta name="citation_publication_date" content="2025/06/30">',
         '<meta name="citation_doi" content="10.71929/rubin/2570308">',
         '<meta name="citation_publisher" content="Vera C. Rubin Observatory">',
-        '<meta name="citation_fulltext_html_url" '
-        'content="https://dp0-2.lsst.io/">',
-        '<meta name="DC.identifier" '
-        'content="https://doi.org/10.71929/rubin/2570308">',
+        (
+            '<meta name="citation_fulltext_html_url" '
+            'content="https://dp0-2.lsst.io/">'
+        ),
+        (
+            '<meta name="DC.identifier" '
+            'content="https://doi.org/10.71929/rubin/2570308">'
+        ),
     ]
 
 

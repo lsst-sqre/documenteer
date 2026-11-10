@@ -4,7 +4,7 @@ configuration preset modules.
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import re
 import sys
 import tomllib
@@ -310,9 +310,9 @@ def _read_citation_date(v: Any) -> PartialDate | None:
     if v is None or isinstance(v, PartialDate):
         return v
     try:
-        if isinstance(v, datetime.datetime):
+        if isinstance(v, dt.datetime):
             return PartialDate.from_date(v.date())
-        if isinstance(v, datetime.date):
+        if isinstance(v, dt.date):
             return PartialDate.from_date(v)
         # bool is an int in Python, but `date = true` is not a year.
         if isinstance(v, int) and not isinstance(v, bool):

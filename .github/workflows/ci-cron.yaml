@@ -53,6 +53,9 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      # Let every cell finish so one broken Python x Sphinx combination
+      # doesn't hide the results of the rest of the weekly matrix.
+      fail-fast: false
       matrix:
         python-version:
           - "3.12"
@@ -63,6 +66,12 @@ jobs:
           - "8"
           - "9"
           - "dev"
+        # The Sphinx development branch requires Python 3.13 or later, so it
+        # cannot be installed on Python 3.12. Keep this in sync with
+        # _SPHINX_DEV_MIN_PYTHON in noxfile.py.
+        exclude:
+          - python-version: "3.12"
+            sphinx-version: "dev"
 
     steps:
       - uses: actions/checkout@v7
