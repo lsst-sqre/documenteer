@@ -65,6 +65,7 @@ Run nox through uv so the runner and its environments are managed for you:
    uv run --only-group=nox nox
 
 Running ``nox`` with no arguments runs a lean default set: lint, typing and the Sphinx 8 and 9 test runs on the canonical development Python (from :file:`.python-version`), and a docs build.
+The Sphinx ``dev`` sessions skip themselves on Python 3.12 because the Sphinx development branch requires Python 3.13 or later.
 The available sessions are:
 
 .. list-table:: nox sessions
