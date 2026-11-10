@@ -52,13 +52,6 @@ _SPHINX_SPECS = {
 }
 
 
-# Sphinx extensions whose releases are tied to specific Sphinx versions. They
-# are re-resolved together with the Sphinx override so that each session gets
-# a release that supports its Sphinx, as a user installing that Sphinx would.
-# Otherwise the release in uv.lock, which is resolved for the newest Sphinx,
-# is left in place and can import Sphinx internals that an older Sphinx lacks.
-_SPHINX_COUPLED_EXTENSIONS = ["sphinx-autodoc-typehints"]
-
 # The oldest Python that the Sphinx development branch supports. Sphinx drops
 # Python versions on its main branch before Documenteer does, so the "dev"
 # sessions are skipped on the Pythons that can no longer install it. Keep
@@ -72,9 +65,7 @@ def _override_sphinx(session: nox.Session, sphinx: str) -> None:
 
     nox_uv installs the project with the locked Sphinx; this then pins the
     parametrized Sphinx version on top via ``uv pip install``, reproducing the
-    per-factor ``deps`` of the old tox test/typing environments. The
-    extensions in ``_SPHINX_COUPLED_EXTENSIONS`` are resolved in the same
-    install so that they match that Sphinx version.
+    per-factor ``deps`` of the old tox test/typing environments.
 
     The session is skipped when the Sphinx development branch no longer
     supports the session's Python, because that combination cannot be
@@ -88,7 +79,7 @@ def _override_sphinx(session: nox.Session, sphinx: str) -> None:
                 f"The Sphinx development branch requires Python {minimum} "
                 f"or later; not available on Python {session.python}"
             )
-    session.install(_SPHINX_SPECS[sphinx], *_SPHINX_COUPLED_EXTENSIONS)
+    session.install(_SPHINX_SPECS[sphinx])
 
 
 @session(uv_only_groups=["lint"], uv_no_install_project=True)
