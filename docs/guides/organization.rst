@@ -128,7 +128,7 @@ However, it creates a clean and bespoke documentation experience when pulled off
 
 The theme provides an escape valve for overcrowded navigation bars by collecting excess sections into a "More" drop-down.
 This drop down can be used to collect little-used sections, or more internally-oriented sections such as development documentation.
-You can set the number of sections that appear in the navigation bar *before* the "More" button with the :ref:`sphinx.theme.header_links_before_dropdown <guide-project-header-links-before-dropdown>` configuration.
+You can set the number of sections that appear in the navigation bar *before* the "More" button with the :ref:`sphinx.theme.header_links_before_dropdown <guide-sphinx-theme-header-links-before-dropdown>` configuration.
 
 Creating section navigation and segments
 ========================================

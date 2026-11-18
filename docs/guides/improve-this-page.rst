@@ -15,8 +15,8 @@ Site-wide configuration
 
 Each item is controlled by a setting in :file:`documenteer.toml`:
 
-- :ref:`sphinx.show_github_edit_link <guide-project-show-github-edit-link>` toggles the edit link (default ``true``).
-- :ref:`sphinx.show_last_updated <guide-project-show-last-updated>` toggles the timestamp (default ``true``).
+- :ref:`sphinx.show_github_edit_link <guide-sphinx-theme-show-github-edit-link>` toggles the edit link (default ``true``).
+- :ref:`sphinx.show_last_updated <guide-sphinx-theme-show-last-updated>` toggles the timestamp (default ``true``).
 
 When both are disabled — or neither applies to a page, as on generated pages like the search page — the box is omitted entirely.
 

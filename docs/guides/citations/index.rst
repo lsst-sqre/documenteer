@@ -83,7 +83,7 @@ Site footer
 User guides show citation information in the footer of every page, by default.
 This provides a consistent signpost for users to copy citation information from, regardless of where they've entered the site.
 The footer opens with a "How to cite" heading and the site's :ref:`preferred <guide-project-citations-preferred>` citation, and it does the same on every page of the site.
-By default the footer shows the preferred entry, the ``self`` entry, and any entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`.
+By default the footer shows the preferred entry, the :ref:`self <guide-project-citations-self>` entry, and any entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`.
 Citations can also be omitted from the footer by setting ``in_footer = false`` in the ``[[project.citations]]`` array item.
 See :doc:`footer`.
 
@@ -91,7 +91,7 @@ Citation cards
 --------------
 
 The ``citation-card`` directive renders a citation as a card wherever a page asks for one.
-With no argument it renders the preferred citation:
+With no argument it renders the :ref:`preferred <guide-project-citations-preferred>` citation:
 
 .. tab-set::
 
@@ -112,7 +112,7 @@ With no argument it renders the preferred citation:
 
 .. citation-card::
 
-An argument selects another of the site's entries by its label, its BibTeX key, or its DOI:
+An argument selects another of the site's entries by its :ref:`label <guide-project-citations-label>`, its :ref:`BibTeX key <guide-project-citations-bibtex-key>`, or its :ref:`DOI <guide-project-citations-doi>`:
 
 .. tab-set::
 
@@ -139,13 +139,13 @@ See :doc:`cards`.
 Inline DOI links
 ----------------
 
-The ``doi`` role links a declared citation's DOI inline, with the resolvable ``https://doi.org/`` URL as the link text: the paper is published as :doi:`Paper`, written as ``:doi:`Paper```.
+The ``doi`` role links a declared citation's :ref:`DOI <guide-project-citations-doi>` inline, with the resolvable ``https://doi.org/`` URL as the link text: the paper is published as :doi:`Paper`, written as ``:doi:`Paper```.
 See :doc:`doi-role`.
 
 Machine-readable metadata
 -------------------------
 
-Every page of a site that marks an entry ``self`` carries that citation in its ``<head>`` as Highwire and Dublin Core meta tags, which is what Google Scholar and Zotero read.
+Every page of a site that marks an entry :ref:`self <guide-project-citations-self>` carries that citation in its ``<head>`` as Highwire and Dublin Core meta tags, which is what Google Scholar and Zotero read.
 This site marks no entry ``self``, so it emits none of those tags.
 Every page does carry a schema.org JSON-LD block describing the site, with the software under ``citation``; view the source of this page to see it.
 See :doc:`metadata`.

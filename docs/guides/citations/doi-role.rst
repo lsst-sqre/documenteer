@@ -15,7 +15,7 @@ The links on this page are rendered from :ref:`this site's own citations <guide-
 
    Link one of the site's :ref:`[[project.citations]] <guide-project-citations>` entries by its DOI.
 
-   The role's content names the entry, resolved the same way the :ref:`citation-card <guide-citation-card>` directive's argument is: by :ref:`label <guide-project-citations-label>`, by :ref:`bibtex_key <guide-project-citations-bibtex-key>`, or by DOI in any spelling, matched exactly and case-sensitively.
+   The role's content names the entry, resolved the same way the :ref:`citation-card <guide-citation-card>` directive's argument is: by :ref:`label <guide-project-citations-label>`, by :ref:`bibtex_key <guide-project-citations-bibtex-key>`, or by :ref:`DOI <guide-project-citations-doi>` in any spelling, matched exactly and case-sensitively.
    The link's text is the resolvable ``https://doi.org/`` URL, the form the Crossref and DataCite display guidelines ask for:
 
    .. tab-set::

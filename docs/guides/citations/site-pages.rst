@@ -57,7 +57,7 @@ and claim those targets:
 A release's products are published by the same observatory, in the same year, and are all datasets, so those fields are stated once in :ref:`[project.citation_defaults] <guide-project-citation-defaults>` and each entry is the four fields that tell one product from the next.
 An entry that states a field of its own — a product with a different release date, or a paper the site cites — overrides the default, and a :file:`CITATION.cff` file the entry names beats it too.
 
-The labels are the words the page needs under its ``Butler`` and ``TAP`` headings, not names that tell the site's forty entries apart — every product has a TAP entry, so ``label = "TAP"`` repeats across the site.
+The :ref:`labels <guide-project-citations-label>` are the words the page needs under its ``Butler`` and ``TAP`` headings, not names that tell the site's forty entries apart — every product has a TAP entry, so ``label = "TAP"`` repeats across the site.
 That is what labels are for; the DOI is what selects.
 
 With that configuration, :file:`products/catalogs/object.html` describes the two catalog DOIs — each located at its own fragment, ``#object-butler`` and ``#object-tap`` — instead of the release DOI.
@@ -77,7 +77,7 @@ Each is a reference alone — a schema.org type, a DOI, and a title — which ru
 That is the cost of the relation, and it is why an entry names a page by reference there and carries its full record only on the page it claims.
 
 Claiming a page changes only the machine-readable metadata; the visible surfaces are unaffected.
-The footer still shows the same citations everywhere, and ``.. citation-card::`` with no argument still renders the site's preferred citation.
+The footer still shows the same citations everywhere, and ``.. citation-card::`` with no argument still renders the site's :ref:`preferred <guide-project-citations-preferred>` citation.
 A landing page that wants to show the citation a reader arriving from doi.org came for names it by DOI, since its label is shared with every other product's TAP entry:
 
 .. code-block:: rst

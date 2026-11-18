@@ -14,7 +14,7 @@ Unresolvable citations
 
 A card whose argument no entry answers to — and a card with no argument on a site that names no preferred citation — renders nothing and emits a build warning.
 The warning restates the three ways an entry is selected and names a few of the site's entries as ``key (label)``, counting the rest rather than listing every one of them; an argument that is close to an entry's label, key, or DOI is answered with that entry instead.
-The warning about a missing default asks for ``preferred = true``, since that is the field a site sets when the citation to use is published elsewhere; ``self = true`` answers it too, for a site that really is its DOI's landing page.
+The warning about a missing default asks for :ref:`preferred = true <guide-project-citations-preferred>`, since that is the field a site sets when the citation to use is published elsewhere; :ref:`self = true <guide-project-citations-self>` answers it too, for a site that really is its DOI's landing page.
 
 A ``doi`` role whose target no entry answers to warns the same way, and renders its target as unlinked text so the sentence around it still reads in the page that ships.
 
@@ -85,7 +85,7 @@ An edit to the citations did not appear
 =======================================
 
 A :ref:`card <guide-citation-card>` and a :ref:`doi role <guide-citation-doi-role>` resolve their entry while the page is *read*, and the rendered result is cached with the page's doctree.
-So that an edit to ``[[project.citations]]`` reaches them, the guide preset publishes a digest of the resolved citations as a configuration value whose change invalidates the environment: the build after a citation edit re-reads every document, and Sphinx says why in its log (``updating environment: [config changed ('documenteer_citations_digest')]``).
+So that an edit to :ref:`[[project.citations]] <guide-project-citations>` reaches them, the guide preset publishes a digest of the resolved citations as a configuration value whose change invalidates the environment: the build after a citation edit re-reads every document, and Sphinx says why in its log (``updating environment: [config changed ('documenteer_citations_digest')]``).
 That build takes as long as a fresh one.
 A build whose citations are unchanged — including one where :file:`documenteer.toml` was rewritten cosmetically, or edited somewhere other than its citations — is still incremental and re-reads nothing.
 

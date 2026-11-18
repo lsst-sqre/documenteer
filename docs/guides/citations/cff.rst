@@ -30,7 +30,7 @@ Its :file:`CITATION.cff` holds one record, which describes the package, and no `
    url: https://documenteer.lsst.io
    license: MIT
 
-This site's entry for it names the file, a label, and a note, and marks the citation :ref:`preferred <guide-project-citations-preferred>`:
+This site's entry for it names the file, a :ref:`label <guide-project-citations-label>`, and a :ref:`note <guide-project-citations-note>`, and marks the citation :ref:`preferred <guide-project-citations-preferred>`:
 
 .. code-block:: toml
    :caption: docs/documenteer.toml

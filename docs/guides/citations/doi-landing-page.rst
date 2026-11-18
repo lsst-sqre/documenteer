@@ -46,7 +46,7 @@ What the claim does
 
 Every page of the site, not only the home page, carries the ``self`` citation in its ``<head>`` as Highwire and Dublin Core meta tags and as the subject of a schema.org JSON-LD block (see :ref:`guide-citation-metadata`).
 Highwire tags are what Google Scholar indexes and what Zotero's embedded-metadata translator reads, so a reader who lands on any page of the site gets a one-click "Save to Zotero" with the right title, creators, date, and DOI.
-The JSON-LD block is what makes a ``type = "dataset"`` release indexable by Google Dataset Search.
+The JSON-LD block is what makes a :ref:`type = "dataset" <guide-project-citations-type>` release indexable by Google Dataset Search.
 
 The visible surfaces follow.
 The :ref:`site footer <guide-footer-citations>` shows the citation on every page, so the page a reader arrives at is a landing page whether or not it carries a card:

@@ -35,7 +35,7 @@ Nor does such a site carry the per-page citation meta tags, which describe a DOI
 .. _guide-citation-development-versions:
 
 The entry states no :ref:`version <guide-project-citations-version>` and is cited with one anyway.
-A ``software`` entry the site marks :ref:`preferred <guide-project-citations-preferred>` *is* this site's own package, so it takes the site's :ref:`project.version <guide-project-version>`, and on a site published from its default branch — as `safir.lsst.io <https://safir.lsst.io>`__ is, from ``main`` — that is the development build the documentation was made from: ``Safir (version 15.2.2.dev4+g9c8d32d17).``
+A :ref:`software <guide-project-citations-type>` entry the site marks :ref:`preferred <guide-project-citations-preferred>` *is* this site's own package, so it takes the site's :ref:`project.version <guide-project-version>`, and on a site published from its default branch — as `safir.lsst.io <https://safir.lsst.io>`__ is, from ``main`` — that is the development build the documentation was made from: ``Safir (version 15.2.2.dev4+g9c8d32d17).``
 That is deliberate.
 These pages document that code and not the last tag, and naming the tag would credit a release the reader is not reading the documentation of.
 

@@ -4,7 +4,7 @@
 Machine-readable metadata
 #########################
 
-Declaring ``[[project.citations]]`` also makes the site's citation machine-readable: every page's ``<head>`` carries the ``self`` citation as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site.
+Declaring :ref:`[[project.citations]] <guide-project-citations>` also makes the site's citation machine-readable: every page's ``<head>`` carries the :ref:`self <guide-project-citations-self>` citation as Highwire and Dublin Core meta tags, along with a schema.org JSON-LD description of the site.
 Each citation's :ref:`type <guide-project-citations-type>` decides the schema.org type it is described under there, so ``type = "dataset"`` is what makes a data release indexable by Google Dataset Search.
 A citation's :ref:`version <guide-project-citations-version>` reaches the two types that define a property for one — ``softwareVersion`` on a `SoftwareSourceCode <https://schema.org/SoftwareSourceCode>`__ and ``version`` on a `Dataset <https://schema.org/Dataset>`__ — and no other node states it.
 

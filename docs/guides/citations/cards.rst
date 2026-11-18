@@ -13,7 +13,7 @@ Every card on this page is rendered from :ref:`this site's own citations <guide-
 .. directive:: .. citation-card:: [selector]
 
    Render one of the site's :ref:`[[project.citations]] <guide-project-citations>` entries as a card.
-   The optional argument selects the entry by its label, its BibTeX key, or its DOI; with no argument the card renders the site's preferred citation.
+   The optional argument selects the entry by its :ref:`label <guide-project-citations-label>`, its :ref:`BibTeX key <guide-project-citations-bibtex-key>`, or its :ref:`DOI <guide-project-citations-doi>`; with no argument the card renders the site's preferred citation.
 
    The card shows the citation's :ref:`label <guide-project-citations-label>`, the full bibliographic citation with the DOI as a ``https://doi.org/`` hyperlink, and the citation's :ref:`note <guide-project-citations-note>`.
    An entry that sets no note renders no note, and an entry with no label renders no label.
@@ -66,7 +66,7 @@ Every card on this page is rendered from :ref:`this site's own citations <guide-
             :::{citation-card} Paper
             :::
 
-   An entry answers to three names, matched exactly and case-sensitively: its :ref:`label <guide-project-citations-label>`, its :ref:`bibtex_key <guide-project-citations-bibtex-key>`, and its DOI.
+   An entry answers to three names, matched exactly and case-sensitively: its :ref:`label <guide-project-citations-label>`, its :ref:`bibtex_key <guide-project-citations-bibtex-key>`, and its :ref:`DOI <guide-project-citations-doi>`.
    Each of these renders the same card of this site's paper:
 
    .. tab-set::
