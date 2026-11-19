@@ -7,6 +7,29 @@ github_url = "https://github.com/lsst-sqre/documenteer"
 [project.python]
 package = "documenteer"
 
+# This site's own citations. Every citation card, inline DOI link, and
+# footer citation in docs/guides/citations/ is rendered from these entries.
+[[project.citations]]
+cff = "../CITATION.cff"
+label = "Software"
+preferred = true
+note = "Cite the version of Documenteer you used; this site documents the version shown."
+
+[[project.citations]]
+doi = "10.26624/XWGH8202"
+label = "Paper"
+type = "article"
+bibtex_key = "2025ASPC..541..151S"
+in_footer = false
+title = "The Documentation Developer Experience: Documentation Engineering at the Vera C. Rubin Observatory"
+publisher = "Astronomical Society of the Pacific"
+date = 2025
+authors = [
+    { family_name = "Sick", given_name = "Jonathan", orcid = "https://orcid.org/0000-0003-3001-676X", affiliation = "Vera C. Rubin Observatory" },
+    { family_name = "Economou", given_name = "Frossie", affiliation = "Vera C. Rubin Observatory" },
+]
+note = "Cite this paper when describing how Rubin Observatory builds its documentation."
+
 [sphinx]
 extensions = [
   "sphinx_click.ext",
@@ -65,6 +88,10 @@ ignore = [
 "pipelines/install.rst" = "guides/index.rst"
 "pipelines/package-docs-cli.rst" = "guides/index.rst"
 "pipelines/stack-docs-cli.rst" = "guides/index.rst"
+# The user-guide citations page grew into a section with an overview, recipes,
+# and a page per display surface. The old single page is linked from released
+# changelogs, so its path keeps resolving to the section's overview.
+"guides/citations.rst" = "guides/citations/index.rst"
 # Technote lint rules gained a rule-set prefix: the Rubin-specific rules moved
 # from TN to R codes, and their landing pages moved with them. Links to the old
 # pages are in the wild (a lint finding's "Learn more" footer prints the page

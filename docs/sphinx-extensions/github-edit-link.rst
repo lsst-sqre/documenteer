@@ -13,7 +13,7 @@ Individual pages can hide the box with the :ref:`hide_content_footer metadata fi
 .. tip::
 
    If you use Documenteer's user-guide configuration preset, this extension is already enabled and the link is shown by default.
-   Toggle it with the :ref:`show_github_edit_link <guide-project-show-github-edit-link>` setting in :file:`documenteer.toml`; you don't need to edit :file:`conf.py`.
+   Toggle it with the :ref:`show_github_edit_link <guide-sphinx-theme-show-github-edit-link>` setting in :file:`documenteer.toml`; you don't need to edit :file:`conf.py`.
 
 How the edit URL is built
 =========================

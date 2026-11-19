@@ -1,3 +1,5 @@
+.. _guide-toml-reference:
+
 ##########################
 documenteer.toml reference
 ##########################
@@ -5,6 +7,8 @@ documenteer.toml reference
 Rubin's Sphinx user guide configuration with |documenteer.conf.guide| uses a :file:`documenteer.toml` file, located next to the Sphinx :file:`conf.py` file to configure metadata about the project.
 This page describes the schema for this :file:`documenteer.toml` file.
 For a step-by-step guide, see :doc:`configuration`.
+
+.. _guide-project:
 
 [project] table
 ===============
@@ -42,6 +46,8 @@ The root URL of the documentation project, used to set the `canonical URL link r
    [project]
    base_url = "https://documenteer.lsst.io"
 
+.. _guide-project-copyright:
+
 copyright
 ---------
 
@@ -78,7 +84,7 @@ github_default_branch
 
 The default branch on GitHub.
 Default is ``main``.
-Used in conjunction with the "Edit on GitHub" link, see :ref:`sphinx.show_github_edit_link <guide-project-show-github-edit-link>`.
+Used in conjunction with the "Edit on GitHub" link, see :ref:`sphinx.show_github_edit_link <guide-sphinx-theme-show-github-edit-link>`.
 
 .. _guide-project-version:
 
@@ -334,8 +340,8 @@ Both halves of the claim are checked — a docname the project does not contain,
 Those warnings carry the subtype ``documenteer.citation_page``, so a site that claims a page, or an anchor, it has not written yet can keep them from failing a warnings-as-errors (``-W``) build:
 
 .. code-block:: python
+   :caption: conf.py
 
-   # conf.py
    suppress_warnings = ["documenteer.citation_page"]
 
 The page's URL comes from :ref:`project.base_url <guide-project-base-url>`, with the entry's fragment appended when it names one.
@@ -355,7 +361,7 @@ Footer citations appear in the order the entries are written.
 
 It also governs the site-wide JSON-LD block, but only for the *additional* entries: one that is neither the :ref:`preferred <guide-project-citations-preferred>` citation nor the owner of a :ref:`page <guide-project-citations-page>` is described there only when the footer shows it, so a work no page of the site mentions is not carried in the metadata of every page of it.
 The preferred citation is described there either way, because it is by definition the citation the site asks readers to use, which is what the block states.
-Writing ``in_footer = false`` on it therefore silences a visual surface and leaves the metadata alone — which is what lets a site with hundreds of API pages show its citation on a :ref:`card <guide-citation-card>` and nowhere else (see :ref:`guide-citation-api-heavy`).
+Writing ``in_footer = false`` on it therefore silences a visual surface and leaves the metadata alone — which is what lets a site with hundreds of API pages show its citation on a :ref:`card <guide-citation-card>` and nowhere else.
 An entry that sets ``page`` is a part of the site's work rather than a work it cites, and is named in the site-wide block either way.
 
 .. _guide-project-citations-note:
@@ -490,8 +496,8 @@ A :ref:`software <guide-project-citations-type>` entry located by a :ref:`url <g
 A site with no date to give suppresses it the way any other Sphinx warning is suppressed (see :ref:`guide-undated-citations`):
 
 .. code-block:: python
+   :caption: conf.py
 
-   # conf.py
    suppress_warnings = ["documenteer.citation_date"]
 
 .. _guide-project-citations-version:
@@ -858,6 +864,8 @@ With this, many metadata values are automatically detected — look for |py-auto
 
    :doc:`pyproject-configuration`
 
+.. _guide-project-python-package:
+
 package
 -------
 
@@ -874,6 +882,8 @@ Setting this field actives automatic metadata discovery for Python projects.
    [project.python]
    package = "documenteer"
 
+.. _guide-project-python-documentation-url-key:
+
 documentation\_url\_key
 -----------------------
 
@@ -881,6 +891,8 @@ documentation\_url\_key
 
 By default the :ref:`guide-project-base-url` is detected from the ``Homepage`` field in the ``[project.urls]`` table of :file:`pyproject.toml`.
 If your documentation's URL is associated with a different field label, set that with ``documentation_url_key``.
+
+.. _guide-project-python-github-url-key:
 
 github\_url\_key
 ----------------
@@ -890,12 +902,16 @@ github\_url\_key
 By default the :ref:`guide-project-github-url` is detected from the ``Source`` field in the ``[project.urls]`` table of :file:`pyproject.toml`.
 If your GitHub repository's URL is associated with a different field label, set that with ``github_url_key``.
 
+.. _guide-sphinx:
+
 [sphinx]
 ========
 
 |optional|
 
 This ``[sphinx]`` table allows you to set a number of Sphinx configurations that you would normally set through the :file:`conf.py` file.
+
+.. _guide-sphinx-disable-primary-sidebars:
 
 disable_primary_sidebars
 ------------------------
@@ -920,6 +936,8 @@ The default is ``["index"]`` to remove the sidebar from the homepage.
    This configuration is for the **primary** sidebar, on the left side, containing side or section-level navigation links.
    To remove the page-level contents sidebar, on the right side, add ``:html_theme.sidebar_secondary.remove:`` to the *page's* file metadata.
 
+.. _guide-sphinx-exclude:
+
 exclude
 -------
 
@@ -928,6 +946,8 @@ exclude
 A list of file paths, relative to :file:`conf.py`, to exclude from the Sphinx build.
 This configuration is often used to prevent file unrelated to the documentation from being accidentally included in the site build.
 |documenteer.conf.guide| includes common files and directories, so you may not need to modify this configuration in standard situations.
+
+.. _guide-sphinx-extensions:
 
 extensions
 ----------
@@ -938,6 +958,8 @@ A list of Sphinx extensions to append to the extensions included in the Document
 Duplicate extensions are ignored.
 
 Remember that additional packages may need to be added to your project's Python dependencies (such as in a ``requirements.txt`` or ``pyproject.toml`` file).
+
+.. _guide-sphinx-nitpicky:
 
 nitpicky
 --------
@@ -953,6 +975,8 @@ The default is ``false``.
    nitpicky = true
 
 See ``nitpick_ignore`` and ``nitpick_ignore_regex`` for ways to suppress unavoidable errors.
+
+.. _guide-sphinx-nitpick-ignore:
 
 nitpick_ignore
 --------------
@@ -975,6 +999,8 @@ Each item is a tuple of two items:
    ]
 
 This configuration extends the Sphinx ``nitpick_ignore`` configuration.
+
+.. _guide-sphinx-nitpick-ignore-regex:
 
 nitpick_ignore_regex
 --------------------
@@ -1002,7 +1028,7 @@ Each item is a tuple of two items:
 
 This configuration extends the Sphinx ``nitpick_ignore_regex`` configuration.
 
-.. _guide-project-rst-epilog-file:
+.. _guide-sphinx-rst-epilog-file:
 
 rst_epilog_file
 ---------------
@@ -1028,6 +1054,8 @@ If set, the file is also included in the Sphinx source ignore list to prevent it
    .. |optional| replace:: :bdg-secondary-line:`Optional`
 
 See :doc:`rst-epilog`.
+
+.. _guide-sphinx-python-api-dir:
 
 python_api_dir
 --------------
@@ -1061,6 +1089,8 @@ A table of paths to redirect to other paths. Use this setting to redirect old pa
    "old/path" = "new/path"
    "old/path2" = "new/path2"
 
+.. _guide-sphinx-theme:
+
 [sphinx.theme]
 ==============
 
@@ -1068,7 +1098,7 @@ A table of paths to redirect to other paths. Use this setting to redirect old pa
 
 Configurations related to the Sphinx HTML theme.
 
-.. _guide-project-header-links-before-dropdown:
+.. _guide-sphinx-theme-header-links-before-dropdown:
 
 header_links_before_dropdown
 ----------------------------
@@ -1080,7 +1110,7 @@ The default is 5.
 
 If the section titles are long you may need to reduce this number.
 
-.. _guide-project-show-github-edit-link:
+.. _guide-sphinx-theme-show-github-edit-link:
 
 show_github_edit_link
 ---------------------
@@ -1105,7 +1135,7 @@ When the documentation isn't being built from a Git checkout (an sdist, or a Doc
 Such a build does still draw a ``git.subprocess_error`` warning from sphinx-last-updated-by-git, so if you build with ``-W`` see :doc:`/sphinx-extensions/github-edit-link` for the warning to suppress.
 To keep the button in that situation, set the path yourself with ``html_context["doc_path"]`` in :file:`conf.py`; see :doc:`/sphinx-extensions/github-edit-link`.
 
-.. _guide-project-show-last-updated:
+.. _guide-sphinx-theme-show-last-updated:
 
 show_last_updated
 -----------------
@@ -1146,6 +1176,8 @@ Set this to ``false`` to hide the timestamp:
    A shallow clone (the default) only fetches the most recent commit, so every page would otherwise report the same, incorrect date.
    To avoid publishing misleading data, Documenteer detects a shallow clone, **omits the "Last updated" timestamp from every page**, and emits a single build warning telling you to set ``fetch-depth: 0``.
 
+.. _guide-sphinx-intersphinx:
+
 [sphinx.intersphinx]
 ====================
 
@@ -1172,6 +1204,8 @@ The values are URLs to the root of Sphinx documentation projects.
    python = "https://docs.python.org/3/"
 
 See the Intersphinx_ documentation for details on linking to other Sphinx projects.
+
+.. _guide-sphinx-intersphinx-cache:
 
 [sphinx.intersphinx.cache]
 ==========================
@@ -1337,11 +1371,13 @@ The inventory summary block stays at ``INFO`` either way, so opting in never tur
 The escalated notice carries the warning subtype ``documenteer.intersphinx_permanent_redirect``, so you can silence a move you already know about — one you can't act on yet, for instance — while keeping the warning for every other inventory:
 
 .. code-block:: python
+   :caption: conf.py
 
-   # conf.py
    suppress_warnings = ["documenteer.intersphinx_permanent_redirect"]
 
 Note that Ook reports the redirect chain it observed at *its* last successful fetch of the inventory, not at your build time.
+
+.. _guide-sphinx-linkcheck:
 
 [sphinx.linkcheck]
 ==================
@@ -1361,6 +1397,8 @@ If instead the service is unreachable or the polling budget is exhausted, the bu
 An outage therefore costs the build time — every link is visited from the machine running the build, with none of the service's caching or retry buffering — rather than costing it link checking, and broken links the in-process check finds fail the build as they always do.
 Set :ref:`strict <guide-sphinx-linkcheck-strict>` to ``true`` to fail the build on the service problem itself instead.
 Links the service reports as broken always fail the build, regardless of the ``strict`` setting.
+
+.. _guide-sphinx-linkcheck-ignore:
 
 ignore
 ------

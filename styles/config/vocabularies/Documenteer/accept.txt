@@ -21,6 +21,7 @@ DOIs?
 ORCIDs?
 ROR
 DataCite
+Crossref
 Highwire
 Redoc
 arXiv
@@ -38,6 +39,7 @@ pydata
 MyST
 [Dd]ocstrings?
 [Ii]ntersphinx
+doctrees?
 autodoc
 automodapi
 docname
@@ -75,6 +77,7 @@ Dependabot
 biblatex
 bibkeys?
 bibitem
+bibcodes?
 pybtex
 validator
 upstreamed

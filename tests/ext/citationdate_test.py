@@ -85,12 +85,20 @@ def _undated(
     url: str | None = None,
     cff: str | None = None,
     cff_preferred: bool = True,
+    cff_cited_preferred: bool | None = None,
     bibtex_key: str | None = None,
 ) -> GuideCitation:
     """Compose an undated citation stating only the fields that decide whether
     it is reported: what kind of work it is, whether it is located by a DOI or
     by a URL, and which record of a CITATION.cff file it reads.
+
+    ``cff_cited_preferred`` is the record the file actually supplied. Left
+    unset, it follows ``cff_preferred`` — the file had the record the entry
+    asked for — which is the common case; a test about a file that declares
+    no preferred citation states it explicitly.
     """
+    if cff_cited_preferred is None:
+        cff_cited_preferred = bool(cff) and cff_preferred
     return GuideCitation(
         citation=Citation(
             title=f"Undated {label}",
@@ -102,6 +110,7 @@ def _undated(
         label=label,
         cff=cff,
         cff_preferred=cff_preferred,
+        cff_cited_preferred=cff_cited_preferred,
         bibtex_key=bibtex_key,
     )
 
@@ -346,6 +355,35 @@ def test_cff_preferred_software_is_reported(app: SphinxTestApp) -> None:
 @pytest.mark.sphinx(
     "html",
     testroot="citationdate",
+    srcdir="citationdate-no-preferred-citation",
+    confoverrides={
+        "html_context": _context(
+            _undated(
+                "Software",
+                citation_type=CitationType.software,
+                url=REPOSITORY_URL,
+                cff=CFF_PATH,
+                cff_cited_preferred=False,
+            )
+        )
+    },
+)
+def test_cff_without_preferred_citation_is_exempt(app: SphinxTestApp) -> None:
+    """An entry that leaves ``cff_preferred`` at its default against a file
+    that declares no ``preferred-citation`` read the file's top-level record,
+    so the software it describes is the repository itself and it is exempt.
+
+    The exemption follows the record the file supplied, not the flag the
+    entry wrote: a package whose CITATION.cff describes only the package has
+    nothing else to hand over, and reporting it would tell its author to date
+    a release that never happened.
+    """
+    assert not [line for line in _warnings(app) if WARNING_NAME in line]
+
+
+@pytest.mark.sphinx(
+    "html",
+    testroot="citationdate",
     srcdir="citationdate-exemplar",
     confoverrides={
         "html_context": _context(
@@ -366,6 +404,7 @@ def test_cff_preferred_software_is_reported(app: SphinxTestApp) -> None:
                 ),
                 label="Paper",
                 cff=CFF_PATH,
+                cff_cited_preferred=True,
             ),
         )
     },

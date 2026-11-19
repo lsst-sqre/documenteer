@@ -33,7 +33,7 @@ With JavaScript disabled the element keeps its ``YYYY-MM-DD`` UTC fallback text.
 .. tip::
 
    If you use Documenteer's user-guide configuration preset, this extension is already enabled and the timestamp is shown by default.
-   Toggle it with the :ref:`show_last_updated <guide-project-show-last-updated>` setting in :file:`documenteer.toml`; you don't need to edit :file:`conf.py`.
+   Toggle it with the :ref:`show_last_updated <guide-sphinx-theme-show-last-updated>` setting in :file:`documenteer.toml`; you don't need to edit :file:`conf.py`.
 
 How the date is computed
 ========================
@@ -118,7 +118,7 @@ documenteer\_last\_modified\_enabled
 
 Whether to compute and show the "Last updated" timestamp.
 A boolean that defaults to `True`.
-In the user-guide preset this is set automatically from the :ref:`show_last_updated <guide-project-show-last-updated>` field in :file:`documenteer.toml`.
+In the user-guide preset this is set automatically from the :ref:`show_last_updated <guide-sphinx-theme-show-last-updated>` field in :file:`documenteer.toml`.
 
 .. _documenteer-last-modified-date-format-conf:
 
