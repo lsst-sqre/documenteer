@@ -63,7 +63,6 @@ The JSON-LD block is *about* the ``self`` entry, and describes every other entry
 
 So :ref:`in_footer <guide-project-citations-in-footer>` controls a visible surface and, for the additional entries only, whether the metadata includes them.
 A site that sets ``in_footer = false`` on its preferred citation keeps the whole block.
-See :ref:`guide-citation-api-heavy`.
 
 A site that marks no entry ``self`` isn't any DOI's landing page, so it emits **none** of the meta tags above on any page.
 That includes the title and authors, since stating them would tell a harvester that this site is the full text of a work published somewhere else.

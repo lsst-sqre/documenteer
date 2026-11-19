@@ -71,7 +71,6 @@ These recipes cover common scenarios for configuring citations:
    site-pages
    cff
    url-only
-   api-heavy
 
 Additionally, the :ref:`guide-project-citations` schema reference covers every :file:`documenteer.toml` field in detail.
 

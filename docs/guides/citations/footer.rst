@@ -23,5 +23,3 @@ Each entry also carries the same collapsed ``BibTeX`` disclosure and ``Copy BibT
 A guide that declares no citations, or whose entries all set ``in_footer = false``, renders no citations block at all.
 The script behind the copy buttons loads only on pages that have a button: every page of a site whose footer shows a citation, and otherwise only the pages that carry a :ref:`card <guide-citation-card>`.
 A guide that displays no citation loads nothing.
-A site whose pages are mostly generated API reference may prefer no footer citation at all.
-See :doc:`api-heavy`.
