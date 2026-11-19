@@ -5,29 +5,30 @@ Citations
 #########
 
 You can include citation information in your documentation project to help readers reference your work in publications.
-A site can carry several citations: the DOI the site itself is published under, a paper that describes the work, and the software the site documents, and so on.
-Citations are defined in :file:`documenteer.toml` and Documenteer displays those citations in four places:
+A site can carry several citations, such as the DOI the site itself is published under, a paper that describes the work, and the software the site documents.
+Citations are defined in :file:`documenteer.toml`, and Documenteer displays them in four places:
 
 - As :ref:`machine-readable metadata <guide-citation-metadata>` in every page's HTML ``<head>``, necessary for making a site a DOI's landing page
 - In the :ref:`site footer <guide-footer-citations>`, so a reader finds the citation from any page across the site
 - In :ref:`citation cards <guide-citation-card>` placed in your content, useful for DOI landing pages or pages collecting citation guidelines
 - As :ref:`inline DOI links <guide-citation-doi-role>`, wherever a sentence, a bullet, or a table cell refers to one of the works
 
-This page shows the basics: how to declare a citation, and how to display them.
+This page shows the basics: how to declare citations and how to display them.
 The recipes that follow cover specific kinds of site, and the display pages go into each surface in depth.
 
 Declaring a citation
 ====================
 
 A site declares its citations in the :ref:`[[project.citations]] <guide-project-citations>` array of :file:`documenteer.toml`, one entry per work.
-An entry is made of three kinds of field:
+An entry is made of three kinds of fields:
 
 - **Bibliographic fields** that compose the citation: :ref:`title <guide-project-citations-title>`, :ref:`authors <guide-project-citations-authors>`, :ref:`publisher <guide-project-citations-publisher>`, :ref:`date <guide-project-citations-date>`, :ref:`type <guide-project-citations-type>`, and :ref:`version <guide-project-citations-version>`.
   An entry can state them itself, or read them from a repository's :file:`CITATION.cff` file with :ref:`cff <guide-project-citations-cff>`.
 - **A locator**, either a :ref:`doi <guide-project-citations-doi>` or a :ref:`url <guide-project-citations-url>`.
 - **Presentation fields** that say how the site uses the entry: :ref:`label <guide-project-citations-label>`, :ref:`note <guide-project-citations-note>`, :ref:`self <guide-project-citations-self>`, :ref:`preferred <guide-project-citations-preferred>`, :ref:`in_footer <guide-project-citations-in-footer>`, :ref:`page <guide-project-citations-page>`, and :ref:`bibtex_key <guide-project-citations-bibtex-key>`.
 
-The :ref:`field reference <guide-project-citations>` describes every field; the recipes below show which fields each kind of site needs.
+The :ref:`field reference <guide-project-citations>` describes every field.
+The recipes below show which fields each kind of site needs.
 
 Example documenteer.toml ``[[project.citations]]``
 --------------------------------------------------
@@ -80,11 +81,11 @@ Displaying citations
 Site footer
 -----------
 
-User guides show citation information in the footer of every page, by default.
-This provides a consistent signpost for users to copy citation information from, regardless of where they've entered the site.
+By default, user guides show citation information in the footer of every page.
+This gives readers a consistent place to copy citation information from, regardless of where they entered the site.
 The footer opens with a "How to cite" heading and the site's :ref:`preferred <guide-project-citations-preferred>` citation, and it does the same on every page of the site.
 By default the footer shows the preferred entry, the :ref:`self <guide-project-citations-self>` entry, and any entry that sets :ref:`in_footer = true <guide-project-citations-in-footer>`.
-Citations can also be omitted from the footer by setting ``in_footer = false`` in the ``[[project.citations]]`` array item.
+To omit a citation from the footer, set ``in_footer = false`` on its ``[[project.citations]]`` entry.
 See :doc:`footer`.
 
 Citation cards
@@ -147,7 +148,8 @@ Machine-readable metadata
 
 Every page of a site that marks an entry :ref:`self <guide-project-citations-self>` carries that citation in its ``<head>`` as Highwire and Dublin Core meta tags, which is what Google Scholar and Zotero read.
 This site marks no entry ``self``, so it emits none of those tags.
-Every page does carry a schema.org JSON-LD block describing the site, with the software under ``citation``; view the source of this page to see it.
+Every page does carry a schema.org JSON-LD block describing the site, with the software under ``citation``.
+View the source of this page to see it.
 See :doc:`metadata`.
 
 More information about displaying citations

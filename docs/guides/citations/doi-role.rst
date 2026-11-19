@@ -6,9 +6,9 @@
 Inline DOI links
 ################
 
-A card is a block, so a page that only needs to *mention* a work — the first bullet of an access list, a cell in a table of data products, a sentence pointing at the paper — cannot use one.
+A card is a block, so a page that only needs to *mention* a work — the first bullet of an access list, a cell in a table of data products, a sentence pointing at the paper — can't use one.
 The ``doi`` role links a declared citation's DOI inline instead, reading the same :ref:`[[project.citations]] <guide-project-citations>` entries the card and the footer do.
-A page that would otherwise write ``https://doi.org/10.26624/XWGH8202`` into a sentence by hand, or into a substitution that holds it, names the entry and gets whatever the configuration declares.
+Instead of writing ``https://doi.org/10.26624/XWGH8202`` into a sentence by hand, or into a substitution, a page names the entry and gets the DOI that the configuration declares.
 The links on this page are rendered from :ref:`this site's own citations <guide-citations>`.
 
 .. role:: doi
@@ -60,7 +60,7 @@ The links on this page are rendered from :ref:`this site's own citations <guide-
 
    That sentence renders as: For the background see :doi:`the ADASS paper <Paper>`.
 
-   It is also what lets a sentence display one word over an entry it selects unambiguously, which is how a site whose products all need the word "TAP" writes them:
+   Custom text also lets a sentence show a short word while selecting the entry unambiguously, which is how a site whose products all need the word "TAP" writes them:
 
    .. code-block:: rst
 
@@ -69,7 +69,7 @@ The links on this page are rendered from :ref:`this site's own citations <guide-
    **Where it works**
 
    The role renders one external hyperlink and nothing else, so it composes wherever inline markup does: a sentence, a list item, a table cell, and the body of a ``replace`` substitution definition.
-   A data product's "Access" list is the case it was added for:
+   A data product's "Access" list is the case the role was designed for:
 
    .. code-block:: rst
 
@@ -83,13 +83,15 @@ The links on this page are rendered from :ref:`this site's own citations <guide-
 
       .. |dp2_paper| replace:: :doi:`the DP2 paper <Paper>`
 
-   There is no default entry: the role always names one.
-   A role appears mid-sentence, where an implicit subject would be a guess at which of the site's works the sentence is about.
+   There's no default entry: the role always names one.
+   A role appears mid-sentence, where a default would have to guess which of the site's works the sentence is about.
 
 The role is a link, and only a link — no note, no BibTeX entry, no author-year text.
-A page that *is* a work's landing page should therefore carry a :ref:`card <guide-citation-card>` for it and use the role only for short references elsewhere, since the card is what shows a reader the full citation and the entry they came for.
+A page that *is* a work's landing page should therefore carry a :ref:`card <guide-citation-card>` for it and use the role only for short references elsewhere, since the card shows a reader the full citation and the BibTeX entry they came for.
 
-An entry located by a :ref:`url <guide-project-citations-url>` rather than a DOI, such as this site's own Software entry, cannot be linked with the role, because the link's text would not be a DOI; the build warns (see :ref:`guide-unresolvable-citations`).
+An entry located by a :ref:`url <guide-project-citations-url>` rather than a DOI, such as this site's own Software entry, can't be linked with the role, because the link's text wouldn't be a DOI.
+The build warns instead (see :ref:`guide-unresolvable-citations`).
 Link such a work with ordinary hyperlink syntax, or show it with a card.
 
-Citing works that are *not* among the site's own declared citations — a bibliography of the literature a guide discusses — is not what this role is for, and is not yet supported.
+The role isn't for citing works that are *not* among the site's declared citations, such as a bibliography of the literature a guide discusses.
+That isn't supported yet.

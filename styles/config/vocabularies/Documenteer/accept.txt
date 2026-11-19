@@ -21,6 +21,7 @@ DOIs?
 ORCIDs?
 ROR
 DataCite
+Crossref
 Highwire
 Redoc
 arXiv
@@ -76,6 +77,7 @@ Dependabot
 biblatex
 bibkeys?
 bibitem
+bibcodes?
 pybtex
 validator
 upstreamed

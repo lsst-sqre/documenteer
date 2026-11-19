@@ -340,8 +340,8 @@ Both halves of the claim are checked — a docname the project does not contain,
 Those warnings carry the subtype ``documenteer.citation_page``, so a site that claims a page, or an anchor, it has not written yet can keep them from failing a warnings-as-errors (``-W``) build:
 
 .. code-block:: python
+   :caption: conf.py
 
-   # conf.py
    suppress_warnings = ["documenteer.citation_page"]
 
 The page's URL comes from :ref:`project.base_url <guide-project-base-url>`, with the entry's fragment appended when it names one.
@@ -496,8 +496,8 @@ A :ref:`software <guide-project-citations-type>` entry located by a :ref:`url <g
 A site with no date to give suppresses it the way any other Sphinx warning is suppressed (see :ref:`guide-undated-citations`):
 
 .. code-block:: python
+   :caption: conf.py
 
-   # conf.py
    suppress_warnings = ["documenteer.citation_date"]
 
 .. _guide-project-citations-version:
@@ -1371,8 +1371,8 @@ The inventory summary block stays at ``INFO`` either way, so opting in never tur
 The escalated notice carries the warning subtype ``documenteer.intersphinx_permanent_redirect``, so you can silence a move you already know about — one you can't act on yet, for instance — while keeping the warning for every other inventory:
 
 .. code-block:: python
+   :caption: conf.py
 
-   # conf.py
    suppress_warnings = ["documenteer.intersphinx_permanent_redirect"]
 
 Note that Ook reports the redirect chain it observed at *its* last successful fetch of the inventory, not at your build time.
